@@ -1,9 +1,18 @@
+import { addToast } from "@heroui/react";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 
 import * as walletService from "@/services/walletService";
 import { I18nProvider } from "@i18n/I18nProvider";
 
 import { SendTab } from "../SendTab";
+
+jest.mock("@heroui/react", () => {
+  const actual = jest.requireActual("@heroui/react");
+  return {
+    ...actual,
+    addToast: jest.fn(),
+  };
+});
 
 function renderSendTab(props = {}) {
   return render(
@@ -244,6 +253,48 @@ describe("SendTab Component", () => {
 
       await waitFor(() => {
         expect(screen.getByText("payments.send.payLightningButton")).toBeInTheDocument();
+      });
+    });
+
+    it("shows translated error when invoice was already paid", async () => {
+      jest.spyOn(walletService, "payInvoiceFromService").mockRejectedValue(
+        Object.assign(new Error("This invoice has already been paid"), {
+          code: "invoice_already_paid",
+        }),
+      );
+
+      renderSendTab();
+      const invoiceInput = screen.getByLabelText("payments.send.payInvoiceLabel");
+      typeInvoice(invoiceInput, "lnbc1000n1pj9h8uqpp5test");
+      fireEvent.click(screen.getByText("payments.send.payLightningButton"));
+
+      await waitFor(() => {
+        expect(addToast).toHaveBeenCalledWith(expect.objectContaining({
+          title: "payments.send.paymentError",
+          description: "payments.send.errors.invoiceAlreadyPaid",
+          color: "danger",
+        }));
+      });
+
+      expect(screen.queryByText("payments.send.paymentDone")).not.toBeInTheDocument();
+      expect(invoiceInput).toHaveValue("lnbc1000n1pj9h8uqpp5test");
+    });
+
+    it("uses backend message as fallback for unknown errors", async () => {
+      jest.spyOn(walletService, "payInvoiceFromService").mockRejectedValue(
+        Object.assign(new Error("phoenixd custom failure"), {
+          code: "unknown",
+        }),
+      );
+
+      renderSendTab();
+      typeInvoice(screen.getByLabelText("payments.send.payInvoiceLabel"), "lnbc1000n1pj9h8uqpp5test");
+      fireEvent.click(screen.getByText("payments.send.payLightningButton"));
+
+      await waitFor(() => {
+        expect(addToast).toHaveBeenCalledWith(expect.objectContaining({
+          description: "phoenixd custom failure",
+        }));
       });
     });
   });

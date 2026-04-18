@@ -9,6 +9,14 @@ import { payInvoiceFromService } from "@/services/walletService";
 
 import { PaymentSentModal } from "./PaymentSentModal";
 
+const PAYMENT_ERROR_TRANSLATIONS = {
+  invoice_already_paid: "payments.send.errors.invoiceAlreadyPaid",
+  invalid_invoice: "payments.send.errors.invalidInvoice",
+  insufficient_funds: "payments.send.errors.insufficientFunds",
+  node_unavailable: "payments.send.errors.nodeUnavailable",
+  invalid_payment_response: "payments.send.errors.unknown",
+};
+
 export function SendTab({ fetchInfo, fetchTransactions }) {
   const t = useTranslations("wallet");
   const [payInvoice, setPayInvoice] = useState("");
@@ -36,6 +44,20 @@ export function SendTab({ fetchInfo, fetchTransactions }) {
     return { valid: true };
   };
 
+  const getPaymentErrorDescription = (error) => {
+    const translationKey = PAYMENT_ERROR_TRANSLATIONS[error?.code];
+
+    if (translationKey) {
+      return t(translationKey);
+    }
+
+    if (error?.message) {
+      return error.message;
+    }
+
+    return t("payments.send.errors.unknown");
+  };
+
   const handlePayInvoice = async () => {
     const validation = validateBolt11(payInvoice);
 
@@ -61,8 +83,8 @@ export function SendTab({ fetchInfo, fetchTransactions }) {
     } catch (err) {
       console.error(err);
       addToast({
-        title: "Error",
-        description: t("payments.send.paymentErrorDescription"),
+        title: t("payments.send.paymentError"),
+        description: getPaymentErrorDescription(err),
         variant: "solid",
         color: "danger",
       });

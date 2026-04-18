@@ -879,6 +879,13 @@ const storeEs = {
         paySuccessDescription: "El pago Lightning se ha enviado correctamente",
         paymentError: "Error al pagar el invoice",
         paymentErrorDescription: "No se pudo procesar el pago",
+        errors: {
+          invoiceAlreadyPaid: "Esta factura ya fue pagada",
+          invalidInvoice: "La factura Lightning no es válida",
+          insufficientFunds: "No hay fondos suficientes para realizar este pago",
+          nodeUnavailable: "El nodo Lightning no está disponible en este momento",
+          unknown: "No se pudo procesar el pago",
+        },
         closeButton: "Cerrar",
       },
       history: {
