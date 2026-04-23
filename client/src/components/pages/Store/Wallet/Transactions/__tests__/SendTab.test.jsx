@@ -280,6 +280,46 @@ describe("SendTab Component", () => {
       expect(invoiceInput).toHaveValue("lnbc1000n1pj9h8uqpp5test");
     });
 
+    it("shows translated error when invoice has expired", async () => {
+      jest.spyOn(walletService, "payInvoiceFromService").mockRejectedValue(
+        Object.assign(new Error("This invoice has expired"), {
+          code: "invoice_expired",
+        }),
+      );
+
+      renderSendTab();
+      typeInvoice(screen.getByLabelText("payments.send.payInvoiceLabel"), "lnbc1000n1pj9h8uqpp5test");
+      fireEvent.click(screen.getByText("payments.send.payLightningButton"));
+
+      await waitFor(() => {
+        expect(addToast).toHaveBeenCalledWith(expect.objectContaining({
+          title: "payments.send.paymentError",
+          description: "payments.send.errors.invoiceExpired",
+          color: "danger",
+        }));
+      });
+    });
+
+    it("shows translated error when recipient node rejects the payment", async () => {
+      jest.spyOn(walletService, "payInvoiceFromService").mockRejectedValue(
+        Object.assign(new Error("The recipient node rejected the payment"), {
+          code: "recipient_rejected_payment",
+        }),
+      );
+
+      renderSendTab();
+      typeInvoice(screen.getByLabelText("payments.send.payInvoiceLabel"), "lnbc1000n1pj9h8uqpp5test");
+      fireEvent.click(screen.getByText("payments.send.payLightningButton"));
+
+      await waitFor(() => {
+        expect(addToast).toHaveBeenCalledWith(expect.objectContaining({
+          title: "payments.send.paymentError",
+          description: "payments.send.errors.recipientRejectedPayment",
+          color: "danger",
+        }));
+      });
+    });
+
     it("uses backend message as fallback for unknown errors", async () => {
       jest.spyOn(walletService, "payInvoiceFromService").mockRejectedValue(
         Object.assign(new Error("phoenixd custom failure"), {

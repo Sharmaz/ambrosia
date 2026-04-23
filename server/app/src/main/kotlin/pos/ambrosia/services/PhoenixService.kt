@@ -483,6 +483,10 @@ class PhoenixService(
         return when {
             "already paid" in normalizedMessage || "already been paid" in normalizedMessage -> "invoice_already_paid"
 
+            "expired" in normalizedMessage && "invoice" in normalizedMessage -> "invoice_expired"
+
+            "recipient node rejected the payment" in normalizedMessage -> "recipient_rejected_payment"
+
             "invalid" in normalizedMessage && ("invoice" in normalizedMessage || "bolt11" in normalizedMessage) -> "invalid_invoice"
 
             ("insufficient" in normalizedMessage || "not enough" in normalizedMessage) &&
@@ -500,6 +504,8 @@ class PhoenixService(
     ): Int =
         when (code) {
             "invoice_already_paid" -> 409
+            "invoice_expired" -> 410
+            "recipient_rejected_payment" -> 422
             "invalid_invoice" -> 400
             "insufficient_funds" -> 402
             "node_unavailable" -> 503
