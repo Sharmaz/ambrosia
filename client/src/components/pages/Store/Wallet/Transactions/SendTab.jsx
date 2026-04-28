@@ -6,9 +6,9 @@ import { addToast, Button, Input } from "@heroui/react";
 import { useTranslations } from "next-intl";
 
 import { getPaymentErrorDescription } from "@/components/pages/Store/Wallet/utils/paymentErrors";
-import { payInvoiceFromService } from "@/services/walletService";
+import { decodeInvoice, payInvoiceFromService } from "@/services/walletService";
 
-import { PaymentSentModal } from "./PaymentSentModal";
+import { PaymentConfirmModal } from "./PaymentConfirmModal";
 
 export function SendTab({ fetchInfo, fetchTransactions }) {
   const t = useTranslations("wallet");
@@ -16,6 +16,8 @@ export function SendTab({ fetchInfo, fetchTransactions }) {
   const [paymentResult, setPaymentResult] = useState(null);
   const [invoiceValidationError, setInvoiceValidationError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [decodedInvoice, setDecodedInvoice] = useState(null);
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
 
   const getBolt11ValidationError = (invoiceValue) => {
     if (!invoiceValue || !invoiceValue.trim()) {
@@ -47,7 +49,26 @@ export function SendTab({ fetchInfo, fetchTransactions }) {
 
     try {
       setIsLoading(true);
-      const paymentResponse = await payInvoiceFromService(payInvoice);
+      const decoded = await decodeInvoice(payInvoice);
+      setDecodedInvoice(decoded);
+      setPaymentResult(null);
+      setIsConfirmOpen(true);
+    } catch {
+      addToast({
+        title: t("payments.send.paymentError"),
+        description: t("payments.send.confirmModal.decodingError"),
+        variant: "solid",
+        color: "danger",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleConfirmPayment = async (customAmountSat) => {
+    try {
+      setIsLoading(true);
+      const paymentResponse = await payInvoiceFromService(payInvoice, customAmountSat);
       setPaymentResult(paymentResponse);
       setPayInvoice("");
       setInvoiceValidationError("");
@@ -76,6 +97,12 @@ export function SendTab({ fetchInfo, fetchTransactions }) {
     }
   };
 
+  const handleCloseModal = () => {
+    setIsConfirmOpen(false);
+    setDecodedInvoice(null);
+    setPaymentResult(null);
+  };
+
   return (
     <div className="p-6 space-y-4">
       <Input
@@ -100,9 +127,13 @@ export function SendTab({ fetchInfo, fetchTransactions }) {
         {isLoading ? t("payments.send.payLightningLoading") : t("payments.send.payLightningButton")}
       </Button>
 
-      <PaymentSentModal
-        result={paymentResult}
-        onClose={() => setPaymentResult(null)}
+      <PaymentConfirmModal
+        decodedInvoice={decodedInvoice}
+        isOpen={isConfirmOpen}
+        onClose={handleCloseModal}
+        onConfirm={handleConfirmPayment}
+        paymentResult={paymentResult}
+        isLoading={isLoading}
       />
     </div>
   );

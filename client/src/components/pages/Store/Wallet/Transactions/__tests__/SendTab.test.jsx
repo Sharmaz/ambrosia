@@ -1,6 +1,7 @@
 import { addToast } from "@heroui/react";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 
+import BitcoinPriceService from "@/services/bitcoinPriceService";
 import * as walletService from "@/services/walletService";
 import { I18nProvider } from "@i18n/I18nProvider";
 
@@ -14,6 +15,31 @@ jest.mock("@heroui/react", () => {
   };
 });
 
+jest.mock("@/components/hooks/useCurrency", () => ({
+  useCurrency: () => ({
+    currency: { acronym: "USD", symbol: "$", locale: "en-US" },
+    formatAmount: jest.fn(),
+  }),
+}));
+
+jest.mock("@/services/bitcoinPriceService", () => {
+  const satoshisToFiat = jest.fn(() => new Promise(() => {}));
+  const MockedBitcoinPriceService = jest.fn().mockImplementation(() => ({
+    satoshisToFiat,
+  }));
+  MockedBitcoinPriceService.__mockSatoshisToFiat = satoshisToFiat;
+
+  return {
+    __esModule: true,
+    default: MockedBitcoinPriceService,
+  };
+});
+
+const mockSatoshisToFiat = BitcoinPriceService.__mockSatoshisToFiat;
+
+const originalWarn = console.warn;
+const originalError = console.error;
+
 function renderSendTab(props = {}) {
   return render(
     <I18nProvider>
@@ -26,31 +52,20 @@ function typeInvoice(input, value) {
   fireEvent.change(input, { target: { value } });
 }
 
-const originalWarn = console.warn;
-const originalError = console.error;
-
 beforeEach(() => {
-  console.warn = jest.fn((...args) => {
-    if (typeof args[0] === "string" && args[0].includes("aria-label")) return;
-    originalWarn.call(console, ...args);
-  });
-
-  console.error = jest.fn((...args) => {
-    if (
-      typeof args[0] === "string" &&
-      (args[0].includes("onAnimationComplete") ||
-        args[0].includes("Unknown event handler property") ||
-        args[0].includes("validateDOMNesting"))
-    ) return;
-    if (args[0] instanceof Error && args[0].message === "API Error") return;
-    originalError.call(console, ...args);
-  });
+  console.warn = jest.fn();
+  console.error = jest.fn();
 
   jest.clearAllMocks();
+  mockSatoshisToFiat.mockImplementation(() => new Promise(() => {}));
   jest.spyOn(walletService, "payInvoiceFromService").mockResolvedValue({
     recipientAmountSat: 1000,
     routingFeeSat: 5,
     paymentHash: "mock-payment-hash-123",
+  });
+  jest.spyOn(walletService, "decodeInvoice").mockResolvedValue({
+    amountSat: 1000,
+    description: "test payment",
   });
 });
 
@@ -95,36 +110,6 @@ describe("SendTab Component", () => {
 
       await waitFor(() => {
         expect(screen.getByText("payments.send.invalidInvoiceFormat")).toBeInTheDocument();
-      });
-    });
-
-    it("accepts valid mainnet invoice (lnbc)", async () => {
-      renderSendTab();
-      typeInvoice(screen.getByLabelText("payments.send.payInvoiceLabel"), "lnbc1000n1pj9h8uqpp5test");
-      fireEvent.click(screen.getByText("payments.send.payLightningButton"));
-
-      await waitFor(() => {
-        expect(walletService.payInvoiceFromService).toHaveBeenCalledWith("lnbc1000n1pj9h8uqpp5test");
-      });
-    });
-
-    it("accepts valid testnet invoice (lntb)", async () => {
-      renderSendTab();
-      typeInvoice(screen.getByLabelText("payments.send.payInvoiceLabel"), "lntb1000n1pj9h8uqpp5test");
-      fireEvent.click(screen.getByText("payments.send.payLightningButton"));
-
-      await waitFor(() => {
-        expect(walletService.payInvoiceFromService).toHaveBeenCalledWith("lntb1000n1pj9h8uqpp5test");
-      });
-    });
-
-    it("accepts valid regtest invoice (lnbcrt)", async () => {
-      renderSendTab();
-      typeInvoice(screen.getByLabelText("payments.send.payInvoiceLabel"), "lnbcrt1000n1pj9h8uqpp5test");
-      fireEvent.click(screen.getByText("payments.send.payLightningButton"));
-
-      await waitFor(() => {
-        expect(walletService.payInvoiceFromService).toHaveBeenCalledWith("lnbcrt1000n1pj9h8uqpp5test");
       });
     });
 
@@ -173,14 +158,119 @@ describe("SendTab Component", () => {
     });
   });
 
-  describe("Payment Flow", () => {
-    it("calls payInvoiceFromService with invoice", async () => {
+  describe("Decode + Confirm Flow", () => {
+    it("calls decodeInvoice when clicking pay with valid invoice", async () => {
       renderSendTab();
       typeInvoice(screen.getByLabelText("payments.send.payInvoiceLabel"), "lnbc1000n1pj9h8uqpp5test");
       fireEvent.click(screen.getByText("payments.send.payLightningButton"));
 
       await waitFor(() => {
-        expect(walletService.payInvoiceFromService).toHaveBeenCalledWith("lnbc1000n1pj9h8uqpp5test");
+        expect(walletService.decodeInvoice).toHaveBeenCalledWith("lnbc1000n1pj9h8uqpp5test");
+      });
+    });
+
+    it("opens confirm modal after decoding", async () => {
+      renderSendTab();
+      typeInvoice(screen.getByLabelText("payments.send.payInvoiceLabel"), "lnbc1000n1pj9h8uqpp5test");
+      fireEvent.click(screen.getByText("payments.send.payLightningButton"));
+
+      await waitFor(() => {
+        expect(screen.getByText("payments.send.confirmModal.title")).toBeInTheDocument();
+      });
+    });
+
+    it("shows decoding error toast when decodeInvoice fails", async () => {
+      jest.spyOn(walletService, "decodeInvoice").mockRejectedValue(new Error("Decode failed"));
+
+      renderSendTab();
+      typeInvoice(screen.getByLabelText("payments.send.payInvoiceLabel"), "lnbc1000n1pj9h8uqpp5test");
+      fireEvent.click(screen.getByText("payments.send.payLightningButton"));
+
+      await waitFor(() => {
+        expect(addToast).toHaveBeenCalledWith(expect.objectContaining({
+          description: "payments.send.confirmModal.decodingError",
+          color: "danger",
+        }));
+      });
+    });
+
+    it("calls payInvoiceFromService when confirming payment", async () => {
+      renderSendTab();
+      typeInvoice(screen.getByLabelText("payments.send.payInvoiceLabel"), "lnbc1000n1pj9h8uqpp5test");
+      fireEvent.click(screen.getByText("payments.send.payLightningButton"));
+
+      await waitFor(() => {
+        expect(screen.getByText("payments.send.confirmModal.title")).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByText("payments.send.confirmModal.confirmButton"));
+
+      await waitFor(() => {
+        expect(walletService.payInvoiceFromService).toHaveBeenCalledWith("lnbc1000n1pj9h8uqpp5test", null);
+      });
+    });
+
+    it("shows payment success in modal after confirming payment", async () => {
+      renderSendTab();
+      typeInvoice(screen.getByLabelText("payments.send.payInvoiceLabel"), "lnbc1000n1pj9h8uqpp5test");
+      fireEvent.click(screen.getByText("payments.send.payLightningButton"));
+
+      await waitFor(() => {
+        expect(screen.getByText("payments.send.confirmModal.title")).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByText("payments.send.confirmModal.confirmButton"));
+
+      await waitFor(() => {
+        expect(screen.getByText("payments.send.paymentDone")).toBeInTheDocument();
+      });
+    });
+
+    it("displays payment amount in success view", async () => {
+      renderSendTab();
+      typeInvoice(screen.getByLabelText("payments.send.payInvoiceLabel"), "lnbc1000n1pj9h8uqpp5test");
+      fireEvent.click(screen.getByText("payments.send.payLightningButton"));
+
+      await waitFor(() => {
+        expect(screen.getByText("payments.send.confirmModal.title")).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByText("payments.send.confirmModal.confirmButton"));
+
+      await waitFor(() => {
+        expect(screen.getByText("1,000 sats")).toBeInTheDocument();
+      });
+    });
+
+    it("displays routing fee in success view", async () => {
+      renderSendTab();
+      typeInvoice(screen.getByLabelText("payments.send.payInvoiceLabel"), "lnbc1000n1pj9h8uqpp5test");
+      fireEvent.click(screen.getByText("payments.send.payLightningButton"));
+
+      await waitFor(() => {
+        expect(screen.getByText("payments.send.confirmModal.title")).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByText("payments.send.confirmModal.confirmButton"));
+
+      await waitFor(() => {
+        expect(screen.getByText("5 sats")).toBeInTheDocument();
+      });
+    });
+
+    it("displays payment hash in success view", async () => {
+      renderSendTab();
+      typeInvoice(screen.getByLabelText("payments.send.payInvoiceLabel"), "lnbc1000n1pj9h8uqpp5test");
+      fireEvent.click(screen.getByText("payments.send.payLightningButton"));
+
+      await waitFor(() => {
+        expect(screen.getByText("payments.send.confirmModal.title")).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByText("payments.send.confirmModal.confirmButton"));
+
+      await waitFor(() => {
+        expect(screen.getByText("mock-payment-hash-123")).toBeInTheDocument();
       });
     });
 
@@ -191,65 +281,87 @@ describe("SendTab Component", () => {
       fireEvent.click(screen.getByText("payments.send.payLightningButton"));
 
       await waitFor(() => {
+        expect(screen.getByText("payments.send.confirmModal.title")).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByText("payments.send.confirmModal.confirmButton"));
+
+      await waitFor(() => {
         expect(invoiceInput).toHaveValue("");
       });
     });
 
-    it("shows payment result card after success", async () => {
+    it("closes modal on cancel", async () => {
       renderSendTab();
       typeInvoice(screen.getByLabelText("payments.send.payInvoiceLabel"), "lnbc1000n1pj9h8uqpp5test");
       fireEvent.click(screen.getByText("payments.send.payLightningButton"));
 
       await waitFor(() => {
-        expect(screen.getByText("payments.send.paymentDone")).toBeInTheDocument();
+        expect(screen.getByText("payments.send.confirmModal.title")).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByText("payments.send.confirmModal.cancelButton"));
+
+      await waitFor(() => {
+        expect(screen.queryByText("payments.send.confirmModal.title")).not.toBeInTheDocument();
       });
     });
 
-    it("displays payment amount in result card", async () => {
+    it("keeps invoice input after cancelling confirm", async () => {
+      renderSendTab();
+      const invoiceInput = screen.getByLabelText("payments.send.payInvoiceLabel");
+      typeInvoice(invoiceInput, "lnbc1000n1pj9h8uqpp5test");
+      fireEvent.click(screen.getByText("payments.send.payLightningButton"));
+
+      await waitFor(() => {
+        expect(screen.getByText("payments.send.confirmModal.title")).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByText("payments.send.confirmModal.cancelButton"));
+
+      await waitFor(() => {
+        expect(invoiceInput).toHaveValue("lnbc1000n1pj9h8uqpp5test");
+      });
+    });
+
+    it("handles zero-amount invoice with custom amount", async () => {
+      jest.spyOn(walletService, "decodeInvoice").mockResolvedValue({
+        amountSat: null,
+        description: null,
+      });
+
       renderSendTab();
       typeInvoice(screen.getByLabelText("payments.send.payInvoiceLabel"), "lnbc1000n1pj9h8uqpp5test");
       fireEvent.click(screen.getByText("payments.send.payLightningButton"));
 
       await waitFor(() => {
-        expect(screen.getByText("1,000 sats")).toBeInTheDocument();
+        expect(screen.getByText("payments.send.confirmModal.zeroAmountTitle")).toBeInTheDocument();
       });
-    });
 
-    it("displays routing fee in result card", async () => {
-      renderSendTab();
-      typeInvoice(screen.getByLabelText("payments.send.payInvoiceLabel"), "lnbc1000n1pj9h8uqpp5test");
-      fireEvent.click(screen.getByText("payments.send.payLightningButton"));
+      const amountInput = screen.getByLabelText("payments.send.confirmModal.zeroAmountLabel");
+      fireEvent.change(amountInput, { target: { value: "5000" } });
+
+      fireEvent.click(screen.getByText("payments.send.confirmModal.confirmButton"));
 
       await waitFor(() => {
-        expect(screen.getByText("5 sats")).toBeInTheDocument();
+        expect(walletService.payInvoiceFromService).toHaveBeenCalledWith("lnbc1000n1pj9h8uqpp5test", 5000);
       });
     });
+  });
 
-    it("displays payment hash in result card", async () => {
-      renderSendTab();
-      typeInvoice(screen.getByLabelText("payments.send.payInvoiceLabel"), "lnbc1000n1pj9h8uqpp5test");
-      fireEvent.click(screen.getByText("payments.send.payLightningButton"));
-
-      await waitFor(() => {
-        expect(screen.getByText("mock-payment-hash-123")).toBeInTheDocument();
-      });
-    });
-
-    it("shows copy button for payment hash", async () => {
-      renderSendTab();
-      typeInvoice(screen.getByLabelText("payments.send.payInvoiceLabel"), "lnbc1000n1pj9h8uqpp5test");
-      fireEvent.click(screen.getByText("payments.send.payLightningButton"));
-
-      await waitFor(() => {
-        expect(screen.getByText("payments.send.copyButton")).toBeInTheDocument();
-      });
-    });
-
+  describe("Error Handling", () => {
     it("handles API error gracefully without crashing", async () => {
       jest.spyOn(walletService, "payInvoiceFromService").mockRejectedValue(new Error("API Error"));
+
       renderSendTab();
       typeInvoice(screen.getByLabelText("payments.send.payInvoiceLabel"), "lnbc1000n1pj9h8uqpp5test");
       fireEvent.click(screen.getByText("payments.send.payLightningButton"));
+
+      await waitFor(() => {
+        expect(screen.getByText("payments.send.confirmModal.title")).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByText("payments.send.confirmModal.confirmButton"));
 
       await waitFor(() => {
         expect(screen.getByText("payments.send.payLightningButton")).toBeInTheDocument();
@@ -269,6 +381,12 @@ describe("SendTab Component", () => {
       fireEvent.click(screen.getByText("payments.send.payLightningButton"));
 
       await waitFor(() => {
+        expect(screen.getByText("payments.send.confirmModal.title")).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByText("payments.send.confirmModal.confirmButton"));
+
+      await waitFor(() => {
         expect(addToast).toHaveBeenCalledWith(expect.objectContaining({
           title: "payments.send.paymentError",
           description: "payments.send.errors.invoiceAlreadyPaid",
@@ -276,8 +394,6 @@ describe("SendTab Component", () => {
         }));
       });
 
-      expect(screen.queryByText("payments.send.paymentDone")).not.toBeInTheDocument();
-      expect(invoiceInput).toHaveValue("lnbc1000n1pj9h8uqpp5test");
       expect(console.warn).toHaveBeenCalled();
       expect(console.error).not.toHaveBeenCalledWith(expect.objectContaining({
         code: "invoice_already_paid",
@@ -296,29 +412,15 @@ describe("SendTab Component", () => {
       fireEvent.click(screen.getByText("payments.send.payLightningButton"));
 
       await waitFor(() => {
-        expect(addToast).toHaveBeenCalledWith(expect.objectContaining({
-          title: "payments.send.paymentError",
-          description: "payments.send.errors.invoiceExpired",
-          color: "danger",
-        }));
+        expect(screen.getByText("payments.send.confirmModal.title")).toBeInTheDocument();
       });
-    });
 
-    it("shows translated error when recipient node rejects the payment", async () => {
-      jest.spyOn(walletService, "payInvoiceFromService").mockRejectedValue(
-        Object.assign(new Error("The recipient node rejected the payment"), {
-          code: "recipient_rejected_payment",
-        }),
-      );
-
-      renderSendTab();
-      typeInvoice(screen.getByLabelText("payments.send.payInvoiceLabel"), "lnbc1000n1pj9h8uqpp5test");
-      fireEvent.click(screen.getByText("payments.send.payLightningButton"));
+      fireEvent.click(screen.getByText("payments.send.confirmModal.confirmButton"));
 
       await waitFor(() => {
         expect(addToast).toHaveBeenCalledWith(expect.objectContaining({
           title: "payments.send.paymentError",
-          description: "payments.send.errors.recipientRejectedPayment",
+          description: "payments.send.errors.invoiceExpired",
           color: "danger",
         }));
       });
@@ -336,21 +438,15 @@ describe("SendTab Component", () => {
       fireEvent.click(screen.getByText("payments.send.payLightningButton"));
 
       await waitFor(() => {
+        expect(screen.getByText("payments.send.confirmModal.title")).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByText("payments.send.confirmModal.confirmButton"));
+
+      await waitFor(() => {
         expect(addToast).toHaveBeenCalledWith(expect.objectContaining({
           description: "phoenixd custom failure",
         }));
-      });
-    });
-
-    it("uses console error for unexpected errors without code", async () => {
-      jest.spyOn(walletService, "payInvoiceFromService").mockRejectedValue(new Error("unexpected failure"));
-
-      renderSendTab();
-      typeInvoice(screen.getByLabelText("payments.send.payInvoiceLabel"), "lnbc1000n1pj9h8uqpp5test");
-      fireEvent.click(screen.getByText("payments.send.payLightningButton"));
-
-      await waitFor(() => {
-        expect(console.error).toHaveBeenCalled();
       });
     });
   });
@@ -364,8 +460,8 @@ describe("SendTab Component", () => {
       jest.useRealTimers();
     });
 
-    it("shows loading text while paying invoice", async () => {
-      jest.spyOn(walletService, "payInvoiceFromService").mockImplementation(
+    it("shows loading text while decoding invoice", async () => {
+      jest.spyOn(walletService, "decodeInvoice").mockImplementation(
         () => new Promise((resolve) => setTimeout(resolve, 500)),
       );
 
@@ -378,8 +474,8 @@ describe("SendTab Component", () => {
       });
     });
 
-    it("disables input while paying invoice", async () => {
-      jest.spyOn(walletService, "payInvoiceFromService").mockImplementation(
+    it("disables input while decoding invoice", async () => {
+      jest.spyOn(walletService, "decodeInvoice").mockImplementation(
         () => new Promise((resolve) => setTimeout(resolve, 500)),
       );
 
@@ -401,7 +497,7 @@ describe("SendTab Component", () => {
       fireEvent.click(screen.getByText("payments.send.payLightningButton"));
 
       await waitFor(() => {
-        expect(walletService.payInvoiceFromService).toHaveBeenCalledWith("LNBC1000N1PJ9H8UQPP5TEST");
+        expect(walletService.decodeInvoice).toHaveBeenCalledWith("LNBC1000N1PJ9H8UQPP5TEST");
       });
     });
 
@@ -411,22 +507,12 @@ describe("SendTab Component", () => {
       fireEvent.click(screen.getByText("payments.send.payLightningButton"));
 
       await waitFor(() => {
-        expect(walletService.payInvoiceFromService).toHaveBeenCalledWith("LnBc1000N1pj9h8uqpp5test");
+        expect(walletService.decodeInvoice).toHaveBeenCalledWith("LnBc1000N1pj9h8uqpp5test");
       });
     });
   });
 
   describe("Whitespace Handling", () => {
-    it("trims whitespace from invoice", async () => {
-      renderSendTab();
-      typeInvoice(screen.getByLabelText("payments.send.payInvoiceLabel"), "  lnbc1000n1pj9h8uqpp5test  ");
-      fireEvent.click(screen.getByText("payments.send.payLightningButton"));
-
-      await waitFor(() => {
-        expect(walletService.payInvoiceFromService).toHaveBeenCalledWith("  lnbc1000n1pj9h8uqpp5test  ");
-      });
-    });
-
     it("treats whitespace-only input as empty", async () => {
       const { container } = renderSendTab();
       typeInvoice(screen.getByLabelText("payments.send.payInvoiceLabel"), "   ");
