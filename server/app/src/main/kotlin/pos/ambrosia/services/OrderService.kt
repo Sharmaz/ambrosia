@@ -566,12 +566,13 @@ class OrderService(
                     statement.executeUpdate()
                 }
 
-                val rows = connection.prepareStatement(STORE_DECREMENT_STOCK).use { statement ->
-                    statement.setInt(1, item.quantity)
-                    statement.setString(2, item.product_id)
-                    statement.setInt(3, item.quantity)
-                    statement.executeUpdate()
-                }
+                val rows =
+                    connection.prepareStatement(STORE_DECREMENT_STOCK).use { statement ->
+                        statement.setInt(1, item.quantity)
+                        statement.setString(2, item.product_id)
+                        statement.setInt(3, item.quantity)
+                        statement.executeUpdate()
+                    }
                 if (rows == 0) {
                     connection.rollback()
                     return null

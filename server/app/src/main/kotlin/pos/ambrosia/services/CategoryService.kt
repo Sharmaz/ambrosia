@@ -134,21 +134,24 @@ class CategoryService(
         val prev = connection.autoCommit
         connection.autoCommit = false
         try {
-            connection.prepareStatement(
-                "DELETE FROM product_categories WHERE category_id = ?",
-            ).use { statement ->
-                statement.setString(1, id)
-                statement.executeUpdate()
-            }
+            connection
+                .prepareStatement(
+                    "DELETE FROM product_categories WHERE category_id = ?",
+                ).use { statement ->
+                    statement.setString(1, id)
+                    statement.executeUpdate()
+                }
 
-            val rows = connection.prepareStatement(
-                "UPDATE categories SET name = ?, is_deleted = 1 WHERE id = ? AND type = ?",
-            ).use { statement ->
-                statement.setString(1, "DELETED-$id")
-                statement.setString(2, id)
-                statement.setString(3, type)
-                statement.executeUpdate()
-            }
+            val rows =
+                connection
+                    .prepareStatement(
+                        "UPDATE categories SET name = ?, is_deleted = 1 WHERE id = ? AND type = ?",
+                    ).use { statement ->
+                        statement.setString(1, "DELETED-$id")
+                        statement.setString(2, id)
+                        statement.setString(3, type)
+                        statement.executeUpdate()
+                    }
             connection.commit()
             if (rows > 0) logger.info("Category deleted: $id type=$type")
             return rows > 0

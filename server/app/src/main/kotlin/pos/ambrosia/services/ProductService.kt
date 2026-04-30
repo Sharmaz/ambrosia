@@ -165,19 +165,20 @@ class ProductService(
         val prev = connection.autoCommit
         connection.autoCommit = false
         try {
-            val rows = connection.prepareStatement(UPDATE_PRODUCT).use { statement ->
-                statement.setString(1, product.SKU)
-                statement.setString(2, product.name)
-                statement.setString(3, product.description)
-                statement.setString(4, product.image_url)
-                statement.setInt(5, product.cost_cents)
-                statement.setInt(6, product.quantity)
-                statement.setInt(7, product.min_stock_threshold)
-                statement.setInt(8, product.max_stock_threshold)
-                statement.setInt(9, product.price_cents)
-                statement.setString(10, product.id)
-                statement.executeUpdate()
-            }
+            val rows =
+                connection.prepareStatement(UPDATE_PRODUCT).use { statement ->
+                    statement.setString(1, product.SKU)
+                    statement.setString(2, product.name)
+                    statement.setString(3, product.description)
+                    statement.setString(4, product.image_url)
+                    statement.setInt(5, product.cost_cents)
+                    statement.setInt(6, product.quantity)
+                    statement.setInt(7, product.min_stock_threshold)
+                    statement.setInt(8, product.max_stock_threshold)
+                    statement.setInt(9, product.price_cents)
+                    statement.setString(10, product.id)
+                    statement.executeUpdate()
+                }
             if (rows == 0) {
                 connection.rollback()
                 return false
