@@ -11,89 +11,70 @@ function resolveEffectiveAmount({
   isZeroAmount,
   amountInputMode,
   parsedSatAmount,
-  amountSat,
-  fiatToSatResult,
-  customAmountFiat,
+  invoiceSats,
+  estimatedSatsResult,
+  customEstimateFiat,
 }) {
-  if (!isZeroAmount) return amountSat;
+  if (!isZeroAmount) return invoiceSats;
   if (amountInputMode !== "fiat") return parsedSatAmount;
-  if (fiatToSatResult?.forAmount !== customAmountFiat) return null;
-  return fiatToSatResult.value;
+  if (estimatedSatsResult?.forValue !== customEstimateFiat) return null;
+  return estimatedSatsResult.value;
 }
 
 export function usePaymentAmountInput({
   isOpen,
   isPaid,
-  amountSat,
+  invoiceSats,
   currencyAcronym,
   t,
 }) {
-  const [customAmountSat, setCustomAmountSat] = useState("");
-  const [customAmountFiat, setCustomAmountFiat] = useState("");
-  const [customAmountError, setCustomAmountError] = useState("");
-  const [fiatResult, setFiatResult] = useState(null);
+  const [customEstimateSat, setCustomEstimateSat] = useState("");
+  const [customEstimateFiat, setCustomEstimateFiat] = useState("");
+  const [customEstimateError, setCustomEstimateError] = useState("");
+  const [estimatedFiatResult, setEstimatedFiatResult] = useState(null);
   const [amountInputMode, setAmountInputMode] = useState(DEFAULT_AMOUNT_MODE);
-  const [fiatToSatResult, setFiatToSatResult] = useState(null);
+  const [estimatedSatsResult, setEstimatedSatsResult] = useState(null);
 
-  const isZeroAmount = amountSat == null;
-  const parsedSatAmount = parseInt(customAmountSat, 10);
-  const parsedFiatAmount = parseFloat(customAmountFiat);
-  const effectiveAmount = resolveEffectiveAmount({
+  const isZeroAmount = invoiceSats == null;
+  const parsedSatAmount = parseInt(customEstimateSat, 10);
+  const parsedFiatAmount = parseFloat(customEstimateFiat);
+  const estimatedSats = resolveEffectiveAmount({
     isZeroAmount,
     amountInputMode,
     parsedSatAmount,
-    amountSat,
-    fiatToSatResult,
-    customAmountFiat,
+    invoiceSats,
+    estimatedSatsResult,
+    customEstimateFiat,
   });
   const isValidSatAmount = Number.isInteger(parsedSatAmount) && parsedSatAmount > 0;
   const isValidFiatAmount = Number.isFinite(parsedFiatAmount) && parsedFiatAmount > 0;
 
   useEffect(() => {
-    if (!isOpen) return;
-    setAmountInputMode(DEFAULT_AMOUNT_MODE);
-    setCustomAmountSat("");
-    setCustomAmountFiat("");
-    setCustomAmountError("");
-    setFiatToSatResult(null);
-    setFiatResult(null);
-  }, [isOpen]);
-
-  useEffect(() => {
-    if (!isOpen || isPaid || !effectiveAmount || effectiveAmount <= 0) return;
+    if (!isOpen || isPaid || !estimatedSats || estimatedSats <= 0) return;
 
     let cancelled = false;
 
     bitcoinService
-      .satoshisToFiat(effectiveAmount, currencyAcronym)
+      .satoshisToFiat(estimatedSats, currencyAcronym)
       .then((fiat) => {
         if (!cancelled) {
-          setFiatResult({ value: fiat, error: false, forAmount: effectiveAmount });
+          setEstimatedFiatResult({ value: fiat, error: false, forValue: estimatedSats });
         }
       })
       .catch(() => {
         if (!cancelled) {
-          setFiatResult({ value: null, error: true, forAmount: effectiveAmount });
+          setEstimatedFiatResult({ value: null, error: true, forValue: estimatedSats });
         }
       });
 
     return () => {
       cancelled = true;
     };
-  }, [isOpen, isPaid, effectiveAmount, currencyAcronym]);
+  }, [isOpen, isPaid, estimatedSats, currencyAcronym]);
 
   useEffect(() => {
     if (!isOpen || isPaid || !isZeroAmount || amountInputMode !== "fiat") return;
-
-    if (!customAmountFiat.trim()) {
-      setFiatToSatResult(null);
-      return;
-    }
-
-    if (!isValidFiatAmount) {
-      setFiatToSatResult({ value: null, error: true, forAmount: customAmountFiat });
-      return;
-    }
+    if (!customEstimateFiat.trim() || !isValidFiatAmount) return;
 
     let cancelled = false;
 
@@ -101,12 +82,12 @@ export function usePaymentAmountInput({
       .fiatToSatoshis(parsedFiatAmount, currencyAcronym)
       .then((sats) => {
         if (!cancelled) {
-          setFiatToSatResult({ value: sats, error: false, forAmount: customAmountFiat });
+          setEstimatedSatsResult({ value: sats, error: false, forValue: customEstimateFiat });
         }
       })
       .catch(() => {
         if (!cancelled) {
-          setFiatToSatResult({ value: null, error: true, forAmount: customAmountFiat });
+          setEstimatedSatsResult({ value: null, error: true, forValue: customEstimateFiat });
         }
       });
 
@@ -118,53 +99,55 @@ export function usePaymentAmountInput({
     isPaid,
     isZeroAmount,
     amountInputMode,
-    customAmountFiat,
+    customEstimateFiat,
     parsedFiatAmount,
     isValidFiatAmount,
     currencyAcronym,
   ]);
 
-  const fiatDisplay = fiatResult?.forAmount === effectiveAmount ? fiatResult.value : null;
-  const fiatIsLoading = effectiveAmount > 0 &&
-    fiatDisplay == null &&
-    !(fiatResult?.error && fiatResult?.forAmount === effectiveAmount);
-  const fiatHasError = fiatResult?.error && fiatResult?.forAmount === effectiveAmount;
+  const estimatedFiat = estimatedFiatResult?.forValue === estimatedSats ? estimatedFiatResult.value : null;
+  const estimatedFiatIsLoading = estimatedSats > 0 &&
+    estimatedFiat == null &&
+    !(estimatedFiatResult?.error && estimatedFiatResult?.forValue === estimatedSats);
+  const estimatedFiatHasError = estimatedFiatResult?.error && estimatedFiatResult?.forValue === estimatedSats;
   const fiatToSatIsLoading = amountInputMode === "fiat" &&
-    customAmountFiat.trim() &&
+    customEstimateFiat.trim() &&
     isValidFiatAmount &&
-    (fiatToSatResult?.forAmount !== customAmountFiat || fiatToSatResult?.value == null) &&
-    !(fiatToSatResult?.error && fiatToSatResult?.forAmount === customAmountFiat);
+    (estimatedSatsResult?.forValue !== customEstimateFiat || estimatedSatsResult?.value == null) &&
+    !(estimatedSatsResult?.error && estimatedSatsResult?.forValue === customEstimateFiat);
   const fiatToSatHasError = amountInputMode === "fiat" &&
-    fiatToSatResult?.error &&
-    fiatToSatResult?.forAmount === customAmountFiat;
+    estimatedSatsResult?.error &&
+    estimatedSatsResult?.forValue === customEstimateFiat;
 
   const handleAmountModeChange = useCallback((nextMode) => {
     setAmountInputMode(nextMode);
-    setCustomAmountError("");
+    setCustomEstimateError("");
   }, []);
 
   const handleAmountChange = useCallback((value) => {
+    const normalizedValue = value == null ? "" : String(value);
+
     if (amountInputMode === "fiat") {
-      setCustomAmountFiat(value);
+      setCustomEstimateFiat(normalizedValue);
     } else {
-      setCustomAmountSat(value);
+      setCustomEstimateSat(normalizedValue);
     }
-    setCustomAmountError("");
+    setCustomEstimateError("");
   }, [amountInputMode]);
 
   const getConfirmAmount = useCallback(() => {
     if (!isZeroAmount) return null;
 
     if (amountInputMode === "fiat") {
-      if (!isValidFiatAmount || !effectiveAmount || effectiveAmount <= 0) {
-        setCustomAmountError(t("payments.send.confirmModal.zeroAmountError"));
+      if (!isValidFiatAmount || !estimatedSats || estimatedSats <= 0) {
+        setCustomEstimateError(t("payments.send.confirmModal.zeroAmountError"));
         return undefined;
       }
-      return effectiveAmount;
+      return estimatedSats;
     }
 
     if (!isValidSatAmount) {
-      setCustomAmountError(t("payments.send.confirmModal.zeroAmountError"));
+      setCustomEstimateError(t("payments.send.confirmModal.zeroAmountError"));
       return undefined;
     }
 
@@ -173,7 +156,7 @@ export function usePaymentAmountInput({
     isZeroAmount,
     amountInputMode,
     isValidFiatAmount,
-    effectiveAmount,
+    estimatedSats,
     isValidSatAmount,
     parsedSatAmount,
     t,
@@ -181,12 +164,12 @@ export function usePaymentAmountInput({
 
   return {
     amountInputMode,
-    customAmountError,
-    customAmountValue: amountInputMode === "fiat" ? customAmountFiat : customAmountSat,
-    effectiveAmount,
-    fiatDisplay,
-    fiatHasError,
-    fiatIsLoading,
+    customEstimateError,
+    customEstimateValue: amountInputMode === "fiat" ? customEstimateFiat : customEstimateSat,
+    estimatedFiat,
+    estimatedFiatHasError,
+    estimatedFiatIsLoading,
+    estimatedSats,
     fiatToSatHasError,
     fiatToSatIsLoading,
     handleAmountChange,
@@ -194,7 +177,7 @@ export function usePaymentAmountInput({
     getConfirmAmount,
     isConfirmDisabled: isZeroAmount && (
       amountInputMode === "fiat"
-        ? !isValidFiatAmount || fiatToSatIsLoading || !effectiveAmount
+        ? !isValidFiatAmount || fiatToSatIsLoading || !estimatedSats
         : !isValidSatAmount
     ),
   };

@@ -89,7 +89,7 @@ describe("PaymentConfirmModal", () => {
 
     it("renders fiat label", () => {
       renderModal();
-      expect(screen.getByText("payments.send.confirmModal.fiatLabel")).toBeInTheDocument();
+      expect(screen.queryAllByText("payments.send.confirmModal.estimatedLabel")).toHaveLength(2);
     });
 
     it("calls onClose when cancel is clicked", () => {
