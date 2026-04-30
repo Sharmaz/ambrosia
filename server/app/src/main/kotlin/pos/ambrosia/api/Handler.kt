@@ -19,6 +19,7 @@ import pos.ambrosia.utils.InvalidCredentialsException
 import pos.ambrosia.utils.InvalidTokenException
 import pos.ambrosia.utils.LastAdminRemovalException
 import pos.ambrosia.utils.LastUserDeletionException
+import pos.ambrosia.utils.MissingRoleException
 import pos.ambrosia.utils.PermissionDeniedException
 import pos.ambrosia.utils.PhoenixBalanceException
 import pos.ambrosia.utils.PhoenixConnectionException
@@ -40,6 +41,13 @@ fun Application.handler() {
         exception<InvalidCredentialsException> { call, cause ->
             logger.warn("Invalid login attempt: ${cause.message}")
             call.respond(HttpStatusCode.Unauthorized, Message("Invalid credentials"))
+        }
+        exception<MissingRoleException> { call, cause ->
+            logger.warn("Login attempt with missing role: ${cause.message}")
+            call.respond(
+                HttpStatusCode.Unauthorized,
+                Message(cause.message ?: "No assigned role for this user, contact Admin"),
+            )
         }
         exception<InvalidTokenException> { call, cause ->
             logger.warn("Invalid token: ${cause.message}")

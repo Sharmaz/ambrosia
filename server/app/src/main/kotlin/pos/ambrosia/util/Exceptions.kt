@@ -58,6 +58,10 @@ class DuplicateProductSkuException(
     message: String = "SKU already exists",
 ) : IllegalStateException(message)
 
+class MissingRoleException(
+    message: String = "No assigned role for this user, contact Admin",
+) : Exception(message)
+
 class LastUserDeletionException(
     message: String = "Cannot delete the last user",
 ) : IllegalStateException(message)
