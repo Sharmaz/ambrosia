@@ -108,6 +108,8 @@ export default function PinLogin() {
         setLockedUntil(ts);
         localStorage.setItem("pinLockoutUntil", ts.toString());
         setError("");
+      } else if (err?.message === "No assigned role for this user, contact Admin") {
+        setError(err.message);
       } else {
         setError(t("errorMessages.incorrectPin"));
       }
