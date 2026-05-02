@@ -8,11 +8,12 @@ import { useTranslations } from "next-intl";
 
 import { useTour } from "@/hooks/tour/useTour";
 
+import { PaymentTab } from "../Payment";
+
 const WALLET_RECEIVE_TOUR_KEY = "ambrosia:tour:wallet-receive";
 
 import { HistoryTab } from "./HistoryTab";
 import { ReceiveTab } from "./ReceiveTab";
-import { SendTab } from "./SendTab";
 
 export function Transactions({
   transactions,
@@ -110,7 +111,7 @@ export function Transactions({
               </div>
             )}
           >
-            <SendTab
+            <PaymentTab
               fetchInfo={fetchInfo}
               fetchTransactions={fetchTransactions}
             />
