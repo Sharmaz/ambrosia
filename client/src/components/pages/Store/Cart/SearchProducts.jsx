@@ -13,7 +13,7 @@ export function SearchProducts({ products, onAddProduct, categories }) {
   const [categoryFilter, setCategoryFilter] = useState(null);
 
   const filteredProducts = products.filter((product) => {
-    const categoryIds = product.category_ids ?? [];
+    const categoryIds = product.categoryIds ?? [];
     const categoryNames = categories
       .filter((cat) => categoryIds.includes(cat.id))
       .map((cat) => cat.name)

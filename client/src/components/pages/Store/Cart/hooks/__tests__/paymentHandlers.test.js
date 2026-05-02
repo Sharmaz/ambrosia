@@ -50,7 +50,7 @@ describe("paymentHandlers", () => {
       onPay: jest.fn(),
       notifyError,
       dispatch,
-      user: { user_id: "u1" },
+      user: { userId: "u1" },
       ensureCartReady,
       normalizeAmounts: jest.fn(),
     });
@@ -77,7 +77,7 @@ describe("paymentHandlers", () => {
       onPay: jest.fn(),
       notifyError: jest.fn(),
       dispatch,
-      user: { user_id: "u1" },
+      user: { userId: "u1" },
       ensureCartReady: jest.fn(),
       normalizeAmounts: jest.fn(() => ({
         amountFiat: 1,
@@ -126,7 +126,7 @@ describe("paymentHandlers", () => {
       onPay: jest.fn(),
       notifyError: jest.fn(),
       dispatch,
-      user: { user_id: "u1" },
+      user: { userId: "u1" },
       ensureCartReady: jest.fn(),
       normalizeAmounts: jest.fn(() => ({
         amountFiat: 1,
@@ -175,7 +175,7 @@ describe("paymentHandlers", () => {
       onPay: jest.fn(),
       notifyError: jest.fn(),
       dispatch,
-      user: { user_id: "u1" },
+      user: { userId: "u1" },
       ensureCartReady: jest.fn(),
       normalizeAmounts: jest.fn(() => ({
         amountFiat: 1,
@@ -227,7 +227,7 @@ describe("paymentHandlers", () => {
       onPay: jest.fn(),
       notifyError,
       dispatch,
-      user: { user_id: "u1" },
+      user: { userId: "u1" },
       ensureCartReady: jest.fn(),
       normalizeAmounts: jest.fn(() => ({
         amountFiat: 1,
@@ -268,7 +268,7 @@ describe("paymentHandlers", () => {
       onResetCart: jest.fn(),
       notifyError: jest.fn(),
       t,
-      user: { user_id: "u1" },
+      user: { userId: "u1" },
       setBtcPaymentConfig: jest.fn(),
       printCustomerReceipt: jest.fn(),
     });
@@ -306,7 +306,7 @@ describe("paymentHandlers", () => {
       onResetCart,
       notifyError: jest.fn(),
       t,
-      user: { user_id: "u1" },
+      user: { userId: "u1" },
       setBtcPaymentConfig,
       printCustomerReceipt: jest.fn(() => Promise.resolve()),
     });
@@ -348,7 +348,7 @@ describe("paymentHandlers", () => {
       onResetCart: jest.fn(),
       notifyError,
       t,
-      user: { user_id: "u1" },
+      user: { userId: "u1" },
       setBtcPaymentConfig,
       printCustomerReceipt: jest.fn(),
     });
@@ -394,7 +394,7 @@ describe("paymentHandlers", () => {
       t,
       setCashPaymentConfig,
       printCustomerReceipt: jest.fn(() => Promise.resolve()),
-      user: { user_id: "u1" },
+      user: { userId: "u1" },
     });
 
     await handler({ cashReceived: 10, change: 2 });
@@ -440,7 +440,7 @@ describe("paymentHandlers", () => {
       t,
       setCashPaymentConfig,
       printCustomerReceipt: jest.fn(() => Promise.resolve()),
-      user: { user_id: "u1" },
+      user: { userId: "u1" },
     });
 
     await handler({ cashReceived: 10, change: 2 });
@@ -485,7 +485,7 @@ describe("paymentHandlers", () => {
       t,
       setCardPaymentConfig,
       printCustomerReceipt: jest.fn(() => Promise.resolve()),
-      user: { user_id: "u1" },
+      user: { userId: "u1" },
     });
 
     await handler();
@@ -532,7 +532,7 @@ describe("paymentHandlers", () => {
       t,
       setCardPaymentConfig,
       printCustomerReceipt: jest.fn(() => Promise.resolve()),
-      user: { user_id: "u1" },
+      user: { userId: "u1" },
     });
 
     await handler();

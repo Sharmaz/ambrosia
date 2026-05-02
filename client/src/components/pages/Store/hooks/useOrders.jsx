@@ -11,7 +11,7 @@ function buildOrdersQueryString(filters = {}) {
     ["start_date", filters.startDate],
     ["end_date", filters.endDate],
     ["status", filters.status],
-    ["user_id", filters.userId],
+    ["userId", filters.userId],
     ["payment_method", filters.paymentMethod],
     ["min_total", filters.minTotal],
     ["max_total", filters.maxTotal],

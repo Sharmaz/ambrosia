@@ -14,21 +14,21 @@ export async function processCheckout({
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      user_id: user.user_id,
+      userId: user.userId,
       items: cartItems.map((item) => ({
-        product_id: String(item?.id ?? ""),
+        productId: String(item?.id ?? ""),
         quantity: Number(item?.quantity) || 0,
-        price_at_order: Number(item?.price) || 0,
+        priceAtOrder: Number(item?.price) || 0,
       })),
-      payment_method_id: selectedPaymentMethod,
-      currency_id: currencyId,
+      paymentMethodId: selectedPaymentMethod,
+      currencyId,
       amount: paymentAmounts.amountFiat,
-      transaction_id: transactionId || "",
+      transactionId: transactionId || "",
     }),
   });
 
   const storeCheckoutResult = await parseJsonResponse(checkoutHttpResponse, null);
-  if (!storeCheckoutResult?.order_id) {
+  if (!storeCheckoutResult?.orderId) {
     throw new Error(t("errors.checkout"));
   }
   return storeCheckoutResult;

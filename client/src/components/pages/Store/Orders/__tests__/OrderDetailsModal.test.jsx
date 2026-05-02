@@ -41,10 +41,10 @@ describe("OrderDetailsModal", () => {
       id: "order-1",
       userName: "Luis",
       status: "paid",
-      payment_method: "Cash",
+      paymentMethod: "Cash",
       total: 25,
-      created_at: "2024-01-01T10:00:00Z",
-      table_id: "T1",
+      createdAt: "2024-01-01T10:00:00Z",
+      tableId: "T1",
     };
 
     render(
