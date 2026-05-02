@@ -20,9 +20,9 @@ export async function getSystemCurrency() {
       currencyCache.lastFetch &&
       (now - currencyCache.lastFetch) < CACHE_DURATION) {
     return {
-      baseCurrencyId: currencyCache.baseCurrency.currency_id,
+      baseCurrencyId: currencyCache.baseCurrency.currencyId,
       currencies: currencyCache.currencies,
-      baseCurrency: currencyCache.currencies.find((c) => c.id === currencyCache.baseCurrency.currency_id),
+      baseCurrency: currencyCache.currencies.find((c) => c.id === currencyCache.baseCurrency.currencyId),
     };
   }
 
@@ -40,10 +40,10 @@ export async function getSystemCurrency() {
       lastFetch: now,
     };
 
-    const baseCurrency = currenciesResponse.find((c) => c.id === baseCurrencyResponse.currency_id);
+    const baseCurrency = currenciesResponse.find((c) => c.id === baseCurrencyResponse.currencyId);
 
     return {
-      baseCurrencyId: baseCurrencyResponse.currency_id,
+      baseCurrencyId: baseCurrencyResponse.currencyId,
       currencies: currenciesResponse,
       baseCurrency,
     };

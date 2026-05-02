@@ -65,7 +65,7 @@ export default function Tables({ dynamicParams }) {
         if (orderResponse.id) {
           // Actualizar estado local
           const updatedTables = tables.map((t) => (t.id === table.id
-            ? { ...t, status: "occupied", order_id: orderResponse.id }
+            ? { ...t, status: "occupied", orderId: orderResponse.id }
             : t),
           );
           setTables(updatedTables);
@@ -74,7 +74,7 @@ export default function Tables({ dynamicParams }) {
           await updateTable({
             ...table,
             status: "occupied",
-            order_id: orderResponse.id,
+            orderId: orderResponse.id,
           });
 
           addToast({
@@ -95,7 +95,7 @@ export default function Tables({ dynamicParams }) {
         });
       }
     } else if (table.status === "occupied") {
-      router.push(`/modify-order/${table.order_id}`);
+      router.push(`/modify-order/${table.orderId}`);
     }
   };
 

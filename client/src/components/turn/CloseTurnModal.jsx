@@ -52,7 +52,7 @@ export function CloseTurnModal({
         printerType: "CUSTOMER",
         broadcast: false,
         ticketData: {
-          ticketId: `corte-z-${shiftData?.shift_date ?? ""}`,
+          ticketId: `corte-z-${shiftData?.shiftDate ?? ""}`,
           tableName: ts("cortezTitle"),
           roomName: "",
           date: new Date().toISOString(),
@@ -75,10 +75,10 @@ export function CloseTurnModal({
   };
 
   const shiftPeriod = shiftData
-    ? `${shiftData.shift_date} ${shiftData.start_time}`
+    ? `${shiftData.shiftDate} ${shiftData.startTime}`
     : "—";
 
-  const initialAmount = shiftData?.initial_amount ?? 0;
+  const initialAmount = shiftData?.initialAmount ?? 0;
   const expectedTotal = initialAmount + totalBalance;
   const difference = finalAmount - expectedTotal;
 

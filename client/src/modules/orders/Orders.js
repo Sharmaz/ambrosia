@@ -124,7 +124,7 @@ export default function Orders() {
       searchTerm === "" ||
       order.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
       order.waiter?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      order.table_id?.toLowerCase().includes(searchTerm.toLowerCase());
+      order.tableId?.toLowerCase().includes(searchTerm.toLowerCase());
 
     return statusMatch && searchMatch;
   });
@@ -422,9 +422,9 @@ export default function Orders() {
                           </div>
                         </TableCell>
                         <TableCell>
-                          {order.table_id ? (
+                          {order.tableId ? (
                             <span className="font-mono text-sm text-gray-600">
-                              {order.table_id.substring(0, 8)}...
+                              {order.tableId.substring(0, 8)}...
                             </span>
                           ) : (
                             <span className="text-gray-400 italic">
@@ -448,7 +448,7 @@ export default function Orders() {
                         <TableCell>
                           <div className="flex items-center space-x-1 text-sm text-gray-500">
                             <Calendar className="w-3 h-3" />
-                            <span>{formatDate(order.created_at)}</span>
+                            <span>{formatDate(order.createdAt)}</span>
                           </div>
                         </TableCell>
                         <TableCell>

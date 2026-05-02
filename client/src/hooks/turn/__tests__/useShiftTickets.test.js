@@ -20,11 +20,11 @@ const SHIFT_DATE = "2026-03-04";
 const START_TIME = "08:00:00";
 const SHIFT_START_MS = new Date(`${SHIFT_DATE}T${START_TIME}`).getTime();
 
-const ticketAfter1 = { id: 1, ticket_date: String(SHIFT_START_MS + 1000), total_amount: 5.0 };
-const ticketAfter2 = { id: 2, ticket_date: String(SHIFT_START_MS + 2000), total_amount: 3.0 };
-const ticketBefore = { id: 3, ticket_date: String(SHIFT_START_MS - 5000), total_amount: 10.0 };
+const ticketAfter1 = { id: 1, ticketDate: String(SHIFT_START_MS + 1000), totalAmount: 5.0 };
+const ticketAfter2 = { id: 2, ticketDate: String(SHIFT_START_MS + 2000), totalAmount: 3.0 };
+const ticketBefore = { id: 3, ticketDate: String(SHIFT_START_MS - 5000), totalAmount: 10.0 };
 
-const SHIFT_DATA = { shift_date: SHIFT_DATE, start_time: START_TIME };
+const SHIFT_DATA = { shiftDate: SHIFT_DATE, startTime: START_TIME };
 
 beforeEach(() => {
   jest.clearAllMocks();
@@ -99,16 +99,16 @@ describe("useShiftTickets", () => {
     it("computes byPaymentMethod breakdown from ticket payments", async () => {
       getTickets.mockResolvedValue([ticketAfter1, ticketAfter2]);
       getPayments.mockResolvedValue([
-        { id: 10, method_id: 20 },
-        { id: 11, method_id: 21 },
+        { id: 10, methodId: 20 },
+        { id: 11, methodId: 21 },
       ]);
       getPaymentMethods.mockResolvedValue([
         { id: 20, name: "Cash" },
         { id: 21, name: "Card" },
       ]);
       getPaymentByTicketId
-        .mockResolvedValueOnce([{ payment_id: 10 }])
-        .mockResolvedValueOnce([{ payment_id: 11 }]);
+        .mockResolvedValueOnce([{ paymentId: 10 }])
+        .mockResolvedValueOnce([{ paymentId: 11 }]);
 
       const { result } = renderHook(() => useShiftTickets(SHIFT_DATA));
       await waitFor(() => expect(result.current.byPaymentMethod).toHaveLength(2));
@@ -123,9 +123,9 @@ describe("useShiftTickets", () => {
 
     it("uses 'other' translation key for unknown payment method", async () => {
       getTickets.mockResolvedValue([ticketAfter1]);
-      getPayments.mockResolvedValue([{ id: 10, method_id: 99 }]);
+      getPayments.mockResolvedValue([{ id: 10, methodId: 99 }]);
       getPaymentMethods.mockResolvedValue([]);
-      getPaymentByTicketId.mockResolvedValueOnce([{ payment_id: 10 }]);
+      getPaymentByTicketId.mockResolvedValueOnce([{ paymentId: 10 }]);
 
       const { result } = renderHook(() => useShiftTickets(SHIFT_DATA));
       await waitFor(() => expect(result.current.byPaymentMethod).toHaveLength(1));
@@ -135,7 +135,7 @@ describe("useShiftTickets", () => {
 
     it("skips ticket with no payment records in breakdown", async () => {
       getTickets.mockResolvedValue([ticketAfter1]);
-      getPayments.mockResolvedValue([{ id: 10, method_id: 20 }]);
+      getPayments.mockResolvedValue([{ id: 10, methodId: 20 }]);
       getPaymentMethods.mockResolvedValue([{ id: 20, name: "Cash" }]);
       getPaymentByTicketId.mockResolvedValueOnce([]);
 

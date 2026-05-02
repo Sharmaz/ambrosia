@@ -73,9 +73,9 @@ describe("useCurrency", () => {
   });
 
   describe("parseCurrencyData", () => {
-    it("uses currency_id when id is absent", async () => {
+    it("uses currencyId when id is absent", async () => {
       httpClient.mockResolvedValueOnce({});
-      parseJsonResponse.mockResolvedValueOnce({ currency_id: 42, acronym: "EUR", symbol: "€" });
+      parseJsonResponse.mockResolvedValueOnce({ currencyId: 42, acronym: "EUR", symbol: "€" });
 
       render(<TestComponent />);
 

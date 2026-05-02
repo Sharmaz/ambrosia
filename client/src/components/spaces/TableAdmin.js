@@ -88,7 +88,7 @@ export default function TableAdmin({ room }) {
       setIsLoading(true);
       const tableData = {
         name: tableForm.name,
-        space_id: room.id,
+        spaceId: room.id,
         // capacity: tableForm.capacity ? parseInt(tableForm.capacity) : null,
       };
       await addTable(tableData);
