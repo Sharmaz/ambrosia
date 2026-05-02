@@ -284,16 +284,15 @@ fun Route.orders(orderService: OrderService) {
                 return@post
             }
 
-            // Convert DTO to OrderDish objects
             val dishes =
                 dishRequests.map { request ->
                     OrderDish(
-                        order_id = orderId,
-                        dish_id = request.dish_id,
-                        price_at_order = request.price_at_order,
+                        orderId = orderId,
+                        dishId = request.dishId,
+                        priceAtOrder = request.priceAtOrder,
                         notes = request.notes,
                         status = "pending",
-                        should_prepare = true,
+                        shouldPrepare = true,
                     )
                 }
 
@@ -340,7 +339,7 @@ fun Route.orders(orderService: OrderService) {
             }
 
             val updatedDish = call.receive<OrderDish>()
-            val dishWithId = updatedDish.copy(id = dishId, order_id = orderId)
+            val dishWithId = updatedDish.copy(id = dishId, orderId = orderId)
             val isUpdated = orderService.updateOrderDish(dishWithId)
             if (!isUpdated) {
                 throw ResourceNotFoundException("Order dish $dishId not found in order $orderId")

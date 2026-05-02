@@ -20,7 +20,7 @@ class BaseCurrencyService(
             val resultSet = statement.executeQuery()
             return if (resultSet.next()) {
                 BaseCurrencyResponse(
-                    currency_id = resultSet.getString("id"),
+                    currencyId = resultSet.getString("id"),
                     id = resultSet.getString("id"),
                     acronym = resultSet.getString("acronym"),
                     name = resultSet.getString("name"),

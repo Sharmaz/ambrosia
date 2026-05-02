@@ -72,13 +72,13 @@ class TableService(
 
     suspend fun addTable(table: Table): String? {
         // Verificar que el espacio existe
-        if (!spaceExists(table.space_id)) {
-            logger.error("Space does not exist: ${table.space_id}")
+        if (!spaceExists(table.spaceId)) {
+            logger.error("Space does not exist: ${table.spaceId}")
             return null
         }
 
         // Verificar que el nombre de la mesa no exista ya en el espacio
-        if (tableNameExistsInSpace(table.name, table.space_id)) {
+        if (tableNameExistsInSpace(table.name, table.spaceId)) {
             logger.error("Table name already exists in space: ${table.name}")
             return null
         }
@@ -98,8 +98,8 @@ class TableService(
 
         statement.setString(1, generatedId)
         statement.setString(2, table.name)
-        statement.setString(3, table.space_id)
-        statement.setString(4, table.order_id)
+        statement.setString(3, table.spaceId)
+        statement.setString(4, table.orderId)
         statement.setString(5, tableStatus)
 
         val rowsAffected = statement.executeUpdate()
@@ -122,8 +122,8 @@ class TableService(
                 Table(
                     id = resultSet.getString("id"),
                     name = resultSet.getString("name"),
-                    space_id = resultSet.getString("space_id"),
-                    order_id = resultSet.getString("order_id"),
+                    spaceId = resultSet.getString("space_id"),
+                    orderId = resultSet.getString("order_id"),
                     status = resultSet.getString("status"),
                 )
             tables.add(table)
@@ -140,8 +140,8 @@ class TableService(
             Table(
                 id = resultSet.getString("id"),
                 name = resultSet.getString("name"),
-                space_id = resultSet.getString("space_id"),
-                order_id = resultSet.getString("order_id"),
+                spaceId = resultSet.getString("space_id"),
+                orderId = resultSet.getString("order_id"),
                 status = resultSet.getString("status"),
             )
         } else {
@@ -161,8 +161,8 @@ class TableService(
                 Table(
                     id = resultSet.getString("id"),
                     name = resultSet.getString("name"),
-                    space_id = resultSet.getString("space_id"),
-                    order_id = resultSet.getString("order_id"),
+                    spaceId = resultSet.getString("space_id"),
+                    orderId = resultSet.getString("order_id"),
                     status = resultSet.getString("status"),
                 )
             tables.add(table)
@@ -178,13 +178,13 @@ class TableService(
         }
 
         // Verificar que el espacio existe
-        if (!spaceExists(table.space_id)) {
-            logger.error("Space does not exist: ${table.space_id}")
+        if (!spaceExists(table.spaceId)) {
+            logger.error("Space does not exist: ${table.spaceId}")
             return false
         }
 
         // Verificar que el nombre de la mesa no exista ya en el espacio (excluyendo la mesa actual)
-        if (tableNameExistsInSpaceExcludingId(table.name, table.space_id, table.id)) {
+        if (tableNameExistsInSpaceExcludingId(table.name, table.spaceId, table.id)) {
             logger.error("Table name already exists in space: ${table.name}")
             return false
         }
@@ -198,8 +198,8 @@ class TableService(
 
         val statement = connection.prepareStatement(UPDATE_TABLE)
         statement.setString(1, table.name)
-        statement.setString(2, table.space_id)
-        statement.setString(3, table.order_id)
+        statement.setString(2, table.spaceId)
+        statement.setString(3, table.orderId)
         statement.setString(4, tableStatus)
         statement.setString(5, table.id)
 

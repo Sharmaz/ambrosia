@@ -8,18 +8,18 @@ from ambrosia.api_utils import assert_status_code
 async def _get_current_user_id(admin_client) -> str:
     response = await admin_client.get("/users/me")
     assert_status_code(response, 200, "Failed to fetch current user")
-    return response.json()["user"]["user_id"]
+    return response.json()["user"]["userId"]
 
 
 async def _create_order(
     admin_client, user_id: str, status: str, total: float, created_at: str
 ) -> str:
     payload = {
-        "user_id": user_id,
-        "table_id": None,
+        "userId": user_id,
+        "tableId": None,
         "status": status,
         "total": total,
-        "created_at": created_at,
+        "createdAt": created_at,
     }
     response = await admin_client.post("/orders", json=payload)
     assert_status_code(response, 201, f"Failed to create order with status {status}")
