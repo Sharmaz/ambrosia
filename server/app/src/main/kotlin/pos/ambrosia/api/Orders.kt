@@ -68,18 +68,18 @@ fun Route.orders(orderService: OrderService) {
             val filters =
                 try {
                     OrderWithPaymentFilters(
-                        startDate = parseDateQueryParam(call.request.queryParameters["start_date"], "start_date"),
-                        endDate = parseDateQueryParam(call.request.queryParameters["end_date"], "end_date"),
+                        startDate = parseDateQueryParam(call.request.queryParameters["startDate"], "startDate"),
+                        endDate = parseDateQueryParam(call.request.queryParameters["endDate"], "endDate"),
                         status = call.request.queryParameters["status"]?.takeIf { it.isNotBlank() },
-                        userId = call.request.queryParameters["user_id"]?.takeIf { it.isNotBlank() },
-                        paymentMethod = call.request.queryParameters["payment_method"]?.takeIf { it.isNotBlank() },
-                        minTotal = parseDoubleQueryParam(call.request.queryParameters["min_total"], "min_total"),
-                        maxTotal = parseDoubleQueryParam(call.request.queryParameters["max_total"], "max_total"),
-                        sortBy = call.request.queryParameters["sort_by"]?.takeIf { it.isNotBlank() },
-                        sortOrder = call.request.queryParameters["sort_order"]?.takeIf { it.isNotBlank() },
+                        userId = call.request.queryParameters["userId"]?.takeIf { it.isNotBlank() },
+                        paymentMethod = call.request.queryParameters["paymentMethod"]?.takeIf { it.isNotBlank() },
+                        minTotal = parseDoubleQueryParam(call.request.queryParameters["minTotal"], "minTotal"),
+                        maxTotal = parseDoubleQueryParam(call.request.queryParameters["maxTotal"], "maxTotal"),
+                        sortBy = call.request.queryParameters["sortBy"]?.takeIf { it.isNotBlank() },
+                        sortOrder = call.request.queryParameters["sortOrder"]?.takeIf { it.isNotBlank() },
                     ).also {
                         if (it.startDate != null && it.endDate != null && it.startDate > it.endDate) {
-                            throw IllegalArgumentException("start_date cannot be greater than end_date")
+                            throw IllegalArgumentException("startDate cannot be greater than endDate")
                         }
                     }
                 } catch (error: IllegalArgumentException) {

@@ -51,7 +51,7 @@ async def test_orders_with_payments_sorts_by_total_ascending(admin_client):
     await _create_order(admin_client, user_id, "paid", 25.0, "2025-02-03T10:00:00")
 
     response = await admin_client.get(
-        "/orders/with-payments?sort_by=total&sort_order=asc"
+        "/orders/with-payments?sortBy=total&sortOrder=asc"
     )
     assert_status_code(response, 200)
 
