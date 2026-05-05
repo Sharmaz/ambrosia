@@ -12,8 +12,8 @@ const WALLET_RECEIVE_TOUR_KEY = "ambrosia:tour:wallet-receive";
 const WALLET_TOUR_KEY = "ambrosia:tour:wallet-channel";
 
 import { HistoryTab } from "./HistoryTab";
+import { PaymentTab } from "./Payment";
 import { ReceiveTab } from "./ReceiveTab";
-import { SendTab } from "./SendTab";
 
 export function Transactions({
   transactions,
@@ -114,7 +114,7 @@ export function Transactions({
               </div>
             )}
           >
-            <SendTab
+            <PaymentTab
               fetchInfo={fetchInfo}
               fetchTransactions={fetchTransactions}
             />

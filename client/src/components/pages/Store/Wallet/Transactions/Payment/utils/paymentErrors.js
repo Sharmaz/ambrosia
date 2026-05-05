@@ -1,4 +1,4 @@
-const PAYMENT_ERROR_TRANSLATION_KEYS = {
+export const PAYMENT_ERROR_TRANSLATIONS = {
   invoice_already_paid: "payments.send.errors.invoiceAlreadyPaid",
   invoice_expired: "payments.send.errors.invoiceExpired",
   recipient_rejected_payment: "payments.send.errors.recipientRejectedPayment",
@@ -9,7 +9,7 @@ const PAYMENT_ERROR_TRANSLATION_KEYS = {
 };
 
 export function getPaymentErrorDescription(translate, paymentError) {
-  const translationKey = PAYMENT_ERROR_TRANSLATION_KEYS[paymentError?.code];
+  const translationKey = PAYMENT_ERROR_TRANSLATIONS[paymentError?.code];
 
   if (translationKey) {
     return translate(translationKey);
