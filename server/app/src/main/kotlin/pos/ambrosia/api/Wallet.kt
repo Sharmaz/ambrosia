@@ -93,14 +93,14 @@ fun Route.wallet(
             call.respond(HttpStatusCode.OK, invoice)
         }
         post("/decodeinvoice") {
-            val request = call.receive<DecodeInvoiceRequest>()
-            val decoded = Bolt11Decoder.decodeInvoice(request.invoice)
-            if (decoded != null) {
+            val decodeInvoiceRequest = call.receive<DecodeInvoiceRequest>()
+            val decodedInvoice = Bolt11Decoder.decodeInvoice(decodeInvoiceRequest.invoice)
+            if (decodedInvoice != null) {
                 call.respond(
                     HttpStatusCode.OK,
                     pos.ambrosia.models.phoenix.DecodedInvoiceResponse(
-                        amountSat = decoded.amountSat,
-                        description = decoded.description,
+                        amountSat = decodedInvoice.amountSat,
+                        description = decodedInvoice.description,
                     ),
                 )
             } else {
