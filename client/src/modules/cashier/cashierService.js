@@ -15,26 +15,26 @@ export async function generateReportFromData(
   const end = parseLocalDate(endDate, false);
 
   const filteredTickets = tickets.filter((ticket) => {
-    const ticketDate = new Date(Number(ticket.ticket_date));
+    const ticketDate = new Date(Number(ticket.ticketDate));
     return ticketDate >= start && ticketDate <= end;
   });
 
   const reportsByDate = {};
 
   for (const ticket of filteredTickets) {
-    const date = formatTimeStamp(ticket.ticket_date);
+    const date = formatTimeStamp(ticket.ticketDate);
 
-    const order = orders.find((o) => o.id === ticket.order_id);
+    const order = orders.find((o) => o.id === ticket.orderId);
     const userName = order?.waiter || "Desconocido";
 
     const ticketPayment = await getPaymentByTicketId(ticket.id);
-    const payment = payments.find((p) => p.id === ticketPayment[0].payment_id);
+    const payment = payments.find((p) => p.id === ticketPayment[0].paymentId);
     const paymentMethodName = paymentMethods.find(
-      (method) => method.id === payment.method_id,
+      (method) => method.id === payment.methodId,
     ).name;
 
     const ticketInfo = {
-      amount: ticket.total_amount,
+      amount: ticket.totalAmount,
       paymentMethod: paymentMethodName,
       userName,
     };
@@ -47,7 +47,7 @@ export async function generateReportFromData(
       };
     }
 
-    reportsByDate[date].balance += ticket.total_amount;
+    reportsByDate[date].balance += ticket.totalAmount;
     reportsByDate[date].tickets.push(ticketInfo);
   }
 

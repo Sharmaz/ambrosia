@@ -20,7 +20,7 @@ function deriveLocale(countryCode) {
 }
 
 function parseCurrencyData(base) {
-  const currencyId = base?.currency_id || base?.id;
+  const currencyId = base?.currencyId || base?.id;
   const baseAcronym = base?.acronym;
 
   return {

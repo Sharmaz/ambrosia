@@ -34,9 +34,9 @@ jest.mock("@/components/utils/storedAssetUrl", () => ({
 const product = {
   id: 1,
   name: "Jade Wallet",
-  price_cents: 1600,
+  priceCents: 1600,
   quantity: 10,
-  image_url: "/images/jade.png",
+  imageUrl: "/images/jade.png",
 };
 
 const defaultProps = {

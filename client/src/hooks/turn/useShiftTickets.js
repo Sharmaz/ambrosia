@@ -20,7 +20,7 @@ export function useShiftTickets(shiftData) {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    if (!shiftData?.shift_date || !shiftData?.start_time) return;
+    if (!shiftData?.shiftDate || !shiftData?.startTime) return;
 
     let cancelled = false;
 
@@ -37,13 +37,13 @@ export function useShiftTickets(shiftData) {
           const ticketPayments = await getPaymentByTicketId(ticket.id);
           if (!ticketPayments?.length) continue;
 
-          const payment = payments.find((payment) => payment.id === ticketPayments[0].payment_id);
+          const payment = payments.find((payment) => payment.id === ticketPayments[0].paymentId);
           if (!payment) continue;
 
-          const method = methods.find((method) => method.id === payment.method_id);
+          const method = methods.find((method) => method.id === payment.methodId);
           const methodName = method?.name ?? ts("other");
 
-          methodTotals[methodName] = (methodTotals[methodName] ?? 0) + ticket.total_amount;
+          methodTotals[methodName] = (methodTotals[methodName] ?? 0) + ticket.totalAmount;
         }
 
         if (!cancelled) {
@@ -61,17 +61,17 @@ export function useShiftTickets(shiftData) {
       setError(null);
       try {
         const shiftStartMs = new Date(
-          `${shiftData.shift_date}T${shiftData.start_time}`,
+          `${shiftData.shiftDate}T${shiftData.startTime}`,
         ).getTime();
 
         const tickets = await getTickets();
         const shiftTickets = tickets.filter(
-          (t) => Number(t.ticket_date) >= shiftStartMs,
+          (t) => Number(t.ticketDate) >= shiftStartMs,
         );
 
         if (cancelled) return;
 
-        setTotalBalance(shiftTickets.reduce((sum, t) => sum + t.total_amount, 0));
+        setTotalBalance(shiftTickets.reduce((sum, t) => sum + t.totalAmount, 0));
         setTotalTickets(shiftTickets.length);
 
         fetchBreakdown(shiftTickets).catch(() => {});
@@ -84,7 +84,7 @@ export function useShiftTickets(shiftData) {
 
     fetchData();
     return () => { cancelled = true; };
-  }, [shiftData?.shift_date, shiftData?.start_time, ts]);
+  }, [shiftData?.shiftDate, shiftData?.startTime, ts]);
 
   return { totalBalance, totalTickets, byPaymentMethod, loading, breakdownLoading, error };
 }

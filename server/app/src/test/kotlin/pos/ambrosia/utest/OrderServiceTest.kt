@@ -83,7 +83,7 @@ class OrderServiceTest {
             val result = service.getOrdersWithPaymentsFiltered(OrderWithPaymentFilters(status = "paid"))
 
             assertEquals(1, result.size)
-            assertEquals("Cash", result[0].payment_method)
+            assertEquals("Cash", result[0].paymentMethod)
             assertTrue(sqlCaptor.firstValue.contains("o.status = ?"))
             assertTrue(sqlCaptor.firstValue.contains("ORDER BY datetime(o.created_at) desc"))
             verify(mockStatement).setString(1, "paid")
@@ -282,11 +282,11 @@ class OrderServiceTest {
             whenever(mockStatement.executeQuery()).thenReturn(mockResultSet) // Arrange
             whenever(mockResultSet.next()).thenReturn(true) // Arrange
             whenever(mockResultSet.getString("id")).thenReturn(expectedOrder.id) // Arrange
-            whenever(mockResultSet.getString("user_id")).thenReturn(expectedOrder.user_id) // Arrange
-            whenever(mockResultSet.getString("table_id")).thenReturn(expectedOrder.table_id) // Arrange
+            whenever(mockResultSet.getString("user_id")).thenReturn(expectedOrder.userId) // Arrange
+            whenever(mockResultSet.getString("table_id")).thenReturn(expectedOrder.tableId) // Arrange
             whenever(mockResultSet.getString("status")).thenReturn(expectedOrder.status) // Arrange
             whenever(mockResultSet.getDouble("total")).thenReturn(expectedOrder.total) // Arrange
-            whenever(mockResultSet.getString("created_at")).thenReturn(expectedOrder.created_at) // Arrange
+            whenever(mockResultSet.getString("created_at")).thenReturn(expectedOrder.createdAt) // Arrange
             val service = OrderService(mockConnection) // Arrange
             val result = service.getOrderById("order-1") // Act
             assertNotNull(result) // Assert
@@ -630,11 +630,11 @@ class OrderServiceTest {
             val order =
                 Order(
                     id = null,
-                    user_id = "user-1",
-                    table_id = "table-1",
+                    userId = "user-1",
+                    tableId = "table-1",
                     status = "open",
                     total = 100.0,
-                    created_at = "date-1",
+                    createdAt = "date-1",
                 ) // Arrange
             val service = OrderService(mockConnection) // Arrange
             val result = service.updateOrder(order) // Act
@@ -649,11 +649,11 @@ class OrderServiceTest {
             val order =
                 Order(
                     id = "order-1",
-                    user_id = "non-existent-user",
-                    table_id = "table-1",
+                    userId = "non-existent-user",
+                    tableId = "table-1",
                     status = "open",
                     total = 100.0,
-                    created_at = "date-1",
+                    createdAt = "date-1",
                 ) // Arrange
             whenever(mockConnection.prepareStatement(any())).thenReturn(mockStatement) // Arrange
             whenever(mockStatement.executeQuery()).thenReturn(mockResultSet) // Arrange
@@ -670,11 +670,11 @@ class OrderServiceTest {
             val order =
                 Order(
                     id = "order-1",
-                    user_id = "user-1",
-                    table_id = "non-existent-table",
+                    userId = "user-1",
+                    tableId = "non-existent-table",
                     status = "open",
                     total = 100.0,
-                    created_at = "date-1",
+                    createdAt = "date-1",
                 ) // Arrange
             val userCheckStatement: PreparedStatement = mock() // Arrange
             val tableCheckStatement: PreparedStatement = mock() // Arrange
@@ -698,11 +698,11 @@ class OrderServiceTest {
             val order =
                 Order(
                     id = "order-1",
-                    user_id = "user-1",
-                    table_id = "table-1",
+                    userId = "user-1",
+                    tableId = "table-1",
                     status = "invalid-status",
                     total = 100.0,
-                    created_at = "date-1",
+                    createdAt = "date-1",
                 ) // Arrange
             val userCheckStatement: PreparedStatement = mock() // Arrange
             val tableCheckStatement: PreparedStatement = mock() // Arrange
@@ -726,11 +726,11 @@ class OrderServiceTest {
             val order =
                 Order(
                     id = "order-1",
-                    user_id = "user-1",
-                    table_id = "table-1",
+                    userId = "user-1",
+                    tableId = "table-1",
                     status = "open",
                     total = 150.0,
-                    created_at = "date-1",
+                    createdAt = "date-1",
                 ) // Arrange
             val userCheckStatement: PreparedStatement = mock() // Arrange
             val tableCheckStatement: PreparedStatement = mock() // Arrange
@@ -757,11 +757,11 @@ class OrderServiceTest {
             val order =
                 Order(
                     id = "order-1",
-                    user_id = "user-1",
-                    table_id = "table-1",
+                    userId = "user-1",
+                    tableId = "table-1",
                     status = "open",
                     total = 150.0,
-                    created_at = "date-1",
+                    createdAt = "date-1",
                 ) // Arrange
             val userCheckStatement: PreparedStatement = mock() // Arrange
             val tableCheckStatement: PreparedStatement = mock() // Arrange
@@ -804,19 +804,17 @@ class OrderServiceTest {
         }
     }
 
-    // ── Store orders ─────────────────────────────────────────────────────────
-
     private fun validStoreRequest(
         items: List<StoreCheckoutItem> = listOf(StoreCheckoutItem("prod-1", 2, 500)),
         transactionId: String? = null,
     ) = StoreCheckoutRequest(
-        user_id = "user-1",
+        userId = "user-1",
         items = items,
-        payment_method_id = "pm-cash",
-        currency_id = "cur-mxn",
+        paymentMethodId = "pm-cash",
+        currencyId = "cur-mxn",
         amount = 10.0,
-        transaction_id = transactionId,
-        ticket_notes = "",
+        transactionId = transactionId,
+        ticketNotes = "",
     )
 
     private fun setupSuccessfulCheckout(
@@ -874,12 +872,12 @@ class OrderServiceTest {
             val service = OrderService(mockConnection) // Arrange
             val result = service.checkout(validStoreRequest()) // Act
             assertNotNull(result) // Assert
-            assertNotNull(result.order_id) // Assert
-            assertNotNull(result.ticket_id) // Assert
-            assertNotNull(result.payment_id) // Assert
-            assertTrue(result.order_id.isNotBlank()) // Assert
-            assertTrue(result.ticket_id.isNotBlank()) // Assert
-            assertTrue(result.payment_id.isNotBlank()) // Assert
+            assertNotNull(result.orderId) // Assert
+            assertNotNull(result.ticketId) // Assert
+            assertNotNull(result.paymentId) // Assert
+            assertTrue(result.orderId.isNotBlank()) // Assert
+            assertTrue(result.ticketId.isNotBlank()) // Assert
+            assertTrue(result.paymentId.isNotBlank()) // Assert
         }
     }
 
@@ -889,7 +887,7 @@ class OrderServiceTest {
             setupSuccessfulCheckout() // Arrange
             val service = OrderService(mockConnection) // Arrange
             val result = service.checkout(validStoreRequest())!! // Act
-            assertEquals(3, setOf(result.order_id, result.ticket_id, result.payment_id).size) // Assert
+            assertEquals(3, setOf(result.orderId, result.ticketId, result.paymentId).size) // Assert
         }
     }
 
@@ -963,7 +961,7 @@ class OrderServiceTest {
     }
 
     @Test
-    fun `checkout uses empty string when transaction_id is null`() {
+    fun `checkout uses empty string when transactionId is null`() {
         runBlocking {
             val paymentSt: PreparedStatement = mock() // Arrange
             val orderSt: PreparedStatement = mock() // Arrange
@@ -985,7 +983,7 @@ class OrderServiceTest {
     }
 
     @Test
-    fun `checkout uses provided transaction_id when not null`() {
+    fun `checkout uses provided transactionId when not null`() {
         runBlocking {
             val paymentSt: PreparedStatement = mock() // Arrange
             val orderSt: PreparedStatement = mock() // Arrange

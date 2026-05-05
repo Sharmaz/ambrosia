@@ -12,11 +12,11 @@ logger = logging.getLogger(__name__)
 VALID_PRODUCT = {
     "SKU": "SKU-TEST-001",
     "name": "Test Product",
-    "cost_cents": 500,
-    "price_cents": 1000,
+    "costCents": 500,
+    "priceCents": 1000,
     "quantity": 10,
-    "min_stock_threshold": 2,
-    "max_stock_threshold": 50,
+    "minStockThreshold": 2,
+    "maxStockThreshold": 50,
 }
 
 
@@ -46,7 +46,7 @@ class TestProductValidation:
                 **VALID_PRODUCT,
                 "SKU": f"SKU-{uid}",
                 "name": f"test_product_{uid}",
-                "category_ids": [category_id],
+                "categoryIds": [category_id],
             },
         )
         assert_status_code(response, 201, "Failed to create test product fixture")
@@ -61,7 +61,7 @@ class TestProductValidation:
         """POST /products with a blank name should return 400."""
         response = await admin_client.post(
             "/products",
-            json={**VALID_PRODUCT, "name": "", "category_ids": [category_id]},
+            json={**VALID_PRODUCT, "name": "", "categoryIds": [category_id]},
         )
         assert_status_code(
             response, 400, "Blank product name should be rejected on create"
@@ -78,7 +78,7 @@ class TestProductValidation:
                 **VALID_PRODUCT,
                 "SKU": "",
                 "name": f"product_{uid}",
-                "category_ids": [category_id],
+                "categoryIds": [category_id],
             },
         )
         assert_status_code(response, 400, "Blank SKU should be rejected on create")
@@ -96,8 +96,8 @@ class TestProductValidation:
                 **VALID_PRODUCT,
                 "SKU": f"SKU-{uid}",
                 "name": f"product_{uid}",
-                "cost_cents": -1,
-                "category_ids": [category_id],
+                "costCents": -1,
+                "categoryIds": [category_id],
             },
         )
         assert_status_code(
@@ -117,8 +117,8 @@ class TestProductValidation:
                 **VALID_PRODUCT,
                 "SKU": f"SKU-{uid}",
                 "name": f"product_{uid}",
-                "price_cents": -1,
-                "category_ids": [category_id],
+                "priceCents": -1,
+                "categoryIds": [category_id],
             },
         )
         assert_status_code(
@@ -139,7 +139,7 @@ class TestProductValidation:
                 "SKU": f"SKU-{uid}",
                 "name": f"product_{uid}",
                 "quantity": -1,
-                "category_ids": [category_id],
+                "categoryIds": [category_id],
             },
         )
         assert_status_code(
@@ -157,7 +157,7 @@ class TestProductValidation:
                 **VALID_PRODUCT,
                 "SKU": f"SKU-{uid}",
                 "name": f"product_{uid}",
-                "category_ids": [],
+                "categoryIds": [],
             },
         )
         assert_status_code(
@@ -177,9 +177,9 @@ class TestProductValidation:
                 **VALID_PRODUCT,
                 "SKU": f"SKU-{uid}",
                 "name": f"product_{uid}",
-                "min_stock_threshold": 50,
-                "max_stock_threshold": 10,
-                "category_ids": [category_id],
+                "minStockThreshold": 50,
+                "maxStockThreshold": 10,
+                "categoryIds": [category_id],
             },
         )
         assert_status_code(
@@ -201,7 +201,7 @@ class TestProductValidation:
                 **VALID_PRODUCT,
                 "SKU": f"SKU-{uid}",
                 "name": f"valid_product_{uid}",
-                "category_ids": [category_id],
+                "categoryIds": [category_id],
             },
         )
         assert_status_code(
@@ -217,7 +217,7 @@ class TestProductValidation:
         """PUT /products/{id} with a blank name should return 400."""
         response = await admin_client.put(
             f"/products/{existing_product}",
-            json={**VALID_PRODUCT, "name": "", "category_ids": [category_id]},
+            json={**VALID_PRODUCT, "name": "", "categoryIds": [category_id]},
         )
         assert_status_code(
             response, 400, "Blank product name should be rejected on update"
@@ -231,7 +231,7 @@ class TestProductValidation:
         """PUT /products/{id} with a blank SKU should return 400."""
         response = await admin_client.put(
             f"/products/{existing_product}",
-            json={**VALID_PRODUCT, "SKU": "", "category_ids": [category_id]},
+            json={**VALID_PRODUCT, "SKU": "", "categoryIds": [category_id]},
         )
         assert_status_code(response, 400, "Blank SKU should be rejected on update")
         logger.info("✓ Blank SKU correctly rejected on update")
@@ -243,7 +243,7 @@ class TestProductValidation:
         """PUT /products/{id} with empty category_ids should return 400."""
         response = await admin_client.put(
             f"/products/{existing_product}",
-            json={**VALID_PRODUCT, "category_ids": []},
+            json={**VALID_PRODUCT, "categoryIds": []},
         )
         assert_status_code(
             response, 400, "Empty category_ids should be rejected on update"
@@ -262,7 +262,7 @@ class TestProductValidation:
                 **VALID_PRODUCT,
                 "SKU": f"SKU-{uid}",
                 "name": f"updated_product_{uid}",
-                "category_ids": [category_id],
+                "categoryIds": [category_id],
             },
         )
         assert_status_code(

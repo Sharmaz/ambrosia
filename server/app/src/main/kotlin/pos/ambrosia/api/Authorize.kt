@@ -172,7 +172,7 @@ fun Route.auth(
 
         val userResponse =
             UserResponse(
-                user_id = userInfo.id,
+                userId = userInfo.id,
                 name = userInfo.name,
                 role = userInfo.role,
                 roleId = userInfo.roleId,

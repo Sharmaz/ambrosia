@@ -33,7 +33,7 @@ describe("OrdersCard", () => {
     id: "abc-123",
     userName: "Ana",
     status: "paid",
-    payment_method: "Cash",
+    paymentMethod: "Cash",
     total: 15,
     createdAt: "2024-01-01T10:00:00Z",
   };
@@ -58,7 +58,7 @@ describe("OrdersCard", () => {
   });
 
   it("shows noPayment when no payment method", () => {
-    render(<OrdersCard order={{ ...order, payment_method: null }} formatAmount={formatAmount} onViewOrder={onViewOrder} />);
+    render(<OrdersCard order={{ ...order, paymentMethod: null }} formatAmount={formatAmount} onViewOrder={onViewOrder} />);
     expect(screen.getByText("details.noPayment")).toBeInTheDocument();
   });
 

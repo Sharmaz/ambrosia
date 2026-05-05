@@ -29,13 +29,13 @@ export function useProducts() {
       SKU: product.productSKU,
       name: product.productName,
       description: product.productDescription || null,
-      image_url: imageUrl,
-      cost_cents: priceCents,
-      category_ids: toArray(product.productCategories),
+      imageUrl,
+      costCents: priceCents,
+      categoryIds: toArray(product.productCategories),
       quantity: Number.isFinite(quantityNumber) ? quantityNumber : 0,
-      min_stock_threshold: Number.isFinite(minStockNumber) ? minStockNumber : 0,
-      max_stock_threshold: Number.isFinite(maxStockNumber) ? maxStockNumber : 0,
-      price_cents: priceCents,
+      minStockThreshold: Number.isFinite(minStockNumber) ? minStockNumber : 0,
+      maxStockThreshold: Number.isFinite(maxStockNumber) ? maxStockNumber : 0,
+      priceCents,
     };
   };
 

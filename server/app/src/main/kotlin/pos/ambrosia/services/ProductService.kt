@@ -38,13 +38,13 @@ class ProductService(
             SKU = result.getString("SKU"),
             name = result.getString("name"),
             description = result.getString("description"),
-            image_url = result.getString("image_url"),
-            cost_cents = result.getInt("cost_cents"),
-            category_ids = getCategoryIds(productId),
+            imageUrl = result.getString("image_url"),
+            costCents = result.getInt("cost_cents"),
+            categoryIds = getCategoryIds(productId),
             quantity = result.getInt("quantity"),
-            min_stock_threshold = result.getInt("min_stock_threshold"),
-            max_stock_threshold = result.getInt("max_stock_threshold"),
-            price_cents = result.getInt("price_cents"),
+            minStockThreshold = result.getInt("min_stock_threshold"),
+            maxStockThreshold = result.getInt("max_stock_threshold"),
+            priceCents = result.getInt("price_cents"),
         )
     }
 
@@ -73,13 +73,13 @@ class ProductService(
     private fun valid(p: Product): Boolean {
         if (p.SKU.isBlank()) return false
         if (p.name.isBlank()) return false
-        if (p.cost_cents < 0) return false
-        if (p.price_cents < 0) return false
+        if (p.costCents < 0) return false
+        if (p.priceCents < 0) return false
         if (p.quantity < 0) return false
-        if (p.min_stock_threshold < 0) return false
-        if (p.max_stock_threshold < 0) return false
-        if (p.max_stock_threshold > 0 && p.min_stock_threshold > p.max_stock_threshold) return false
-        if (p.category_ids.isEmpty()) return false
+        if (p.minStockThreshold < 0) return false
+        if (p.maxStockThreshold < 0) return false
+        if (p.maxStockThreshold > 0 && p.minStockThreshold > p.maxStockThreshold) return false
+        if (p.categoryIds.isEmpty()) return false
         return true
     }
 
@@ -99,18 +99,18 @@ class ProductService(
             statement.setString(2, product.SKU)
             statement.setString(3, product.name)
             statement.setString(4, product.description)
-            statement.setString(5, product.image_url)
-            statement.setInt(6, product.cost_cents)
+            statement.setString(5, product.imageUrl)
+            statement.setInt(6, product.costCents)
             statement.setInt(7, product.quantity)
-            statement.setInt(8, product.min_stock_threshold)
-            statement.setInt(9, product.max_stock_threshold)
-            statement.setInt(10, product.price_cents)
+            statement.setInt(8, product.minStockThreshold)
+            statement.setInt(9, product.maxStockThreshold)
+            statement.setInt(10, product.priceCents)
             val rows = statement.executeUpdate()
             if (rows == 0) {
                 connection.rollback()
                 return null
             }
-            insertCategories(id, product.category_ids)
+            insertCategories(id, product.categoryIds)
             connection.commit()
             logger.info("Product created: $id")
             return id
@@ -170,12 +170,12 @@ class ProductService(
                     statement.setString(1, product.SKU)
                     statement.setString(2, product.name)
                     statement.setString(3, product.description)
-                    statement.setString(4, product.image_url)
-                    statement.setInt(5, product.cost_cents)
+                    statement.setString(4, product.imageUrl)
+                    statement.setInt(5, product.costCents)
                     statement.setInt(6, product.quantity)
-                    statement.setInt(7, product.min_stock_threshold)
-                    statement.setInt(8, product.max_stock_threshold)
-                    statement.setInt(9, product.price_cents)
+                    statement.setInt(7, product.minStockThreshold)
+                    statement.setInt(8, product.maxStockThreshold)
+                    statement.setInt(9, product.priceCents)
                     statement.setString(10, product.id)
                     statement.executeUpdate()
                 }
@@ -187,7 +187,7 @@ class ProductService(
                 statement.setString(1, product.id)
                 statement.executeUpdate()
             }
-            insertCategories(product.id, product.category_ids)
+            insertCategories(product.id, product.categoryIds)
             connection.commit()
             logger.info("Product updated: ${product.id}")
             return true
@@ -219,7 +219,7 @@ class ProductService(
 
     suspend fun adjustStock(adjustments: List<pos.ambrosia.models.ProductStockAdjustment>): Boolean {
         if (adjustments.isEmpty()) return true
-        if (adjustments.any { it.product_id.isBlank() || it.quantity < 0 }) return false
+        if (adjustments.any { it.productId.isBlank() || it.quantity < 0 }) return false
 
         val previousAutoCommit = connection.autoCommit
         connection.autoCommit = false
@@ -231,7 +231,7 @@ class ProductService(
             for (adjustment in adjustments) {
                 if (adjustment.quantity == 0) continue
                 statement.setInt(1, adjustment.quantity)
-                statement.setString(2, adjustment.product_id)
+                statement.setString(2, adjustment.productId)
                 statement.setInt(3, adjustment.quantity)
                 val rows = statement.executeUpdate()
                 if (rows == 0) {

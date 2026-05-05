@@ -113,9 +113,9 @@ export function Cart() {
         {
           id: product.id,
           name: product.name,
-          price: product.price_cents,
+          price: product.priceCents,
           quantity: 1,
-          subtotal: product.price_cents,
+          subtotal: product.priceCents,
         },
       ]);
     }

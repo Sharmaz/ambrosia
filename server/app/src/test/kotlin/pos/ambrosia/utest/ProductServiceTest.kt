@@ -59,7 +59,7 @@ class ProductServiceTest {
             val result = service.getProducts() // Act
             assertEquals(2, result.size) // Assert
             assertEquals("SKU-1", result[0].SKU) // Assert
-            assertEquals(499, result[1].price_cents) // Assert
+            assertEquals(499, result[1].priceCents) // Assert
         }
     }
 
@@ -192,13 +192,13 @@ class ProductServiceTest {
                     SKU = " ",
                     name = "",
                     description = null,
-                    image_url = null,
-                    cost_cents = -1,
-                    category_ids = emptyList(),
+                    imageUrl = null,
+                    costCents = -1,
+                    categoryIds = emptyList(),
                     quantity = -5,
-                    min_stock_threshold = -1,
-                    max_stock_threshold = -1,
-                    price_cents = -10,
+                    minStockThreshold = -1,
+                    maxStockThreshold = -1,
+                    priceCents = -10,
                 ) // Arrange
             val service = ProductService(mockConnection) // Arrange
             val result = service.addProduct(invalid) // Act
@@ -278,13 +278,13 @@ class ProductServiceTest {
                     SKU = "SKU-1",
                     name = "Name",
                     description = null,
-                    image_url = null,
-                    cost_cents = 100,
-                    category_ids = listOf("cat-1"),
+                    imageUrl = null,
+                    costCents = 100,
+                    categoryIds = listOf("cat-1"),
                     quantity = 1,
-                    min_stock_threshold = 0,
-                    max_stock_threshold = 0,
-                    price_cents = 100,
+                    minStockThreshold = 0,
+                    maxStockThreshold = 0,
+                    priceCents = 100,
                 ) // Arrange
             val service = ProductService(mockConnection) // Arrange
             val result = service.updateProduct(productWithNullId) // Act
@@ -302,13 +302,13 @@ class ProductServiceTest {
                     SKU = "",
                     name = " ",
                     description = null,
-                    image_url = null,
-                    cost_cents = -1,
-                    category_ids = emptyList(),
+                    imageUrl = null,
+                    costCents = -1,
+                    categoryIds = emptyList(),
                     quantity = -1,
-                    min_stock_threshold = -1,
-                    max_stock_threshold = -1,
-                    price_cents = -1,
+                    minStockThreshold = -1,
+                    maxStockThreshold = -1,
+                    priceCents = -1,
                 ) // Arrange
             val service = ProductService(mockConnection) // Arrange
             val result = service.updateProduct(invalid) // Act
@@ -325,13 +325,13 @@ class ProductServiceTest {
                     SKU = "SKU-TAKEN",
                     name = "New Name",
                     description = null,
-                    image_url = null,
-                    cost_cents = 100,
-                    category_ids = listOf("cat-1"),
+                    imageUrl = null,
+                    costCents = 100,
+                    categoryIds = listOf("cat-1"),
                     quantity = 5,
-                    min_stock_threshold = 1,
-                    max_stock_threshold = 10,
-                    price_cents = 250,
+                    minStockThreshold = 1,
+                    maxStockThreshold = 10,
+                    priceCents = 250,
                 ) // Arrange
             val skuCheckStatement: PreparedStatement = mock() // Arrange
             val skuCheckResultSet: ResultSet = mock() // Arrange
@@ -364,13 +364,13 @@ class ProductServiceTest {
                     SKU = "SKU-OK",
                     name = "Updated",
                     description = null,
-                    image_url = null,
-                    cost_cents = 100,
-                    category_ids = listOf("cat-1"),
+                    imageUrl = null,
+                    costCents = 100,
+                    categoryIds = listOf("cat-1"),
                     quantity = 5,
-                    min_stock_threshold = 1,
-                    max_stock_threshold = 10,
-                    price_cents = 250,
+                    minStockThreshold = 1,
+                    maxStockThreshold = 10,
+                    priceCents = 250,
                 ) // Arrange
             val skuCheckStatement: PreparedStatement = mock() // Arrange
             val updateStatement: PreparedStatement = mock() // Arrange
@@ -396,13 +396,13 @@ class ProductServiceTest {
                     SKU = "SKU-OK",
                     name = "Updated",
                     description = null,
-                    image_url = null,
-                    cost_cents = 100,
-                    category_ids = listOf("cat-1"),
+                    imageUrl = null,
+                    costCents = 100,
+                    categoryIds = listOf("cat-1"),
                     quantity = 5,
-                    min_stock_threshold = 1,
-                    max_stock_threshold = 10,
-                    price_cents = 250,
+                    minStockThreshold = 1,
+                    maxStockThreshold = 10,
+                    priceCents = 250,
                 ) // Arrange
             val skuCheckStatement: PreparedStatement = mock() // Arrange
             val updateStatement: PreparedStatement = mock() // Arrange
@@ -455,8 +455,8 @@ class ProductServiceTest {
             val service = ProductService(mockConnection) // Arrange
             val adjustments =
                 listOf(
-                    ProductStockAdjustment(product_id = "p-1", quantity = 2),
-                    ProductStockAdjustment(product_id = "p-2", quantity = 1),
+                    ProductStockAdjustment(productId = "p-1", quantity = 2),
+                    ProductStockAdjustment(productId = "p-2", quantity = 1),
                 )
             val result = service.adjustStock(adjustments) // Act
             assertTrue(result) // Assert
@@ -471,7 +471,7 @@ class ProductServiceTest {
             whenever(mockConnection.prepareStatement(contains("UPDATE products SET quantity = quantity -"))).thenReturn(updateStatement)
             whenever(updateStatement.executeUpdate()).thenReturn(0) // Arrange
             val service = ProductService(mockConnection) // Arrange
-            val adjustments = listOf(ProductStockAdjustment(product_id = "p-1", quantity = 2))
+            val adjustments = listOf(ProductStockAdjustment(productId = "p-1", quantity = 2))
             val result = service.adjustStock(adjustments) // Act
             assertFalse(result) // Assert
             verify(mockConnection).rollback() // Assert

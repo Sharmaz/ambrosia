@@ -38,7 +38,6 @@ export default function Tables({ dynamicParams }) {
         const tablesResponse = await getTablesByRoomId(roomId);
         setTables(tablesResponse);
 
-        // Obtener nombre de la sala si está disponible
         if (tablesResponse.length > 0 && tablesResponse[0].room_name) {
           setRoomName(tablesResponse[0].room_name);
         }
@@ -63,18 +62,16 @@ export default function Tables({ dynamicParams }) {
       try {
         const orderResponse = await createOrder(table.id);
         if (orderResponse.id) {
-          // Actualizar estado local
           const updatedTables = tables.map((t) => (t.id === table.id
-            ? { ...t, status: "occupied", order_id: orderResponse.id }
+            ? { ...t, status: "occupied", orderId: orderResponse.id }
             : t),
           );
           setTables(updatedTables);
 
-          // Actualizar en servidor
           await updateTable({
             ...table,
             status: "occupied",
-            order_id: orderResponse.id,
+            orderId: orderResponse.id,
           });
 
           addToast({
@@ -95,7 +92,7 @@ export default function Tables({ dynamicParams }) {
         });
       }
     } else if (table.status === "occupied") {
-      router.push(`/modify-order/${table.order_id}`);
+      router.push(`/modify-order/${table.orderId}`);
     }
   };
 

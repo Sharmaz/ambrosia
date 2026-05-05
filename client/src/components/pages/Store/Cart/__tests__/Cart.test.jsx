@@ -15,10 +15,10 @@ const mockHandlePay = jest.fn();
 jest.mock("../SearchProducts", () => ({
   SearchProducts: ({ onAddProduct }) => (
     <div>
-      <button onClick={() => onAddProduct({ id: 1, name: "Jade Wallet", price_cents: 100 })}>
+      <button onClick={() => onAddProduct({ id: 1, name: "Jade Wallet", priceCents: 100 })}>
         add-existing
       </button>
-      <button onClick={() => onAddProduct({ id: 2, name: "M5 Stick", price_cents: 200 })}>
+      <button onClick={() => onAddProduct({ id: 2, name: "M5 Stick", priceCents: 200 })}>
         add-new
       </button>
     </div>
@@ -148,7 +148,7 @@ beforeEach(() => {
   jest.spyOn(useAuthHook, "useAuth").mockReturnValue({
     isAuth: true,
     isLoading: false,
-    user: { user_id: "user-1", name: "Tester" },
+    user: { userId: "user-1", name: "Tester" },
     permissions: [],
     logout: jest.fn(),
   });

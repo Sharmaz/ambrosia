@@ -50,7 +50,7 @@ export function Users() {
       userPin: "",
       userPhone: user.phone ?? "",
       userEmail: user.email ?? "",
-      userRole: user.role_id ?? "",
+      userRole: user.roleId ?? "",
     });
 
     setEditUsersShowModal(true);

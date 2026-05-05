@@ -108,7 +108,7 @@ jest.mock("../../hooks/useUsers", () => ({
         name: undefined,
         phone: undefined,
         email: undefined,
-        role_id: undefined,
+        roleId: undefined,
       },
     ],
     updateUser: mockUpdateUser,

@@ -58,14 +58,14 @@ export function Products() {
       productId: product.id,
       productName: product.name,
       productDescription: product.description,
-      productCategories: toArray(product.category_ids),
+      productCategories: toArray(product.categoryIds),
       productSKU: product.SKU,
-      productPrice: product.price_cents ? product.price_cents / 100 : "",
+      productPrice: product.priceCents ? product.priceCents / 100 : "",
       productStock: product.quantity,
-      productMinStock: product.min_stock_threshold ?? 0,
-      productMaxStock: product.max_stock_threshold ?? 0,
+      productMinStock: product.minStockThreshold ?? 0,
+      productMaxStock: product.maxStockThreshold ?? 0,
       productImage: null,
-      productImageUrl: product.image_url,
+      productImageUrl: product.imageUrl,
     });
 
     setEditProductsShowModal(true);

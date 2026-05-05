@@ -65,7 +65,7 @@ export default function StoreOrders() {
         searchTerm === "" ||
         order.id.toLowerCase().includes(normalizedSearch) ||
         order.userName?.toLowerCase().includes(normalizedSearch) ||
-        order.table_id?.toLowerCase().includes(normalizedSearch)
+        order.tableId?.toLowerCase().includes(normalizedSearch)
       );
     }),
     [orders, searchTerm],

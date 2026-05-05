@@ -38,12 +38,12 @@ export function OrdersTable({ orders, formatAmount, onViewOrder }) {
               </TableCell>
               <TableCell className="hidden md:table-cell">
                 <span className="text-sm text-gray-700">
-                  {order.payment_method || t("details.noPayment")}
+                  {order.paymentMethod || t("details.noPayment")}
                 </span>
               </TableCell>
               <TableCell className="whitespace-nowrap">{formatAmount(order.total * 100)}</TableCell>
               <TableCell className="whitespace-nowrap text-sm text-gray-500">
-                {formatDate(order.created_at)}
+                {formatDate(order.createdAt)}
               </TableCell>
               <TableCell className="py-2 px-3">
                 <div className="flex justify-end">

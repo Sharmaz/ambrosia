@@ -15,7 +15,7 @@ export function ProductsCard({ product, status, normalizeNumber, formatAmount, c
     <Card shadow="none" className="border border-gray-200 rounded-lg">
       <CardBody className="flex flex-row items-center gap-3 p-3">
         <Image
-          src={storedAssetUrl(product?.image_url)}
+          src={storedAssetUrl(product?.imageUrl)}
           width={56}
           height={56}
           alt={product.name}
@@ -23,7 +23,7 @@ export function ProductsCard({ product, status, normalizeNumber, formatAmount, c
         />
         <div className="flex-1 min-w-0">
           <p className="font-medium truncate text-sm">{product.name}</p>
-          <p className="text-green-800 font-semibold text-sm mt-0.5">{formatAmount(product.price_cents)}</p>
+          <p className="text-green-800 font-semibold text-sm mt-0.5">{formatAmount(product.priceCents)}</p>
           <div className="flex gap-1.5 mt-1">
             <Chip
               className={
