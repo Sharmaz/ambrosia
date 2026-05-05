@@ -156,6 +156,9 @@ export function CategorySelector({
             <Chip
               key={category.id}
               variant="flat"
+              classNames={{
+                closeButton: "text-red-600 hover:text-red-700",
+              }}
               onClose={() => onSelectionChange(selectedCategories.filter((id) => id !== category.id))}
             >
               {category.name}
