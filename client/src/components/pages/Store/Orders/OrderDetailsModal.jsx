@@ -36,7 +36,7 @@ export function OrderDetailsModal({ order, isOpen, onClose, formatAmount }) {
             />
             <DetailRow
               label={t("details.paymentMethod")}
-              value={order?.payment_method || t("details.noPayment")}
+              value={order?.paymentMethod || t("details.noPayment")}
             />
             <DetailRow
               label={t("details.total")}
@@ -44,7 +44,7 @@ export function OrderDetailsModal({ order, isOpen, onClose, formatAmount }) {
             />
             <DetailRow
               label={t("details.createdAt")}
-              value={order?.created_at ? formatDate(order.created_at) : t("details.unassigned")}
+              value={order?.createdAt ? formatDate(order.createdAt) : t("details.unassigned")}
             />
           </div>
         </ModalBody>

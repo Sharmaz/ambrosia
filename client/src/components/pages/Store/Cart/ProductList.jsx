@@ -46,11 +46,11 @@ export function ProductList({ products, onAddProduct, categories }) {
           >
             <CardHeader className="flex flex-col items-start pb-1">
               <h2 className="text-sm md:text-lg font-medium">{product.name}</h2>
-              <p className="text-xs">{getCategoryNames(product.category_ids)}</p>
+              <p className="text-xs">{getCategoryNames(product.categoryIds)}</p>
             </CardHeader>
             <CardBody className="py-1">
               <h2 className="text-lg md:text-2xl font-bold text-green-800">
-                {formatAmount(product.price_cents)}
+                {formatAmount(product.priceCents)}
               </h2>
               <p className="hidden md:block text-xs">
                 SKU: <span className="text-gray-800">{product.SKU}</span>

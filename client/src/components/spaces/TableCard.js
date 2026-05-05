@@ -22,14 +22,14 @@ export default function TableCard({ tableData }) {
     if (tableData.status === "available") {
       setIsOpen(true);
     } else if (tableData.status === "occupied") {
-      router.push(`/modify-order/${tableData.order_id}`);
+      router.push(`/modify-order/${tableData.orderId}`);
     }
   }
 
   async function handleConfirm() {
     const orderResponse = await createOrder(tableData.id);
     if (orderResponse.id) {
-      const updatedTable = { ...tableData, order_id: orderResponse.id, status: "occupied" };
+      const updatedTable = { ...tableData, orderId: orderResponse.id, status: "occupied" };
       await updateTable(updatedTable);
     }
     router.push(`/modify-order/${orderResponse.id}`);

@@ -97,7 +97,7 @@ describe("useOrders", () => {
       await handlers.fetchOrdersFiltered({ sortBy: "total", sortOrder: "asc" });
     });
 
-    expect(httpClient).toHaveBeenLastCalledWith("/orders/with-payments?sort_by=total&sort_order=asc");
+    expect(httpClient).toHaveBeenLastCalledWith("/orders/with-payments?sortBy=total&sortOrder=asc");
   });
 
   it("fetchOrdersFiltered omits empty params", async () => {

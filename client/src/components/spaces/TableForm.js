@@ -24,7 +24,7 @@ export default function TableForm({ onSubmit, onCancel, initialData, roomId }) {
         ...initialData,
         name: nombre.trim(),
         status: estado,
-        space_id: roomId,
+        spaceId: roomId,
       });
       setNombre("");
       setEstado("available");

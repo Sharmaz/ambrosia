@@ -7,7 +7,7 @@ import { useCartPayment } from "../useCartPayment";
 let mockPaymentMethods;
 
 jest.mock("@/hooks/auth/useAuth", () => ({
-  useAuth: () => ({ user: { user_id: "u1", name: "Tester" } }),
+  useAuth: () => ({ user: { userId: "u1", name: "Tester" } }),
 }));
 
 jest.mock("@/components/hooks/useCurrency", () => ({

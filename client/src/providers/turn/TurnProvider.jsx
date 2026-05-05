@@ -44,7 +44,7 @@ export function TurnProvider({ children }) {
   }, [loadOpenTurn]);
 
   const openShift = useCallback(async (initialAmount = 0) => {
-    const result = await openTurn(user?.id || user?.user_id, initialAmount);
+    const result = await openTurn(user?.id || user?.userId, initialAmount);
     const id = result?.id ?? null;
     setOpenTurnId(id);
     if (id) {

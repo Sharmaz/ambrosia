@@ -110,8 +110,8 @@ jest.mock("@heroui/react", () => {
 describe("StoreOrders", () => {
   beforeEach(() => {
     mockOrders = [
-      { id: "order-1", status: "paid", waiter: "Ana", total: 10, created_at: "2024-01-01" },
-      { id: "order-2", status: "paid", waiter: "Luis", total: 20, created_at: "2024-01-02" },
+      { id: "order-1", status: "paid", waiter: "Ana", total: 10, createdAt: "2024-01-01" },
+      { id: "order-2", status: "paid", waiter: "Luis", total: 20, createdAt: "2024-01-02" },
     ];
     mockPush.mockClear();
     mockFetchOrders.mockReset();

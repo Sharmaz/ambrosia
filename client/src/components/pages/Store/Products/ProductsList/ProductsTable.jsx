@@ -42,7 +42,7 @@ export function ProductsTable({ products, categoryNameById, status, normalizeNum
                 <Image
                   alt={product.name}
                   className="rounded-md object-cover shrink-0"
-                  src={storedAssetUrl(product?.image_url)}
+                  src={storedAssetUrl(product?.imageUrl)}
                   width={40}
                   height={40}
                 />
@@ -54,9 +54,9 @@ export function ProductsTable({ products, categoryNameById, status, normalizeNum
                 <span className="block max-w-[50px] truncate">{product.description}</span>
               </TableCell>
               <TableCell>
-                {product.category_ids?.some((catId) => categoryNameById[String(catId)]) ? (
+                {product.categoryIds?.some((catId) => categoryNameById[String(catId)]) ? (
                   <div className="flex flex-wrap gap-1">
-                    {product.category_ids.filter((catId) => categoryNameById[String(catId)]).map((catId) => (
+                    {product.categoryIds.filter((catId) => categoryNameById[String(catId)]).map((catId) => (
                       <Chip key={catId} className="bg-green-200 text-xs text-green-800 border border-green-300">
                         {categoryNameById[String(catId)]}
                       </Chip>
@@ -72,7 +72,7 @@ export function ProductsTable({ products, categoryNameById, status, normalizeNum
                 <span className="whitespace-nowrap">{product.SKU}</span>
               </TableCell>
               <TableCell>
-                <span className="whitespace-nowrap">{formatAmount(product.price_cents)}</span>
+                <span className="whitespace-nowrap">{formatAmount(product.priceCents)}</span>
               </TableCell>
               <TableCell>
                 <Chip

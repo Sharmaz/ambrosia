@@ -33,9 +33,9 @@ const mockFormatAmount = jest.fn((cents) => `$${(cents / 100).toFixed(2)}`);
 
 const SHIFT_DATA = {
   id: 1,
-  shift_date: "2026-03-04",
-  start_time: "09:00:00",
-  initial_amount: 100,
+  shiftDate: "2026-03-04",
+  startTime: "09:00:00",
+  initialAmount: 100,
 };
 
 function setupMocks({

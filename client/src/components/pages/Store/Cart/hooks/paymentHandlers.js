@@ -48,7 +48,7 @@ export function buildHandlePay({
         t,
         items: cartItems,
         selectedPaymentMethod,
-        userId: user?.user_id,
+        userId: user?.userId,
         currencyId: currency?.id,
       });
     } catch (err) {

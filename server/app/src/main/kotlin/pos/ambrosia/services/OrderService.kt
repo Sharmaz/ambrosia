@@ -112,11 +112,11 @@ class OrderService(
     private fun mapResultSetToOrder(resultSet: java.sql.ResultSet): Order =
         Order(
             id = resultSet.getString("id"),
-            user_id = resultSet.getString("user_id"),
-            table_id = resultSet.getString("table_id"),
+            userId = resultSet.getString("user_id"),
+            tableId = resultSet.getString("table_id"),
             status = resultSet.getString("status"),
             total = resultSet.getDouble("total"),
-            created_at = resultSet.getString("created_at").replace(" ", "T"),
+            createdAt = resultSet.getString("created_at").replace(" ", "T"),
         )
 
     private fun mapResultSetToOrderWithPayment(resultSet: java.sql.ResultSet): OrderWithPayment {
@@ -127,14 +127,14 @@ class OrderService(
 
         return OrderWithPayment(
             id = resultSet.getString("id"),
-            user_id = resultSet.getString("user_id"),
+            userId = resultSet.getString("user_id"),
             userName = resultSet.getString("user_name"),
-            table_id = resultSet.getString("table_id"),
+            tableId = resultSet.getString("table_id"),
             status = resultSet.getString("status"),
             total = resultSet.getDouble("total"),
-            created_at = resultSet.getString("created_at").replace(" ", "T"),
-            payment_method = paymentNames,
-            payment_method_ids = paymentIds,
+            createdAt = resultSet.getString("created_at").replace(" ", "T"),
+            paymentMethod = paymentNames,
+            paymentMethodIds = paymentIds,
         )
     }
 
@@ -176,13 +176,13 @@ class OrderService(
     }
 
     suspend fun addOrder(order: Order): String? {
-        if (!userExists(order.user_id)) {
-            logger.error("User does not exist: ${order.user_id}")
+        if (!userExists(order.userId)) {
+            logger.error("User does not exist: ${order.userId}")
             return null
         }
 
-        if (!tableExists(order.table_id)) {
-            logger.error("Table does not exist: ${order.table_id}")
+        if (!tableExists(order.tableId)) {
+            logger.error("Table does not exist: ${order.tableId}")
             return null
         }
 
@@ -196,12 +196,12 @@ class OrderService(
         val statement = connection.prepareStatement(ADD_ORDER)
 
         statement.setString(1, generatedId)
-        statement.setString(2, order.user_id)
-        statement.setString(3, order.table_id)
+        statement.setString(2, order.userId)
+        statement.setString(3, order.tableId)
         statement.setString(4, orderStatus)
         statement.setDouble(5, order.total)
         val createdAt =
-            order.created_at.ifEmpty {
+            order.createdAt.ifEmpty {
                 java.time.LocalDateTime
                     .now()
                     .toString()
@@ -391,13 +391,13 @@ class OrderService(
             return false
         }
 
-        if (!userExists(order.user_id)) {
-            logger.error("User does not exist: ${order.user_id}")
+        if (!userExists(order.userId)) {
+            logger.error("User does not exist: ${order.userId}")
             return false
         }
 
-        if (!tableExists(order.table_id)) {
-            logger.error("Table does not exist: ${order.table_id}")
+        if (!tableExists(order.tableId)) {
+            logger.error("Table does not exist: ${order.tableId}")
             return false
         }
 
@@ -408,8 +408,8 @@ class OrderService(
         }
 
         val statement = connection.prepareStatement(UPDATE_ORDER)
-        statement.setString(1, order.user_id)
-        statement.setString(2, order.table_id)
+        statement.setString(1, order.userId)
+        statement.setString(2, order.tableId)
         statement.setString(3, orderStatus)
         statement.setDouble(4, order.total)
         statement.setString(5, order.id)
@@ -457,11 +457,11 @@ class OrderService(
     ): Boolean {
         var allAdded = true
         for (dish in dishes) {
-            val dishWithOrderId = dish.copy(order_id = orderId)
-            val result = orderDishService.addOrderDish(dishWithOrderId)
-            if (result == null) {
+            val dishWithOrderId = dish.copy(orderId = orderId)
+            val addedOrderDishId = orderDishService.addOrderDish(dishWithOrderId)
+            if (addedOrderDishId == null) {
                 allAdded = false
-                logger.error("Failed to add dish ${dish.dish_id} to order $orderId")
+                logger.error("Failed to add dish ${dish.dishId} to order $orderId")
             }
         }
         return allAdded
@@ -477,7 +477,7 @@ class OrderService(
 
     suspend fun calculateOrderTotal(orderId: String): Double {
         val dishes = orderDishService.getOrderDishesByOrderId(orderId)
-        return dishes.sumOf { it.price_at_order }
+        return dishes.sumOf { it.priceAtOrder }
     }
 
     suspend fun updateOrderTotal(orderId: String): Boolean {
@@ -495,9 +495,9 @@ class OrderService(
         while (resultSet.next()) {
             items.add(
                 StoreOrderItem(
-                    product_id = resultSet.getString("product_id"),
+                    productId = resultSet.getString("product_id"),
                     quantity = resultSet.getInt("quantity"),
-                    price_at_order = resultSet.getInt("price_at_order"),
+                    priceAtOrder = resultSet.getInt("price_at_order"),
                 ),
             )
         }
@@ -508,11 +508,11 @@ class OrderService(
         val id = resultSet.getString("id")
         return StoreOrder(
             id = id,
-            user_id = resultSet.getString("user_id"),
+            userId = resultSet.getString("user_id"),
             userName = resultSet.getString("user_name"),
             status = resultSet.getString("status"),
             total = resultSet.getInt("total"),
-            created_at = resultSet.getString("created_at").replace(" ", "T"),
+            createdAt = resultSet.getString("created_at").replace(" ", "T"),
             items = mapStoreItems(id),
         )
     }
@@ -552,7 +552,7 @@ class OrderService(
             val orderId = UUID.randomUUID().toString()
             connection.prepareStatement(STORE_INSERT_CHECKOUT_ORDER).use { statement ->
                 statement.setString(1, orderId)
-                statement.setString(2, request.user_id)
+                statement.setString(2, request.userId)
                 statement.setDouble(3, request.amount)
                 statement.executeUpdate()
             }
@@ -560,16 +560,16 @@ class OrderService(
             for (item in request.items) {
                 connection.prepareStatement(STORE_INSERT_ORDER_ITEM).use { statement ->
                     statement.setString(1, orderId)
-                    statement.setString(2, item.product_id)
+                    statement.setString(2, item.productId)
                     statement.setInt(3, item.quantity)
-                    statement.setInt(4, item.price_at_order)
+                    statement.setInt(4, item.priceAtOrder)
                     statement.executeUpdate()
                 }
 
                 val rows =
                     connection.prepareStatement(STORE_DECREMENT_STOCK).use { statement ->
                         statement.setInt(1, item.quantity)
-                        statement.setString(2, item.product_id)
+                        statement.setString(2, item.productId)
                         statement.setInt(3, item.quantity)
                         statement.executeUpdate()
                     }
@@ -583,18 +583,18 @@ class OrderService(
             connection.prepareStatement(STORE_INSERT_TICKET).use { statement ->
                 statement.setString(1, ticketId)
                 statement.setString(2, orderId)
-                statement.setString(3, request.user_id)
+                statement.setString(3, request.userId)
                 statement.setDouble(4, request.amount)
-                statement.setString(5, request.ticket_notes)
+                statement.setString(5, request.ticketNotes)
                 statement.executeUpdate()
             }
 
             val paymentId = UUID.randomUUID().toString()
             connection.prepareStatement(STORE_INSERT_PAYMENT).use { statement ->
                 statement.setString(1, paymentId)
-                statement.setString(2, request.payment_method_id)
-                statement.setString(3, request.currency_id)
-                statement.setString(4, request.transaction_id ?: "")
+                statement.setString(2, request.paymentMethodId)
+                statement.setString(3, request.currencyId)
+                statement.setString(4, request.transactionId ?: "")
                 statement.setDouble(5, request.amount)
                 statement.executeUpdate()
             }

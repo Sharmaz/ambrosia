@@ -64,8 +64,8 @@ jest.mock("../EditProductsModal", () => ({
 jest.mock("../../hooks/useProducts", () => ({
   useProducts: () => ({
     products: [
-      { id: 1, name: "Jade Wallet", description: "Hardware Wallet", category_id: "cat-1", SKU: "jade-wallet", price_cents: 1600, quantity: 10, image_url: "/images/jade.png" },
-      { id: 2, name: "Jade Plus", description: "Hardware Wallet Plus", category_id: "cat-1", SKU: "jade-plus", price_cents: 4000, quantity: 5, image_url: "/images/jade-plus.png" },
+      { id: 1, name: "Jade Wallet", description: "Hardware Wallet", categoryId: "cat-1", SKU: "jade-wallet", priceCents: 1600, quantity: 10, imageUrl: "/images/jade.png" },
+      { id: 2, name: "Jade Plus", description: "Hardware Wallet Plus", categoryId: "cat-1", SKU: "jade-plus", priceCents: 4000, quantity: 5, imageUrl: "/images/jade-plus.png" },
     ],
     addProduct: mockAddProduct,
     updateProduct: mockUpdateProduct,

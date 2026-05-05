@@ -101,18 +101,13 @@ export default function EditOrder({ dynamicParams }) {
   const [selectedCategory, setSelectedCategory] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
-  //const [undoStack, setUndoStack] = useState([]);
   const [createdInvoice, setCreatedInvoice] = useState(null);
   const [generatedCashInfo, setGeneratedCashInfo] = useState(null);
   const [cashReceived, setCashReceived] = useState("");
-  //const [showCurrencyDialog, setShowCurrencyDialog] = useState(false);
   const [showPaymentMethodDialog, setShowPaymentMethodDialog] = useState(false);
-  //const [selectedCurrency, setSelectedCurrency] = useState("");
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState("");
-  //const [ticketId, setTicketId] = useState(null);
   const [orderDishes, setOrderDishes] = useState([]);
   const [paymentMethods, setPaymentMethods] = useState([]);
-  //const [paymentCurrencies, setPaymentCurrencies] = useState([]);
   const [selectedDishForEdit, setSelectedDishForEdit] = useState(null);
   const [dishNotes, setDishNotes] = useState("");
   const [dishShouldPrepare, setDishShouldPrepare] = useState(true);
@@ -150,7 +145,6 @@ export default function EditOrder({ dynamicParams }) {
           categoriesResponse,
           orderDishesResponse,
           paymentMethodsResponse,
-          //paymentCurrenciesResponse,
         ] = await Promise.all([
           getOrderById(pedidoId),
           getDishes(),
@@ -165,7 +159,6 @@ export default function EditOrder({ dynamicParams }) {
         setSelectedCategory(categoriesResponse[0] || "");
         setOrderDishes(orderDishesResponse || []);
         setPaymentMethods(paymentMethodsResponse);
-        //setPaymentCurrencies(paymentCurrenciesResponse);
       } catch (err) {
         console.error(err);
         setError("Error al cargar el pedido");
@@ -180,22 +173,6 @@ export default function EditOrder({ dynamicParams }) {
   useEffect(() => {
     if (order) fetchOrderDishes();
   }, [order, fetchOrderDishes]);
-
-  /*const handleAddDish = async (dish) => {
-    if (order.status !== "open") return;
-    setIsLoading(true);
-    try {
-      await addDishToOrder(pedidoId, dish.id, dish.price);
-      const orderResponse = await getOrderById(order.id);
-      const dishesResponse = await getDishesByOrder(pedidoId);
-      setOrderDishes(dishesResponse);
-      setOrder(orderResponse);
-    } catch (err) {
-      setError("Error al agregar el platillo");
-    } finally {
-      setIsLoading(false);
-    }
-  };*/
 
   const handleRemoveDish = async (instance) => {
     const instanceId = instance.id;
@@ -222,21 +199,6 @@ export default function EditOrder({ dynamicParams }) {
       setIsLoading(false);
     }
   };
-
-  /*const handleUndo = async () => {
-    if (undoStack.length === 0) return;
-    const previousDishes = undoStack[undoStack.length - 1];
-    setUndoStack(undoStack.slice(0, -1));
-    setIsLoading(true);
-    try {
-      const response = await updateOrder(pedidoId, { dishes: previousDishes });
-      setOrder(response.data);
-    } catch (err) {
-      setError("Error al deshacer la acción");
-    } finally {
-      setIsLoading(false);
-    }
-  };*/
 
   const handleSendDishes = async () => {
     const pendingDishes = orderDishes.filter(
@@ -279,13 +241,6 @@ export default function EditOrder({ dynamicParams }) {
     }
   };
 
-  /*const handleOpenEditDish = (dish) => {
-    setSelectedDishForEdit(dish);
-    setDishNotes(dish.notes || "");
-    setDishShouldPrepare(dish.should_prepare !== false);
-    onEditDishOpen();
-  };*/
-
   const handleOpenKeyboard = (dish) => {
     if (dish.status !== "pending") {
       addToast({
@@ -302,11 +257,10 @@ export default function EditOrder({ dynamicParams }) {
   const handleCloseKeyboard = (finalText = null) => {
     setShowKeyboard(false);
     if (selectedDishForEdit && finalText !== null) {
-      // Solo actualizar si se pasó texto final (cuando se acepta)
       handleUpdateDishNotes(
         selectedDishForEdit.id,
         finalText,
-        selectedDishForEdit.should_prepare !== false,
+        selectedDishForEdit.shouldPrepare !== false,
         false,
       );
     }
@@ -329,7 +283,6 @@ export default function EditOrder({ dynamicParams }) {
     }
     setIsLoading(true);
     try {
-      // Agregar platillos uno por uno ya que el servidor solo permite uno a la vez
       for (let i = 0; i < quantity; i++) {
         await addDishToOrder(pedidoId, dish.id, dish.price);
       }
@@ -382,12 +335,12 @@ export default function EditOrder({ dynamicParams }) {
     try {
       const orderDishUpdate = {
         id: currentDish.id,
-        order_id: currentDish.order_id,
-        dish_id: currentDish.dish_id,
-        price_at_order: currentDish.price_at_order,
+        orderId: currentDish.orderId,
+        dishId: currentDish.dishId,
+        priceAtOrder: currentDish.priceAtOrder,
         notes: notes || null,
         status: currentDish.status,
-        should_prepare: shouldPrepare,
+        shouldPrepare,
       };
 
       await updateOrderDish(pedidoId, dishId, orderDishUpdate);
@@ -434,7 +387,7 @@ export default function EditOrder({ dynamicParams }) {
       setOrder(response);
       if (newStatus === "paid") {
         const tables = await getTables();
-        const table = tables.find((t) => t.order_id === pedidoId);
+        const table = tables.find((t) => t.orderId === pedidoId);
         if (table) {
           await updateTable(table);
         }
@@ -461,19 +414,19 @@ export default function EditOrder({ dynamicParams }) {
       const total = order.total;
       const currencyBase = await apiClient(`/base-currency`);
       const ticket = {
-        order_id: order.id,
-        user_id: order.user_id,
-        ticket_date: Date.now().toString(),
+        orderId: order.id,
+        userId: order.userId,
+        ticketDate: Date.now().toString(),
         status: 1,
-        total_amount: total,
+        totalAmount: total,
         notes: "Sin Notas",
       };
 
       const ticketResponse = await createTicket(ticket);
       const payment = {
-        method_id: selectedPaymentMethod,
-        currency_id: currencyBase.currency_id,
-        transaction_id: "",
+        methodId: selectedPaymentMethod,
+        currencyId: currencyBase.currencyId,
+        transactionId: "",
         amount: total,
       };
 
@@ -488,9 +441,9 @@ export default function EditOrder({ dynamicParams }) {
       );
       if (paymentMethodData.name === "Efectivo") {
         const cashInfo = {
-          order_id: order.id,
-          total_amount: total,
-          currency: currencyBase.currency_id,
+          orderId: order.id,
+          totalAmount: total,
+          currency: currencyBase.currencyId,
         };
         setGeneratedCashInfo(cashInfo);
         return;
@@ -498,7 +451,7 @@ export default function EditOrder({ dynamicParams }) {
 
       if (paymentMethodData.name === "BTC") {
         const currencyBaseData = await apiClient(
-          `/payments/currencies/${currencyBase.currency_id}`,
+          `/payments/currencies/${currencyBase.currencyId}`,
         );
         const currencyAcronym = currencyBaseData.acronym.toLowerCase();
 
@@ -540,7 +493,7 @@ export default function EditOrder({ dynamicParams }) {
   };
 
   const filteredDishes = dishes.filter(
-    (dish) => dish.category_id === selectedCategory.id,
+    (dish) => dish.categoryId === selectedCategory.id,
   );
 
   if (isLoading && !order) {
@@ -573,12 +526,6 @@ export default function EditOrder({ dynamicParams }) {
       </div>
     );
   }
-
-  /*const handleCurrencySelect = (currencyId) => {
-    setSelectedCurrency(currencyId);
-    setShowCurrencyDialog(false);
-    setShowPaymentMethodDialog(true);
-  };*/
 
   const handlePaymentMethodSelect = (methodId) => {
     setSelectedPaymentMethod(methodId);
@@ -751,7 +698,7 @@ export default function EditOrder({ dynamicParams }) {
                 <div className="space-y-3 max-h-96 overflow-y-auto">
                   {orderDishes.length > 0 ? (
                     orderDishes.map((item) => {
-                      const dish = dishes.find((d) => d.id === item.dish_id);
+                      const dish = dishes.find((d) => d.id === item.dishId);
                       return (
                         <Card
                           key={item.id}
@@ -812,7 +759,7 @@ export default function EditOrder({ dynamicParams }) {
                                         </div>
                                         <Switch
                                           isSelected={
-                                            item.should_prepare !== false
+                                            item.shouldPrepare !== false
                                           }
                                           onValueChange={(value) => handleUpdateDishNotes(
                                             item.id,
@@ -1205,7 +1152,7 @@ export default function EditOrder({ dynamicParams }) {
               <h3 className="text-lg font-semibold">
                 Editar Platillo:{" "}
                 {selectedDishForEdit &&
-                  dishes.find((d) => d.id === selectedDishForEdit.dish_id)
+                  dishes.find((d) => d.id === selectedDishForEdit.dishId)
                     ?.name}
               </h3>
             </ModalHeader>

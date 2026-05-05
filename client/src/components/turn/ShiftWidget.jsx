@@ -59,7 +59,7 @@ export function ShiftWidget() {
                 </div>
 
                 <p className="text-xs text-default-500 font-mono">
-                  {ts("shiftOpenedAt")}: {openShiftData?.shift_date} {openShiftData?.start_time}
+                  {ts("shiftOpenedAt")}: {openShiftData?.shiftDate} {openShiftData?.startTime}
                 </p>
 
                 <div className="space-y-1 border-t border-default-100 pt-2">
@@ -77,7 +77,7 @@ export function ShiftWidget() {
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-default-500">{ts("initialAmountLabel")}</span>
-                    <span>{formatCurrency(openShiftData?.initial_amount ?? 0)}</span>
+                    <span>{formatCurrency(openShiftData?.initialAmount ?? 0)}</span>
                   </div>
                 </div>
 

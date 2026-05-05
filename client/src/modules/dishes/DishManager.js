@@ -28,7 +28,7 @@ export default function DishManager({
   const [newDish, setNewDish] = useState({
     name: "",
     price: "",
-    category_id: "",
+    categoryId: "",
   });
   const [editingDish, setEditingDish] = useState(null);
   const [error, setError] = useState("");
@@ -38,7 +38,7 @@ export default function DishManager({
 
   const validateDish = (dish) => {
     if (!dish.name.trim()) return "El nombre es requerido";
-    if (!dish.category_id) return "La categoría es requerida";
+    if (!dish.categoryId) return "La categoría es requerida";
     if (!dish.price || isNaN(dish.price) || parseFloat(dish.price) <= 0)
       return "El precio debe ser un número mayor a 0";
     return "";
@@ -54,7 +54,7 @@ export default function DishManager({
       setError("");
       setIsLoading(true);
       await addDish({ ...newDish, price: parseFloat(newDish.price) });
-      setNewDish({ name: "", price: "", category_id: "" });
+      setNewDish({ name: "", price: "", categoryId: "" });
     } catch (err) {
       setError(err.message || "Error al agregar el platillo");
     } finally {
@@ -112,11 +112,11 @@ export default function DishManager({
   };
 
   const handleSelectChange = (value) => {
-    setNewDish({ ...newDish, category_id: value });
+    setNewDish({ ...newDish, categoryId: value });
   };
 
   const handleEditSelectChange = (value) => {
-    setEditingDish({ ...editingDish, category_id: value });
+    setEditingDish({ ...editingDish, categoryId: value });
   };
 
   const getCategoryName = (categoryId) => {
@@ -183,7 +183,7 @@ export default function DishManager({
               <Select
                 label="Categoría"
                 placeholder="Seleccionar"
-                selectedKeys={newDish.category_id ? [newDish.category_id] : []}
+                selectedKeys={newDish.categoryId ? [newDish.categoryId] : []}
                 onSelectionChange={(keys) => {
                   const selectedKey = Array.from(keys)[0];
                   handleSelectChange(selectedKey);
@@ -218,7 +218,7 @@ export default function DishManager({
                 isLoading ||
                 !newDish.name.trim() ||
                 !newDish.price ||
-                !newDish.category_id
+                !newDish.categoryId
               }
               className="gradient-forest text-white min-w-unit-32"
             >
@@ -280,8 +280,8 @@ export default function DishManager({
                           />
                           <Select
                             selectedKeys={
-                              editingDish.category_id
-                                ? [editingDish.category_id]
+                              editingDish.categoryId
+                                ? [editingDish.categoryId]
                                 : []
                             }
                             onSelectionChange={(keys) => {
@@ -339,7 +339,7 @@ export default function DishManager({
                                 {dish.price.toFixed(2)}
                               </span>
                               <div className="flex items-center bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs">
-                                {getCategoryName(dish.category_id)}
+                                {getCategoryName(dish.categoryId)}
                               </div>
                             </div>
                           </div>

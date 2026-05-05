@@ -17,11 +17,11 @@ export function OrdersCard({ order, formatAmount, onViewOrder }) {
           <p className="font-medium text-green-900 truncate">
             {order.userName || t("details.unassigned")}
           </p>
-          <span className="text-xs text-gray-400">{formatDate(order.created_at)}</span>
+          <span className="text-xs text-gray-400">{formatDate(order.createdAt)}</span>
           <div className="flex items-center gap-2 mt-1">
             <StatusChip status={order.status} />
             <span className="text-xs text-gray-500">
-              {order.payment_method || t("details.noPayment")}
+              {order.paymentMethod || t("details.noPayment")}
             </span>
           </div>
         </div>

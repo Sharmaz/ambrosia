@@ -42,13 +42,13 @@ export async function createOrder(tableId = null, userId) {
   const response = await getUserById(userId);
   if (response) {
     const body = {
-      user_id: response.id,
+      userId: response.id,
       waiter: response.name,
       status: "open",
       total: 0,
-      created_at: Date.now(),
+      createdAt: Date.now(),
     };
-    if (tableId) body.table_id = tableId;
+    if (tableId) body.tableId = tableId;
     return await apiClient("/orders", {
       method: "POST",
       body,
@@ -62,8 +62,8 @@ export async function addDishToOrder(pedidoId, dishId, dishPrice) {
     method: "POST",
     body: [
       {
-        dish_id: dishId,
-        price_at_order: dishPrice,
+        dishId,
+        priceAtOrder: dishPrice,
         notes: null,
       },
     ],
@@ -90,7 +90,7 @@ export async function updateOrder(order) {
 
 export async function updateTable(table) {
   table.status = "available";
-  table.order_id = null;
+  table.orderId = null;
   return await apiClient(`/tables/${table.id}`, {
     method: "PUT",
     body: table,
@@ -147,8 +147,8 @@ export async function addPaymentToTicket(ticketId, paymentId) {
   return await apiClient("/payments/ticket-payments", {
     method: "POST",
     body: {
-      payment_id: paymentId,
-      ticket_id: ticketId,
+      paymentId,
+      ticketId,
     },
   });
 }

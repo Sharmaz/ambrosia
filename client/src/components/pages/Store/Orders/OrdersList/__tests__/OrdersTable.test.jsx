@@ -49,17 +49,17 @@ describe("OrdersTable", () => {
         id: "abcd1234efgh",
         userName: "Ana",
         status: "paid",
-        payment_method: "BTC",
+        paymentMethod: "BTC",
         total: 15,
-        created_at: "2024-01-01T10:00:00Z",
+        createdAt: "2024-01-01T10:00:00Z",
       },
       {
         id: "ijkl5678mnop",
         userName: null,
         status: "open",
-        payment_method: null,
+        paymentMethod: null,
         total: 20,
-        created_at: "2024-02-01T10:00:00Z",
+        createdAt: "2024-02-01T10:00:00Z",
       },
     ];
 
@@ -74,6 +74,7 @@ describe("OrdersTable", () => {
     expect(screen.getByText("abcd1234efgh")).toBeInTheDocument();
     expect(screen.getByText("Ana")).toBeInTheDocument();
     expect(screen.getByText("details.noPayment")).toBeInTheDocument();
+    expect(screen.getAllByText("formatted-date")).toHaveLength(2);
     expect(screen.getAllByText("formatted-date")).toHaveLength(2);
     expect(formatAmount).toHaveBeenCalledWith(1500);
     expect(formatAmount).toHaveBeenCalledWith(2000);
