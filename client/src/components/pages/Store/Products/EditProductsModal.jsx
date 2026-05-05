@@ -113,7 +113,6 @@ export function EditProductsModal({
               selectedCategories={data.productCategories}
               onSelectionChange={(keys) => onChange({ productCategories: keys })}
               createCategory={createCategory}
-              isRequired
             />
 
             <Input

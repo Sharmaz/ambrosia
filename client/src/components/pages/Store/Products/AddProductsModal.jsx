@@ -107,7 +107,6 @@ export function AddProductsModal({
               selectedCategories={data.productCategories}
               onSelectionChange={(keys) => onChange({ productCategories: keys })}
               createCategory={createCategory}
-              isRequired
             />
 
             <Input
