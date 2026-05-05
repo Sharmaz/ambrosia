@@ -530,6 +530,7 @@ const storeEs = {
       createCategoryLabel: "Crear nueva categoría",
       createCategoryPlaceholder: "Electrónica",
       createCategoryButton: "Agregar categoría",
+      createCategoryOption: '+ Crear "{name}"',
       errorMsgInputFieldEmpty: "Por favor, complete este campo.",
       errorMsgSelectEmpty: "Por favor, seleccione un elemento de la lista.",
     },

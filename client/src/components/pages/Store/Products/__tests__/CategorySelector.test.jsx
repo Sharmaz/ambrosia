@@ -3,10 +3,61 @@ import { render, screen, fireEvent, act, waitFor } from "@testing-library/react"
 import { CategorySelector } from "../CategorySelector";
 
 jest.mock("next-intl", () => ({
-  useTranslations: () => (key) => key,
+  useTranslations: () => (key, values) => {
+    if (key === "modal.createCategoryOption") {
+      return `+ Create "${values.name}"`;
+    }
+
+    return key;
+  },
 }));
 
 jest.mock("@heroui/react", () => ({
+  Autocomplete: ({
+    children,
+    label,
+    inputValue = "",
+    onInputChange,
+    onSelectionChange,
+    isLoading,
+  }) => {
+    const React = jest.requireActual("react");
+    const items = React.Children.toArray(children);
+
+    return (
+      <div>
+        <input
+          aria-label={label}
+          value={inputValue}
+          onChange={(e) => onInputChange?.(e.target.value)}
+          disabled={isLoading}
+        />
+        <div>
+          {items.map((child) => (
+            <button
+              key={child.key}
+              type="button"
+              onClick={() => {
+                onSelectionChange?.(
+                  child.props["data-create-value"]
+                    ? `create:${child.props["data-create-value"]}`
+                    : child.props["data-category-id"],
+                );
+              }}
+            >
+              {child.props.children}
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  },
+  AutocompleteItem: ({ children }) => children,
+  Chip: ({ children, onClose }) => (
+    <button type="button" onClick={onClose}>
+      {children}
+    </button>
+  ),
   Button: ({ children, onPress, isLoading, ...props }) => (
     <button onClick={onPress} disabled={isLoading} {...props}>
       {isLoading ? "loading" : children}
@@ -62,12 +113,10 @@ beforeEach(() => {
 });
 
 describe("CategorySelector", () => {
-  it("renders the select and create category input", () => {
+  it("renders the combobox", () => {
     renderSelector();
 
     expect(screen.getByLabelText("modal.productCategoryLabel")).toBeInTheDocument();
-    expect(screen.getByLabelText("modal.createCategoryLabel")).toBeInTheDocument();
-    expect(screen.getByText("modal.createCategoryButton")).toBeInTheDocument();
   });
 
   it("renders categories as options", () => {
@@ -77,81 +126,62 @@ describe("CategorySelector", () => {
     expect(screen.getByText("Category 2")).toBeInTheDocument();
   });
 
-  it("disables select when categoriesLoading is true", () => {
+  it("disables combobox when categoriesLoading is true", () => {
     renderSelector({ categoriesLoading: true });
 
-    const select = screen.getByLabelText("modal.productCategoryLabel");
-    expect(select).toBeDisabled();
+    const combobox = screen.getByLabelText("modal.productCategoryLabel");
+    expect(combobox).toBeDisabled();
   });
 
   it("calls onSelectionChange when selection changes", () => {
     const onSelectionChange = jest.fn();
     renderSelector({ onSelectionChange });
 
-    const select = screen.getByLabelText("modal.productCategoryLabel");
-    fireEvent.change(select, { target: { value: "cat-1" } });
+    fireEvent.click(screen.getByText("Category 1"));
 
-    expect(onSelectionChange).toHaveBeenCalled();
+    expect(onSelectionChange).toHaveBeenCalledWith(["cat-1"]);
   });
 
-  it("updates input value as user types", () => {
-    renderSelector();
-
-    const input = screen.getByLabelText("modal.createCategoryLabel");
-    fireEvent.change(input, { target: { value: "New Category" } });
-
-    expect(input.value).toBe("New Category");
-  });
-
-  it("calls createCategory and onSelectionChange with new id on button press", async () => {
+  it("shows and creates a missing category", async () => {
     const onSelectionChange = jest.fn();
     const createCategory = jest.fn(() => Promise.resolve("cat-3"));
-    renderSelector({ onSelectionChange, createCategory, selectedCategories: ["cat-1"] });
+    renderSelector({
+      onSelectionChange,
+      createCategory,
+      selectedCategories: ["cat-1"],
+    });
 
-    const input = screen.getByLabelText("modal.createCategoryLabel");
-    fireEvent.change(input, { target: { value: "New Category" } });
+    fireEvent.change(screen.getByLabelText("modal.productCategoryLabel"), { target: { value: "New Category" } });
 
     await act(async () => {
-      fireEvent.click(screen.getByText("modal.createCategoryButton"));
+      fireEvent.click(screen.getByText('+ Create "New Category"'));
     });
 
     expect(createCategory).toHaveBeenCalledWith("New Category");
     expect(onSelectionChange).toHaveBeenCalledWith(["cat-1", "cat-3"]);
   });
 
-  it("clears input after successful category creation", async () => {
+  it("clears the search input after successful category creation", async () => {
     renderSelector();
 
-    const input = screen.getByLabelText("modal.createCategoryLabel");
+    const input = screen.getByLabelText("modal.productCategoryLabel");
     fireEvent.change(input, { target: { value: "New Category" } });
 
     await act(async () => {
-      fireEvent.click(screen.getByText("modal.createCategoryButton"));
+      fireEvent.click(screen.getByText('+ Create "New Category"'));
     });
 
     await waitFor(() => expect(input.value).toBe(""));
   });
 
-  it("does not call createCategory if input is empty", async () => {
+  it("does not call createCategory if typed value is only whitespace", async () => {
     const createCategory = jest.fn();
     renderSelector({ createCategory });
 
-    await act(async () => {
-      fireEvent.click(screen.getByText("modal.createCategoryButton"));
-    });
-
-    expect(createCategory).not.toHaveBeenCalled();
-  });
-
-  it("does not call createCategory if input is only whitespace", async () => {
-    const createCategory = jest.fn();
-    renderSelector({ createCategory });
-
-    const input = screen.getByLabelText("modal.createCategoryLabel");
-    fireEvent.change(input, { target: { value: "   " } });
+    fireEvent.change(screen.getByLabelText("modal.productCategoryLabel"), { target: { value: "   " } });
 
     await act(async () => {
-      fireEvent.click(screen.getByText("modal.createCategoryButton"));
+      fireEvent.click(screen.getByText("Category 1"));
     });
 
     expect(createCategory).not.toHaveBeenCalled();
@@ -162,13 +192,39 @@ describe("CategorySelector", () => {
     const createCategory = jest.fn(() => Promise.resolve(null));
     renderSelector({ onSelectionChange, createCategory });
 
-    const input = screen.getByLabelText("modal.createCategoryLabel");
-    fireEvent.change(input, { target: { value: "New Category" } });
+    fireEvent.change(screen.getByLabelText("modal.productCategoryLabel"), { target: { value: "New Category" } });
 
     await act(async () => {
-      fireEvent.click(screen.getByText("modal.createCategoryButton"));
+      fireEvent.click(screen.getByText('+ Create "New Category"'));
     });
 
     expect(onSelectionChange).not.toHaveBeenCalled();
+  });
+
+  it("hides the create option when the typed category already exists", () => {
+    renderSelector();
+
+    fireEvent.change(screen.getByLabelText("modal.productCategoryLabel"), { target: { value: "Category 1" } });
+
+    expect(screen.queryByText('+ Create "Category 1"')).not.toBeInTheDocument();
+  });
+
+  it("renders selected categories as removable chips", () => {
+    renderSelector({ selectedCategories: ["cat-1", "cat-2"] });
+
+    expect(screen.getAllByText("Category 1")).toHaveLength(2);
+    expect(screen.getAllByText("Category 2")).toHaveLength(2);
+  });
+
+  it("removes a selected category chip", () => {
+    const onSelectionChange = jest.fn();
+    renderSelector({
+      onSelectionChange,
+      selectedCategories: ["cat-1", "cat-2"],
+    });
+
+    fireEvent.click(screen.getAllByText("Category 1")[1]);
+
+    expect(onSelectionChange).toHaveBeenCalledWith(["cat-2"]);
   });
 });

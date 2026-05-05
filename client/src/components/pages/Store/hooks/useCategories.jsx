@@ -35,9 +35,10 @@ export function useCategories(type = "product") {
         },
         notShowError: false,
       });
+      const data = await parseJsonResponse(response, {});
 
       await fetchCategories();
-      return response?.id;
+      return data?.id;
     },
     [fetchCategories, type],
   );

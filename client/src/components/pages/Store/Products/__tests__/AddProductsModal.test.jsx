@@ -4,6 +4,14 @@ import { I18nProvider } from "@/i18n/I18nProvider";
 
 import { AddProductsModal } from "../AddProductsModal";
 
+jest.mock("../CategorySelector", () => ({
+  CategorySelector: () => (
+    <div aria-label="modal.productCategoryLabel">
+      category-selector
+    </div>
+  ),
+}));
+
 jest.mock("@heroui/react", () => {
   const actual = jest.requireActual("@heroui/react");
   const NumberInput = ({
@@ -174,47 +182,10 @@ describe("AddProductsModal", () => {
     expect(setAddProductsShowModal).toHaveBeenCalledWith(false);
   });
 
-  it("does not create category when input is empty and prevents duplicate while loading", async () => {
-    const createCategory = jest.fn(() => new Promise(() => { }));
-    const onChange = jest.fn();
-    renderModal({ createCategory, onChange });
+  it("renders the category selector", () => {
+    renderModal();
 
-    const addButton = screen.getByText("modal.createCategoryButton");
-    fireEvent.click(addButton);
-    expect(createCategory).not.toHaveBeenCalled();
-
-    const input = screen.getByLabelText("modal.createCategoryLabel");
-    fireEvent.change(input, { target: { value: "New Cat" } });
-
-    fireEvent.click(addButton);
-    fireEvent.click(addButton);
-    await waitFor(() => expect(createCategory).toHaveBeenCalledTimes(1));
-  });
-
-  it("does not update category when createCategory returns falsy", async () => {
-    const createCategory = jest.fn(() => Promise.resolve(undefined));
-    const onChange = jest.fn();
-    renderModal({ createCategory, onChange });
-
-    const input = screen.getByLabelText("modal.createCategoryLabel");
-    fireEvent.change(input, { target: { value: "New Cat" } });
-    fireEvent.click(screen.getByText("modal.createCategoryButton"));
-
-    await waitFor(() => expect(createCategory).toHaveBeenCalledWith("New Cat"));
-    expect(onChange).not.toHaveBeenCalled();
-    expect(input.value).toBe("");
-  });
-
-  it("creates category when clicking add category", async () => {
-    const createCategory = jest.fn(() => Promise.resolve("cat-2"));
-    const onChange = jest.fn();
-    renderModal({ createCategory, onChange });
-
-    fireEvent.change(screen.getByLabelText("modal.createCategoryLabel"), { target: { value: "New Cat" } });
-    fireEvent.click(screen.getByText("modal.createCategoryButton"));
-
-    await waitFor(() => expect(createCategory).toHaveBeenCalledWith("New Cat"));
-    expect(onChange).toHaveBeenCalledWith({ productCategories: ["cat-1", "cat-2"] });
+    expect(screen.getByLabelText("modal.productCategoryLabel")).toBeInTheDocument();
   });
 
   it("does not submit when uploading", () => {

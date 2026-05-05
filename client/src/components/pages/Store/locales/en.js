@@ -530,6 +530,7 @@ const storeEn = {
       createCategoryLabel: "Create a new category",
       createCategoryPlaceholder: "Electronics",
       createCategoryButton: "Add category",
+      createCategoryOption: '+ Create "{name}"',
       errorMsgInputFieldEmpty: "Please fill out this field.",
       errorMsgSelectEmpty: "Please select an item in the list.",
     },
