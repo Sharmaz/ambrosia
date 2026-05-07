@@ -8,8 +8,6 @@ import { PageHeader } from "@/components/shared/PageHeader";
 
 import { useCategories } from "../hooks/useCategories";
 import { useProducts } from "../hooks/useProducts";
-import { StoreLayout } from "../StoreLayout";
-
 import { useCartPayment } from "./hooks/useCartPayment";
 import { usePersistentCart } from "./hooks/usePersistentCart";
 import { SearchProducts } from "./SearchProducts";
@@ -165,8 +163,7 @@ export function Cart() {
   };
 
   return (
-    <StoreLayout>
-      <div className={`transition-[padding] duration-200 md:pt-0 ${cart.length ? "pt-14" : "pt-0"}`}>
+    <div className={`transition-[padding] duration-200 md:pt-0 ${cart.length ? "pt-14" : "pt-0"}`}>
         <PageHeader title={t("title")} subtitle={t("subtitle")} />
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -228,6 +225,5 @@ export function Cart() {
           onCloseCardPayment={clearCardPaymentConfig}
         />
       </div>
-    </StoreLayout>
   );
 }

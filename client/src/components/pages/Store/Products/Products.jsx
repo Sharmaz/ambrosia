@@ -10,8 +10,6 @@ import { PageHeader } from "@components/shared/PageHeader";
 
 import { useCategories } from "../hooks/useCategories";
 import { useProducts } from "../hooks/useProducts";
-import { StoreLayout } from "../StoreLayout";
-
 import { AddProductsModal } from "./AddProductsModal";
 import { Categories } from "./Categories";
 import { DeleteProductsModal } from "./DeleteProductsModal";
@@ -99,7 +97,7 @@ export function Products() {
   const t = useTranslations("products");
 
   return (
-    <StoreLayout>
+    <>
       <PageHeader
         title={t("title")}
         subtitle={t("subtitle")}
@@ -170,6 +168,6 @@ export function Products() {
         deleteCategory={deleteCategory}
         refreshData={handleRefreshData}
       />
-    </StoreLayout>
+    </>
   );
 }
