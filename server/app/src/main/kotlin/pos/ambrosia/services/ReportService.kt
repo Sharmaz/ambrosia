@@ -115,9 +115,9 @@ class ReportService(
                 append("\nORDER BY o.created_at DESC")
             }
 
-        val statement = connection.prepareStatement(query)
-        bindQueryParameters(statement, parameters)
-        val resultSet = statement.executeQuery()
+        val preparedStatement = connection.prepareStatement(query)
+        bindQueryParameters(preparedStatement, parameters)
+        val resultSet = preparedStatement.executeQuery()
 
         val sales = mutableListOf<ProductSaleItem>()
         while (resultSet.next()) {

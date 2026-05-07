@@ -61,15 +61,15 @@ export default function Reports() {
   );
 
   const generateReport = useCallback(async () => {
-    const f = filtersRef.current;
-    if (!f.activePeriod && !validateCustomRange(f.startDate, f.endDate)) return;
+    const currentFilters = filtersRef.current;
+    if (!currentFilters.activePeriod && !validateCustomRange(currentFilters.startDate, currentFilters.endDate)) return;
     try {
       await fetchReport({
-        period: f.activePeriod || undefined,
-        startDate: f.activePeriod ? undefined : f.startDate || undefined,
-        endDate: f.activePeriod ? undefined : f.endDate || undefined,
-        productName: f.productName || undefined,
-        paymentMethod: f.paymentMethod || undefined,
+        period: currentFilters.activePeriod || undefined,
+        startDate: currentFilters.activePeriod ? undefined : currentFilters.startDate || undefined,
+        endDate: currentFilters.activePeriod ? undefined : currentFilters.endDate || undefined,
+        productName: currentFilters.productName || undefined,
+        paymentMethod: currentFilters.paymentMethod || undefined,
       });
     } catch {
       showError(t("statuses.errorGenerate"));
@@ -118,13 +118,13 @@ export default function Reports() {
       } else {
         clearTimeout(debounceRef.current);
         debounceRef.current = setTimeout(() => {
-          const f = filtersRef.current;
+          const currentFilters = filtersRef.current;
           fetchReport({
-            period: f.activePeriod || undefined,
-            startDate: f.activePeriod ? undefined : f.startDate || undefined,
-            endDate: f.activePeriod ? undefined : f.endDate || undefined,
-            productName: f.productName || undefined,
-            paymentMethod: f.paymentMethod || undefined,
+            period: currentFilters.activePeriod || undefined,
+            startDate: currentFilters.activePeriod ? undefined : currentFilters.startDate || undefined,
+            endDate: currentFilters.activePeriod ? undefined : currentFilters.endDate || undefined,
+            productName: currentFilters.productName || undefined,
+            paymentMethod: currentFilters.paymentMethod || undefined,
           });
         }, 500);
       }

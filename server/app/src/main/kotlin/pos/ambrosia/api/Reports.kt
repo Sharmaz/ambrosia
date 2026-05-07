@@ -54,12 +54,12 @@ fun Route.reports(reportService: ReportService) {
                 if (startDate != null && endDate != null && startDate > endDate) {
                     throw IllegalArgumentException("startDate cannot be after endDate")
                 }
-            } catch (e: IllegalArgumentException) {
-                call.respond(HttpStatusCode.BadRequest, Message(e.message ?: "Invalid query parameters"))
+            } catch (exception: IllegalArgumentException) {
+                call.respond(HttpStatusCode.BadRequest, Message(exception.message ?: "Invalid query parameters"))
                 return@get
             }
 
-            val report =
+            val productSalesReport =
                 try {
                     reportService.getProductSalesReport(
                         period = period,
@@ -69,12 +69,12 @@ fun Route.reports(reportService: ReportService) {
                         userId = userId,
                         paymentMethod = paymentMethod,
                     )
-                } catch (e: IllegalArgumentException) {
-                    call.respond(HttpStatusCode.BadRequest, Message(e.message ?: "Invalid query parameters"))
+                } catch (exception: IllegalArgumentException) {
+                    call.respond(HttpStatusCode.BadRequest, Message(exception.message ?: "Invalid query parameters"))
                     return@get
                 }
 
-            call.respond(HttpStatusCode.OK, report)
+            call.respond(HttpStatusCode.OK, productSalesReport)
         }
     }
 }

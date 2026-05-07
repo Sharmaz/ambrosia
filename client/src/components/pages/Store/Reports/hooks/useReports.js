@@ -28,9 +28,9 @@ export function useReports() {
       const data = await parseJsonResponse(response, null);
       setReportData(data);
       return data;
-    } catch (err) {
-      setError(err);
-      throw err;
+    } catch (error) {
+      setError(error);
+      throw error;
     } finally {
       setLoading(false);
     }
