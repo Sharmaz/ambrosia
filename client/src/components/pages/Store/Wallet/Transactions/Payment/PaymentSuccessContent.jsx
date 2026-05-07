@@ -12,8 +12,9 @@ import { useTranslations } from "next-intl";
 import { useCurrency } from "@/components/hooks/useCurrency";
 import { CopyButton } from "@/components/shared/CopyButton";
 
-import { formatFiat, formatSats } from "../../../utils/formatters";
-import { useSatsToFiatEstimate } from "../hooks/useSatsToFiatEstimate";
+import { formatFiat, formatSats } from "../../utils/formatters";
+
+import { useSatsToFiatEstimate } from "./hooks/useSatsToFiatEstimate";
 
 export function PaymentSuccessContent({
   isOpen,

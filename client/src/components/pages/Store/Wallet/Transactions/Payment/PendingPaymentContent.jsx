@@ -13,9 +13,9 @@ import { useTranslations } from "next-intl";
 
 import { useCurrency } from "@/components/hooks/useCurrency";
 
-import { formatFiat as formatFiatValue, formatSats } from "../../../utils/formatters";
-import { usePaymentAmountInput } from "../hooks/usePaymentAmountInput";
+import { formatFiat as formatFiatValue, formatSats } from "../../utils/formatters";
 
+import { usePaymentAmountInput } from "./hooks/usePaymentAmountInput";
 import { ZeroAmountPaymentFields } from "./ZeroAmountPaymentFields";
 
 export function PendingPaymentContent({
