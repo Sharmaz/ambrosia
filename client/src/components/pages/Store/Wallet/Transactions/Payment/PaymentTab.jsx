@@ -3,12 +3,11 @@
 import { addToast } from "@heroui/react";
 import { useTranslations } from "next-intl";
 
-import { useSendPaymentFlow } from "../hooks/useSendPaymentFlow";
-import { getPaymentErrorDescription } from "../utils/paymentErrors";
-import { getBolt11ValidationError } from "../utils/validateBolt11Invoice";
-
+import { useSendPaymentFlow } from "./hooks/useSendPaymentFlow";
 import { PaymentConfirmModal } from "./PaymentConfirmModal";
 import { PaymentForm } from "./PaymentForm";
+import { getPaymentErrorDescription } from "./utils/paymentErrors";
+import { getBolt11ValidationError } from "./utils/validateBolt11Invoice";
 
 export function PaymentTab({ fetchInfo, fetchTransactions }) {
   const t = useTranslations("wallet");
