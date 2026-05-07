@@ -66,8 +66,8 @@ class ReportServiceTest {
         )
 
         val query = sqlCaptor.firstValue
-        assertTrue(query.contains("date(o.created_at) >= date(?)"), "Debe filtrar por fecha inicio")
-        assertTrue(query.contains("date(o.created_at) <= date(?)"), "Debe filtrar por fecha fin")
+        assertTrue(query.contains("date(o.created_at) >= date(?)"), "Should filter by start date")
+        assertTrue(query.contains("date(o.created_at) <= date(?)"), "Should filter by end date")
 
         val expectedStart = LocalDate.now(ZoneOffset.UTC).with(DayOfWeek.MONDAY).toString()
         val expectedEnd = LocalDate.now(ZoneOffset.UTC).toString()
@@ -186,7 +186,7 @@ class ReportServiceTest {
         )
 
         val query = sqlCaptor.firstValue
-        assertFalse(query.contains("date(o.created_at)"), "Sin filtros de fecha no debe haber WHERE de fecha")
+        assertFalse(query.contains("date(o.created_at)"), "Without date filters there should be no date WHERE clause")
     }
 
     @Test
@@ -228,10 +228,10 @@ class ReportServiceTest {
         )
 
         val query = sqlCaptor.firstValue
-        assertFalse(query.contains("LIKE"), "Sin productName no debe haber LIKE")
-        assertFalse(query.contains("o.user_id = ?"), "Sin userId no debe haber filtro WHERE de usuario")
-        assertFalse(query.contains("lower(pm.name)"), "Sin paymentMethod no debe haber filtro de método de pago")
-        assertTrue(query.contains("ORDER BY o.created_at DESC"), "Siempre debe ordenar DESC")
+        assertFalse(query.contains("LIKE"), "Without productName there should be no LIKE clause")
+        assertFalse(query.contains("o.user_id = ?"), "Without userId there should be no user WHERE filter")
+        assertFalse(query.contains("lower(pm.name)"), "Without paymentMethod there should be no payment method filter")
+        assertTrue(query.contains("ORDER BY o.created_at DESC"), "Should always order DESC")
     }
 
     @Test
@@ -252,7 +252,7 @@ class ReportServiceTest {
         )
 
         val query = sqlCaptor.firstValue
-        assertTrue(query.contains("p.name LIKE ?"), "Debe filtrar por nombre de producto con LIKE")
+        assertTrue(query.contains("p.name LIKE ?"), "Should filter by product name with LIKE")
         verify(mockStatement).setString(1, "%Widget%")
     }
 
@@ -274,7 +274,7 @@ class ReportServiceTest {
         )
 
         val query = sqlCaptor.firstValue
-        assertTrue(query.contains("lower(pm.name) = lower(?)"), "Debe comparar método de pago sin distinción de caso")
+        assertTrue(query.contains("lower(pm.name) = lower(?)"), "Should compare payment method case-insensitively")
         verify(mockStatement).setString(1, "Cash")
     }
 
@@ -296,7 +296,7 @@ class ReportServiceTest {
         )
 
         val query = sqlCaptor.firstValue
-        assertTrue(query.contains("o.user_id = ?"), "Debe filtrar por ID de usuario exacto")
+        assertTrue(query.contains("o.user_id = ?"), "Should filter by exact user ID")
         verify(mockStatement).setString(1, "user-42")
     }
 
@@ -453,6 +453,6 @@ class ReportServiceTest {
             )
 
         val expected = Int.MAX_VALUE.toLong() * 1_000_000L
-        assertEquals(expected, report.totalRevenueCents, "El cálculo debe usar Long para no desbordarse")
+        assertEquals(expected, report.totalRevenueCents, "Calculation should use Long to avoid overflow")
     }
 }
