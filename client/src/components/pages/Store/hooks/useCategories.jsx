@@ -27,7 +27,7 @@ export function useCategories(type = "product") {
 
   const createCategory = useCallback(
     async (name, categoryType) => {
-      const response = await httpClient("/categories", {
+      const createCategoryResponse = await httpClient("/categories", {
         method: "POST",
         body: JSON.stringify({ name, type: categoryType || type }),
         headers: {
@@ -35,7 +35,7 @@ export function useCategories(type = "product") {
         },
         notShowError: false,
       });
-      const createdCategory = await parseJsonResponse(response, {});
+      const createdCategory = await parseJsonResponse(createCategoryResponse, {});
 
       await fetchCategories();
       return createdCategory?.id;
