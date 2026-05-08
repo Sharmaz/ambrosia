@@ -8,8 +8,6 @@ import { useTranslations } from "next-intl";
 
 import { useCurrency } from "@/components/hooks/useCurrency";
 
-import { StoreLayout } from "../StoreLayout";
-
 import { DateRangeCard } from "./components/DateRangeCard";
 import { ReportsHeader } from "./components/ReportsHeader";
 import { ReportSkeleton } from "./components/ReportSkeleton";
@@ -136,16 +134,11 @@ export default function Reports() {
   const totalItems = useMemo(() => reportData?.totalItemsSold ?? 0, [reportData]);
 
   if (currencyLoading && !reportData) {
-    return (
-      <StoreLayout>
-        <ReportSkeleton />
-      </StoreLayout>
-    );
+    return <ReportSkeleton />;
   }
 
   return (
-    <StoreLayout>
-      <div className="max-w-7xl mx-auto space-y-6">
+    <div className="max-w-7xl mx-auto space-y-6">
 
         <ReportsHeader
           onBack={() => window.history.back()}
@@ -224,6 +217,5 @@ export default function Reports() {
         )}
 
       </div>
-    </StoreLayout>
   );
 }
