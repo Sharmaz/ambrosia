@@ -877,6 +877,7 @@ const storeEs = {
         satsOption: "Sats",
         fiatOption: "{currency}",
         invoiceFiatLoading: "Calculando...",
+        invoiceSatsToFiatError: "No se pudo convertir a fiat",
         invoiceFiatToSatsError: "No se pudo convertir a satoshis",
         invoiceCreateError: "Error al crear el invoice",
       },

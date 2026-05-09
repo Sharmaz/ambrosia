@@ -20,6 +20,9 @@ export function ReceiveTab({ invoiceActions }) {
     amountInputMode,
     customEstimateError,
     customEstimateValue,
+    estimatedFiat,
+    estimatedFiatHasError,
+    estimatedFiatIsLoading,
     estimatedSats,
     fiatToSatHasError,
     fiatToSatIsLoading,
@@ -72,11 +75,16 @@ export function ReceiveTab({ invoiceActions }) {
   return (
     <div className="p-6">
       <div className="mx-auto max-w-2xl space-y-5">
-        <div id="wallet-receive-amount">
+        <div id="wallet-receive-amount" className="mx-auto w-full max-w-xl">
           <AmountUnitInputFields
-            align="left"
             amountInputMode={amountInputMode}
+            currencyAcronym={currency.acronym}
+            currencyLocale={currency.locale}
             errorMessage={customEstimateError}
+            estimatedFiat={estimatedFiat}
+            estimatedFiatErrorText={t("payments.receive.invoiceSatsToFiatError")}
+            estimatedFiatHasError={estimatedFiatHasError}
+            estimatedFiatIsLoading={estimatedFiatIsLoading}
             estimatedLabel={t("payments.receive.invoiceEstimatedLabel")}
             estimatedSats={estimatedSats}
             fiatLabel={t("payments.receive.invoiceAmountFiatLabel", { currency: currency.acronym })}
@@ -96,7 +104,7 @@ export function ReceiveTab({ invoiceActions }) {
             conversionErrorText={t("payments.receive.invoiceFiatToSatsError")}
           />
         </div>
-        <div id="wallet-receive-description">
+        <div id="wallet-receive-description" className="mx-auto w-full max-w-xl">
           <Input
             label={t("payments.receive.invoiceDescriptionLabel")}
             placeholder={t("payments.receive.invoiceDescriptionPlaceholder")}
@@ -108,7 +116,7 @@ export function ReceiveTab({ invoiceActions }) {
             }}
           />
         </div>
-        <div id="wallet-receive-button">
+        <div id="wallet-receive-button" className="mx-auto w-full max-w-xl">
           <Button
             onPress={handleCreateInvoice}
             color="primary"

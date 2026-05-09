@@ -7,8 +7,12 @@ import { AmountUnitInputFields } from "../AmountUnitInputFields";
 export function ZeroAmountPaymentFields({
   amountInputMode,
   currencyAcronym,
+  currencyLocale,
   customEstimateError,
   customEstimateValue,
+  estimatedFiat,
+  estimatedFiatHasError,
+  estimatedFiatIsLoading,
   estimatedSats,
   fiatToSatHasError,
   fiatToSatIsLoading,
@@ -20,7 +24,13 @@ export function ZeroAmountPaymentFields({
   return (
     <AmountUnitInputFields
       amountInputMode={amountInputMode}
+      currencyAcronym={currencyAcronym}
+      currencyLocale={currencyLocale}
       errorMessage={customEstimateError}
+      estimatedFiat={estimatedFiat}
+      estimatedFiatErrorText={t("payments.send.confirmModal.fiatError")}
+      estimatedFiatHasError={estimatedFiatHasError}
+      estimatedFiatIsLoading={estimatedFiatIsLoading}
       estimatedLabel={t("payments.send.confirmModal.estimatedLabel")}
       estimatedSats={estimatedSats}
       fiatLabel={t("payments.send.confirmModal.zeroAmountFiatLabel", { currency: currencyAcronym })}

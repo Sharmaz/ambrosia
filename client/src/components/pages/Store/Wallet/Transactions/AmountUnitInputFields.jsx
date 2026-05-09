@@ -2,12 +2,17 @@
 
 import { Button, NumberInput } from "@heroui/react";
 
-import { formatSats } from "../utils/formatters";
+import { formatFiat, formatSats } from "../utils/formatters";
 
 export function AmountUnitInputFields({
-  align = "center",
   amountInputMode,
+  currencyAcronym,
+  currencyLocale,
   errorMessage,
+  estimatedFiat,
+  estimatedFiatErrorText,
+  estimatedFiatHasError,
+  estimatedFiatIsLoading,
   estimatedLabel,
   estimatedSats,
   fiatLabel,
@@ -26,39 +31,62 @@ export function AmountUnitInputFields({
   title,
   conversionErrorText,
 }) {
-  const isLeftAligned = align === "left";
+  const estimatedValue = amountInputMode === "fiat"
+    ? `${formatSats(estimatedSats ?? 0)} sats`
+    : formatFiat({
+      value: estimatedFiat ?? 0,
+      currencyAcronym,
+      locale: currencyLocale,
+    });
+
+  const estimatedStateText = amountInputMode === "fiat"
+    ? (fiatToSatIsLoading
+      ? loadingText
+      : fiatToSatHasError
+        ? conversionErrorText
+        : estimatedValue)
+    : (estimatedFiatIsLoading
+      ? loadingText
+      : estimatedFiatHasError
+        ? estimatedFiatErrorText
+        : estimatedValue);
+
+  const estimatedStateColor = (
+    (amountInputMode === "fiat" && !fiatToSatIsLoading && !fiatToSatHasError) ||
+    (amountInputMode !== "fiat" && !estimatedFiatIsLoading && !estimatedFiatHasError)
+  )
+    ? "text-forest"
+    : "text-default-700";
 
   return (
-    <>
-      <div className={`space-y-3 ${isLeftAligned ? "text-left" : "text-center"}`}>
+    <div className="space-y-4">
+      <div className="space-y-3 text-center">
         {title && (
           <p className="text-sm font-medium text-default-700">
             {title}
           </p>
         )}
-        <div className={`flex ${isLeftAligned ? "justify-start" : "justify-center"}`}>
-          <div className="inline-flex items-center gap-1 rounded-xl border border-default-200 bg-default-50 p-1">
-            <Button
-              variant={amountInputMode === "sat" ? "solid" : "light"}
-              color={amountInputMode === "sat" ? "primary" : "default"}
-              onPress={() => onAmountModeChange("sat")}
-              isDisabled={isDisabled}
-              radius="lg"
-              className="min-w-20 font-medium"
-            >
-              {satsOptionLabel}
-            </Button>
-            <Button
-              variant={amountInputMode === "fiat" ? "solid" : "light"}
-              color={amountInputMode === "fiat" ? "primary" : "default"}
-              onPress={() => onAmountModeChange("fiat")}
-              isDisabled={isDisabled}
-              radius="lg"
-              className="min-w-20 font-medium"
-            >
-              {fiatOptionLabel}
-            </Button>
-          </div>
+        <div className="flex justify-center gap-2">
+          <Button
+            variant={amountInputMode === "sat" ? "solid" : "bordered"}
+            color={amountInputMode === "sat" ? "primary" : "default"}
+            onPress={() => onAmountModeChange("sat")}
+            isDisabled={isDisabled}
+            size="sm"
+            className={`min-w-24 rounded-xl font-medium ${amountInputMode !== "sat" ? "border border-border bg-white text-foreground hover:bg-muted" : ""}`}
+          >
+            {satsOptionLabel}
+          </Button>
+          <Button
+            variant={amountInputMode === "fiat" ? "solid" : "bordered"}
+            color={amountInputMode === "fiat" ? "primary" : "default"}
+            onPress={() => onAmountModeChange("fiat")}
+            isDisabled={isDisabled}
+            size="sm"
+            className={`min-w-24 rounded-xl font-medium ${amountInputMode !== "fiat" ? "border border-border bg-white text-foreground hover:bg-muted" : ""}`}
+          >
+            {fiatOptionLabel}
+          </Button>
         </div>
       </div>
 
@@ -84,18 +112,14 @@ export function AmountUnitInputFields({
         }}
       />
 
-      {amountInputMode === "fiat" && (
-        <div className={`flex items-center ${isLeftAligned ? "justify-start gap-2" : "justify-between"}`}>
-          <span className="text-sm text-default-500">
-            {estimatedLabel}
-          </span>
-          <span className="font-medium text-default-700">
-            {fiatToSatIsLoading && loadingText}
-            {fiatToSatHasError && conversionErrorText}
-            {!fiatToSatIsLoading && !fiatToSatHasError && estimatedSats != null && `${formatSats(estimatedSats)} sats`}
-          </span>
-        </div>
-      )}
-    </>
+      <div className="flex items-center justify-between">
+        <span className="text-sm text-default-500">
+          {estimatedLabel}
+        </span>
+        <span className={`font-medium ${estimatedStateColor}`}>
+          {estimatedStateText}
+        </span>
+      </div>
+    </div>
   );
 }

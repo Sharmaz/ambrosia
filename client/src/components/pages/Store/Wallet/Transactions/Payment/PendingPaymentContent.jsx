@@ -12,8 +12,7 @@ import { Send } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import { useCurrency } from "@/components/hooks/useCurrency";
-
-import { formatFiat as formatFiatValue, formatSats } from "../../utils/formatters";
+import { formatFiat, formatSats } from "../../utils/formatters";
 
 import { usePaymentAmountInput } from "./hooks/usePaymentAmountInput";
 import { ZeroAmountPaymentFields } from "./ZeroAmountPaymentFields";
@@ -58,14 +57,11 @@ export function PendingPaymentContent({
     onConfirm(confirmAmount);
   }, [getConfirmAmount, onConfirm]);
 
-  const formatFiat = useCallback(
-    (value) => formatFiatValue({
-      value,
-      currencyAcronym: currency.acronym,
-      locale: currency.locale,
-    }),
-    [currency],
-  );
+  const estimatedFiatDisplay = formatFiat({
+    value: estimatedFiat ?? 0,
+    currencyAcronym: currency.acronym,
+    locale: currency.locale,
+  });
 
   return (
     <>
@@ -82,8 +78,12 @@ export function PendingPaymentContent({
             <ZeroAmountPaymentFields
               amountInputMode={amountInputMode}
               currencyAcronym={currency.acronym}
+              currencyLocale={currency.locale}
               customEstimateError={customEstimateError}
               customEstimateValue={customEstimateValue}
+              estimatedFiat={estimatedFiat}
+              estimatedFiatHasError={estimatedFiatHasError}
+              estimatedFiatIsLoading={estimatedFiatIsLoading}
               estimatedSats={estimatedSats}
               fiatToSatHasError={fiatToSatHasError}
               fiatToSatIsLoading={fiatToSatIsLoading}
@@ -91,33 +91,26 @@ export function PendingPaymentContent({
               onAmountModeChange={handleAmountModeChange}
             />
           ) : (
-            <div className="flex justify-between">
-              <span className="text-gray-500">
-                {t("payments.send.confirmModal.amountLabel")}
-              </span>
-              <span className="font-medium">
-                {formatSats(invoiceSats)} sats
-              </span>
-            </div>
-          )}
-
-          {amountInputMode !== "fiat" && (
-            <div className="flex justify-between">
-              <span className="text-gray-500">
-                {t("payments.send.confirmModal.estimatedLabel")}
-              </span>
-              <span className="font-medium">
-                {estimatedSats == null || estimatedSats <= 0
-                  ? "-"
-                  : (
-                    <>
-                      {estimatedFiatIsLoading && t("payments.send.confirmModal.fiatLoading")}
-                      {estimatedFiatHasError && t("payments.send.confirmModal.fiatError")}
-                      {!estimatedFiatIsLoading && !estimatedFiatHasError && estimatedFiat != null && formatFiat(estimatedFiat)}
-                    </>
-                    )}
-              </span>
-            </div>
+            <>
+              <div className="flex justify-between">
+                <span className="text-gray-500">
+                  {t("payments.send.confirmModal.amountLabel")}
+                </span>
+                <span className="font-medium">
+                  {formatSats(invoiceSats)} sats
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500">
+                  {t("payments.send.confirmModal.estimatedLabel")}
+                </span>
+                <span className={`font-medium ${!estimatedFiatIsLoading && !estimatedFiatHasError ? "text-forest" : ""}`}>
+                  {estimatedFiatIsLoading && t("payments.send.confirmModal.fiatLoading")}
+                  {estimatedFiatHasError && t("payments.send.confirmModal.fiatError")}
+                  {!estimatedFiatIsLoading && !estimatedFiatHasError && estimatedFiatDisplay}
+                </span>
+              </div>
+            </>
           )}
         </div>
 
