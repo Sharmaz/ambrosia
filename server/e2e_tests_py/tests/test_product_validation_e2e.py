@@ -69,7 +69,9 @@ class TestProductValidation:
         logger.info("✓ Blank product name correctly rejected on create")
 
     @pytest.mark.asyncio
-    async def test_create_product_with_blank_sku_succeeds(self, admin_client, category_id):
+    async def test_create_product_with_blank_sku_succeeds(
+        self, admin_client, category_id
+    ):
         """POST /products with a blank SKU should return 201."""
         uid = str(uuid.uuid4())[:8]
         response = await admin_client.post(
@@ -86,7 +88,9 @@ class TestProductValidation:
         logger.info("✓ Blank SKU correctly accepted on create")
 
     @pytest.mark.asyncio
-    async def test_create_product_with_null_sku_succeeds(self, admin_client, category_id):
+    async def test_create_product_with_null_sku_succeeds(
+        self, admin_client, category_id
+    ):
         """POST /products with a null SKU should return 201."""
         uid = str(uuid.uuid4())[:8]
         response = await admin_client.post(
