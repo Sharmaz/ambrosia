@@ -12,6 +12,7 @@ const storeInfoEn = {
   },
   modal: {
     title: "Store info",
+    errorTitle: "Error",
     name: "Name",
     namePlaceholder: "Name",
     rfc: "Tax ID",
