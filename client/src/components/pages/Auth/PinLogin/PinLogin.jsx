@@ -8,8 +8,8 @@ import { addToast, Card, CardBody, CardHeader } from "@heroui/react";
 import { useTranslations } from "next-intl";
 
 import { useAuth } from "@/hooks/auth/useAuth";
-import { getUsers } from "@/modules/auth/authService";
 import { useConfigurations } from "@/providers/configurations/configurationsProvider";
+import { getUsers } from "@/services/authService";
 
 import { BusinessHeader } from "./BusinessHeader";
 import { EmployeeSelect } from "./EmployeeSelect";
