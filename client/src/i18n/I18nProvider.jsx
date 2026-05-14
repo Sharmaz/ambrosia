@@ -1,6 +1,8 @@
 "use client";
 
-import { useState, useMemo, createContext, useContext } from "react";
+import {
+  useState, useMemo, createContext, useContext, useEffect,
+} from "react";
 
 import { Button } from "@heroui/react";
 import { Languages } from "lucide-react";
@@ -50,11 +52,15 @@ function mergeLocales(locale) {
 }
 
 export function I18nProvider({ children }) {
-  const [locale, setLocale] = useState(() => {
-    if (typeof window === "undefined") return "en";
+  const [locale, setLocale] = useState("en");
+
+  useEffect(() => {
     const stored = localStorage.getItem("locale");
-    return (stored && translations[stored]) ? stored : "en";
-  });
+    if (stored && translations[stored]) {
+      setLocale(stored);
+    }
+  }, []);
+
   const messages = useMemo(() => mergeLocales(locale), [locale]);
 
   const changeLocale = (newLocale) => {
