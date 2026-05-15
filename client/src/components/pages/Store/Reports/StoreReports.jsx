@@ -118,8 +118,8 @@ export function StoreReports() {
                   setPage(1);
                 }}
               >
-                {ROWS_PER_PAGE_OPTIONS.map((n) => (
-                  <option key={n} value={n}>{n}</option>
+                {ROWS_PER_PAGE_OPTIONS.map((pageSize) => (
+                  <option key={pageSize} value={pageSize}>{pageSize}</option>
                 ))}
               </select>
             </CardHeader>

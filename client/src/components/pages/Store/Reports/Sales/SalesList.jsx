@@ -25,42 +25,42 @@ export function SalesList({ sales, formatCurrency }) {
     {
       key: "product",
       label: t("sales.product"),
-      render: (s) => <span className="font-medium text-deep">{s.productName}</span>,
+      render: (sale) => <span className="font-medium text-deep">{sale.productName}</span>,
     },
     {
       key: "user",
       label: t("sales.user"),
-      render: (s) => <span className="text-sm text-gray-700">{s.userName ?? "—"}</span>,
+      render: (sale) => <span className="text-sm text-gray-700">{sale.userName ?? "—"}</span>,
     },
     {
       key: "qty",
       label: t("sales.quantity"),
-      render: (s) => <span className="font-bold">×{s.quantity}</span>,
+      render: (sale) => <span className="font-bold">×{sale.quantity}</span>,
     },
     {
       key: "price",
       label: t("sales.price"),
-      render: (s) => <span className="whitespace-nowrap">{formatCurrency(s.priceAtOrder)}</span>,
+      render: (sale) => <span className="whitespace-nowrap">{formatCurrency(sale.priceAtOrder)}</span>,
     },
     {
       key: "total",
       label: t("sales.total"),
-      render: (s) => (
+      render: (sale) => (
         <span className="whitespace-nowrap font-bold text-green-700">
-          {formatCurrency(s.priceAtOrder * s.quantity)}
+          {formatCurrency(sale.priceAtOrder * sale.quantity)}
         </span>
       ),
     },
     {
       key: "payment",
       label: t("sales.paymentMethod"),
-      render: (s) => <PaymentBadge method={s.paymentMethod} />,
+      render: (sale) => <PaymentBadge method={sale.paymentMethod} />,
     },
     {
       key: "date",
       label: t("sales.date"),
-      render: (s) => (
-        <span className="text-xs text-gray-400">{s.saleDate ? formatDate(s.saleDate) : "-"}</span>
+      render: (sale) => (
+        <span className="text-xs text-gray-400">{sale.saleDate ? formatDate(sale.saleDate) : "-"}</span>
       ),
     },
   ];

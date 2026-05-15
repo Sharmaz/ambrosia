@@ -15,50 +15,50 @@ export function OrdersTable({ orders, formatAmount, onViewOrder }) {
     {
       key: "id",
       label: t("table.id"),
-      render: (o) => <span className="block max-w-20 truncate">{o.id}</span>,
+      render: (order) => <span className="block max-w-20 truncate">{order.id}</span>,
     },
     {
       key: "user",
       label: t("table.user"),
-      render: (o) => (
-        <span className="font-medium text-deep">{o.userName || t("details.unassigned")}</span>
+      render: (order) => (
+        <span className="font-medium text-deep">{order.userName || t("details.unassigned")}</span>
       ),
     },
     {
       key: "status",
       label: t("table.status"),
-      render: (o) => <StatusChip status={o.status} />,
+      render: (order) => <StatusChip status={order.status} />,
     },
     {
       key: "payment",
       label: t("table.paymentMethod"),
-      render: (o) => (
-        <span className="text-sm text-gray-700">{o.paymentMethod || t("details.noPayment")}</span>
+      render: (order) => (
+        <span className="text-sm text-gray-700">{order.paymentMethod || t("details.noPayment")}</span>
       ),
     },
     {
       key: "total",
       label: t("table.total"),
-      render: (o) => <span className="whitespace-nowrap">{formatAmount(o.total * 100)}</span>,
+      render: (order) => <span className="whitespace-nowrap">{formatAmount(order.total * 100)}</span>,
     },
     {
       key: "date",
       label: t("table.date"),
-      render: (o) => (
-        <span className="whitespace-nowrap text-sm text-gray-500">{formatDate(o.createdAt)}</span>
+      render: (order) => (
+        <span className="whitespace-nowrap text-sm text-gray-500">{formatDate(order.createdAt)}</span>
       ),
     },
     {
       key: "actions",
       label: t("table.actions"),
       className: "text-right",
-      render: (o) => (
+      render: (order) => (
         <div className="flex justify-end">
-          <ViewButton onPress={() => onViewOrder(o)}>{t("table.view")}</ViewButton>
+          <ViewButton onPress={() => onViewOrder(order)}>{t("table.view")}</ViewButton>
         </div>
       ),
     },
   ];
 
-  return <DataTable columns={columns} items={orders} getKey={(o) => o.id} />;
+  return <DataTable columns={columns} items={orders} getKey={(order) => order.id} />;
 }

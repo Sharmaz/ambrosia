@@ -24,21 +24,21 @@ export function DateRangeCard({ filters, onFiltersChange, disabled }) {
     [filters],
   );
 
-  const handlePeriod = (p) => {
-    onFiltersChange({ activePeriod: p, startDate: "", endDate: "" });
+  const handlePeriodChange = (period) => {
+    onFiltersChange({ activePeriod: period, startDate: "", endDate: "" });
   };
 
-  const handleChangeStart = (e) => {
+  const handleStartDateChange = (e) => {
     onFiltersChange({ startDate: e.target.value, activePeriod: null });
   };
 
-  const handleChangeEnd = (e) => {
+  const handleEndDateChange = (e) => {
     onFiltersChange({ endDate: e.target.value, activePeriod: null });
   };
 
   const handlePaymentMethod = (keys) => {
-    const key = Array.from(keys)[0] ?? "all";
-    onFiltersChange({ paymentMethod: key === "all" ? "" : key });
+    const selectedKey = Array.from(keys)[0] ?? "all";
+    onFiltersChange({ paymentMethod: selectedKey === "all" ? "" : selectedKey });
   };
 
   return (
@@ -63,7 +63,7 @@ export function DateRangeCard({ filters, onFiltersChange, disabled }) {
               strokeWidth={1.5}
             />
           )}
-          onPress={() => setIsOpen((v) => !v)}
+          onPress={() => setIsOpen((open) => !open)}
           isDisabled={disabled}
         >
           {activeFilterCount > 0 ? t("dates.filtersActive", { count: activeFilterCount }) : t("dates.title")}
@@ -79,18 +79,18 @@ export function DateRangeCard({ filters, onFiltersChange, disabled }) {
             </div>
 
             <div className="grid grid-cols-3 gap-3">
-              {PERIODS.map((p) => (
+              {PERIODS.map((period) => (
                 <Button
-                  key={p}
-                  variant={filters.activePeriod === p ? "solid" : "flat"}
+                  key={period}
+                  variant={filters.activePeriod === period ? "solid" : "flat"}
                   size="md"
-                  onPress={() => handlePeriod(p)}
+                  onPress={() => handlePeriodChange(period)}
                   isDisabled={disabled}
-                  className={filters.activePeriod === p ? "bg-green-800 text-white" : "text-foreground"}
+                  className={filters.activePeriod === period ? "bg-green-800 text-white" : "text-foreground"}
                 >
                   <div className="flex flex-col items-center">
                     <Calendar className="w-4 h-4 mb-1" />
-                    <span>{t(`dates.period.${p}`)}</span>
+                    <span>{t(`dates.period.${period}`)}</span>
                   </div>
                 </Button>
               ))}
@@ -101,14 +101,14 @@ export function DateRangeCard({ filters, onFiltersChange, disabled }) {
                 type="date"
                 label={t("dates.startLabel")}
                 value={filters.startDate}
-                onChange={handleChangeStart}
+                onChange={handleStartDateChange}
                 isDisabled={disabled}
               />
               <Input
                 type="date"
                 label={t("dates.endLabel")}
                 value={filters.endDate}
-                onChange={handleChangeEnd}
+                onChange={handleEndDateChange}
                 isDisabled={disabled}
               />
               <Select
