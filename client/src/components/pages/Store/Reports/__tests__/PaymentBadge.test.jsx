@@ -2,13 +2,17 @@ import { render, screen } from "@testing-library/react";
 
 import { PaymentBadge } from "../Sales/PaymentBadge";
 
+jest.mock("next-intl", () => ({
+  useTranslations: () => (key) => key,
+}));
+
 describe("PaymentBadge", () => {
   it("renders the payment method label", () => {
     render(<PaymentBadge method="efectivo" />);
     expect(screen.getByText("efectivo")).toBeInTheDocument();
   });
 
-  it("applies green styles for efectivo", () => {
+  it("applies green styles for cash", () => {
     const { container } = render(<PaymentBadge method="efectivo" />);
     expect(container.firstChild).toHaveClass("bg-green-100", "text-green-800");
   });
@@ -23,12 +27,12 @@ describe("PaymentBadge", () => {
     expect(container.firstChild).toHaveClass("bg-yellow-100", "text-yellow-800");
   });
 
-  it("applies blue styles for tarjeta de débito", () => {
+  it("applies blue styles for debit card", () => {
     const { container } = render(<PaymentBadge method="tarjeta de débito" />);
     expect(container.firstChild).toHaveClass("bg-blue-100", "text-blue-800");
   });
 
-  it("applies purple styles for tarjeta de crédito", () => {
+  it("applies purple styles for credit card", () => {
     const { container } = render(<PaymentBadge method="tarjeta de crédito" />);
     expect(container.firstChild).toHaveClass("bg-purple-100", "text-purple-800");
   });
@@ -38,9 +42,9 @@ describe("PaymentBadge", () => {
     expect(container.firstChild).toHaveClass("bg-gray-100", "text-gray-800");
   });
 
-  it("shows Desconocido when method is undefined", () => {
+  it("shows fallback label when method is undefined", () => {
     render(<PaymentBadge />);
-    expect(screen.getByText("Desconocido")).toBeInTheDocument();
+    expect(screen.getByText("payment.unknown")).toBeInTheDocument();
   });
 
   it("is case-insensitive for method matching", () => {

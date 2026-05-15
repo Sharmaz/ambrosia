@@ -60,5 +60,11 @@ export function OrdersTable({ orders, formatAmount, onViewOrder }) {
     },
   ];
 
-  return <DataTable columns={columns} items={orders} getKey={(order) => order.id} />;
+  return (
+    <DataTable
+      columns={columns}
+      items={orders}
+      getKey={(order) => order.id}
+    />
+  );
 }

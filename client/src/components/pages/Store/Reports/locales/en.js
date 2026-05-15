@@ -42,6 +42,9 @@ const reportsEn = {
       revenue: "Total Revenue",
       items: "Items Sold",
     },
+    payment: {
+      unknown: "Unknown",
+    },
     sales: {
       title: "Sales Detail",
       empty: "No sales found for the selected filters",

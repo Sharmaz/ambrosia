@@ -73,7 +73,11 @@ export function SalesList({ sales, formatCurrency }) {
         ))}
       </div>
       <div className="hidden md:block">
-        <DataTable columns={columns} items={sales} getKey={(_, i) => String(i)} />
+        <DataTable
+          columns={columns}
+          items={sales}
+          getKey={(_, i) => String(i)}
+        />
       </div>
     </section>
   );

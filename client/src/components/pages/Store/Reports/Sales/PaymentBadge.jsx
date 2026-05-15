@@ -1,5 +1,6 @@
 "use client";
 import { DollarSign, Bitcoin, CreditCard, Banknote } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 const paymentStyles = {
   efectivo: {
@@ -40,6 +41,7 @@ const paymentStyles = {
 };
 
 export function PaymentBadge({ method }) {
+  const t = useTranslations("reports");
   const key = method?.toLowerCase?.() || "otro";
   const style = paymentStyles[key] || {
     bg: "bg-gray-100",
@@ -50,7 +52,7 @@ export function PaymentBadge({ method }) {
   return (
     <div className={`flex items-center space-x-2 px-3 py-1 rounded-full text-sm font-medium ${style.bg} ${style.text}`}>
       {style.icon}
-      <span className="capitalize">{method || "Desconocido"}</span>
+      <span className="capitalize">{method || t("payment.unknown")}</span>
     </div>
   );
 }

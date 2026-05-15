@@ -42,6 +42,9 @@ const reportsEs = {
       revenue: "Ingresos Totales",
       items: "Productos Vendidos",
     },
+    payment: {
+      unknown: "Desconocido",
+    },
     sales: {
       title: "Detalle de Ventas",
       empty: "No se encontraron ventas con los filtros seleccionados",

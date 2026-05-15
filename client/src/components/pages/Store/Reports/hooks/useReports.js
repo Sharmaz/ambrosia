@@ -6,7 +6,7 @@ import { useTranslations } from "next-intl";
 
 import { httpClient, parseJsonResponse } from "@/lib/http";
 
-export const DEFAULT_FILTERS = {
+export const defaultFilters = {
   activePeriod: "month",
   startDate: "",
   endDate: "",
@@ -27,8 +27,8 @@ function buildReportsQueryString(filters = {}) {
 
 export function useReports() {
   const t = useTranslations("reports");
-  const [filters, setFilters] = useState(DEFAULT_FILTERS);
-  const filtersRef = useRef(DEFAULT_FILTERS);
+  const [filters, setFilters] = useState(defaultFilters);
+  const filtersRef = useRef(defaultFilters);
   const debounceRef = useRef(null);
 
   useEffect(() => { filtersRef.current = filters; });
@@ -93,7 +93,7 @@ export function useReports() {
   }, [fetchReport, validateDateRange, showError, t]);
 
   useEffect(() => {
-    fetchReport({ period: DEFAULT_FILTERS.activePeriod });
+    fetchReport({ period: defaultFilters.activePeriod });
   }, [fetchReport]);
 
   useEffect(() => () => clearTimeout(debounceRef.current), []);

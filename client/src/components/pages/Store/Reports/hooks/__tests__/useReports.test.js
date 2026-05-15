@@ -2,7 +2,7 @@ import { act, renderHook } from "@testing-library/react";
 
 import { httpClient, parseJsonResponse } from "@/lib/http";
 
-import { DEFAULT_FILTERS, useReports } from "../useReports";
+import { defaultFilters, useReports } from "../useReports";
 
 jest.mock("@/lib/http", () => ({
   httpClient: jest.fn(),
@@ -289,16 +289,16 @@ describe("useReports — filters", () => {
     parseJsonResponse.mockResolvedValue(successReport);
   });
 
-  it("initial filters match DEFAULT_FILTERS", () => {
+  it("initial filters match defaultFilters", () => {
     const { result } = renderHook(() => useReports());
-    expect(result.current.filters).toEqual(DEFAULT_FILTERS);
+    expect(result.current.filters).toEqual(defaultFilters);
   });
 
   it("auto-fetches with default period on mount", async () => {
     renderHook(() => useReports());
     await act(async () => {});
     expect(httpClient).toHaveBeenCalledWith(
-      expect.stringContaining(`period=${DEFAULT_FILTERS.activePeriod}`),
+      expect.stringContaining(`period=${defaultFilters.activePeriod}`),
     );
   });
 
@@ -414,7 +414,7 @@ describe("useReports — filters", () => {
     });
 
     expect(httpClient).toHaveBeenCalledWith(
-      expect.stringContaining(`period=${DEFAULT_FILTERS.activePeriod}`),
+      expect.stringContaining(`period=${defaultFilters.activePeriod}`),
     );
   });
 });
