@@ -3,11 +3,11 @@ const reportsEn = {
     header: {
       title: "Sales Reports",
       subtitle: "Product sales analysis",
-      back: "Home",
-      refreshAria: "Refresh data",
     },
     dates: {
       title: "Select Period",
+      subtitle: "Filter and analyze your sales by period and product",
+      filtersActive: "{count} filters active",
       period: {
         week: "This Week",
         month: "This Month",
@@ -15,15 +15,11 @@ const reportsEn = {
       },
       startLabel: "Start Date",
       endLabel: "End Date",
-      generate: "Generate Report",
-      generating: "Generating...",
     },
     filters: {
       productName: "Product Name",
       productNamePlaceholder: "Search by product...",
       paymentMethod: "Payment Method",
-      paymentMethodPlaceholder: "e.g. Efectivo, BTC...",
-      clear: "Clear filters",
       paymentMethods: {
         all: "All methods",
         cash: "Cash",
@@ -34,8 +30,6 @@ const reportsEn = {
     },
     statuses: {
       loading: "Loading reports...",
-      generatedTitle: "Report generated",
-      generatedDesc: "The report was generated successfully",
       errorTitle: "Error",
       errorGenerate: "Could not generate the report",
     },
@@ -60,13 +54,8 @@ const reportsEn = {
       date: "Date",
     },
     close: {
-      sectionTitle: "Close shift",
-      sectionSubtitle: "End the day and consolidate movements for the selected period.",
-      balanceLabel: "Balance:",
       modalTitle: "Confirm Shift Close",
       modalQuestion: "Are you sure you want to close the shift?",
-      modalDesc: "This action will finish the current shift. Ensure all operations are complete.",
-      modalPeriodBalance: "Period balance:",
       cancel: "Cancel",
       confirm: "Close Shift",
       confirming: "Closing...",

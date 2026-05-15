@@ -9,14 +9,14 @@ import { useCurrency } from "@/components/hooks/useCurrency";
 
 import { DateRangeCard } from "./Filters";
 import { SalesList } from "./Sales";
-import { ReportSkeleton, ReportsHeader, SummaryStat } from "./Summary";
+import { ReportSkeleton, SummaryStat } from "./Summary";
 import { useReports } from "./hooks/useReports";
 
 const ROWS_PER_PAGE_OPTIONS = [5, 10, 20, 50];
 const DEFAULT_ROWS_PER_PAGE = 10;
 
 export function StoreReports() {
-  const { reportData, loading, error, filters, totalRevenue, totalItems, handleFiltersChange, generateReport } =
+  const { reportData, error, filters, totalRevenue, totalItems, handleFiltersChange } =
     useReports();
   const { formatAmount, loading: currencyLoading } = useCurrency();
   const t = useTranslations("reports");
@@ -44,12 +44,6 @@ export function StoreReports() {
   return (
     <div className="max-w-7xl mx-auto space-y-6">
 
-      <ReportsHeader
-        onBack={() => window.history.back()}
-        onRefresh={generateReport}
-        loading={loading}
-      />
-
       {error && (
         <Card className="bg-red-50 border-red-200">
           <CardBody>
@@ -61,11 +55,15 @@ export function StoreReports() {
         </Card>
       )}
 
-      <DateRangeCard
-        filters={filters}
-        onFiltersChange={handleFilters}
-        disabled={currencyLoading}
-      />
+      <Card shadow="none" className="shadow-lg bg-white rounded-lg p-4 lg:p-8">
+        <CardBody>
+          <DateRangeCard
+            filters={filters}
+            onFiltersChange={handleFilters}
+            disabled={currencyLoading}
+          />
+        </CardBody>
+      </Card>
 
       {reportData && (
         <div className="space-y-6">
@@ -106,7 +104,7 @@ export function StoreReports() {
             </CardBody>
           </Card>
 
-          <Card className="shadow-lg border-0 bg-white">
+          <Card shadow="none" className="shadow-lg bg-white rounded-lg p-4 lg:p-8">
             <CardHeader className="flex justify-between items-center">
               <h3 className="text-lg font-bold text-deep flex items-center">
                 <ShoppingCart className="w-5 h-5 mr-2" />

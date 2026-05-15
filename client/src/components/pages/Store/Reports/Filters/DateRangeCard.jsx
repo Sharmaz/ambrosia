@@ -1,6 +1,8 @@
 "use client";
-import { Button, Card, CardBody, CardHeader, Input, Select, SelectItem } from "@heroui/react";
-import { Bitcoin, Banknote, CreditCard, Calendar, Search } from "lucide-react";
+import { useMemo, useState } from "react";
+
+import { Button, Input, Select, SelectItem } from "@heroui/react";
+import { Bitcoin, Banknote, CreditCard, Calendar, Search, ChevronDown } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 const PERIODS = ["week", "month", "year"];
@@ -15,6 +17,15 @@ const PAYMENT_OPTIONS = [
 
 export function DateRangeCard({ filters, onFiltersChange, disabled }) {
   const t = useTranslations("reports");
+  const [isOpen, setIsOpen] = useState(true);
+
+  const activeFilterCount = useMemo(
+    () =>
+      [filters.activePeriod, filters.startDate, filters.endDate, filters.productName, filters.paymentMethod].filter(
+        Boolean,
+      ).length,
+    [filters],
+  );
 
   const handlePeriod = (p) => {
     onFiltersChange({ activePeriod: p, startDate: "", endDate: "" });
@@ -34,90 +45,91 @@ export function DateRangeCard({ filters, onFiltersChange, disabled }) {
   };
 
   return (
-    <Card className="shadow-lg border-0 bg-white">
-      <CardHeader>
-        <h3 className="text-lg font-bold text-deep flex items-center">
-          <Calendar className="w-5 h-5 mr-2" />
-          {t("dates.title")}
-        </h3>
-      </CardHeader>
-      <CardBody>
-        <div className="space-y-6">
-          <div className="grid grid-cols-3 gap-3">
-            {PERIODS.map((p) => (
-              <Button
-                key={p}
-                variant={filters.activePeriod === p ? "solid" : "bordered"}
-                color="primary"
-                size="lg"
-                onPress={() => handlePeriod(p)}
-                disabled={disabled}
-                className={filters.activePeriod === p ? "gradient-forest text-white" : ""}
-              >
-                <div className="flex flex-col items-center">
-                  <Calendar className="w-4 h-4 mb-1" />
-                  <span>{t(`dates.period.${p}`)}</span>
-                </div>
-              </Button>
-            ))}
-          </div>
+    <div className="space-y-4">
+      <div className="flex flex-col lg:flex-row lg:items-center gap-3">
+        <Input
+          isClearable
+          className="w-full lg:flex-1"
+          label={t("filters.productName")}
+          placeholder={t("filters.productNamePlaceholder")}
+          value={filters.productName}
+          onChange={(e) => onFiltersChange({ productName: e.target.value })}
+          onClear={() => onFiltersChange({ productName: "" })}
+          isDisabled={disabled}
+        />
+        <Button
+          variant="flat"
+          className="lg:w-48 lg:flex-none h-14 justify-between px-3 text-foreground"
+          endContent={
+            <ChevronDown
+              className={`w-4 h-4 shrink-0 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}
+              strokeWidth={1.5}
+            />
+          }
+          onPress={() => setIsOpen((v) => !v)}
+          isDisabled={disabled}
+        >
+          {activeFilterCount > 0 ? t("dates.filtersActive", { count: activeFilterCount }) : t("dates.title")}
+        </Button>
+      </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Input
-              type="date"
-              label={t("dates.startLabel")}
-              value={filters.startDate}
-              onChange={handleChangeStart}
-              variant="bordered"
-              size="lg"
-              startContent={<Calendar className="w-4 h-4 text-gray-400" />}
-              classNames={{ input: "text-base", label: "text-sm font-semibold text-deep" }}
-              disabled={disabled}
-            />
-            <Input
-              type="date"
-              label={t("dates.endLabel")}
-              value={filters.endDate}
-              onChange={handleChangeEnd}
-              variant="bordered"
-              size="lg"
-              startContent={<Calendar className="w-4 h-4 text-gray-400" />}
-              classNames={{ input: "text-base", label: "text-sm font-semibold text-deep" }}
-              disabled={disabled}
-            />
-          </div>
+      <div className={`grid transition-all duration-300 ease-in-out ${isOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`}>
+        <div className="overflow-hidden">
+          <div className="border border-default-200 rounded-xl p-4 space-y-4">
+            <div>
+              <p className="text-sm font-semibold text-green-900">{t("dates.title")}</p>
+              <p className="text-xs text-default-500">{t("dates.subtitle")}</p>
+            </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Input
-              label={t("filters.productName")}
-              placeholder={t("filters.productNamePlaceholder")}
-              value={filters.productName}
-              onChange={(e) => onFiltersChange({ productName: e.target.value })}
-              variant="bordered"
-              size="lg"
-              startContent={<Search className="w-4 h-4 text-gray-400" />}
-              classNames={{ label: "text-sm font-semibold text-deep" }}
-              disabled={disabled}
-            />
-            <Select
-              label={t("filters.paymentMethod")}
-              selectedKeys={new Set([filters.paymentMethod || "all"])}
-              onSelectionChange={handlePaymentMethod}
-              variant="bordered"
-              size="lg"
-              classNames={{ label: "text-sm font-semibold text-deep" }}
-              isDisabled={disabled}
-            >
-              {PAYMENT_OPTIONS.map(({ key, localeKey, icon }) => (
-                <SelectItem key={key} startContent={icon}>
-                  {t(`filters.paymentMethods.${localeKey}`)}
-                </SelectItem>
+            <div className="grid grid-cols-3 gap-3">
+              {PERIODS.map((p) => (
+                <Button
+                  key={p}
+                  variant={filters.activePeriod === p ? "solid" : "flat"}
+                  size="md"
+                  onPress={() => handlePeriod(p)}
+                  isDisabled={disabled}
+                  className={filters.activePeriod === p ? "bg-green-800 text-white" : "text-foreground"}
+                >
+                  <div className="flex flex-col items-center">
+                    <Calendar className="w-4 h-4 mb-1" />
+                    <span>{t(`dates.period.${p}`)}</span>
+                  </div>
+                </Button>
               ))}
-            </Select>
-          </div>
+            </div>
 
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <Input
+                type="date"
+                label={t("dates.startLabel")}
+                value={filters.startDate}
+                onChange={handleChangeStart}
+                isDisabled={disabled}
+              />
+              <Input
+                type="date"
+                label={t("dates.endLabel")}
+                value={filters.endDate}
+                onChange={handleChangeEnd}
+                isDisabled={disabled}
+              />
+              <Select
+                label={t("filters.paymentMethod")}
+                selectedKeys={new Set([filters.paymentMethod || "all"])}
+                onSelectionChange={handlePaymentMethod}
+                isDisabled={disabled}
+              >
+                {PAYMENT_OPTIONS.map(({ key, localeKey, icon }) => (
+                  <SelectItem key={key} startContent={icon}>
+                    {t(`filters.paymentMethods.${localeKey}`)}
+                  </SelectItem>
+                ))}
+              </Select>
+            </div>
+          </div>
         </div>
-      </CardBody>
-    </Card>
+      </div>
+    </div>
   );
 }
