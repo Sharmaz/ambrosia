@@ -1,8 +1,7 @@
-import { render, screen, fireEvent, act } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 
 import { StoreReports } from "../StoreReports";
 
-const mockGenerateReport = jest.fn();
 const mockHandleFiltersChange = jest.fn();
 const mockUseReports = jest.fn();
 const mockUseCurrency = jest.fn();
@@ -16,12 +15,6 @@ jest.mock("@/components/hooks/useCurrency", () => ({
 }));
 
 jest.mock("../Summary", () => ({
-  ReportsHeader: ({ onRefresh, loading }) => (
-    <div>
-      <button data-testid="refresh-btn" onClick={onRefresh}>refresh</button>
-      {loading && <span data-testid="loading-indicator" />}
-    </div>
-  ),
   ReportSkeleton: () => <div data-testid="report-skeleton" />,
   SummaryStat: ({ label, value }) => (
     <div data-testid="summary-stat">
@@ -83,14 +76,11 @@ const mockReport = {
 function makeHookReturn(overrides = {}) {
   return {
     reportData: null,
-    loading: false,
     error: null,
     filters: DEFAULT_FILTERS,
     totalRevenue: 0,
     totalItems: 0,
-    fetchReport: jest.fn(),
     handleFiltersChange: mockHandleFiltersChange,
-    generateReport: mockGenerateReport,
     ...overrides,
   };
 }
@@ -140,14 +130,6 @@ describe("StoreReports", () => {
     mockUseReports.mockReturnValue(makeHookReturn({ reportData: mockReport }));
     render(<StoreReports />);
     expect(screen.queryByTestId("report-skeleton")).not.toBeInTheDocument();
-  });
-
-  it("refresh button calls generateReport", async () => {
-    render(<StoreReports />);
-    await act(async () => {
-      fireEvent.click(screen.getByTestId("refresh-btn"));
-    });
-    expect(mockGenerateReport).toHaveBeenCalledTimes(1);
   });
 
   it("passes filters from hook to DateRangeCard", () => {

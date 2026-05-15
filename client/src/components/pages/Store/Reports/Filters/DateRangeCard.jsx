@@ -20,10 +20,7 @@ export function DateRangeCard({ filters, onFiltersChange, disabled }) {
   const [isOpen, setIsOpen] = useState(true);
 
   const activeFilterCount = useMemo(
-    () =>
-      [filters.activePeriod, filters.startDate, filters.endDate, filters.productName, filters.paymentMethod].filter(
-        Boolean,
-      ).length,
+    () => [filters.activePeriod, filters.startDate, filters.endDate, filters.productName, filters.paymentMethod].filter(Boolean).length,
     [filters],
   );
 
@@ -60,12 +57,12 @@ export function DateRangeCard({ filters, onFiltersChange, disabled }) {
         <Button
           variant="flat"
           className="lg:w-48 lg:flex-none h-14 justify-between px-3 text-foreground"
-          endContent={
+          endContent={(
             <ChevronDown
               className={`w-4 h-4 shrink-0 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}
               strokeWidth={1.5}
             />
-          }
+          )}
           onPress={() => setIsOpen((v) => !v)}
           isDisabled={disabled}
         >

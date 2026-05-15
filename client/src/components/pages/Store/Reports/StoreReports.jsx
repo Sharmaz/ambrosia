@@ -8,9 +8,9 @@ import { useTranslations } from "next-intl";
 import { useCurrency } from "@/components/hooks/useCurrency";
 
 import { DateRangeCard } from "./Filters";
+import { useReports } from "./hooks/useReports";
 import { SalesList } from "./Sales";
 import { ReportSkeleton, SummaryStat } from "./Summary";
-import { useReports } from "./hooks/useReports";
 
 const ROWS_PER_PAGE_OPTIONS = [5, 10, 20, 50];
 const DEFAULT_ROWS_PER_PAGE = 10;
