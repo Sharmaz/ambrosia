@@ -8,12 +8,12 @@ jest.mock("next-intl", () => ({
 
 describe("PaymentBadge", () => {
   it("renders the payment method label", () => {
-    render(<PaymentBadge method="efectivo" />);
-    expect(screen.getByText("efectivo")).toBeInTheDocument();
+    render(<PaymentBadge method="cash" />);
+    expect(screen.getByText("cash")).toBeInTheDocument();
   });
 
   it("applies green styles for cash", () => {
-    const { container } = render(<PaymentBadge method="efectivo" />);
+    const { container } = render(<PaymentBadge method="cash" />);
     expect(container.firstChild).toHaveClass("bg-green-100", "text-green-800");
   });
 
@@ -28,12 +28,12 @@ describe("PaymentBadge", () => {
   });
 
   it("applies blue styles for debit card", () => {
-    const { container } = render(<PaymentBadge method="tarjeta de débito" />);
+    const { container } = render(<PaymentBadge method="debit" />);
     expect(container.firstChild).toHaveClass("bg-blue-100", "text-blue-800");
   });
 
   it("applies purple styles for credit card", () => {
-    const { container } = render(<PaymentBadge method="tarjeta de crédito" />);
+    const { container } = render(<PaymentBadge method="credit" />);
     expect(container.firstChild).toHaveClass("bg-purple-100", "text-purple-800");
   });
 
