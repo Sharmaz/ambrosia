@@ -28,10 +28,10 @@ function buildReportsQueryString(filters = {}) {
 export function useReports() {
   const t = useTranslations("reports");
   const [filters, setFilters] = useState(defaultFilters);
-  const filtersRef = useRef(defaultFilters);
-  const debounceRef = useRef(null);
+  const latestFiltersRef = useRef(defaultFilters);
+  const debounceTimerRef = useRef(null);
 
-  useEffect(() => { filtersRef.current = filters; });
+  useEffect(() => { latestFiltersRef.current = filters; });
 
   const [reportData, setReportData] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -77,7 +77,7 @@ export function useReports() {
   );
 
   const generateReport = useCallback(async () => {
-    const currentFilters = filtersRef.current;
+    const currentFilters = latestFiltersRef.current;
     if (!currentFilters.activePeriod && !validateDateRange(currentFilters.startDate, currentFilters.endDate)) return;
     try {
       await fetchReport({
@@ -96,11 +96,11 @@ export function useReports() {
     fetchReport({ period: defaultFilters.activePeriod });
   }, [fetchReport]);
 
-  useEffect(() => () => clearTimeout(debounceRef.current), []);
+  useEffect(() => () => clearTimeout(debounceTimerRef.current), []);
 
   const handleFiltersChange = useCallback(
     (patch) => {
-      const prev = filtersRef.current;
+      const prev = latestFiltersRef.current;
       const next = { ...prev, ...patch };
       setFilters(next);
 
@@ -132,9 +132,9 @@ export function useReports() {
           paymentMethod: next.paymentMethod || undefined,
         });
       } else {
-        clearTimeout(debounceRef.current);
-        debounceRef.current = setTimeout(() => {
-          const currentFilters = filtersRef.current;
+        clearTimeout(debounceTimerRef.current);
+        debounceTimerRef.current = setTimeout(() => {
+          const currentFilters = latestFiltersRef.current;
           fetchReport({
             period: currentFilters.activePeriod || undefined,
             startDate: currentFilters.activePeriod ? undefined : currentFilters.startDate || undefined,

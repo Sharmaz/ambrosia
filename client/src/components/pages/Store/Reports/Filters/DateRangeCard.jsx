@@ -8,11 +8,11 @@ import { useTranslations } from "next-intl";
 const PERIODS = ["week", "month", "year"];
 
 const PAYMENT_OPTIONS = [
-  { key: "all", localeKey: "all", icon: <Search className="w-4 h-4" /> },
-  { key: "Cash", localeKey: "cash", icon: <Banknote className="w-4 h-4" /> },
-  { key: "BTC", localeKey: "btc", icon: <Bitcoin className="w-4 h-4" /> },
-  { key: "Debit Card", localeKey: "debitCard", icon: <CreditCard className="w-4 h-4" /> },
-  { key: "Credit Card", localeKey: "creditCard", icon: <CreditCard className="w-4 h-4" /> },
+  { paymentOptionValue: "all", localeKey: "all", icon: <Search className="w-4 h-4" /> },
+  { paymentOptionValue: "Cash", localeKey: "cash", icon: <Banknote className="w-4 h-4" /> },
+  { paymentOptionValue: "BTC", localeKey: "btc", icon: <Bitcoin className="w-4 h-4" /> },
+  { paymentOptionValue: "Debit Card", localeKey: "debitCard", icon: <CreditCard className="w-4 h-4" /> },
+  { paymentOptionValue: "Credit Card", localeKey: "creditCard", icon: <CreditCard className="w-4 h-4" /> },
 ];
 
 export function DateRangeCard({ filters, onFiltersChange, disabled }) {
@@ -117,8 +117,8 @@ export function DateRangeCard({ filters, onFiltersChange, disabled }) {
                 onSelectionChange={handlePaymentMethod}
                 isDisabled={disabled}
               >
-                {PAYMENT_OPTIONS.map(({ key, localeKey, icon }) => (
-                  <SelectItem key={key} startContent={icon}>
+                {PAYMENT_OPTIONS.map(({ paymentOptionValue, localeKey, icon }) => (
+                  <SelectItem key={paymentOptionValue} startContent={icon}>
                     {t(`filters.paymentMethods.${localeKey}`)}
                   </SelectItem>
                 ))}
