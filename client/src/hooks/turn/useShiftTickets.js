@@ -11,20 +11,13 @@ import {
 } from "@/services/ticketsService";
 
 export function useShiftTickets(shiftData) {
-  const ts = useTranslations("shifts");
+  const shiftTranslations = useTranslations("shifts");
   const [totalBalance, setTotalBalance] = useState(0);
   const [totalTickets, setTotalTickets] = useState(0);
   const [byPaymentMethod, setByPaymentMethod] = useState([]);
   const [loading, setLoading] = useState(false);
   const [breakdownLoading, setBreakdownLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [refreshKey, setRefreshKey] = useState(0);
-
-  useEffect(() => {
-    const handler = () => setRefreshKey((count) => count + 1);
-    window.addEventListener("ticket:created", handler);
-    return () => window.removeEventListener("ticket:created", handler);
-  }, []);
 
   useEffect(() => {
     if (!shiftData?.shiftDate || !shiftData?.startTime) return;
@@ -48,7 +41,7 @@ export function useShiftTickets(shiftData) {
           if (!payment) continue;
 
           const method = methods.find((method) => method.id === payment.methodId);
-          const methodName = method?.name ?? ts("other");
+          const methodName = method?.name ?? shiftTranslations("other");
 
           methodTotals[methodName] = (methodTotals[methodName] ?? 0) + ticket.totalAmount;
         }
@@ -78,12 +71,12 @@ export function useShiftTickets(shiftData) {
 
         if (cancelled) return;
 
-        setTotalBalance(shiftTickets.reduce((total, ticket) => total + ticket.totalAmount, 0));
+        setTotalBalance(shiftTickets.reduce((runningTotal, ticket) => runningTotal + ticket.totalAmount, 0));
         setTotalTickets(shiftTickets.length);
 
         fetchBreakdown(shiftTickets).catch(() => {});
       } catch (err) {
-        if (!cancelled) setError(err?.message || ts("loadError"));
+        if (!cancelled) setError(err?.message || shiftTranslations("loadError"));
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -91,7 +84,7 @@ export function useShiftTickets(shiftData) {
 
     fetchData();
     return () => { cancelled = true; };
-  }, [shiftData?.shiftDate, shiftData?.startTime, ts, refreshKey]);
+  }, [shiftData?.shiftDate, shiftData?.startTime, shiftTranslations]);
 
   return { totalBalance, totalTickets, byPaymentMethod, loading, breakdownLoading, error };
 }

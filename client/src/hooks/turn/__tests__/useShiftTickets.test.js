@@ -1,4 +1,4 @@
-import { act, renderHook, waitFor } from "@testing-library/react";
+import { renderHook, waitFor } from "@testing-library/react";
 
 jest.mock("@/services/ticketsService", () => ({
   getTickets: jest.fn(),
@@ -120,39 +120,6 @@ describe("useShiftTickets", () => {
 
       const { result } = renderHook(() => useShiftTickets(SHIFT_DATA));
       await waitFor(() => expect(result.current.error).toBe("loadError"));
-    });
-
-    it("refetches when ticket:created event is dispatched", async () => {
-      getTickets
-        .mockResolvedValueOnce([ticketAfter1])
-        .mockResolvedValueOnce([ticketAfter1, ticketAfter2]);
-
-      const { result } = renderHook(() => useShiftTickets(SHIFT_DATA));
-      await waitFor(() => expect(result.current.totalTickets).toBe(1));
-
-      act(() => {
-        window.dispatchEvent(new Event("ticket:created"));
-      });
-
-      await waitFor(() => expect(result.current.totalTickets).toBe(2));
-      expect(result.current.totalBalance).toBe(8.0);
-      expect(getTickets).toHaveBeenCalledTimes(2);
-    });
-
-    it("does not refetch after unmount when ticket:created fires", async () => {
-      getTickets.mockResolvedValue([ticketAfter1]);
-
-      const { result, unmount } = renderHook(() => useShiftTickets(SHIFT_DATA));
-      await waitFor(() => expect(result.current.loading).toBe(false));
-
-      unmount();
-      jest.clearAllMocks();
-
-      act(() => {
-        window.dispatchEvent(new Event("ticket:created"));
-      });
-
-      expect(getTickets).not.toHaveBeenCalled();
     });
 
     it("computes byPaymentMethod breakdown from ticket payments", async () => {
