@@ -34,6 +34,7 @@ import pos.ambrosia.db.tables.PermissionEntity
 import pos.ambrosia.db.tables.PermissionsTable
 import pos.ambrosia.db.tables.PrinterConfigEntity
 import pos.ambrosia.db.tables.PrinterConfigsTable
+import pos.ambrosia.db.tables.ProductBundleComponentsTable
 import pos.ambrosia.db.tables.ProductCategoriesTable
 import pos.ambrosia.db.tables.ProductEntity
 import pos.ambrosia.db.tables.ProductOptionTypesTable
@@ -95,6 +96,7 @@ object ExposedTestDb {
                 TicketsDishTable,
                 TicketPaymentsTable,
                 ProductsTable,
+                ProductBundleComponentsTable,
                 ProductCategoriesTable,
                 ProductOptionTypesTable,
                 ProductOptionValuesTable,
@@ -125,6 +127,7 @@ object ExposedTestDb {
                 ProductOptionValuesTable,
                 ProductOptionTypesTable,
                 ProductCategoriesTable,
+                ProductBundleComponentsTable,
                 ProductsTable,
                 TicketPaymentsTable,
                 TicketsDishTable,
@@ -471,6 +474,7 @@ object ExposedTestDb {
         maxStockThreshold: Int = 0,
         hasVariants: Boolean = false,
         isDeleted: Boolean = false,
+        isBundle: Boolean = false,
         priceCents: Int = 200,
         costCents: Int? = null,
     ): String =
@@ -486,16 +490,31 @@ object ExposedTestDb {
                         this.maxStockThreshold = maxStockThreshold
                         this.hasVariants = hasVariants
                         this.isDeleted = isDeleted
+                        this.isBundle = isBundle
                     }.id.value
             ProductVariantEntity.new(UUID.randomUUID()) {
                 this.productId = EntityID(productId, ProductsTable)
                 this.priceCents = priceCents
                 this.costCents = costCents
-                this.quantity = quantity
+                this.quantity = if (isBundle) 0 else quantity
                 this.isActive = true
             }
             productId.toString()
         }
+
+    fun seedBundleComponent(
+        bundleId: String,
+        componentId: String,
+        quantity: Int = 1,
+    ) {
+        transaction {
+            ProductBundleComponentsTable.insert {
+                it[ProductBundleComponentsTable.bundleId] = EntityID(UUID.fromString(bundleId), ProductsTable)
+                it[ProductBundleComponentsTable.componentId] = EntityID(UUID.fromString(componentId), ProductsTable)
+                it[ProductBundleComponentsTable.quantity] = quantity
+            }
+        }
+    }
 
     fun seedProductCategory(
         productId: String,

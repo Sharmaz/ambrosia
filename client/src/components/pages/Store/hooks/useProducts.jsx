@@ -8,56 +8,24 @@ import { useUpload } from "@/components/hooks/useUpload";
 import { toArray } from "@/components/utils/array";
 import { toFiniteNumber } from "@/components/utils/numberParsers";
 import { httpClient, parseJsonResponse } from "@/lib/http";
-import { useFetchList } from "@/lib/http/useFetchList";
 
-import { resolveImageUrl } from "../Products/utils/resolveImageUrl";
+import { buildHttpError } from "../utils/buildHttpError";
+import { buildRequestPayload } from "../utils/buildRequestPayload";
+import { normalizeSku } from "../utils/normalizeSku";
+import { resolveImageUrl } from "../utils/resolveImageUrl";
 
 import { useProductVariants } from "./useProductVariants";
 
 export function useProducts() {
   const productsTranslations = useTranslations("products");
-  const { fetchList } = useFetchList();
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const { upload, isUploading } = useUpload();
   const { updateVariant } = useProductVariants();
 
-  const normalizeSku = (productSku) => productSku?.trim() || null;
-
-  const buildRequestPayload = (productForm, imageUrl, { includeId = false } = {}) => {
-    const hasVariants = productForm.hasVariants ?? false;
-    return {
-      ...(includeId ? { id: productForm.productId } : {}),
-      SKU: normalizeSku(productForm.productSKU),
-      name: productForm.productName,
-      description: productForm.productDescription || null,
-      imageUrl,
-      categoryIds: toArray(productForm.productCategories),
-      hasVariants,
-      ...(!hasVariants ? {
-        priceCents: Math.round(toFiniteNumber(productForm.productPrice) * 100),
-        quantity: toFiniteNumber(productForm.productStock),
-      } : {}),
-      minStockThreshold: toFiniteNumber(productForm.productMinStock),
-      maxStockThreshold: toFiniteNumber(productForm.productMaxStock),
-    };
-  };
-
-  const buildDefaultVariantPayload = (productForm) => ({
-    SKU: normalizeSku(productForm.productSKU),
-    priceCents: Math.round(toFiniteNumber(productForm.productPrice) * 100),
-    quantity: toFiniteNumber(productForm.productStock),
-    isActive: true,
-  });
-
-  const buildHttpError = (response, payload) => ({
-    status: response.status,
-    message: payload?.message || "Request failed",
-  });
-
-  const notifyMutationError = (error) => {
-    if (error?.status === 409) {
+  const notifyMutationError = (mutationError) => {
+    if (mutationError?.status === 409) {
       addToast({
         title: productsTranslations("toasts.duplicateSkuTitle"),
         description: productsTranslations("toasts.duplicateSkuDescription"),
@@ -73,41 +41,58 @@ export function useProducts() {
     });
   };
 
-  const validateProductResponse = async (productResponse) => {
-    const productData = await parseJsonResponse(productResponse, null);
-    if (!productResponse.ok) throw buildHttpError(productResponse, productData);
-    return productData;
+  const notifyBundleComponentDeleteError = () => {
+    addToast({
+      title: productsTranslations("toasts.bundleComponentErrorTitle"),
+      description: productsTranslations("toasts.bundleComponentErrorDescription"),
+      color: "danger",
+    });
+  };
+
+  const ensureSuccess = async (response) => {
+    const responseBody = await parseJsonResponse(response, null);
+    if (!response.ok) throw buildHttpError(response, responseBody);
+    return responseBody;
+  };
+
+  const buildDefaultVariantPayload = (productForm) => {
+    const priceCents = Math.round(toFiniteNumber(productForm.productPrice) * 100);
+    return {
+      SKU: normalizeSku(productForm.productSKU),
+      priceCents,
+      costCents: priceCents,
+      quantity: productForm.isBundle ? 0 : toFiniteNumber(productForm.productStock),
+      isActive: true,
+    };
   };
 
   const fetchProducts = useCallback(async () => {
     setLoading(true);
     setError(null);
-
     try {
-      const productsData = await fetchList("/products");
-      if (productsData === null) return;
-      setProducts(toArray(productsData));
-    } catch (fetchProductsError) {
-      console.error("Error fetching products:", fetchProductsError);
-      setError(fetchProductsError);
+      const productsResponse = await httpClient("/products");
+      if (!productsResponse.ok) return;
+      const fetchedProducts = await parseJsonResponse(productsResponse, []);
+      setProducts(toArray(fetchedProducts));
+    } catch (loadError) {
+      setError(loadError);
     } finally {
       setLoading(false);
     }
-  }, [fetchList]);
+  }, []);
 
   const addProduct = async (productForm) => {
     try {
-      const uploadedImageUrl = await resolveImageUrl(productForm.productImage, productForm.productImageUrl || null, upload);
+      const uploadedImageUrl = await resolveImageUrl(productForm, upload);
 
-      const addProductResponse = await httpClient("/products", {
+      const createProductResponse = await httpClient("/products", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(buildRequestPayload(productForm, uploadedImageUrl)),
         notShowError: false,
       });
 
-      const createdProduct = await validateProductResponse(addProductResponse);
-
+      const createdProduct = await ensureSuccess(createProductResponse);
       await fetchProducts();
       return createdProduct;
     } catch (addProductError) {
@@ -118,12 +103,7 @@ export function useProducts() {
 
   const updateProduct = async (productForm) => {
     try {
-      let uploadedImageUrl;
-      if (productForm.productImageRemoved) {
-        uploadedImageUrl = null;
-      } else {
-        uploadedImageUrl = await resolveImageUrl(productForm.productImage, productForm.productImageUrl || null, upload);
-      }
+      const uploadedImageUrl = await resolveImageUrl(productForm, upload);
 
       const updateProductResponse = await httpClient(`/products/${productForm.productId}`, {
         method: "PUT",
@@ -132,7 +112,7 @@ export function useProducts() {
         notShowError: false,
       });
 
-      const updatedProduct = await validateProductResponse(updateProductResponse);
+      const updatedProduct = await ensureSuccess(updateProductResponse);
 
       if (!productForm.hasVariants && productForm.productVariantId) {
         await updateVariant(productForm.productId, productForm.productVariantId, buildDefaultVariantPayload(productForm));
@@ -146,16 +126,20 @@ export function useProducts() {
     }
   };
 
-  const deleteProduct = async (productToDelete) => {
+  const deleteProduct = async (product) => {
     try {
-      const deleteProductResponse = await httpClient(`/products/${productToDelete.id}`, {
+      const deleteProductResponse = await httpClient(`/products/${product.id}`, {
         method: "DELETE",
         notShowError: false,
       });
-      await validateProductResponse(deleteProductResponse);
+      await ensureSuccess(deleteProductResponse);
       await fetchProducts();
       return true;
     } catch (deleteProductError) {
+      if (deleteProductError?.status === 409) {
+        notifyBundleComponentDeleteError();
+        return false;
+      }
       notifyMutationError(deleteProductError);
       return false;
     }

@@ -413,6 +413,12 @@ data class UpsertOptionValueRequest(
 )
 
 @Serializable
+data class BundleComponent(
+    val componentId: String,
+    val quantity: Int,
+)
+
+@Serializable
 data class Product(
     val id: String? = null,
     val SKU: String? = null,
@@ -428,6 +434,10 @@ data class Product(
     val categoryIds: List<String> = emptyList(),
     val options: List<ProductOptionType> = emptyList(),
     val variants: List<ProductVariant> = emptyList(),
+    val costCents: Int = 0,
+    val isBundle: Boolean = false,
+    val bundleComponents: List<BundleComponent> = emptyList(),
+    val bundleCostCents: Int = 0,
 )
 
 @Serializable

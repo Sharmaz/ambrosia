@@ -13,6 +13,7 @@ import {
 import { ImageIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
 
+import { useCurrency } from "@/components/hooks/useCurrency";
 import { DeleteButton } from "@/components/shared/DeleteButton";
 import { EditButton } from "@/components/shared/EditButton";
 import { VariantsButton } from "@/components/shared/VariantsButton";
@@ -21,25 +22,41 @@ import { storedAssetUrl } from "@/components/utils/storedAssetUrl";
 import { RequirePermission } from "@/hooks/usePermission";
 
 import { getProductCategories } from "./utils/productCategories";
+import { getProductStockQuantity, getProductStockStatus, getStockChipClassName } from "./utils/productStockStatus";
 
-export function ProductsTable({ products, categoryNameById, canManageProducts, onEditProduct, onDeleteProduct, onViewProduct, onManageVariants }) {
+export function ProductsTable({
+  products,
+  categoryNameById,
+  canManageProducts,
+  onEditProduct,
+  onDeleteProduct,
+  onViewProduct,
+  onManageVariants,
+}) {
   const productsTranslations = useTranslations("products");
+  const { formatAmount } = useCurrency();
 
   return (
-    <Table className="min-w-[600px]" removeWrapper aria-label={productsTranslations("tableAriaLabel")}>
+    <Table className="min-w-[760px]" removeWrapper aria-label={productsTranslations("tableAriaLabel")}>
       <TableHeader>
         <TableColumn className="py-2 px-3 w-20">{productsTranslations("image")}</TableColumn>
         <TableColumn className="py-2 px-3 w-[50px]">{productsTranslations("name")}</TableColumn>
+        <TableColumn className="py-2 px-3 w-24">{productsTranslations("type")}</TableColumn>
         <TableColumn className="py-2 px-3 w-[50px]">{productsTranslations("description")}</TableColumn>
         <TableColumn className="py-2 px-3 w-[100px]">{productsTranslations("category")}</TableColumn>
         <TableColumn className="py-2 px-3 w-20">{productsTranslations("sku")}</TableColumn>
-        <TableColumn className="py-2 px-3 w-[90px]">{productsTranslations("stock")}</TableColumn>
+        <TableColumn className="py-2 px-3 w-[70px]">{productsTranslations("price")}</TableColumn>
+        <TableColumn className="py-2 px-3 w-[60px]">{productsTranslations("stock")}</TableColumn>
+        <TableColumn className="py-2 px-3 w-[90px]">{productsTranslations("stockStatus")}</TableColumn>
         <TableColumn className="py-2 px-3 w-40 text-right">{productsTranslations("actions")}</TableColumn>
       </TableHeader>
       <TableBody>
         {products.map((product) => {
           const imageUrl = storedAssetUrl(product?.imageUrl);
           const productCategories = getProductCategories(product, categoryNameById);
+          const stockQuantity = getProductStockQuantity(product);
+          const stockStatus = getProductStockStatus(product);
+          const stockChipClassName = getStockChipClassName(stockStatus);
           return (
             <TableRow key={product.id}>
               <TableCell>
@@ -60,6 +77,25 @@ export function ProductsTable({ products, categoryNameById, canManageProducts, o
               </TableCell>
               <TableCell>
                 <span className="block max-w-[120px] truncate">{product.name}</span>
+              </TableCell>
+              <TableCell>
+                <div className="flex flex-wrap gap-1">
+                  {product.isBundle && (
+                    <Chip className="bg-blue-100 text-xs text-blue-800 border border-blue-200">
+                      {productsTranslations("bundle")}
+                    </Chip>
+                  )}
+                  {!product.isBundle && (
+                    <Chip className="bg-green-200 text-xs text-green-800 border border-green-300">
+                      {productsTranslations("regular")}
+                    </Chip>
+                  )}
+                  {product.hasVariants && !product.isBundle && (
+                    <Chip className="bg-blue-100 text-xs text-blue-800 border border-blue-200">
+                      {productsTranslations("variants")}
+                    </Chip>
+                  )}
+                </div>
               </TableCell>
               <TableCell>
                 <span className="block max-w-[50px] truncate">{product.description}</span>
@@ -83,14 +119,24 @@ export function ProductsTable({ products, categoryNameById, canManageProducts, o
                 <span className="whitespace-nowrap">{product.SKU}</span>
               </TableCell>
               <TableCell>
-                <span className="font-medium">{product.quantity}</span>
+                <span className="whitespace-nowrap">{formatAmount(product.priceCents)}</span>
+              </TableCell>
+              <TableCell>
+                <Chip className={stockChipClassName}>
+                  {stockQuantity}
+                </Chip>
+              </TableCell>
+              <TableCell>
+                <Chip className={stockChipClassName}>
+                  {productsTranslations(`status.${stockStatus}`)}
+                </Chip>
               </TableCell>
               <TableCell className="py-2 px-3">
                 <div className="flex justify-end gap-2">
                   <ViewButton onPress={() => onViewProduct(product)}>{productsTranslations("viewDetails")}</ViewButton>
                   {canManageProducts && (
                     <>
-                      {product.hasVariants && (
+                      {product.hasVariants && !product.isBundle && (
                         <RequirePermission allOf={["products_update"]}>
                           <VariantsButton onPress={() => onManageVariants(product)}>{productsTranslations("manageVariants")}</VariantsButton>
                         </RequirePermission>

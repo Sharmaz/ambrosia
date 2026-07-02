@@ -12,6 +12,7 @@ const cartEn = {
       hasVariants: "Variants",
       noCategory: "No category",
       stock: "in stock",
+      bundle: "Bundle",
       showProductDetails: "Show Details",
       showProductDescription: "Description",
     },

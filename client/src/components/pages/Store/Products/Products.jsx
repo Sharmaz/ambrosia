@@ -35,10 +35,13 @@ function createEmptyProductForm() {
     productImage: null,
     productImageUrl: "",
     productImageRemoved: false,
+    isBundle: false,
+    bundleComponents: [],
   };
 }
 
 export function Products() {
+  const productsTranslations = useTranslations("products");
   const [addProductsShowModal, setAddProductsShowModal] = useState(false);
   const [editProductsShowModal, setEditProductsShowModal] = useState(false);
   const [deleteProductsShowModal, setDeleteProductsShowModal] = useState(false);
@@ -87,7 +90,7 @@ export function Products() {
       productDescription: product.description ?? "",
       productCategories: toArray(product.categoryIds),
       productSKU: product.SKU ?? "",
-      hasVariants: product.hasVariants ?? false,
+      hasVariants: product.isBundle ? false : (product.hasVariants ?? false),
       productVariantId: primaryVariant?.id ?? null,
       productPrice: primaryVariant?.priceCents ? primaryVariant.priceCents / 100 : "",
       productStock: primaryVariant?.quantity ?? 0,
@@ -96,6 +99,11 @@ export function Products() {
       productImage: null,
       productImageUrl: product.imageUrl ?? "",
       productImageRemoved: false,
+      isBundle: product.isBundle ?? false,
+      bundleComponents: product.bundleComponents?.map((bundleComponent) => ({
+        productId: bundleComponent.componentId,
+        quantity: bundleComponent.quantity,
+      })) ?? [],
     });
 
     setEditProductsShowModal(true);
@@ -118,8 +126,6 @@ export function Products() {
     setVariantsProduct(null);
     refetchProducts();
   };
-
-  const productsTranslations = useTranslations("products");
 
   return (
     <>
@@ -155,6 +161,7 @@ export function Products() {
         addProductsShowModal={addProductsShowModal}
         onClose={handleCloseAddProductsModal}
         data={productForm}
+        allProducts={products}
         addProduct={addProduct}
         isUploading={isUploading}
         categories={categories}
@@ -166,6 +173,7 @@ export function Products() {
 
       <EditProductsModal
         data={productForm}
+        allProducts={products}
         onChange={handleProductFormChange}
         updateProduct={updateProduct}
         isUploading={isUploading}

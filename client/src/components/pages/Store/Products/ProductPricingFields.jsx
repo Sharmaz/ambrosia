@@ -3,7 +3,12 @@
 import { NumberInput } from "@heroui/react";
 import { useTranslations } from "next-intl";
 
-export function ProductPricingFields({ data, onChange, currency }) {
+export function ProductPricingFields({
+  data,
+  onChange,
+  currency,
+  includeStock = true,
+}) {
   const productsTranslations = useTranslations("products");
 
   return (
@@ -28,21 +33,23 @@ export function ProductPricingFields({ data, onChange, currency }) {
         step={0.01}
       />
 
-      <NumberInput
-        label={productsTranslations("modal.productStockLabel")}
-        placeholder={productsTranslations("modal.productStockPlaceholder")}
-        value={data.productStock}
-        minValue={0}
-        maxValue={1000000}
-        isRequired
-        errorMessage={productsTranslations("modal.errorMsgInputFieldEmpty")}
-        onValueChange={(stockValue) => {
-          const productStock = stockValue === null ? "" : Number(stockValue);
-          onChange({ productStock });
-        }}
-        min={0}
-        step={1}
-      />
+      {includeStock && (
+        <NumberInput
+          label={productsTranslations("modal.productStockLabel")}
+          placeholder={productsTranslations("modal.productStockPlaceholder")}
+          value={data.productStock}
+          minValue={0}
+          maxValue={1000000}
+          isRequired
+          errorMessage={productsTranslations("modal.errorMsgInputFieldEmpty")}
+          onValueChange={(stockValue) => {
+            const productStock = stockValue === null ? "" : Number(stockValue);
+            onChange({ productStock });
+          }}
+          min={0}
+          step={1}
+        />
+      )}
     </div>
   );
 }

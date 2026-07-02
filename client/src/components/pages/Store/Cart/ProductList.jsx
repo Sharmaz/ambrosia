@@ -74,7 +74,7 @@ export function ProductList({ products, onAddProduct, categories }) {
   };
 
   const handleAddClick = (product) => {
-    if (product.hasVariants) {
+    if (product.hasVariants && !product.isBundle) {
       setVariantProduct(product);
     } else {
       onAddProduct(product);
@@ -112,11 +112,18 @@ export function ProductList({ products, onAddProduct, categories }) {
                       <h2 className="text-sm md:text-lg font-medium [overflow-wrap:anywhere]">{name}</h2>
                       <p className="text-xs">{categoryNames || cardProductTranslation("card.noCategory")}</p>
                     </div>
-                    {product.hasVariants && (
-                      <Chip size="sm" className="hidden sm:flex shrink-0 ml-2 bg-blue-100 text-blue-700 border border-blue-200">
-                        {cardProductTranslation("card.hasVariants")}
-                      </Chip>
-                    )}
+                    <div className="hidden sm:flex flex-wrap justify-end gap-1 shrink-0 ml-2">
+                      {product.isBundle && (
+                        <Chip size="sm" className="bg-blue-100 text-blue-700 border border-blue-200">
+                          {cardProductTranslation("card.bundle")}
+                        </Chip>
+                      )}
+                      {product.hasVariants && !product.isBundle && (
+                        <Chip size="sm" className="bg-blue-100 text-blue-700 border border-blue-200">
+                          {cardProductTranslation("card.hasVariants")}
+                        </Chip>
+                      )}
+                    </div>
                   </CardHeader>
                   <CardBody className="py-1">
                     <h2 className="text-lg md:text-2xl font-bold text-green-800">
@@ -156,18 +163,25 @@ export function ProductList({ products, onAddProduct, categories }) {
                     )}
                   </CardBody>
                   <CardFooter className="flex flex-col pt-0 items-stretch gap-2 md:gap-5 sm:flex-row sm:items-center sm:justify-between">
-                    {product.hasVariants && (
-                      <Chip size="sm" className="sm:hidden bg-blue-100 text-blue-700 border border-blue-200">
-                        {cardProductTranslation("card.hasVariants")}
+                    <div className="flex flex-wrap gap-1.5 shrink-0">
+                      {product.isBundle && (
+                        <Chip size="sm" className="sm:hidden bg-blue-100 text-blue-700 border border-blue-200">
+                          {cardProductTranslation("card.bundle")}
+                        </Chip>
+                      )}
+                      {product.hasVariants && !product.isBundle && (
+                        <Chip size="sm" className="sm:hidden bg-blue-100 text-blue-700 border border-blue-200">
+                          {cardProductTranslation("card.hasVariants")}
+                        </Chip>
+                      )}
+                      <Chip
+                        size="sm"
+                        className={getStockChipClassName(stockLevel)}
+                      >
+                        {toFiniteNumber(quantity)} {cardProductTranslation("card.stock")}
                       </Chip>
-                    )}
-                    <Chip
-                      size="sm"
-                      className={getStockChipClassName(stockLevel)}
-                    >
-                      {toFiniteNumber(quantity)} {cardProductTranslation("card.stock")}
-                    </Chip>
-                    <div className="flex justify-between">
+                    </div>
+                    <div className="flex justify-between sm:flex-1">
                       <div className="md:hidden">
                         <ViewButton onPress={() => handleShowProductDetails(product)} />
                       </div>

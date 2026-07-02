@@ -135,4 +135,25 @@ describe("ProductsCard", () => {
     fireEvent.click(screen.getByTestId("view-button"));
     expect(onViewProduct).toHaveBeenCalledWith(product);
   });
+
+  it("uses productStock as fallback when quantity is undefined", () => {
+    renderCard({
+      product: { ...product, quantity: undefined, productStock: 7 },
+    });
+
+    expect(screen.getByText("7")).toBeInTheDocument();
+  });
+
+  it("shows plain quantity and bundle chip for bundle products", () => {
+    renderCard({ product: { ...product, isBundle: true, quantity: 5 } });
+
+    expect(screen.getByText("5")).toBeInTheDocument();
+    expect(screen.getByText("bundle")).toBeInTheDocument();
+  });
+
+  it("shows plain quantity and no bundle chip for non-bundle products", () => {
+    renderCard();
+
+    expect(screen.queryByText("bundle")).not.toBeInTheDocument();
+  });
 });

@@ -1,4 +1,5 @@
 "use client";
+
 import { useState } from "react";
 
 import {
@@ -17,11 +18,13 @@ import { useTranslations } from "next-intl";
 import { useCurrency } from "@/components/hooks/useCurrency";
 import { ImageUploader } from "@components/shared/ImageUploader";
 
+import { BundleProductSelector } from "./BundleProductSelector";
 import { CategorySelector } from "./CategorySelector";
 import { ProductPricingFields } from "./ProductPricingFields";
 
 export function EditProductsModal({
   data,
+  allProducts,
   onChange,
   updateProduct,
   onProductUpdated,
@@ -50,6 +53,17 @@ export function EditProductsModal({
     }
   };
 
+  const handleBundleToggle = (isBundleSelected) => {
+    onChange({
+      isBundle: isBundleSelected,
+      hasVariants: isBundleSelected ? false : data.hasVariants,
+      bundleComponents: [],
+      productStock: isBundleSelected ? 0 : data.productStock,
+      productMinStock: isBundleSelected ? 0 : data.productMinStock,
+      productMaxStock: isBundleSelected ? 0 : data.productMaxStock,
+    });
+  };
+
   return (
     <Modal
       isOpen={editProductsShowModal}
@@ -71,6 +85,13 @@ export function EditProductsModal({
 
         <ModalBody>
           <form className="space-y-4" onSubmit={handleSubmit}>
+            <Switch
+              isSelected={data.isBundle}
+              onValueChange={handleBundleToggle}
+            >
+              {productsTranslations("modal.isBundle")}
+            </Switch>
+
             <Input
               label={productsTranslations("modal.productNameLabel")}
               placeholder={productsTranslations("modal.productNamePlaceholder")}
@@ -102,21 +123,36 @@ export function EditProductsModal({
               onChange={({ target: productSkuInput }) => onChange({ productSKU: productSkuInput.value })}
             />
 
-            <div className="flex items-center gap-3">
-              <Switch
-                isSelected={data.hasVariants ?? false}
-                onValueChange={(hasVariantsSelected) => onChange({ hasVariants: hasVariantsSelected })}
-                size="sm"
-              />
-              <span className="text-sm text-gray-700">{productsTranslations("hasVariants")}</span>
-            </div>
-
-            {!data.hasVariants && (
-              <ProductPricingFields data={data} onChange={onChange} currency={currency} />
+            {!data.isBundle && (
+              <div className="flex items-center gap-3">
+                <Switch
+                  isSelected={data.hasVariants ?? false}
+                  onValueChange={(hasVariantsSelected) => onChange({ hasVariants: hasVariantsSelected })}
+                  size="sm"
+                />
+                <span className="text-sm text-gray-700">{productsTranslations("hasVariants")}</span>
+              </div>
             )}
 
-            {data.hasVariants && (
+            {!data.hasVariants && (
+              <ProductPricingFields
+                data={data}
+                onChange={onChange}
+                currency={currency}
+                includeStock={!data.isBundle}
+              />
+            )}
+
+            {data.hasVariants && !data.isBundle && (
               <p className="text-xs text-gray-400">{productsTranslations("variantsHintEditModal")}</p>
+            )}
+
+            {data.isBundle && (
+              <BundleProductSelector
+                selectedProducts={data.bundleComponents ?? []}
+                allProducts={allProducts ?? []}
+                onComponentsChange={(bundleComponents) => onChange({ bundleComponents })}
+              />
             )}
 
             <ImageUploader

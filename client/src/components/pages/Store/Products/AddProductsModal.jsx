@@ -18,11 +18,13 @@ import { useTranslations } from "next-intl";
 import { useCurrency } from "@/components/hooks/useCurrency";
 import { ImageUploader } from "@components/shared/ImageUploader";
 
+import { BundleProductSelector } from "./BundleProductSelector";
 import { CategorySelector } from "./CategorySelector";
 import { ProductPricingFields } from "./ProductPricingFields";
 
 export function AddProductsModal({
   data,
+  allProducts,
   addProduct,
   onChange,
   onProductCreated,
@@ -36,6 +38,7 @@ export function AddProductsModal({
   const productsTranslations = useTranslations("products");
   const { currency } = useCurrency();
   const [isSubmitting, setIsSubmitting] = useState(false);
+
   const handleSubmit = async (productFormSubmission) => {
     productFormSubmission.preventDefault();
     if (isSubmitting || isUploading) return;
@@ -48,6 +51,17 @@ export function AddProductsModal({
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleBundleToggle = (isBundleSelected) => {
+    onChange({
+      isBundle: isBundleSelected,
+      hasVariants: isBundleSelected ? false : data.hasVariants,
+      bundleComponents: [],
+      productStock: isBundleSelected ? 0 : data.productStock,
+      productMinStock: isBundleSelected ? 0 : data.productMinStock,
+      productMaxStock: isBundleSelected ? 0 : data.productMaxStock,
+    });
   };
 
   return (
@@ -71,6 +85,13 @@ export function AddProductsModal({
 
         <ModalBody>
           <form className="space-y-4" onSubmit={handleSubmit}>
+            <Switch
+              isSelected={data.isBundle}
+              onValueChange={handleBundleToggle}
+            >
+              {productsTranslations("modal.isBundle")}
+            </Switch>
+
             <Input
               label={productsTranslations("modal.productNameLabel")}
               placeholder={productsTranslations("modal.productNamePlaceholder")}
@@ -102,21 +123,36 @@ export function AddProductsModal({
               onChange={({ target: productSkuInput }) => onChange({ productSKU: productSkuInput.value })}
             />
 
-            <div className="flex items-center gap-3">
-              <Switch
-                isSelected={data.hasVariants ?? false}
-                onValueChange={(hasVariantsSelected) => onChange({ hasVariants: hasVariantsSelected })}
-                size="sm"
-              />
-              <span className="text-sm text-gray-700">{productsTranslations("hasVariants")}</span>
-            </div>
-
-            {!data.hasVariants && (
-              <ProductPricingFields data={data} onChange={onChange} currency={currency} />
+            {!data.isBundle && (
+              <div className="flex items-center gap-3">
+                <Switch
+                  isSelected={data.hasVariants ?? false}
+                  onValueChange={(hasVariantsSelected) => onChange({ hasVariants: hasVariantsSelected })}
+                  size="sm"
+                />
+                <span className="text-sm text-gray-700">{productsTranslations("hasVariants")}</span>
+              </div>
             )}
 
-            {data.hasVariants && (
+            {!data.hasVariants && (
+              <ProductPricingFields
+                data={data}
+                onChange={onChange}
+                currency={currency}
+                includeStock={!data.isBundle}
+              />
+            )}
+
+            {data.hasVariants && !data.isBundle && (
               <p className="text-xs text-gray-400">{productsTranslations("hasVariantsHint")}</p>
+            )}
+
+            {data.isBundle && (
+              <BundleProductSelector
+                selectedProducts={data.bundleComponents ?? []}
+                allProducts={allProducts ?? []}
+                onComponentsChange={(bundleComponents) => onChange({ bundleComponents })}
+              />
             )}
 
             <ImageUploader

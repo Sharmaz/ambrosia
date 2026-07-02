@@ -7,7 +7,7 @@ import { useCurrency } from "@/components/hooks/useCurrency";
 import { storedAssetUrl } from "@/components/utils/storedAssetUrl";
 
 export function ProductDetailsModal({ isOpen, onClose, onAddProduct, showAddButton = true, product, categories = [] }) {
-  const t = useTranslations("productDetails");
+  const productDetailsTranslation = useTranslations("productDetails");
   const { formatAmount } = useCurrency();
 
   if (!product) return null;
@@ -15,9 +15,9 @@ export function ProductDetailsModal({ isOpen, onClose, onAddProduct, showAddButt
   const imageUrl = storedAssetUrl(product.imageUrl);
   const categoryIds = product.categoryIds ?? [];
   const categoryNames = categories
-    .filter((cat) => categoryIds.includes(cat.id))
-    .map((cat) => cat.name)
-    .join(", ");
+    .filter((category) => categoryIds.includes(category.id))
+    .map((category) => category.name)
+    .join(", ") || productDetailsTranslation("unknownCategory");
 
   const quantity = Number(product.quantity ?? 0);
   const isOutOfStock = quantity <= 0;
@@ -62,24 +62,31 @@ export function ProductDetailsModal({ isOpen, onClose, onAddProduct, showAddButt
           </div>
         )}
 
-        <ModalHeader className="flex flex-row items-start justify-between pb-2">
-          <div className="flex flex-col">
-            {product.name}
-            <span className="text-sm font-normal text-gray-500">{categoryNames || t("noCategory")}</span>
+        <ModalHeader className="flex flex-row items-start justify-between gap-3 pb-2">
+          <div className="flex flex-col min-w-0">
+            <span className="[overflow-wrap:anywhere]">{product.name}</span>
+            <span className="text-sm font-normal text-gray-500">{categoryNames}</span>
           </div>
-          {product.hasVariants && (
-            <Chip size="sm" className="shrink-0 ml-2 bg-blue-100 text-blue-700 border border-blue-200">
-              {t("hasVariants")}
-            </Chip>
-          )}
+          <div className="flex flex-wrap justify-end gap-1 shrink-0">
+            {product.isBundle && (
+              <Chip size="sm" className="bg-blue-100 text-xs text-blue-800 border border-blue-200">
+                {productDetailsTranslation("bundle")}
+              </Chip>
+            )}
+            {product.hasVariants && !product.isBundle && (
+              <Chip size="sm" className="bg-blue-100 text-xs text-blue-800 border border-blue-200">
+                {productDetailsTranslation("hasVariants")}
+              </Chip>
+            )}
+          </div>
         </ModalHeader>
 
         <ModalBody className="space-y-3 pt-0">
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-2xl font-bold text-green-800">
-                {product.hasVariants
-                  ? `${t("priceFrom")} ${formatAmount(product.priceCents)}`
+                {product.hasVariants && !product.isBundle
+                  ? `${productDetailsTranslation("priceFrom")} ${formatAmount(product.priceCents)}`
                   : formatAmount(product.priceCents)}
               </h2>
               <p className="text-xs">
@@ -87,14 +94,14 @@ export function ProductDetailsModal({ isOpen, onClose, onAddProduct, showAddButt
               </p>
             </div>
             <Chip size="sm" className={stockChipClassName}>
-              {quantity} {product.hasVariants ? t("totalStock") : t("stock")}
+              {quantity} {product.hasVariants && !product.isBundle ? productDetailsTranslation("totalStock") : productDetailsTranslation("stock")}
             </Chip>
           </div>
 
           {product.description && (
             <div>
               <p className="text-xs tracking-wide text-primary mb-1">
-                {t("description")}
+                {productDetailsTranslation("description")}
               </p>
               <p className="text-xs text-gray-400">{product.description}</p>
             </div>
@@ -103,7 +110,7 @@ export function ProductDetailsModal({ isOpen, onClose, onAddProduct, showAddButt
 
         <ModalFooter className={showAddButton ? "flex justify-between" : "flex justify-end"}>
           <Button variant="outline" size="sm" className="border border-green-800 text-green-800" onPress={onClose}>
-            {t("close")}
+            {productDetailsTranslation("close")}
           </Button>
           {showAddButton && (
             <Button
@@ -112,7 +119,7 @@ export function ProductDetailsModal({ isOpen, onClose, onAddProduct, showAddButt
               isDisabled={isOutOfStock}
               onPress={handleAddToCart}
             >
-              {t("add")}
+              {productDetailsTranslation("add")}
             </Button>
           )}
         </ModalFooter>

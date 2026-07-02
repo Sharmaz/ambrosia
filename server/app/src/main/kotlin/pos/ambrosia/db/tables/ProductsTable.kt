@@ -17,6 +17,7 @@ object ProductsTable : SQLiteUUIDTable("products") {
     val maxStockThreshold = integer("max_stock_threshold").default(0)
     val hasVariants = bool("has_variants").default(false)
     val isDeleted = bool("is_deleted").default(false)
+    val isBundle = bool("is_bundle").default(false)
 }
 
 class ProductEntity(
@@ -33,6 +34,14 @@ class ProductEntity(
     var maxStockThreshold by ProductsTable.maxStockThreshold
     var hasVariants by ProductsTable.hasVariants
     var isDeleted by ProductsTable.isDeleted
+    var isBundle by ProductsTable.isBundle
+}
+
+object ProductBundleComponentsTable : Table("product_bundle_components") {
+    val bundleId = reference("bundle_id", ProductsTable)
+    val componentId = reference("component_id", ProductsTable)
+    val quantity = integer("quantity").default(1)
+    override val primaryKey = PrimaryKey(bundleId, componentId)
 }
 
 object ProductCategoriesTable : Table("product_categories") {

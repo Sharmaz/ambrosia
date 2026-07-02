@@ -12,6 +12,7 @@ const cartEs = {
       hasVariants: "Variantes",
       noCategory: "Sin categoría",
       stock: "en almacén",
+      bundle: "Paquete",
       showProductDetails: "Ver detalles",
       showProductDescription: "Descripción",
     },

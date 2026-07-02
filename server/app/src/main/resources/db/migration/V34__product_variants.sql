@@ -10,11 +10,12 @@ CREATE TABLE products_new (
     max_stock_threshold INTEGER NOT NULL DEFAULT 0,
     quantity            INTEGER NOT NULL DEFAULT 0,
     has_variants        INTEGER NOT NULL DEFAULT 0,
+    is_bundle           INTEGER NOT NULL DEFAULT 0,
     is_deleted          INTEGER NOT NULL DEFAULT 0
 );
 
-INSERT INTO products_new (id, sku, name, description, image_url, min_stock_threshold, max_stock_threshold, quantity, is_deleted)
-SELECT                    id, SKU, name, description, image_url, min_stock_threshold, max_stock_threshold, quantity, is_deleted
+INSERT INTO products_new (id, sku, name, description, image_url, min_stock_threshold, max_stock_threshold, quantity, is_bundle, is_deleted)
+SELECT                    id, SKU, name, description, image_url, min_stock_threshold, max_stock_threshold, quantity, is_bundle, is_deleted
 FROM products;
 
 CREATE TABLE product_option_types (

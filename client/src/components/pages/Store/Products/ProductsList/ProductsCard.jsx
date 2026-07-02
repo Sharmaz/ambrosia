@@ -14,7 +14,14 @@ import { RequirePermission } from "@/hooks/usePermission";
 
 import { getProductStockQuantity, getProductStockStatus, getStockChipClassName } from "./utils/productStockStatus";
 
-export function ProductsCard({ product, canManageProducts, onEditProduct, onDeleteProduct, onViewProduct, onManageVariants }) {
+export function ProductsCard({
+  product,
+  canManageProducts,
+  onEditProduct,
+  onDeleteProduct,
+  onViewProduct,
+  onManageVariants,
+}) {
   const productsTranslations = useTranslations("products");
   const { formatAmount } = useCurrency();
   const imageUrl = storedAssetUrl(product?.imageUrl);
@@ -55,13 +62,23 @@ export function ProductsCard({ product, canManageProducts, onEditProduct, onDele
             >
               {productsTranslations(`status.${stockStatus}`)}
             </Chip>
+            {product.isBundle && (
+              <Chip size="sm" className="bg-blue-100 text-xs text-blue-800 border border-blue-200">
+                {productsTranslations("bundle")}
+              </Chip>
+            )}
+            {product.hasVariants && !product.isBundle && (
+              <Chip size="sm" className="bg-blue-100 text-xs text-blue-800 border border-blue-200">
+                {productsTranslations("variants")}
+              </Chip>
+            )}
           </div>
         </div>
         <div className="flex flex-col justify-between shrink-0 gap-1">
           <ViewButton onPress={() => onViewProduct(product)} aria-label={productsTranslations("viewDetails")} />
           {canManageProducts && (
             <>
-              {product.hasVariants && (
+              {product.hasVariants && !product.isBundle && (
                 <RequirePermission allOf={["products_update"]}>
                   <VariantsButton onPress={() => onManageVariants(product)} aria-label={productsTranslations("manageVariants")} />
                 </RequirePermission>
