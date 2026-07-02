@@ -48,6 +48,7 @@ class ReportService {
                    o.table_id,
                    o.status,
                    o.total,
+                   o.discount_amount,
                    o.created_at,
                    GROUP_CONCAT(DISTINCT pm.name) AS payment_method,
                    GROUP_CONCAT(DISTINCT p.id) AS payment_method_ids,
@@ -116,6 +117,7 @@ class ReportService {
             tableId = resultSet.getString("table_id"),
             status = resultSet.getString("status"),
             total = resultSet.getDouble("total"),
+            discountAmount = resultSet.getDouble("discount_amount"),
             createdAt = resultSet.getString("created_at").replace(" ", "T"),
             paymentMethod = paymentNames,
             paymentMethodIds = paymentIds,
@@ -247,6 +249,7 @@ class ReportService {
                             exchangeRateCurrency = row[PaymentsTable.exchangeRateCurrency],
                             fiatAmountAtPayment = row[PaymentsTable.fiatAmountAtPayment],
                             paymentId = row[PaymentsTable.id].value.toString(),
+                            discountAmount = row[OrdersTable.discountAmount],
                         )
                     }
 

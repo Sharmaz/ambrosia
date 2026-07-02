@@ -146,6 +146,7 @@ data class Order(
     val tableId: String? = null,
     val status: String,
     val total: Double,
+    val discountAmount: Double = 0.0,
     val createdAt: String,
 )
 
@@ -164,6 +165,7 @@ data class OrderWithPayment(
     val tableId: String? = null,
     val status: String,
     val total: Double,
+    val discountAmount: Double = 0.0,
     val createdAt: String,
     val paymentMethod: String? = null,
     val paymentMethodIds: List<String> = emptyList(),
@@ -500,6 +502,7 @@ data class ProductSaleItem(
     val exchangeRateCurrency: String? = null,
     val fiatAmountAtPayment: Double? = null,
     val paymentId: String? = null,
+    val discountAmount: Double = 0.0,
 )
 
 @Serializable
