@@ -10,6 +10,7 @@ data class TicketData(
     val date: String,
     val items: List<TicketDataItem>,
     val total: Double,
+    val discountAmount: Double = 0.0,
     val invoice: String? = null,
 )
 
