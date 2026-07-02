@@ -64,8 +64,13 @@ const productsEs = {
       bundleComponentsSearchPlaceholder: "Buscar producto por nombre o SKU...",
       bundleComponentsNotFound: "No se encontraron productos.",
       bundleComponentsEmpty: "Sin componentes. Busca y agrega productos arriba.",
+      bundleComponentsRequired: "Agrega al menos un componente antes de guardar este paquete.",
       bundleCostReference: "Costo de componentes:",
       bundleComponentQuantityLabel: "Cantidad",
+      confirmBundleConversionTitle: "¿Convertir producto con variantes a paquete?",
+      confirmBundleConversionDescription:
+        "Las variantes de este producto se desactivarán al guardar, y el paquete necesitará componentes antes de poder guardarse.",
+      confirmBundleConversionButton: "Convertir a paquete",
     },
     manageVariants: "Variantes",
     variantsModalTitle: "Gestionar Variantes",

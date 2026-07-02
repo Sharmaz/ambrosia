@@ -49,13 +49,29 @@ jest.mock("@heroui/react", () => {
         data-testid={children === "modal.isBundle" ? "bundle-switch" : "variants-switch"}
         type="checkbox"
         checked={isSelected ?? false}
-        onChange={(event) => onValueChange?.(event.target.checked)}
+        onChange={(switchChangeEvent) => onValueChange?.(switchChangeEvent.target.checked)}
       />
       {children}
     </label>
   );
 
-  return { ...actual, NumberInput, Switch };
+  const Button = ({
+    children,
+    onPress,
+    isDisabled,
+    disabled,
+    type = "button",
+    isLoading,
+    isIconOnly,
+    fullWidth,
+    ...buttonProps
+  }) => (
+    <button type={type} onClick={onPress} disabled={isDisabled || disabled || isLoading} {...buttonProps}>
+      {children}
+    </button>
+  );
+
+  return { ...actual, Button, NumberInput, Switch };
 });
 
 jest.mock("@/components/hooks/useCurrency", () => ({
@@ -227,11 +243,48 @@ describe("EditProductsModal", () => {
     expect(screen.getByTestId("bundle-product-selector")).toBeInTheDocument();
   });
 
+  it("requires bundle components before saving a bundle", () => {
+    const updateProduct = jest.fn();
+    renderModal({
+      updateProduct,
+      data: { ...baseData, isBundle: true, bundleComponents: [] },
+    });
+
+    expect(screen.getByText("modal.bundleComponentsRequired")).toBeInTheDocument();
+    expect(screen.getByText("modal.editButton")).toBeDisabled();
+
+    fireEvent.click(screen.getByText("modal.editButton"));
+
+    expect(updateProduct).not.toHaveBeenCalled();
+  });
+
   it("calls onChange with bundle fields when bundle toggle is switched on", () => {
     const onChange = jest.fn();
     renderModal({ onChange });
 
     fireEvent.click(screen.getByTestId("bundle-switch"));
+
+    expect(onChange).toHaveBeenCalledWith({
+      isBundle: true,
+      hasVariants: false,
+      bundleComponents: [],
+      productStock: 0,
+      productMinStock: 0,
+      productMaxStock: 0,
+    });
+  });
+
+  it("asks for confirmation before converting a variant product to a bundle", () => {
+    const onChange = jest.fn();
+    renderModal({ data: { ...baseData, hasVariants: true, isBundle: false }, onChange });
+
+    fireEvent.click(screen.getByTestId("bundle-switch"));
+
+    expect(screen.getByText("modal.confirmBundleConversionTitle")).toBeInTheDocument();
+    expect(screen.getByText("modal.confirmBundleConversionDescription")).toBeInTheDocument();
+    expect(onChange).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByText("modal.confirmBundleConversionButton"));
 
     expect(onChange).toHaveBeenCalledWith({
       isBundle: true,
@@ -255,6 +308,20 @@ describe("EditProductsModal", () => {
     await waitFor(() => expect(updateProduct).toHaveBeenCalledWith(baseData));
     expect(onClose).toHaveBeenCalled();
     expect(onProductUpdated).toHaveBeenCalled();
+  });
+
+  it("keeps the modal open when update fails", async () => {
+    const onClose = jest.fn();
+    const updateProduct = jest.fn(() => Promise.reject(new Error("Invalid product data")));
+    const onProductUpdated = jest.fn();
+
+    renderModal({ onClose, updateProduct, onProductUpdated });
+
+    fireEvent.click(screen.getByText("modal.editButton"));
+
+    await waitFor(() => expect(updateProduct).toHaveBeenCalledWith(baseData));
+    expect(onClose).not.toHaveBeenCalled();
+    expect(onProductUpdated).not.toHaveBeenCalled();
   });
 
   it("does not submit when uploading", () => {

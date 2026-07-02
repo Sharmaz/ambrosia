@@ -17,10 +17,12 @@ export function ProductDetailsModal({ isOpen, onClose, onAddProduct, showAddButt
   const categoryNames = categories
     .filter((category) => categoryIds.includes(category.id))
     .map((category) => category.name)
-    .join(", ") || productDetailsTranslation("unknownCategory");
+    .join(", ") || productDetailsTranslation("noCategory");
 
   const quantity = Number(product.quantity ?? 0);
   const isOutOfStock = quantity <= 0;
+  const shouldShowVariantPriceRange =
+    product.hasVariants && !product.isBundle && product.maxPriceCents !== product.priceCents;
 
   const stockChipClassName = isOutOfStock
     ? "bg-rose-100 text-rose-800 border border-rose-200 text-xs"
@@ -85,9 +87,12 @@ export function ProductDetailsModal({ isOpen, onClose, onAddProduct, showAddButt
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-2xl font-bold text-green-800">
-                {product.hasVariants && !product.isBundle
-                  ? `${productDetailsTranslation("priceFrom")} ${formatAmount(product.priceCents)}`
-                  : formatAmount(product.priceCents)}
+                {shouldShowVariantPriceRange ? (
+                  <span className="flex flex-wrap gap-x-1">
+                    <span>{formatAmount(product.priceCents)} -</span>
+                    <span>{formatAmount(product.maxPriceCents)}</span>
+                  </span>
+                ) : formatAmount(product.priceCents)}
               </h2>
               <p className="text-xs">
                 SKU: <span className="text-gray-800">{product.SKU ?? "—"}</span>

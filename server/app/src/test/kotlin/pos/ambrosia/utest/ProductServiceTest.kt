@@ -7,7 +7,9 @@ import org.junit.Before
 import pos.ambrosia.models.BundleComponent
 import pos.ambrosia.models.Product
 import pos.ambrosia.models.ProductStockAdjustment
+import pos.ambrosia.models.UpsertVariantRequest
 import pos.ambrosia.services.ProductService
+import pos.ambrosia.services.ProductVariantService
 import pos.ambrosia.utils.ExposedTestDb
 import pos.ambrosia.utils.ProductIsBundleComponentException
 import java.io.File
@@ -22,6 +24,7 @@ import kotlin.test.assertTrue
 class ProductServiceTest {
     private lateinit var dbFile: File
     private val service = ProductService()
+    private val variantService = ProductVariantService()
 
     @Before
     fun setUp() {
@@ -460,6 +463,43 @@ class ProductServiceTest {
             assertEquals(1, result?.bundleComponents?.size)
             assertEquals(componentB, result?.bundleComponents?.get(0)?.componentId)
             assertEquals(3, result?.bundleComponents?.get(0)?.quantity)
+        }
+    }
+
+    @Test
+    fun `updateProduct converts variant product to bundle and disables previous sellable variants`() {
+        runBlocking {
+            val productId = ExposedTestDb.seedProduct(name = "Variant Product", hasVariants = true, priceCents = 1200)
+            val extraVariantId =
+                variantService.addVariant(
+                    productId,
+                    UpsertVariantRequest(priceCents = 1800, costCents = 900, quantity = 4),
+                )
+            val componentId = ExposedTestDb.seedProduct(name = "Part", quantity = 10)
+            val bundleUpdateRequest =
+                Product(
+                    id = productId,
+                    name = "Bundle",
+                    costCents = 700,
+                    quantity = 0,
+                    minStockThreshold = 0,
+                    maxStockThreshold = 0,
+                    priceCents = 2500,
+                    hasVariants = true,
+                    isBundle = true,
+                    bundleComponents = listOf(BundleComponent(componentId, quantity = 2)),
+                )
+
+            assertTrue(service.updateProduct(bundleUpdateRequest))
+
+            val updatedProduct = service.getProductById(productId)
+            assertNotNull(updatedProduct)
+            assertTrue(updatedProduct.isBundle)
+            assertFalse(updatedProduct.hasVariants)
+            assertEquals(2500, updatedProduct.priceCents)
+            assertEquals(1, updatedProduct.variants.size)
+            assertEquals(0, updatedProduct.variants[0].quantity)
+            assertFalse(updatedProduct.variants.any { variant -> variant.id == extraVariantId })
         }
     }
 

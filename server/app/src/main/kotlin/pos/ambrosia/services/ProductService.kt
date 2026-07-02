@@ -112,6 +112,38 @@ class ProductService {
         }
     }
 
+    private fun replaceBundlePricingVariant(
+        productId: UUID,
+        product: Product,
+    ) {
+        val productEntityId = EntityID(productId, ProductsTable)
+        val existingVariantEntities =
+            ProductVariantEntity
+                .find { ProductVariantsTable.productId eq productEntityId }
+                .toList()
+        val pricingVariantEntity =
+            existingVariantEntities.firstOrNull()
+                ?: ProductVariantEntity.new(UUID.randomUUID()) {
+                    this.productId = productEntityId
+                }
+
+        pricingVariantEntity.priceCents = product.priceCents
+        pricingVariantEntity.costCents = product.costCents.takeIf { it > 0 }
+        pricingVariantEntity.quantity = 0
+        pricingVariantEntity.isActive = true
+        pricingVariantEntity.flush()
+
+        val previousVariantIds =
+            existingVariantEntities
+                .filter { variantEntity -> variantEntity.id != pricingVariantEntity.id }
+                .map { variantEntity -> variantEntity.id }
+        if (previousVariantIds.isEmpty()) return
+
+        ProductVariantsTable.update({ ProductVariantsTable.id inList previousVariantIds }) {
+            it[ProductVariantsTable.isActive] = false
+        }
+    }
+
     private fun toModel(entity: ProductEntity): Product {
         val aggregate = variantAggregate(entity.id)
         val bundleComponents = getBundleComponents(entity.id.value)
@@ -221,7 +253,7 @@ class ProductService {
                         this.imageUrl = product.imageUrl
                         this.minStockThreshold = product.minStockThreshold
                         this.maxStockThreshold = product.maxStockThreshold
-                        this.hasVariants = product.hasVariants
+                        this.hasVariants = if (product.isBundle) false else product.hasVariants
                         this.isBundle = product.isBundle
                     }.id.value
 
@@ -306,12 +338,13 @@ class ProductService {
             productEntity.imageUrl = product.imageUrl
             productEntity.minStockThreshold = product.minStockThreshold
             productEntity.maxStockThreshold = product.maxStockThreshold
-            productEntity.hasVariants = product.hasVariants
+            productEntity.hasVariants = if (product.isBundle) false else product.hasVariants
             productEntity.isBundle = product.isBundle
             productEntity.flush()
 
             replaceCategories(productId, product.categoryIds)
             replaceBundleComponents(productId, if (product.isBundle) product.bundleComponents else emptyList())
+            if (product.isBundle) replaceBundlePricingVariant(productId, product)
             logger.info("Product updated: ${product.id}")
             true
         }
