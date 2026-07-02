@@ -16,6 +16,7 @@ export function useOrdersData(sales) {
       exchangeRateAtPayment,
       exchangeRateCurrency,
       fiatAmountAtPayment,
+      discountAmount,
     } of sales) {
       if (!byOrder[orderId]) {
         byOrder[orderId] = {
@@ -27,6 +28,7 @@ export function useOrdersData(sales) {
           items: [],
           total: 0,
           itemCount: 0,
+          discountAmount: discountAmount ?? 0,
           satoshiAmount: satoshiAmount ?? null,
           exchangeRateAtPayment: exchangeRateAtPayment ?? null,
           exchangeRateCurrency: exchangeRateCurrency ?? null,
