@@ -15,8 +15,8 @@ jest.mock("@/components/pages/Store/utils/resolveImageUrl", () => ({
 }));
 
 jest.mock("../OptionTypeManager", () => ({
-  OptionTypeManager: ({ options }) => (
-    <div data-testid="option-type-manager">options-{options.length}</div>
+  OptionTypeManager: ({ optionTypes }) => (
+    <div data-testid="option-type-manager">options-{optionTypes.length}</div>
   ),
 }));
 

@@ -40,15 +40,23 @@ const options = [
 
 const defaultProps = {
   productId: "p1",
-  options: [],
-  onAddOptionType: jest.fn(),
-  onUpdateOptionType: jest.fn(),
-  onDeleteOptionType: jest.fn(),
+  optionTypes: [],
+  optionTypeActions: {
+    add: jest.fn(),
+    update: jest.fn(),
+    delete: jest.fn(),
+  },
   onRefresh: jest.fn(),
 };
 
-function renderManager(props = {}) {
-  return render(<OptionTypeManager {...defaultProps} {...props} />);
+function renderManager({ optionTypeActions = {}, ...props } = {}) {
+  return render(
+    <OptionTypeManager
+      {...defaultProps}
+      {...props}
+      optionTypeActions={{ ...defaultProps.optionTypeActions, ...optionTypeActions }}
+    />,
+  );
 }
 
 beforeEach(() => {
@@ -62,12 +70,12 @@ describe("OptionTypeManager", () => {
   });
 
   it("does not show empty-state when options exist", () => {
-    renderManager({ options });
+    renderManager({ optionTypes: options });
     expect(screen.queryByText("noOptionTypes")).not.toBeInTheDocument();
   });
 
   it("renders the option type name and its values", () => {
-    renderManager({ options });
+    renderManager({ optionTypes: options });
     expect(screen.getByText("Color")).toBeInTheDocument();
     expect(screen.getByText("Red")).toBeInTheDocument();
     expect(screen.getByText("Blue")).toBeInTheDocument();
@@ -93,9 +101,9 @@ describe("OptionTypeManager", () => {
   });
 
   it("calls onAddOptionType and closes form on successful save", async () => {
-    const onAddOptionType = jest.fn().mockResolvedValue("ot-new");
+    const addOptionType = jest.fn().mockResolvedValue("ot-new");
     const onRefresh = jest.fn().mockResolvedValue(undefined);
-    renderManager({ onAddOptionType, onRefresh });
+    renderManager({ optionTypeActions: { add: addOptionType }, onRefresh });
 
     fireEvent.click(screen.getByText("addOptionType"));
 
@@ -107,7 +115,7 @@ describe("OptionTypeManager", () => {
 
     fireEvent.click(screen.getByText("saveVariant"));
 
-    await waitFor(() => expect(onAddOptionType).toHaveBeenCalledWith(
+    await waitFor(() => expect(addOptionType).toHaveBeenCalledWith(
       "p1",
       expect.objectContaining({ name: "Size" }),
     ));
@@ -115,18 +123,18 @@ describe("OptionTypeManager", () => {
   });
 
   it("does not call onAddOptionType when name is empty", () => {
-    const onAddOptionType = jest.fn();
-    renderManager({ onAddOptionType });
+    const addOptionType = jest.fn();
+    renderManager({ optionTypeActions: { add: addOptionType } });
 
     fireEvent.click(screen.getByText("addOptionType"));
     fireEvent.click(screen.getByText("saveVariant"));
 
-    expect(onAddOptionType).not.toHaveBeenCalled();
+    expect(addOptionType).not.toHaveBeenCalled();
   });
 
   it("keeps form open when onAddOptionType returns falsy", async () => {
-    const onAddOptionType = jest.fn().mockResolvedValue(null);
-    renderManager({ onAddOptionType });
+    const addOptionType = jest.fn().mockResolvedValue(null);
+    renderManager({ optionTypeActions: { add: addOptionType } });
 
     fireEvent.click(screen.getByText("addOptionType"));
     fireEvent.change(screen.getByLabelText("optionTypeName"), { target: { value: "Size" } });
@@ -137,24 +145,24 @@ describe("OptionTypeManager", () => {
 
     fireEvent.click(screen.getByText("saveVariant"));
 
-    await waitFor(() => expect(onAddOptionType).toHaveBeenCalled());
+    await waitFor(() => expect(addOptionType).toHaveBeenCalled());
     expect(screen.getByLabelText("optionTypeName")).toBeInTheDocument();
   });
 
   it("switches to edit form when the edit button is clicked", () => {
-    renderManager({ options });
+    renderManager({ optionTypes: options });
     fireEvent.click(screen.getByTestId("edit-option-type-ot1"));
     expect(screen.getByLabelText("optionTypeName")).toBeInTheDocument();
   });
 
   it("calls onDeleteOptionType and refreshes on delete", async () => {
-    const onDeleteOptionType = jest.fn().mockResolvedValue(true);
+    const deleteOptionType = jest.fn().mockResolvedValue(true);
     const onRefresh = jest.fn().mockResolvedValue(undefined);
-    renderManager({ options, onDeleteOptionType, onRefresh });
+    renderManager({ optionTypes: options, optionTypeActions: { delete: deleteOptionType }, onRefresh });
 
     fireEvent.click(screen.getByTestId("delete-option-type-ot1"));
 
-    await waitFor(() => expect(onDeleteOptionType).toHaveBeenCalledWith("p1", "ot1"));
+    await waitFor(() => expect(deleteOptionType).toHaveBeenCalledWith("p1", "ot1"));
     expect(onRefresh).toHaveBeenCalled();
   });
 });

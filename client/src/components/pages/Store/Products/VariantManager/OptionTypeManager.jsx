@@ -1,129 +1,17 @@
 "use client";
 import { useState } from "react";
 
-import { Button, Card, CardBody, Chip, Input } from "@heroui/react";
-import { Pencil, Plus, Trash2, X } from "lucide-react";
+import { Button } from "@heroui/react";
+import { Plus } from "lucide-react";
 import { useTranslations } from "next-intl";
 
-function OptionValueInput({ optionValueNames, onOptionValueNamesChange }) {
-  const productsTranslation = useTranslations("products");
-  const [pendingOptionValueName, setPendingOptionValueName] = useState("");
-
-  const addValue = () => {
-    const trimmedOptionValueName = pendingOptionValueName.trim();
-    if (!trimmedOptionValueName || optionValueNames.includes(trimmedOptionValueName)) return;
-    onOptionValueNamesChange([...optionValueNames, trimmedOptionValueName]);
-    setPendingOptionValueName("");
-  };
-
-  const removeValue = (valueToRemove) => {
-    onOptionValueNamesChange(
-      optionValueNames.filter((existingOptionValueName) => existingOptionValueName !== valueToRemove),
-    );
-  };
-
-  const handleKeyDown = (keyboardEvent) => {
-    if (keyboardEvent.key === "Enter") {
-      keyboardEvent.preventDefault();
-      addValue();
-    }
-  };
-
-  return (
-    <div className="space-y-2">
-      <div className="flex gap-2">
-        <Input
-          size="sm"
-          placeholder={productsTranslation("optionValuePlaceholder")}
-          value={pendingOptionValueName}
-          onChange={(optionValueChangeEvent) => setPendingOptionValueName(optionValueChangeEvent.target.value)}
-          onKeyDown={handleKeyDown}
-        />
-        <Button
-          size="sm"
-          variant="flat"
-          onPress={addValue}
-          isDisabled={!pendingOptionValueName.trim()}
-        >
-          <Plus className="w-4 h-4" />
-        </Button>
-      </div>
-      {optionValueNames.length > 0 && (
-        <div className="flex flex-wrap gap-1.5">
-          {optionValueNames.map((optionValueName) => (
-            <Chip
-              key={optionValueName}
-              size="sm"
-              className="bg-gray-100 text-gray-700"
-              endContent={(
-                <button
-                  type="button"
-                  onClick={() => removeValue(optionValueName)}
-                  className="ml-0.5 text-gray-400 hover:text-gray-600"
-                  aria-label={productsTranslation("removeOptionValue")}
-                >
-                  <X className="w-3 h-3" />
-                </button>
-              )}
-            >
-              {optionValueName}
-            </Chip>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function OptionTypeForm({ initial, onSave, onCancel, isSaving }) {
-  const productsTranslation = useTranslations("products");
-  const [optionTypeName, setOptionTypeName] = useState(initial?.name ?? "");
-  const [optionValueNames, setOptionValueNames] =
-    useState(initial?.values?.map((initialOptionValue) => initialOptionValue.value) ?? []);
-
-  const handleSave = () => {
-    if (!optionTypeName.trim()) return;
-    onSave({
-      name: optionTypeName.trim(),
-      values: optionValueNames.map((optionValueName, displayOrder) => ({ value: optionValueName, displayOrder })),
-    });
-  };
-
-  return (
-    <div className="p-4 bg-gray-50 rounded-2xl border border-dashed border-gray-300 space-y-3">
-      <Input
-        size="sm"
-        label={productsTranslation("optionTypeName")}
-        placeholder={productsTranslation("optionTypeNamePlaceholder")}
-        value={optionTypeName}
-        onChange={(optionTypeNameChangeEvent) => setOptionTypeName(optionTypeNameChangeEvent.target.value)}
-      />
-      <OptionValueInput optionValueNames={optionValueNames} onOptionValueNamesChange={setOptionValueNames} />
-      <div className="flex gap-2 justify-end pt-1">
-        <Button size="sm" variant="bordered" onPress={onCancel} isDisabled={isSaving}>
-          {productsTranslation("cancelVariant")}
-        </Button>
-        <Button
-          size="sm"
-          color="primary"
-          className="bg-green-800"
-          onPress={handleSave}
-          isLoading={isSaving}
-          isDisabled={!optionTypeName.trim() || optionValueNames.length === 0}
-        >
-          {productsTranslation("saveVariant")}
-        </Button>
-      </div>
-    </div>
-  );
-}
+import { OptionTypeCard } from "./OptionTypeCard";
+import { OptionTypeForm } from "./OptionTypeForm";
 
 export function OptionTypeManager({
   productId,
-  options: optionTypes = [],
-  onAddOptionType,
-  onUpdateOptionType,
-  onDeleteOptionType,
+  optionTypes = [],
+  optionTypeActions,
   onRefresh,
 }) {
   const productsTranslation = useTranslations("products");
@@ -144,7 +32,7 @@ export function OptionTypeManager({
 
   const handleAdd = async (optionTypeRequest) => {
     const createdOptionTypeId = await executeOptionTypeMutation(async () => {
-      const createdOptionTypeId = await onAddOptionType(productId, optionTypeRequest);
+      const createdOptionTypeId = await optionTypeActions.add(productId, optionTypeRequest);
       if (createdOptionTypeId) setIsAddingNew(false);
       return createdOptionTypeId;
     });
@@ -153,7 +41,7 @@ export function OptionTypeManager({
 
   const handleUpdate = async (optionTypeId, optionTypeRequest) => {
     const optionTypeWasUpdated = await executeOptionTypeMutation(async () => {
-      const optionTypeWasUpdated = await onUpdateOptionType(productId, optionTypeId, optionTypeRequest);
+      const optionTypeWasUpdated = await optionTypeActions.update(productId, optionTypeId, optionTypeRequest);
       if (optionTypeWasUpdated) setEditingOptionTypeId(null);
       return optionTypeWasUpdated;
     });
@@ -161,7 +49,31 @@ export function OptionTypeManager({
   };
 
   const handleDelete = async (optionTypeId) => {
-    await executeOptionTypeMutation(() => onDeleteOptionType(productId, optionTypeId));
+    await executeOptionTypeMutation(() => optionTypeActions.delete(productId, optionTypeId));
+  };
+
+  const renderOptionType = (optionType) => {
+    if (editingOptionTypeId === optionType.id) {
+      return (
+        <OptionTypeForm
+          key={optionType.id}
+          initial={optionType}
+          onSave={(optionTypeRequest) => handleUpdate(optionType.id, optionTypeRequest)}
+          onCancel={() => setEditingOptionTypeId(null)}
+          isSaving={isSaving}
+        />
+      );
+    }
+
+    return (
+      <OptionTypeCard
+        key={optionType.id}
+        optionType={optionType}
+        isSaving={isSaving}
+        onEdit={setEditingOptionTypeId}
+        onDelete={handleDelete}
+      />
+    );
   };
 
   return (
@@ -185,58 +97,7 @@ export function OptionTypeManager({
       )}
 
       <div className="space-y-2">
-        {optionTypes.map((optionType) => (editingOptionTypeId === optionType.id ? (
-          <OptionTypeForm
-            key={optionType.id}
-            initial={optionType}
-            onSave={(optionTypeRequest) => handleUpdate(optionType.id, optionTypeRequest)}
-            onCancel={() => setEditingOptionTypeId(null)}
-            isSaving={isSaving}
-          />
-        ) : (
-          <Card key={optionType.id} shadow="none" className="border border-gray-200 bg-white">
-            <CardBody className="p-3">
-              <div className="flex items-start gap-3">
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-800">{optionType.name}</p>
-                  <div className="flex flex-wrap gap-1 mt-1.5">
-                    {optionType.values.map((optionValue) => (
-                      <Chip
-                        key={optionValue.id}
-                        size="sm"
-                        className="bg-gray-100 text-gray-700 border border-gray-200"
-                      >
-                        {optionValue.value}
-                      </Chip>
-                    ))}
-                  </div>
-                </div>
-                <div className="flex items-center gap-1 flex-shrink-0">
-                  <button
-                    type="button"
-                    data-testid={`edit-option-type-${optionType.id}`}
-                    aria-label={`${productsTranslation("edit")} ${optionType.name}`}
-                    onClick={() => setEditingOptionTypeId(optionType.id)}
-                    className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors"
-                  >
-                    <Pencil className="w-4 h-4" />
-                  </button>
-                  <button
-                    type="button"
-                    data-testid={`delete-option-type-${optionType.id}`}
-                    aria-label={`${productsTranslation("delete")} ${optionType.name}`}
-                    onClick={() => handleDelete(optionType.id)}
-                    disabled={isSaving}
-                    className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-            </CardBody>
-          </Card>
-        )),
-        )}
+        {optionTypes.map(renderOptionType)}
 
         {isAddingNew && (
           <OptionTypeForm

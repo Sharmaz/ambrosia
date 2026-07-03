@@ -87,10 +87,8 @@ export function VariantManager({
     <div className="space-y-4">
       <OptionTypeManager
         productId={productId}
-        options={options}
-        onAddOptionType={optionTypeActions.add}
-        onUpdateOptionType={optionTypeActions.update}
-        onDeleteOptionType={optionTypeActions.delete}
+        optionTypes={options}
+        optionTypeActions={optionTypeActions}
         onRefresh={onRefresh}
       />
 
