@@ -53,7 +53,6 @@ export function EditProductsModal({
       onClose?.();
       onProductUpdated?.();
     } catch {
-      // useProducts already shows the user-facing toast for failed mutations.
     } finally {
       setIsSubmitting(false);
     }
