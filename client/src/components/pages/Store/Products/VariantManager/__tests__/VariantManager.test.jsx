@@ -10,7 +10,7 @@ jest.mock("@/components/hooks/useUpload", () => ({
   useUpload: () => ({ upload: jest.fn(), isUploading: false }),
 }));
 
-jest.mock("../../utils/resolveImageUrl", () => ({
+jest.mock("@/components/pages/Store/utils/resolveImageUrl", () => ({
   resolveImageUrl: jest.fn().mockResolvedValue(null),
 }));
 

@@ -7,8 +7,7 @@ import { useTranslations } from "next-intl";
 
 import { useCurrency } from "@/components/hooks/useCurrency";
 import { useUpload } from "@/components/hooks/useUpload";
-
-import { resolveImageUrl } from "../utils/resolveImageUrl";
+import { resolveImageUrl } from "@/components/pages/Store/utils/resolveImageUrl";
 
 import { OptionTypeManager } from "./OptionTypeManager";
 import { VariantCard } from "./VariantCard";
@@ -61,7 +60,14 @@ export function VariantManager({
     quantity: variantFormData.quantity,
     isActive: variantFormData.isActive,
     optionValueIds: variantFormData.optionValueIds,
-    imageUrl: await resolveImageUrl(variantFormData.imageFile, variantFormData.imageUrl, upload),
+    imageUrl: await resolveImageUrl(
+      {
+        imageFile: variantFormData.imageFile,
+        imageRemoved: variantFormData.imageRemoved,
+        imageUrl: variantFormData.imageUrl,
+      },
+      upload,
+    ),
   });
 
   const handleAddVariant = (variantFormData) => executeVariantMutation("new", async () => {
