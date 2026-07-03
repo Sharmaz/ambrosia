@@ -133,19 +133,29 @@ export function ProductsTable({
               </TableCell>
               <TableCell className="py-2 px-3">
                 <div className="flex justify-end gap-2">
-                  <ViewButton onPress={() => onViewProduct(product)}>{productsTranslations("viewDetails")}</ViewButton>
+                  {canManageProducts && product.hasVariants && !product.isBundle && (
+                    <RequirePermission allOf={["products_update"]}>
+                      <VariantsButton onPress={() => onManageVariants(product)}>
+                        {productsTranslations("manageVariants")}
+                      </VariantsButton>
+                    </RequirePermission>
+                  )}
+
+                  <ViewButton onPress={() => onViewProduct(product)}>
+                    {productsTranslations("viewDetails")}
+                  </ViewButton>
+
                   {canManageProducts && (
                     <>
-                      {product.hasVariants && !product.isBundle && (
-                        <RequirePermission allOf={["products_update"]}>
-                          <VariantsButton onPress={() => onManageVariants(product)}>{productsTranslations("manageVariants")}</VariantsButton>
-                        </RequirePermission>
-                      )}
                       <RequirePermission allOf={["products_update"]}>
-                        <EditButton onPress={() => onEditProduct(product)}>{productsTranslations("edit")}</EditButton>
+                        <EditButton onPress={() => onEditProduct(product)}>
+                          {productsTranslations("edit")}
+                        </EditButton>
                       </RequirePermission>
                       <RequirePermission allOf={["products_delete"]}>
-                        <DeleteButton onPress={() => onDeleteProduct(product)}>{productsTranslations("delete")}</DeleteButton>
+                        <DeleteButton onPress={() => onDeleteProduct(product)}>
+                          {productsTranslations("delete")}
+                        </DeleteButton>
                       </RequirePermission>
                     </>
                   )}
