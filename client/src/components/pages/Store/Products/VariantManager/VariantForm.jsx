@@ -18,7 +18,7 @@ function buildInitialOptionValuesByType(options, initialOptionValueIds = []) {
 }
 
 export function VariantForm({ initial = {}, currency, options = [], onSave, onCancel, isLoading }) {
-  const productsTranslations = useTranslations("products");
+  const productsTranslation = useTranslations("products");
 
   const [form, setForm] = useState({
     SKU: initial.SKU ?? "",
@@ -74,7 +74,7 @@ export function VariantForm({ initial = {}, currency, options = [], onSave, onCa
               key={optionType.id}
               size="sm"
               label={optionType.name}
-              placeholder={productsTranslations("selectOptionValuePlaceholder")}
+              placeholder={productsTranslation("selectOptionValuePlaceholder")}
               selectedKeys={form.selectedOptionValues[optionType.id] ? [form.selectedOptionValues[optionType.id]] : []}
               onSelectionChange={(selectedKeys) => handleOptionValueChange(optionType.id, [...selectedKeys][0])}
             >
@@ -87,13 +87,13 @@ export function VariantForm({ initial = {}, currency, options = [], onSave, onCa
       )}
 
       {options.length === 0 && (
-        <p className="text-xs text-amber-600">{productsTranslations("noOptionTypesWarning")}</p>
+        <p className="text-xs text-amber-600">{productsTranslation("noOptionTypesWarning")}</p>
       )}
 
       <Input
         size="sm"
-        label={productsTranslations("variantSku")}
-        placeholder={productsTranslations("variantSkuPlaceholder")}
+        label={productsTranslation("variantSku")}
+        placeholder={productsTranslation("variantSkuPlaceholder")}
         value={form.SKU}
         onChange={(skuChangeEvent) => updateForm({ SKU: skuChangeEvent.target.value })}
       />
@@ -101,8 +101,8 @@ export function VariantForm({ initial = {}, currency, options = [], onSave, onCa
       <div className="grid grid-cols-2 gap-3">
         <NumberInput
           size="sm"
-          label={productsTranslations("variantPrice")}
-          placeholder={productsTranslations("variantPricePlaceholder")}
+          label={productsTranslation("variantPrice")}
+          placeholder={productsTranslation("variantPricePlaceholder")}
           value={form.priceCents / 100}
           minValue={0}
           step={0.01}
@@ -113,8 +113,8 @@ export function VariantForm({ initial = {}, currency, options = [], onSave, onCa
         />
         <NumberInput
           size="sm"
-          label={productsTranslations("variantStock")}
-          placeholder={productsTranslations("variantStockPlaceholder")}
+          label={productsTranslation("variantStock")}
+          placeholder={productsTranslation("variantStockPlaceholder")}
           value={form.quantity}
           minValue={0}
           step={1}
@@ -126,13 +126,13 @@ export function VariantForm({ initial = {}, currency, options = [], onSave, onCa
         isCompact
         image={form.imageFile ?? form.imageUrl}
         onChange={handleImageChange}
-        uploadText={productsTranslations("modal.productImageUpload")}
-        uploadDescription={productsTranslations("modal.productImageUploadMessage")}
+        uploadText={productsTranslation("modal.productImageUpload")}
+        uploadDescription={productsTranslation("modal.productImageUploadMessage")}
       />
 
       <div className="flex gap-2 justify-end pt-1">
         <Button size="sm" variant="bordered" onPress={onCancel} isDisabled={isLoading}>
-          {productsTranslations("cancelVariant")}
+          {productsTranslation("cancelVariant")}
         </Button>
         <Button
           size="sm"
@@ -142,7 +142,7 @@ export function VariantForm({ initial = {}, currency, options = [], onSave, onCa
           isLoading={isLoading}
           isDisabled={!allOptionsSelected}
         >
-          {productsTranslations("saveVariant")}
+          {productsTranslation("saveVariant")}
         </Button>
       </div>
     </div>

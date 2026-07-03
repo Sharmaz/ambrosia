@@ -26,7 +26,7 @@ export function VariantManager({
   onDeleteOptionType,
   onRefresh,
 }) {
-  const productsTranslations = useTranslations("products");
+  const productsTranslation = useTranslations("products");
   const { currency } = useCurrency();
   const { upload, isUploading } = useUpload();
   const [isAddingNewVariant, setIsAddingNewVariant] = useState(false);
@@ -93,7 +93,7 @@ export function VariantManager({
 
       <div className="border-t border-gray-100 pt-3 space-y-2">
         <div className="flex items-center justify-between mb-1">
-          <span className="text-sm font-semibold text-gray-700">{productsTranslations("variants")}</span>
+          <span className="text-sm font-semibold text-gray-700">{productsTranslation("variants")}</span>
           {!isAddingNewVariant && (
             <Button
               size="sm"
@@ -102,17 +102,17 @@ export function VariantManager({
               onPress={() => setIsAddingNewVariant(true)}
               isDisabled={options.length === 0}
             >
-              {productsTranslations("addVariant")}
+              {productsTranslation("addVariant")}
             </Button>
           )}
         </div>
 
         {options.length === 0 && (
-          <p className="text-xs text-amber-600">{productsTranslations("noOptionTypesWarning")}</p>
+          <p className="text-xs text-amber-600">{productsTranslation("noOptionTypesWarning")}</p>
         )}
 
         {variants.length === 0 && !isAddingNewVariant && options.length > 0 && (
-          <p className="text-sm text-gray-400 py-1">{productsTranslations("noVariants")}</p>
+          <p className="text-sm text-gray-400 py-1">{productsTranslation("noVariants")}</p>
         )}
 
         <div className="space-y-2">

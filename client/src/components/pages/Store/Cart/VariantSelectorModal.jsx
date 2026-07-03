@@ -14,7 +14,7 @@ function getOptionValueButtonClassName(optionValueIsAvailable, optionValueIsSele
 }
 
 export function VariantSelectorModal({ product, isOpen, onClose, onAddToCart }) {
-  const cartTranslations = useTranslations("cart");
+  const cartTranslation = useTranslations("cart");
   const { formatAmount } = useCurrency();
   const {
     options,
@@ -33,12 +33,12 @@ export function VariantSelectorModal({ product, isOpen, onClose, onAddToCart }) 
     <Modal isOpen={isOpen} onClose={onClose} placement="center" size="sm">
       <ModalContent>
         <ModalHeader className="flex flex-col gap-1">
-          <span>{cartTranslations("variantSelector.title")}</span>
+          <span>{cartTranslation("variantSelector.title")}</span>
           <span className="text-sm font-normal text-gray-500">{product?.name}</span>
         </ModalHeader>
         <ModalBody>
           {isLoading && (
-            <p className="text-center text-gray-400 py-4">{cartTranslations("variantSelector.loading")}</p>
+            <p className="text-center text-gray-400 py-4">{cartTranslation("variantSelector.loading")}</p>
           )}
           {!isLoading && options.map((optionType) => (
             <div key={optionType.id} className="flex flex-col gap-2">
@@ -65,7 +65,7 @@ export function VariantSelectorModal({ product, isOpen, onClose, onAddToCart }) 
           ))}
           {allSelected && !matchedVariant && (
             <p className="text-sm text-rose-600 text-center pt-1">
-              {cartTranslations("variantSelector.noVariantFound")}
+              {cartTranslation("variantSelector.noVariantFound")}
             </p>
           )}
           {matchedVariant && (
@@ -75,8 +75,8 @@ export function VariantSelectorModal({ product, isOpen, onClose, onAddToCart }) 
               </span>
               <span className={`text-sm ${isOutOfStock ? "text-rose-600" : "text-gray-500"}`}>
                 {isOutOfStock
-                  ? cartTranslations("variantSelector.outOfStock")
-                  : `${matchedVariant.quantity} ${cartTranslations("variantSelector.inStock")}`}
+                  ? cartTranslation("variantSelector.outOfStock")
+                  : `${matchedVariant.quantity} ${cartTranslation("variantSelector.inStock")}`}
               </span>
             </div>
           )}
@@ -87,10 +87,10 @@ export function VariantSelectorModal({ product, isOpen, onClose, onAddToCart }) 
             className="px-6 py-2 border border-border text-foreground hover:bg-muted transition-colors"
             onPress={onClose}
           >
-            {cartTranslations("variantSelector.cancel")}
+            {cartTranslation("variantSelector.cancel")}
           </Button>
           <Button color="primary" isDisabled={isDisabled} onPress={handleAddToCart}>
-            {cartTranslations("variantSelector.addToCart")}
+            {cartTranslation("variantSelector.addToCart")}
           </Button>
         </ModalFooter>
       </ModalContent>

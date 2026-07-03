@@ -10,7 +10,7 @@ import { useEditProduct } from "./hooks/useEditProduct";
 import { VariantManager } from "./VariantManager";
 
 export function ProductVariantsModal({ product, isOpen, onClose }) {
-  const productsTranslations = useTranslations("products");
+  const productsTranslation = useTranslations("products");
 
   const {
     fetchProductDetail,
@@ -51,7 +51,7 @@ export function ProductVariantsModal({ product, isOpen, onClose }) {
     >
       <ModalContent>
         <ModalHeader className="flex flex-col gap-0.5">
-          <span>{productsTranslations("variantsModalTitle")}</span>
+          <span>{productsTranslation("variantsModalTitle")}</span>
           {product?.name && (
             <span className="text-sm font-normal text-gray-500">{product.name}</span>
           )}

@@ -17,7 +17,7 @@ import { resolveImageUrl } from "../utils/resolveImageUrl";
 import { useProductVariants } from "./useProductVariants";
 
 export function useProducts() {
-  const productsTranslations = useTranslations("products");
+  const productsTranslation = useTranslations("products");
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -27,24 +27,24 @@ export function useProducts() {
   const notifyMutationError = (mutationError) => {
     if (mutationError?.status === 409) {
       addToast({
-        title: productsTranslations("toasts.duplicateSkuTitle"),
-        description: productsTranslations("toasts.duplicateSkuDescription"),
+        title: productsTranslation("toasts.duplicateSkuTitle"),
+        description: productsTranslation("toasts.duplicateSkuDescription"),
         color: "danger",
       });
       return;
     }
 
     addToast({
-      title: productsTranslations("toasts.genericErrorTitle"),
-      description: productsTranslations("toasts.genericErrorDescription"),
+      title: productsTranslation("toasts.genericErrorTitle"),
+      description: productsTranslation("toasts.genericErrorDescription"),
       color: "danger",
     });
   };
 
   const notifyBundleComponentDeleteError = () => {
     addToast({
-      title: productsTranslations("toasts.bundleComponentErrorTitle"),
-      description: productsTranslations("toasts.bundleComponentErrorDescription"),
+      title: productsTranslation("toasts.bundleComponentErrorTitle"),
+      description: productsTranslation("toasts.bundleComponentErrorDescription"),
       color: "danger",
     });
   };

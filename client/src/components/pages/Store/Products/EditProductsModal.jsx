@@ -35,7 +35,7 @@ export function EditProductsModal({
   editProductsShowModal,
   onClose,
 }) {
-  const productsTranslations = useTranslations("products");
+  const productsTranslation = useTranslations("products");
   const { currency } = useCurrency();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showBundleConversionConfirmation, setShowBundleConversionConfirmation] = useState(false);
@@ -106,7 +106,7 @@ export function EditProductsModal({
         placement="center"
       >
         <ModalContent>
-          <ModalHeader>{productsTranslations("modal.titleEdit")}</ModalHeader>
+          <ModalHeader>{productsTranslation("modal.titleEdit")}</ModalHeader>
 
           <ModalBody>
             <form className="space-y-4" onSubmit={handleSubmit}>
@@ -114,21 +114,21 @@ export function EditProductsModal({
                 isSelected={data.isBundle}
                 onValueChange={handleBundleToggle}
               >
-                {productsTranslations("modal.isBundle")}
+                {productsTranslation("modal.isBundle")}
               </Switch>
 
               <Input
-                label={productsTranslations("modal.productNameLabel")}
-                placeholder={productsTranslations("modal.productNamePlaceholder")}
+                label={productsTranslation("modal.productNameLabel")}
+                placeholder={productsTranslation("modal.productNamePlaceholder")}
                 isRequired
-                errorMessage={productsTranslations("modal.errorMsgInputFieldEmpty")}
+                errorMessage={productsTranslation("modal.errorMsgInputFieldEmpty")}
                 value={data.productName}
                 onChange={({ target: productNameInput }) => onChange({ productName: productNameInput.value })}
               />
 
               <Textarea
-                label={productsTranslations("modal.productDescriptionLabel")}
-                placeholder={productsTranslations("modal.productDescriptionPlaceholder")}
+                label={productsTranslation("modal.productDescriptionLabel")}
+                placeholder={productsTranslation("modal.productDescriptionPlaceholder")}
                 value={data.productDescription ?? ""}
                 onChange={({ target: productDescriptionInput }) => onChange({ productDescription: productDescriptionInput.value })}
               />
@@ -142,8 +142,8 @@ export function EditProductsModal({
               />
 
               <Input
-                label={productsTranslations("modal.productSKULabel")}
-                placeholder={productsTranslations("modal.productSKUPlaceholder")}
+                label={productsTranslation("modal.productSKULabel")}
+                placeholder={productsTranslation("modal.productSKUPlaceholder")}
                 value={data.productSKU ?? ""}
                 onChange={({ target: productSkuInput }) => onChange({ productSKU: productSkuInput.value })}
               />
@@ -155,7 +155,7 @@ export function EditProductsModal({
                     onValueChange={(hasVariantsSelected) => onChange({ hasVariants: hasVariantsSelected })}
                     size="sm"
                   />
-                  <span className="text-sm text-gray-700">{productsTranslations("hasVariants")}</span>
+                  <span className="text-sm text-gray-700">{productsTranslation("hasVariants")}</span>
                 </div>
               )}
 
@@ -169,7 +169,7 @@ export function EditProductsModal({
               )}
 
               {data.hasVariants && !data.isBundle && (
-                <p className="text-xs text-gray-400">{productsTranslations("variantsHintEditModal")}</p>
+                <p className="text-xs text-gray-400">{productsTranslation("variantsHintEditModal")}</p>
               )}
 
               {data.isBundle && (
@@ -181,7 +181,7 @@ export function EditProductsModal({
                   />
                   {bundleRequiresComponents && (
                     <p className="text-xs text-red-500">
-                      {productsTranslations("modal.bundleComponentsRequired")}
+                      {productsTranslation("modal.bundleComponentsRequired")}
                     </p>
                   )}
                 </>
@@ -189,8 +189,8 @@ export function EditProductsModal({
 
               <ImageUploader
                 title=""
-                uploadText={productsTranslations("modal.productImageUpload")}
-                uploadDescription={productsTranslations("modal.productImageUploadMessage")}
+                uploadText={productsTranslation("modal.productImageUpload")}
+                uploadDescription={productsTranslation("modal.productImageUploadMessage")}
                 onChange={(file) => onChange({ productImage: file, productImageRemoved: file === null })}
                 image={data.productImageRemoved ? null : (data.productImage || data.productImageUrl)}
               />
@@ -202,7 +202,7 @@ export function EditProductsModal({
                   className="px-6 py-2 border border-border text-foreground hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   onPress={() => onClose?.()}
                 >
-                  {productsTranslations("modal.cancelButton")}
+                  {productsTranslation("modal.cancelButton")}
                 </Button>
 
                 <Button
@@ -212,7 +212,7 @@ export function EditProductsModal({
                   isLoading={isSubmitting || isUploading}
                   isDisabled={bundleRequiresComponents}
                 >
-                  {productsTranslations("modal.editButton")}
+                  {productsTranslation("modal.editButton")}
                 </Button>
               </ModalFooter>
             </form>
@@ -232,10 +232,10 @@ export function EditProductsModal({
         placement="center"
       >
         <ModalContent>
-          <ModalHeader>{productsTranslations("modal.confirmBundleConversionTitle")}</ModalHeader>
+          <ModalHeader>{productsTranslation("modal.confirmBundleConversionTitle")}</ModalHeader>
           <ModalBody>
             <p className="text-sm text-gray-600">
-              {productsTranslations("modal.confirmBundleConversionDescription")}
+              {productsTranslation("modal.confirmBundleConversionDescription")}
             </p>
           </ModalBody>
           <ModalFooter>
@@ -245,10 +245,10 @@ export function EditProductsModal({
               className="px-6 py-2 border border-border text-foreground hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               onPress={cancelBundleConversion}
             >
-              {productsTranslations("modal.cancelButton")}
+              {productsTranslation("modal.cancelButton")}
             </Button>
             <Button color="warning" onPress={confirmBundleConversion}>
-              {productsTranslations("modal.confirmBundleConversionButton")}
+              {productsTranslation("modal.confirmBundleConversionButton")}
             </Button>
           </ModalFooter>
         </ModalContent>

@@ -41,7 +41,7 @@ function createEmptyProductForm() {
 }
 
 export function Products() {
-  const productsTranslations = useTranslations("products");
+  const productsTranslation = useTranslations("products");
   const [addProductsShowModal, setAddProductsShowModal] = useState(false);
   const [editProductsShowModal, setEditProductsShowModal] = useState(false);
   const [deleteProductsShowModal, setDeleteProductsShowModal] = useState(false);
@@ -131,8 +131,8 @@ export function Products() {
   return (
     <>
       <PageHeader
-        title={productsTranslations("title")}
-        subtitle={productsTranslations("subtitle")}
+        title={productsTranslation("title")}
+        subtitle={productsTranslation("subtitle")}
         actions={(
           <RequirePermission allOf={["products_create"]}>
             <Button
@@ -143,7 +143,7 @@ export function Products() {
                 setAddProductsShowModal(true);
               }}
             >
-              {productsTranslations("addProduct")}
+              {productsTranslation("addProduct")}
             </Button>
           </RequirePermission>
         )}

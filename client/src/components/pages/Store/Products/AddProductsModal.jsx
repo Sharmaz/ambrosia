@@ -35,7 +35,7 @@ export function AddProductsModal({
   addProductsShowModal,
   onClose,
 }) {
-  const productsTranslations = useTranslations("products");
+  const productsTranslation = useTranslations("products");
   const { currency } = useCurrency();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -81,7 +81,7 @@ export function AddProductsModal({
       placement="center"
     >
       <ModalContent>
-        <ModalHeader>{productsTranslations("modal.titleAdd")}</ModalHeader>
+        <ModalHeader>{productsTranslation("modal.titleAdd")}</ModalHeader>
 
         <ModalBody>
           <form className="space-y-4" onSubmit={handleSubmit}>
@@ -89,21 +89,21 @@ export function AddProductsModal({
               isSelected={data.isBundle}
               onValueChange={handleBundleToggle}
             >
-              {productsTranslations("modal.isBundle")}
+              {productsTranslation("modal.isBundle")}
             </Switch>
 
             <Input
-              label={productsTranslations("modal.productNameLabel")}
-              placeholder={productsTranslations("modal.productNamePlaceholder")}
+              label={productsTranslation("modal.productNameLabel")}
+              placeholder={productsTranslation("modal.productNamePlaceholder")}
               isRequired
-              errorMessage={productsTranslations("modal.errorMsgInputFieldEmpty")}
+              errorMessage={productsTranslation("modal.errorMsgInputFieldEmpty")}
               value={data.productName}
               onChange={({ target: productNameInput }) => onChange({ productName: productNameInput.value })}
             />
 
             <Textarea
-              label={productsTranslations("modal.productDescriptionLabel")}
-              placeholder={productsTranslations("modal.productDescriptionPlaceholder")}
+              label={productsTranslation("modal.productDescriptionLabel")}
+              placeholder={productsTranslation("modal.productDescriptionPlaceholder")}
               value={data.productDescription}
               onChange={({ target: productDescriptionInput }) => onChange({ productDescription: productDescriptionInput.value })}
             />
@@ -117,8 +117,8 @@ export function AddProductsModal({
             />
 
             <Input
-              label={productsTranslations("modal.productSKULabel")}
-              placeholder={productsTranslations("modal.productSKUPlaceholder")}
+              label={productsTranslation("modal.productSKULabel")}
+              placeholder={productsTranslation("modal.productSKUPlaceholder")}
               value={data.productSKU}
               onChange={({ target: productSkuInput }) => onChange({ productSKU: productSkuInput.value })}
             />
@@ -130,7 +130,7 @@ export function AddProductsModal({
                   onValueChange={(hasVariantsSelected) => onChange({ hasVariants: hasVariantsSelected })}
                   size="sm"
                 />
-                <span className="text-sm text-gray-700">{productsTranslations("hasVariants")}</span>
+                <span className="text-sm text-gray-700">{productsTranslation("hasVariants")}</span>
               </div>
             )}
 
@@ -144,7 +144,7 @@ export function AddProductsModal({
             )}
 
             {data.hasVariants && !data.isBundle && (
-              <p className="text-xs text-gray-400">{productsTranslations("hasVariantsHint")}</p>
+              <p className="text-xs text-gray-400">{productsTranslation("hasVariantsHint")}</p>
             )}
 
             {data.isBundle && (
@@ -157,8 +157,8 @@ export function AddProductsModal({
 
             <ImageUploader
               title=""
-              uploadText={productsTranslations("modal.productImageUpload")}
-              uploadDescription={productsTranslations("modal.productImageUploadMessage")}
+              uploadText={productsTranslation("modal.productImageUpload")}
+              uploadDescription={productsTranslation("modal.productImageUploadMessage")}
               onChange={(file) => onChange({ productImage: file })}
               image={data.productImage || data.productImageUrl}
             />
@@ -170,7 +170,7 @@ export function AddProductsModal({
                 className="px-6 py-2 border border-border text-foreground hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 onPress={() => onClose?.()}
               >
-                {productsTranslations("modal.cancelButton")}
+                {productsTranslation("modal.cancelButton")}
               </Button>
 
               <Button
@@ -179,7 +179,7 @@ export function AddProductsModal({
                 type="submit"
                 isLoading={isSubmitting || isUploading}
               >
-                {productsTranslations("modal.submitButton")}
+                {productsTranslation("modal.submitButton")}
               </Button>
             </ModalFooter>
           </form>

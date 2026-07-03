@@ -7,25 +7,25 @@ import { useTranslations } from "next-intl";
 import { httpClient, parseJsonResponse } from "@/lib/http";
 
 export function useProductVariants() {
-  const productsTranslations = useTranslations("products");
+  const productsTranslation = useTranslations("products");
 
   const notifyError = useCallback(
     (status) => {
       if (status === 409) {
         addToast({
-          title: productsTranslations("toasts.duplicateVariantSkuTitle"),
-          description: productsTranslations("toasts.duplicateVariantSkuDescription"),
+          title: productsTranslation("toasts.duplicateVariantSkuTitle"),
+          description: productsTranslation("toasts.duplicateVariantSkuDescription"),
           color: "danger",
         });
         return;
       }
       addToast({
-        title: productsTranslations("toasts.genericErrorTitle"),
-        description: productsTranslations("toasts.genericErrorDescription"),
+        title: productsTranslation("toasts.genericErrorTitle"),
+        description: productsTranslation("toasts.genericErrorDescription"),
         color: "danger",
       });
     },
-    [productsTranslations],
+    [productsTranslation],
   );
 
   const postAndReturnCreatedId = useCallback(async (endpoint, requestPayload) => {

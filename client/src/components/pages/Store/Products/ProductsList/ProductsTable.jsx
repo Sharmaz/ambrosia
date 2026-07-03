@@ -33,22 +33,22 @@ export function ProductsTable({
   onViewProduct,
   onManageVariants,
 }) {
-  const productsTranslations = useTranslations("products");
+  const productsTranslation = useTranslations("products");
   const { formatAmount } = useCurrency();
 
   return (
-    <Table className="min-w-[760px]" removeWrapper aria-label={productsTranslations("tableAriaLabel")}>
+    <Table className="min-w-[760px]" removeWrapper aria-label={productsTranslation("tableAriaLabel")}>
       <TableHeader>
-        <TableColumn className="py-2 px-3 w-20">{productsTranslations("image")}</TableColumn>
-        <TableColumn className="py-2 px-3 w-[50px]">{productsTranslations("name")}</TableColumn>
-        <TableColumn className="py-2 px-3 w-24">{productsTranslations("type")}</TableColumn>
-        <TableColumn className="py-2 px-3 w-[50px]">{productsTranslations("description")}</TableColumn>
-        <TableColumn className="py-2 px-3 w-[100px]">{productsTranslations("category")}</TableColumn>
-        <TableColumn className="py-2 px-3 w-20">{productsTranslations("sku")}</TableColumn>
-        <TableColumn className="py-2 px-3 w-[70px]">{productsTranslations("price")}</TableColumn>
-        <TableColumn className="py-2 px-3 w-[60px]">{productsTranslations("stock")}</TableColumn>
-        <TableColumn className="py-2 px-3 w-[90px]">{productsTranslations("stockStatus")}</TableColumn>
-        <TableColumn className="py-2 px-3 w-40 text-right">{productsTranslations("actions")}</TableColumn>
+        <TableColumn className="py-2 px-3 w-20">{productsTranslation("image")}</TableColumn>
+        <TableColumn className="py-2 px-3 w-[50px]">{productsTranslation("name")}</TableColumn>
+        <TableColumn className="py-2 px-3 w-24">{productsTranslation("type")}</TableColumn>
+        <TableColumn className="py-2 px-3 w-[50px]">{productsTranslation("description")}</TableColumn>
+        <TableColumn className="py-2 px-3 w-[100px]">{productsTranslation("category")}</TableColumn>
+        <TableColumn className="py-2 px-3 w-20">{productsTranslation("sku")}</TableColumn>
+        <TableColumn className="py-2 px-3 w-[70px]">{productsTranslation("price")}</TableColumn>
+        <TableColumn className="py-2 px-3 w-[60px]">{productsTranslation("stock")}</TableColumn>
+        <TableColumn className="py-2 px-3 w-[90px]">{productsTranslation("stockStatus")}</TableColumn>
+        <TableColumn className="py-2 px-3 w-40 text-right">{productsTranslation("actions")}</TableColumn>
       </TableHeader>
       <TableBody>
         {products.map((product) => {
@@ -82,17 +82,17 @@ export function ProductsTable({
                 <div className="flex flex-wrap gap-1">
                   {product.isBundle && (
                     <Chip className="bg-blue-100 text-xs text-blue-800 border border-blue-200">
-                      {productsTranslations("bundle")}
+                      {productsTranslation("bundle")}
                     </Chip>
                   )}
                   {!product.isBundle && (
                     <Chip className="bg-green-200 text-xs text-green-800 border border-green-300">
-                      {productsTranslations("regular")}
+                      {productsTranslation("regular")}
                     </Chip>
                   )}
                   {product.hasVariants && !product.isBundle && (
                     <Chip className="bg-blue-100 text-xs text-blue-800 border border-blue-200">
-                      {productsTranslations("variants")}
+                      {productsTranslation("variants")}
                     </Chip>
                   )}
                 </div>
@@ -111,7 +111,7 @@ export function ProductsTable({
                   </div>
                 ) : (
                   <Chip className="bg-gray-200 text-xs text-gray-500 border border-gray-300">
-                    {productsTranslations("noCategory")}
+                    {productsTranslation("noCategory")}
                   </Chip>
                 )}
               </TableCell>
@@ -128,7 +128,7 @@ export function ProductsTable({
               </TableCell>
               <TableCell>
                 <Chip className={stockChipClassName}>
-                  {productsTranslations(`status.${stockStatus}`)}
+                  {productsTranslation(`status.${stockStatus}`)}
                 </Chip>
               </TableCell>
               <TableCell className="py-2 px-3">
@@ -136,25 +136,25 @@ export function ProductsTable({
                   {canManageProducts && product.hasVariants && !product.isBundle && (
                     <RequirePermission allOf={["products_update"]}>
                       <VariantsButton onPress={() => onManageVariants(product)}>
-                        {productsTranslations("manageVariants")}
+                        {productsTranslation("manageVariants")}
                       </VariantsButton>
                     </RequirePermission>
                   )}
 
                   <ViewButton onPress={() => onViewProduct(product)}>
-                    {productsTranslations("viewDetails")}
+                    {productsTranslation("viewDetails")}
                   </ViewButton>
 
                   {canManageProducts && (
                     <>
                       <RequirePermission allOf={["products_update"]}>
                         <EditButton onPress={() => onEditProduct(product)}>
-                          {productsTranslations("edit")}
+                          {productsTranslation("edit")}
                         </EditButton>
                       </RequirePermission>
                       <RequirePermission allOf={["products_delete"]}>
                         <DeleteButton onPress={() => onDeleteProduct(product)}>
-                          {productsTranslations("delete")}
+                          {productsTranslation("delete")}
                         </DeleteButton>
                       </RequirePermission>
                     </>

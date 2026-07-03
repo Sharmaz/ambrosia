@@ -9,15 +9,15 @@ export function ProductPricingFields({
   currency,
   includeStock = true,
 }) {
-  const productsTranslations = useTranslations("products");
+  const productsTranslation = useTranslations("products");
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
       <NumberInput
-        label={productsTranslations("modal.productPriceLabel")}
-        placeholder={productsTranslations("modal.productPricePlaceholder")}
+        label={productsTranslation("modal.productPriceLabel")}
+        placeholder={productsTranslation("modal.productPricePlaceholder")}
         isRequired
-        errorMessage={productsTranslations("modal.errorMsgInputFieldEmpty")}
+        errorMessage={productsTranslation("modal.errorMsgInputFieldEmpty")}
         startContent={(
           <span className="text-default-400 text-small">
             {currency?.acronym || "$"}
@@ -35,13 +35,13 @@ export function ProductPricingFields({
 
       {includeStock && (
         <NumberInput
-          label={productsTranslations("modal.productStockLabel")}
-          placeholder={productsTranslations("modal.productStockPlaceholder")}
+          label={productsTranslation("modal.productStockLabel")}
+          placeholder={productsTranslation("modal.productStockPlaceholder")}
           value={data.productStock}
           minValue={0}
           maxValue={1000000}
           isRequired
-          errorMessage={productsTranslations("modal.errorMsgInputFieldEmpty")}
+          errorMessage={productsTranslation("modal.errorMsgInputFieldEmpty")}
           onValueChange={(stockValue) => {
             const productStock = stockValue === null ? "" : Number(stockValue);
             onChange({ productStock });

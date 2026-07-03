@@ -11,7 +11,7 @@ import { storedAssetUrl } from "@/components/utils/storedAssetUrl";
 import { VariantForm } from "./VariantForm";
 
 export function VariantCard({ variant, currency, options, onSave, onDelete, isProcessing }) {
-  const productsTranslations = useTranslations("products");
+  const productsTranslation = useTranslations("products");
   const [isEditing, setIsEditing] = useState(false);
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
 
@@ -62,7 +62,7 @@ export function VariantCard({ variant, currency, options, onSave, onDelete, isPr
               <p className="text-xs text-gray-400 truncate">{variant.SKU}</p>
             )}
             <p className="text-xs text-gray-500">
-              {price} · {variant.quantity} {productsTranslations("variantStockUnit")}
+              {price} · {variant.quantity} {productsTranslation("variantStockUnit")}
             </p>
           </div>
 
@@ -76,13 +76,13 @@ export function VariantCard({ variant, currency, options, onSave, onDelete, isPr
                   onPress={() => onDelete(variant.id)}
                   isLoading={isProcessing}
                 >
-                  {productsTranslations("deleteVariantConfirm")}
+                  {productsTranslation("deleteVariantConfirm")}
                 </Button>
                 <button
                   type="button"
                   onClick={() => setIsConfirmingDelete(false)}
                   className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400"
-                  aria-label={productsTranslations("cancelVariant")}
+                  aria-label={productsTranslation("cancelVariant")}
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -92,7 +92,7 @@ export function VariantCard({ variant, currency, options, onSave, onDelete, isPr
                 <button
                   type="button"
                   data-testid="edit-variant"
-                  aria-label={productsTranslations("edit")}
+                  aria-label={productsTranslation("edit")}
                   onClick={() => setIsEditing(true)}
                   className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors"
                 >
@@ -101,7 +101,7 @@ export function VariantCard({ variant, currency, options, onSave, onDelete, isPr
                 <button
                   type="button"
                   data-testid="delete-variant"
-                  aria-label={productsTranslations("delete")}
+                  aria-label={productsTranslation("delete")}
                   onClick={() => setIsConfirmingDelete(true)}
                   className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors"
                 >
