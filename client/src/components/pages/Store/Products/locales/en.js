@@ -49,7 +49,7 @@ const productsEn = {
       productStockLabel: "Stock",
       productStockPlaceholder: "0",
       productImageUpload: "Upload an Image",
-      productImageUploadMessage: "PNG, JPG or GIF (máx. 5MB)",
+      productImageUploadMessage: "PNG, JPG or GIF (max. 5MB)",
       submitButton: "Add",
       cancelButton: "Cancel",
       editButton: "Save",
