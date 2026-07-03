@@ -62,6 +62,7 @@ const ordersEn = {
       status: "Status",
       paymentMethod: "Payment Method",
       total: "Total",
+      discount: "Discount",
       createdAt: "Created at",
       close: "Close",
       unassigned: "Unassigned",

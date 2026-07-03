@@ -33,15 +33,21 @@ export default function Reports() {
   const sales = useMemo(() => reportData?.sales ?? [], [reportData]);
   const orders = useOrdersData(sales);
 
-  const { totalRevenue: ordersRevenue, orderCount, averageTicket, avgItemsPerOrder } = useOrdersSummaryData(reportData, orders);
+  const { totalRevenue: ordersRevenue, orderCount, averageTicket, avgItemsPerOrder, totalDiscounts } = useOrdersSummaryData(reportData, orders);
   const { totalRevenue: productsRevenue, totalItems, productLines, uniqueProducts } = useSummaryData(reportData);
 
-  const orderStats = useMemo(() => [
-    { label: reportsTranslations("summary.revenue"), value: formatAmount(ordersRevenue) },
-    { label: reportsTranslations("summary.orderCount"), value: orderCount },
-    { label: reportsTranslations("summary.averageTicket"), value: formatAmount(averageTicket) },
-    { label: reportsTranslations("summary.avgItemsPerOrder"), value: avgItemsPerOrder },
-  ], [reportsTranslations, ordersRevenue, orderCount, averageTicket, avgItemsPerOrder, formatAmount]);
+  const orderStats = useMemo(() => {
+    const stats = [
+      { label: reportsTranslations("summary.revenue"), value: formatAmount(ordersRevenue) },
+      { label: reportsTranslations("summary.orderCount"), value: orderCount },
+      { label: reportsTranslations("summary.averageTicket"), value: formatAmount(averageTicket) },
+      { label: reportsTranslations("summary.avgItemsPerOrder"), value: avgItemsPerOrder },
+    ];
+    if (totalDiscounts > 0) {
+      stats.push({ label: reportsTranslations("summary.totalDiscounts"), value: formatAmount(totalDiscounts) });
+    }
+    return stats;
+  }, [reportsTranslations, ordersRevenue, orderCount, averageTicket, avgItemsPerOrder, totalDiscounts, formatAmount]);
 
   const totalBtcSatoshis = reportData?.totalBtcSatoshis ?? 0;
 
