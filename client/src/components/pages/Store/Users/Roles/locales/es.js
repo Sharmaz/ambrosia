@@ -122,6 +122,7 @@ const rolesEs = {
         orders_delete: { label: "Eliminar órdenes", description: "Borrar órdenes y sus ítems." },
         orders_export: { label: "Exportar órdenes", description: "Descargar reportes de órdenes." },
         orders_refund: { label: "Reembolsar órdenes", description: "Emitir reembolsos en órdenes." },
+        orders_discount: { label: "Aplicar descuentos", description: "Aplicar descuentos al cobrar." },
         payments_read: { label: "Ver pagos", description: "Listar pagos y métodos." },
         payments_create: { label: "Registrar pagos", description: "Agregar pagos a órdenes." },
         payments_update: { label: "Editar pagos", description: "Ajustar pagos existentes." },

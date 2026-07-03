@@ -29,6 +29,7 @@ export const permissionCatalog = [
   { key: "orders_delete", group: "sales", business: "store" },
   { key: "orders_export", group: "sales", business: "store" },
   { key: "orders_refund", group: "sales", business: "store" },
+  { key: "orders_discount", group: "sales", business: "store" },
 
   { key: "payments_read", group: "payments", business: "both", related: ["Wallet"] },
   { key: "payments_create", group: "payments", business: "both" },

@@ -122,6 +122,7 @@ const rolesEn = {
         orders_delete: { label: "Delete orders", description: "Delete orders and items." },
         orders_export: { label: "Export orders", description: "Download order reports." },
         orders_refund: { label: "Refund orders", description: "Issue refunds on orders." },
+        orders_discount: { label: "Apply discounts", description: "Apply discounts at checkout." },
         payments_read: { label: "View payments", description: "List payments and methods." },
         payments_create: { label: "Register payments", description: "Add payments to orders." },
         payments_update: { label: "Edit payments", description: "Adjust existing payments." },
