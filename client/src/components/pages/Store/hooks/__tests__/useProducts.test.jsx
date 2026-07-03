@@ -432,6 +432,27 @@ describe("useProducts", () => {
     });
   });
 
+  it("shows generic error toast and rejects when delete fails without a conflict status", async () => {
+    useUpload.mockReturnValue({ upload: jest.fn(), isUploading: false });
+
+    httpClient.mockResolvedValueOnce({ ok: true });
+    httpClient.mockResolvedValueOnce({ ok: false, status: 500 });
+    parseJsonResponse.mockResolvedValueOnce([]);
+    parseJsonResponse.mockResolvedValueOnce({ message: "Server error" });
+
+    renderWithProvider();
+
+    await waitFor(() => expect(screen.getByTestId("count")).toHaveTextContent("0"));
+
+    await expect(handlers.deleteProduct({ id: 44 })).rejects.toMatchObject({ status: 500 });
+
+    expect(addToast).toHaveBeenCalledWith({
+      title: "toasts.genericErrorTitle",
+      description: "toasts.genericErrorDescription",
+      color: "danger",
+    });
+  });
+
   it("shows duplicate SKU toast and does not refetch when update fails with 409", async () => {
     useUpload.mockReturnValue({ upload: jest.fn(), isUploading: false });
     httpClient.mockResolvedValueOnce({ ok: true });
