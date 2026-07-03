@@ -18,6 +18,7 @@ export function OrderDetailsModal({ order, isOpen, onClose, formatAmount, curren
     status,
     paymentMethod,
     total,
+    discountAmount,
     createdAt,
     satoshiAmount,
     exchangeRateAtPayment,
@@ -84,6 +85,13 @@ export function OrderDetailsModal({ order, isOpen, onClose, formatAmount, curren
                       subtotal: ordersTranslations("details.subtotal"),
                     }}
                   />
+                </div>
+              )}
+
+              {discountAmount > 0 && (
+                <div className="flex justify-between items-center text-sm text-red-600">
+                  <span>{ordersTranslations("details.discount")}</span>
+                  <span>-{formatAmount(discountAmount)}</span>
                 </div>
               )}
 

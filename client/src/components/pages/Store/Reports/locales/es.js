@@ -47,6 +47,7 @@ const reportsEs = {
       totalBtcSatoshis: "Total Bitcoin",
       orderCount: "Órdenes",
       avgItemsPerOrder: "Items Promedio / Orden",
+      totalDiscounts: "Total de Descuentos",
     },
     charts: {
       title: "Analítica",
@@ -65,6 +66,7 @@ const reportsEs = {
       shortId: "ID Orden",
       products: "Productos",
       total: "Total",
+      discount: "Descuento",
       more: "más",
       empty: "No se encontraron órdenes con los filtros seleccionados",
       paginationAria: "Paginación de órdenes",

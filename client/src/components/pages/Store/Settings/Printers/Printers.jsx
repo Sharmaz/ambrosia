@@ -108,9 +108,9 @@ export function Printers() {
   const handleSetDefault = async (id) => {
     try {
       await setDefaultPrinterConfig(id);
-      addToast({ description: settingsTranslations("cardPrinters.updateSuccess"), color: "success" });
+      addToast({ description: settingsTranslations("cardPrinters.setDefaultSuccess"), color: "success" });
     } catch {
-      addToast({ description: settingsTranslations("cardPrinters.updateError"), color: "danger" });
+      addToast({ description: settingsTranslations("cardPrinters.setDefaultError"), color: "danger" });
     }
   };
 

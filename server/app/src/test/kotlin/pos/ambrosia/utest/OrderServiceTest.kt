@@ -200,7 +200,7 @@ class OrderServiceTest {
     @Test
     fun `addOrder returns null if user does not exist`() {
         runBlocking {
-            val newOrder = Order(null, UUID.randomUUID().toString(), null, "open", 0.0, "")
+            val newOrder = Order(null, UUID.randomUUID().toString(), null, "open", 0.0, createdAt = "")
             val result = service.addOrder(newOrder)
             assertNull(result)
         }
@@ -210,7 +210,7 @@ class OrderServiceTest {
     fun `addOrder returns null if table does not exist`() {
         runBlocking {
             val userId = seedUser()
-            val newOrder = Order(null, userId, UUID.randomUUID().toString(), "open", 0.0, "")
+            val newOrder = Order(null, userId, UUID.randomUUID().toString(), "open", 0.0, createdAt = "")
             val result = service.addOrder(newOrder)
             assertNull(result)
         }
@@ -220,7 +220,7 @@ class OrderServiceTest {
     fun `addOrder returns null if status is invalid`() {
         runBlocking {
             val userId = seedUser()
-            val newOrder = Order(null, userId, null, "invalid-status", 0.0, "")
+            val newOrder = Order(null, userId, null, "invalid-status", 0.0, createdAt = "")
             val result = service.addOrder(newOrder)
             assertNull(result)
         }
@@ -230,7 +230,7 @@ class OrderServiceTest {
     fun `addOrder returns new ID on success`() {
         runBlocking {
             val userId = seedUser()
-            val newOrder = Order(null, userId, null, "open", 0.0, "")
+            val newOrder = Order(null, userId, null, "open", 0.0, createdAt = "")
             val result = service.addOrder(newOrder)
             assertNotNull(result)
         }

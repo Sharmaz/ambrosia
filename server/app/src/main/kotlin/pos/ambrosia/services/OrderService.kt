@@ -45,6 +45,7 @@ class OrderService {
             tableId = entity.tableId,
             status = entity.status,
             total = entity.total,
+            discountAmount = entity.discountAmount,
             createdAt = entity.createdAt.replace(" ", "T"),
         )
 

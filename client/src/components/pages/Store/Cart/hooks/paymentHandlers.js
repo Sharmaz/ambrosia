@@ -138,6 +138,7 @@ export function buildHandlePay({
       await printCustomerReceipt?.({
         items: cartItems,
         totalCents: paymentAmounts.total,
+        discountAmountCents: paymentAmounts.discountAmount,
         ticketId: storeCheckoutResult.ticketId,
       });
 
@@ -206,6 +207,7 @@ async function runDeferredCheckout({
   user,
   printCustomerReceipt,
   refreshShiftTickets,
+  receiptDiscountAmount,
 }) {
   dispatch({ type: "start" });
   try {
@@ -223,6 +225,7 @@ async function runDeferredCheckout({
     await printCustomerReceipt?.({
       items: receiptItems,
       totalCents: receiptTotal,
+      discountAmountCents: receiptDiscountAmount,
       ticketId: storeCheckoutResult.ticketId,
       invoice: receiptInvoice,
     });
@@ -268,6 +271,7 @@ export function buildHandleBtcComplete({ getConfig, setConfig, ...context }) {
       },
       receiptItems: config.cartItems,
       receiptTotal: config.total,
+      receiptDiscountAmount: config.discountAmount,
       receiptInvoice: completionData?.invoice?.serialized || "",
       buildOnPayPayload: (storeCheckoutResult) => ({
         items: config.cartItems,
@@ -310,6 +314,7 @@ export function buildHandleCashComplete({ getConfig, setConfig, ...context }) {
       },
       receiptItems: config.cartItems,
       receiptTotal: config.paymentAmounts.total,
+      receiptDiscountAmount: config.paymentAmounts.discountAmount,
       buildOnPayPayload: (storeCheckoutResult) => ({
         items: config.cartItems,
         ...config.paymentAmounts,
@@ -340,6 +345,7 @@ export function buildHandleCardComplete({ getConfig, setConfig, ...context }) {
       },
       receiptItems: config.cartItems,
       receiptTotal: config.paymentAmounts.total,
+      receiptDiscountAmount: config.paymentAmounts.discountAmount,
       buildOnPayPayload: (storeCheckoutResult) => ({
         items: config.cartItems,
         ...config.paymentAmounts,

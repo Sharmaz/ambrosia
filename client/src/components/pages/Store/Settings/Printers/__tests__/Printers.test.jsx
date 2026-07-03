@@ -4,6 +4,10 @@ import * as usePrintersHook from "../../../hooks/usePrinter";
 import * as useTemplatesHook from "../../../hooks/useTemplates";
 import { Printers } from "../Printers";
 
+jest.mock("@heroui/react", () => ({
+  addToast: jest.fn(),
+}));
+
 jest.mock("next-intl", () => ({
   useTranslations: () => (key) => key,
 }));
@@ -41,6 +45,8 @@ const defaultTemplates = {
   error: null,
   refetch: jest.fn(),
 };
+
+const { addToast } = require("@heroui/react");
 
 beforeEach(() => {
   capturedProps = null;
@@ -134,6 +140,44 @@ describe("Printers", () => {
         "Alpha",
         "Zebra",
       ]);
+    });
+  });
+
+  describe("handleSetDefault", () => {
+    it("shows specific success toast when default printer is updated", async () => {
+      const setDefaultPrinterConfig = jest.fn().mockResolvedValue({});
+      usePrintersHook.usePrinters.mockReturnValue({
+        ...defaultPrinters,
+        setDefaultPrinterConfig,
+      });
+
+      render(<Printers />);
+
+      await capturedProps.state.onSetDefaultConfig("cfg-1");
+
+      expect(setDefaultPrinterConfig).toHaveBeenCalledWith("cfg-1");
+      expect(addToast).toHaveBeenCalledWith({
+        description: "cardPrinters.setDefaultSuccess",
+        color: "success",
+      });
+    });
+
+    it("shows specific error toast when default printer update fails", async () => {
+      const setDefaultPrinterConfig = jest.fn().mockRejectedValue(new Error("failed"));
+      usePrintersHook.usePrinters.mockReturnValue({
+        ...defaultPrinters,
+        setDefaultPrinterConfig,
+      });
+
+      render(<Printers />);
+
+      await capturedProps.state.onSetDefaultConfig("cfg-1");
+
+      expect(setDefaultPrinterConfig).toHaveBeenCalledWith("cfg-1");
+      expect(addToast).toHaveBeenCalledWith({
+        description: "cardPrinters.setDefaultError",
+        color: "danger",
+      });
     });
   });
 });
