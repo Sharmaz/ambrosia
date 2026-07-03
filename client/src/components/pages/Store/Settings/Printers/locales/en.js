@@ -33,6 +33,8 @@ const printersEn = {
     saveError: "Failed to add printer",
     updateSuccess: "Printer updated successfully",
     updateError: "Failed to update printer",
+    setDefaultSuccess: "Default printer updated successfully",
+    setDefaultError: "Failed to update default printer",
     deleteSuccess: "Printer removed successfully",
     deleteError: "Failed to remove printer",
   },
