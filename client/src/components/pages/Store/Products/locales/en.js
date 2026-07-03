@@ -107,6 +107,9 @@ const productsEn = {
     variantStockUnit: "in stock",
     hasVariantsHint: "Price and stock are managed per variant after saving.",
     toasts: {
+      createSuccess: "Product created successfully",
+      updateSuccess: "Product updated successfully",
+      deleteSuccess: "Product deleted successfully",
       duplicateSkuTitle: "Duplicate SKU",
       duplicateSkuDescription: "A product with that SKU already exists.",
       duplicateVariantSkuTitle: "Duplicate variant SKU",

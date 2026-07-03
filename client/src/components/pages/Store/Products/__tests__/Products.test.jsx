@@ -11,6 +11,11 @@ const mockRefetchProducts = jest.fn(() => Promise.resolve());
 const mockRefetchCategories = jest.fn(() => Promise.resolve());
 const mockCreateCategory = jest.fn(() => Promise.resolve("cat-3"));
 
+jest.mock("@heroui/react", () => {
+  const actual = jest.requireActual("@heroui/react");
+  return { ...actual, addToast: jest.fn() };
+});
+
 jest.mock("@/components/utils/storedAssetUrl", () => ({
   __esModule: true,
   storedAssetUrl: (url) => url,
@@ -91,6 +96,8 @@ jest.mock("../../hooks/useCategories", () => ({
 }));
 
 import { Products } from "../Products";
+
+const { addToast } = require("@heroui/react");
 
 function renderProducts() {
   return render(
@@ -294,6 +301,35 @@ describe("Products page", () => {
     });
 
     expect(mockDeleteProduct).toHaveBeenCalledWith(expect.objectContaining({ id: 1 }));
+    expect(addToast).toHaveBeenCalledWith({
+      description: "toasts.deleteSuccess",
+      color: "success",
+    });
+    expect(screen.queryByText("modal.titleDelete")).not.toBeInTheDocument();
+  });
+
+  it("keeps delete modal open when product delete fails", async () => {
+    mockDeleteProduct.mockRejectedValueOnce(new Error("delete-fail"));
+
+    await act(async () => {
+      renderProducts();
+    });
+
+    const deleteButtons = screen.getAllByText("delete").map((el) => el.closest("button"));
+    await act(async () => {
+      fireEvent.click(deleteButtons[0]);
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByText("modal.deleteButton"));
+    });
+
+    expect(mockDeleteProduct).toHaveBeenCalledWith(expect.objectContaining({ id: 1 }));
+    expect(addToast).not.toHaveBeenCalledWith({
+      description: "toasts.deleteSuccess",
+      color: "success",
+    });
+    expect(screen.getByText("modal.titleDelete")).toBeInTheDocument();
   });
 
   it("refreshes data after add and edit actions", async () => {

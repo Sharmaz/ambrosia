@@ -55,7 +55,7 @@ jest.mock("@heroui/react", () => {
     </label>
   );
 
-  return { ...actual, NumberInput, Switch };
+  return { ...actual, addToast: jest.fn(), NumberInput, Switch };
 });
 
 jest.mock("@/components/hooks/useCurrency", () => ({
@@ -67,6 +67,8 @@ jest.mock("@/components/hooks/useCurrency", () => ({
 const categories = [
   { id: "cat-1", name: "Category 1" },
 ];
+
+const { addToast } = require("@heroui/react");
 
 const baseData = {
   productName: "Jade Wallet",
@@ -269,6 +271,10 @@ describe("AddProductsModal", () => {
     fireEvent.click(screen.getByText("modal.submitButton"));
 
     await waitFor(() => expect(addProduct).toHaveBeenCalledWith(baseData));
+    expect(addToast).toHaveBeenCalledWith({
+      description: "toasts.createSuccess",
+      color: "success",
+    });
     expect(onClose).toHaveBeenCalled();
     expect(onProductCreated).toHaveBeenCalled();
   });

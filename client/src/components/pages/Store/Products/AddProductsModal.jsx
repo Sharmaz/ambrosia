@@ -3,6 +3,7 @@
 import { useState } from "react";
 
 import {
+  addToast,
   Button,
   Input,
   Switch,
@@ -46,6 +47,7 @@ export function AddProductsModal({
     try {
       setIsSubmitting(true);
       await addProduct(data);
+      addToast({ description: productsTranslation("toasts.createSuccess"), color: "success" });
       onClose?.();
       onProductCreated?.();
     } finally {

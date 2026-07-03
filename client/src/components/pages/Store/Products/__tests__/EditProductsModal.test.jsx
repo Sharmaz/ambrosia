@@ -71,7 +71,7 @@ jest.mock("@heroui/react", () => {
     </button>
   );
 
-  return { ...actual, Button, NumberInput, Switch };
+  return { ...actual, addToast: jest.fn(), Button, NumberInput, Switch };
 });
 
 jest.mock("@/components/hooks/useCurrency", () => ({
@@ -83,6 +83,8 @@ jest.mock("@/components/hooks/useCurrency", () => ({
 const categories = [
   { id: "cat-1", name: "Category 1" },
 ];
+
+const { addToast } = require("@heroui/react");
 
 const baseData = {
   productId: "1",
@@ -306,6 +308,10 @@ describe("EditProductsModal", () => {
     fireEvent.click(screen.getByText("modal.editButton"));
 
     await waitFor(() => expect(updateProduct).toHaveBeenCalledWith(baseData));
+    expect(addToast).toHaveBeenCalledWith({
+      description: "toasts.updateSuccess",
+      color: "success",
+    });
     expect(onClose).toHaveBeenCalled();
     expect(onProductUpdated).toHaveBeenCalled();
   });

@@ -107,6 +107,9 @@ const productsEs = {
     variantStockUnit: "en almacén",
     hasVariantsHint: "El precio y stock se gestionan por variante al guardar.",
     toasts: {
+      createSuccess: "Producto creado con éxito",
+      updateSuccess: "Producto actualizado con éxito",
+      deleteSuccess: "Producto eliminado con éxito",
       duplicateSkuTitle: "SKU duplicado",
       duplicateSkuDescription: "Ya existe un producto con ese SKU.",
       duplicateVariantSkuTitle: "SKU de variante duplicado",

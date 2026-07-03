@@ -3,6 +3,7 @@
 import { useState } from "react";
 
 import {
+  addToast,
   Button,
   Input,
   Switch,
@@ -50,6 +51,7 @@ export function EditProductsModal({
     try {
       setIsSubmitting(true);
       await updateProduct(data);
+      addToast({ description: productsTranslation("toasts.updateSuccess"), color: "success" });
       onClose?.();
       onProductUpdated?.();
     } catch {

@@ -393,7 +393,7 @@ describe("useProducts", () => {
   it("deletes a product and refetches", async () => {
     useUpload.mockReturnValue({ upload: jest.fn(), isUploading: false });
 
-    httpClient.mockResolvedValue({});
+    httpClient.mockResolvedValue({ ok: true });
     parseJsonResponse.mockResolvedValueOnce([]);
     parseJsonResponse.mockResolvedValueOnce([]);
 
@@ -408,6 +408,27 @@ describe("useProducts", () => {
     expect(httpClient).toHaveBeenCalledWith("/products/44", {
       method: "DELETE",
       notShowError: false,
+    });
+  });
+
+  it("shows bundle component toast and rejects when delete fails with 409", async () => {
+    useUpload.mockReturnValue({ upload: jest.fn(), isUploading: false });
+
+    httpClient.mockResolvedValueOnce({ ok: true });
+    httpClient.mockResolvedValueOnce({ ok: false, status: 409 });
+    parseJsonResponse.mockResolvedValueOnce([]);
+    parseJsonResponse.mockResolvedValueOnce({ message: "Product is used in bundle" });
+
+    renderWithProvider();
+
+    await waitFor(() => expect(screen.getByTestId("count")).toHaveTextContent("0"));
+
+    await expect(handlers.deleteProduct({ id: 44 })).rejects.toMatchObject({ status: 409 });
+
+    expect(addToast).toHaveBeenCalledWith({
+      title: "toasts.bundleComponentErrorTitle",
+      description: "toasts.bundleComponentErrorDescription",
+      color: "danger",
     });
   });
 
