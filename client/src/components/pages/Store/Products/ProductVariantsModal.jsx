@@ -58,15 +58,21 @@ export function ProductVariantsModal({ product, isOpen, onClose }) {
         </ModalHeader>
         <ModalBody className="pb-6">
           <VariantManager
-            productId={product?.id}
-            variants={productVariants}
-            options={productOptions}
-            onAddVariant={addVariant}
-            onUpdateVariant={updateVariant}
-            onDeleteVariant={deleteVariant}
-            onAddOptionType={addOptionType}
-            onUpdateOptionType={updateOptionType}
-            onDeleteOptionType={deleteOptionType}
+            product={{
+              id: product?.id,
+              variants: productVariants,
+              options: productOptions,
+            }}
+            variantActions={{
+              add: addVariant,
+              update: updateVariant,
+              delete: deleteVariant,
+            }}
+            optionTypeActions={{
+              add: addOptionType,
+              update: updateOptionType,
+              delete: deleteOptionType,
+            }}
             onRefresh={handleRefresh}
           />
         </ModalBody>

@@ -14,15 +14,9 @@ import { VariantCard } from "./VariantCard";
 import { VariantForm } from "./VariantForm";
 
 export function VariantManager({
-  productId,
-  variants = [],
-  options = [],
-  onAddVariant,
-  onUpdateVariant,
-  onDeleteVariant,
-  onAddOptionType,
-  onUpdateOptionType,
-  onDeleteOptionType,
+  product,
+  variantActions,
+  optionTypeActions,
   onRefresh,
 }) {
   const productsTranslation = useTranslations("products");
@@ -30,6 +24,9 @@ export function VariantManager({
   const { upload, isUploading } = useUpload();
   const [isAddingNewVariant, setIsAddingNewVariant] = useState(false);
   const [variantIdsInProgress, setVariantIdsInProgress] = useState(new Set());
+  const productId = product?.id;
+  const variants = product?.variants ?? [];
+  const options = product?.options ?? [];
 
   const setVariantMutating = (variantId, isMutating) => {
     setVariantIdsInProgress((previousVariantIdsInProgress) => {
@@ -72,17 +69,17 @@ export function VariantManager({
 
   const handleAddVariant = (variantFormData) => executeVariantMutation("new", async () => {
     const variantRequest = await buildVariantRequest(variantFormData);
-    const createdVariantId = await onAddVariant(productId, variantRequest);
+    const createdVariantId = await variantActions.add(productId, variantRequest);
     if (createdVariantId !== null) setIsAddingNewVariant(false);
     return createdVariantId;
   });
 
   const handleUpdateVariant = (variantId, variantFormData) => executeVariantMutation(variantId, async () => {
     const variantRequest = await buildVariantRequest(variantFormData);
-    return onUpdateVariant(productId, variantId, variantRequest);
+    return variantActions.update(productId, variantId, variantRequest);
   });
 
-  const handleDeleteVariant = (variantId) => executeVariantMutation(variantId, () => onDeleteVariant(productId, variantId));
+  const handleDeleteVariant = (variantId) => executeVariantMutation(variantId, () => variantActions.delete(productId, variantId));
 
   const isAddFormMutating = variantIdsInProgress.has("new") || isUploading;
 
@@ -91,9 +88,9 @@ export function VariantManager({
       <OptionTypeManager
         productId={productId}
         options={options}
-        onAddOptionType={onAddOptionType}
-        onUpdateOptionType={onUpdateOptionType}
-        onDeleteOptionType={onDeleteOptionType}
+        onAddOptionType={optionTypeActions.add}
+        onUpdateOptionType={optionTypeActions.update}
+        onDeleteOptionType={optionTypeActions.delete}
         onRefresh={onRefresh}
       />
 

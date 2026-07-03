@@ -26,10 +26,10 @@ jest.mock("../hooks/useEditProduct", () => ({
 }));
 
 jest.mock("../VariantManager", () => ({
-  VariantManager: ({ productId, variants, options }) => (
-    <div data-testid="variant-manager" data-product-id={productId}>
-      <span data-testid="variants-count">{variants.length}</span>
-      <span data-testid="options-count">{options.length}</span>
+  VariantManager: ({ product }) => (
+    <div data-testid="variant-manager" data-product-id={product.id}>
+      <span data-testid="variants-count">{product.variants.length}</span>
+      <span data-testid="options-count">{product.options.length}</span>
     </div>
   ),
 }));

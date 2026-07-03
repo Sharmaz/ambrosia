@@ -1,6 +1,6 @@
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 
-import { VariantManager } from "../index";
+import { VariantManager } from "../VariantManager";
 
 jest.mock("@/components/hooks/useCurrency", () => ({
   useCurrency: () => ({ currency: { acronym: "$" } }),
@@ -54,20 +54,30 @@ const variants = [
 ];
 
 const defaultProps = {
-  productId: "p1",
-  variants: [],
-  options: [],
-  onAddVariant: jest.fn(),
-  onUpdateVariant: jest.fn(),
-  onDeleteVariant: jest.fn(),
-  onAddOptionType: jest.fn(),
-  onUpdateOptionType: jest.fn(),
-  onDeleteOptionType: jest.fn(),
+  product: { id: "p1", variants: [], options: [] },
+  variantActions: {
+    add: jest.fn(),
+    update: jest.fn(),
+    delete: jest.fn(),
+  },
+  optionTypeActions: {
+    add: jest.fn(),
+    update: jest.fn(),
+    delete: jest.fn(),
+  },
   onRefresh: jest.fn(),
 };
 
-function renderManager(props = {}) {
-  return render(<VariantManager {...defaultProps} {...props} />);
+function renderManager({ product = {}, variantActions = {}, optionTypeActions = {}, ...props } = {}) {
+  return render(
+    <VariantManager
+      {...defaultProps}
+      {...props}
+      product={{ ...defaultProps.product, ...product }}
+      variantActions={{ ...defaultProps.variantActions, ...variantActions }}
+      optionTypeActions={{ ...defaultProps.optionTypeActions, ...optionTypeActions }}
+    />,
+  );
 }
 
 beforeEach(() => {
@@ -91,82 +101,82 @@ describe("VariantManager", () => {
   });
 
   it("enables the add-variant button when options exist", () => {
-    renderManager({ options });
+    renderManager({ product: { options } });
     expect(screen.getByText("addVariant")).not.toBeDisabled();
   });
 
   it("shows empty-variants message when options exist but no variants", () => {
-    renderManager({ options, variants: [] });
+    renderManager({ product: { options, variants: [] } });
     expect(screen.getByText("noVariants")).toBeInTheDocument();
   });
 
   it("renders a VariantCard for each variant", () => {
-    renderManager({ options, variants });
+    renderManager({ product: { options, variants } });
     expect(screen.getByTestId("variant-card-v1")).toBeInTheDocument();
   });
 
   it("shows the VariantForm after clicking add-variant", () => {
-    renderManager({ options });
+    renderManager({ product: { options } });
     fireEvent.click(screen.getByText("addVariant"));
     expect(screen.getByTestId("variant-form")).toBeInTheDocument();
   });
 
   it("hides the add-variant button while the form is visible", () => {
-    renderManager({ options });
+    renderManager({ product: { options } });
     fireEvent.click(screen.getByText("addVariant"));
     expect(screen.queryByText("addVariant")).not.toBeInTheDocument();
   });
 
   it("hides the form when cancel is clicked", () => {
-    renderManager({ options });
+    renderManager({ product: { options } });
     fireEvent.click(screen.getByText("addVariant"));
     fireEvent.click(screen.getByText("form-cancel"));
     expect(screen.queryByTestId("variant-form")).not.toBeInTheDocument();
   });
 
-  it("calls onAddVariant and closes the form on successful save", async () => {
-    const onAddVariant = jest.fn().mockResolvedValue("v-new");
+  it("calls add variant action and closes the form on successful save", async () => {
+    const addVariant = jest.fn().mockResolvedValue("v-new");
     const onRefresh = jest.fn().mockResolvedValue(undefined);
-    renderManager({ options, onAddVariant, onRefresh });
+    renderManager({ product: { options }, variantActions: { add: addVariant }, onRefresh });
 
     fireEvent.click(screen.getByText("addVariant"));
     fireEvent.click(screen.getByText("form-save"));
 
-    await waitFor(() => expect(onAddVariant).toHaveBeenCalledWith("p1", expect.objectContaining({ priceCents: 500 })));
+    await waitFor(() => expect(addVariant).toHaveBeenCalledWith("p1", expect.objectContaining({ priceCents: 500 })));
     await waitFor(() => expect(onRefresh).toHaveBeenCalled());
     expect(screen.queryByTestId("variant-form")).not.toBeInTheDocument();
   });
 
   it("keeps the form open when addVariant returns null", async () => {
-    const onAddVariant = jest.fn().mockResolvedValue(null);
-    renderManager({ options, onAddVariant });
+    const addVariant = jest.fn().mockResolvedValue(null);
+    renderManager({ product: { options }, variantActions: { add: addVariant } });
 
     fireEvent.click(screen.getByText("addVariant"));
     fireEvent.click(screen.getByText("form-save"));
 
-    await waitFor(() => expect(onAddVariant).toHaveBeenCalled());
+    await waitFor(() => expect(addVariant).toHaveBeenCalled());
     expect(screen.getByTestId("variant-form")).toBeInTheDocument();
   });
 
-  it("calls onUpdateVariant and refreshes when a card triggers save", async () => {
-    const onUpdateVariant = jest.fn().mockResolvedValue(true);
+  it("calls update variant action and refreshes when a card triggers save", async () => {
+    const updateVariant = jest.fn().mockResolvedValue(true);
     const onRefresh = jest.fn().mockResolvedValue(undefined);
-    renderManager({ options, variants, onUpdateVariant, onRefresh });
+    renderManager({ product: { options, variants }, variantActions: { update: updateVariant }, onRefresh });
 
     fireEvent.click(screen.getByText("save-v1"));
 
-    await waitFor(() => expect(onUpdateVariant).toHaveBeenCalledWith("p1", "v1", expect.anything()));
+    await waitFor(() => expect(updateVariant).toHaveBeenCalledWith("p1", "v1", expect.anything()));
     expect(onRefresh).toHaveBeenCalled();
   });
 
-  it("calls onDeleteVariant and refreshes when a card triggers delete", async () => {
-    const onDeleteVariant = jest.fn().mockResolvedValue(true);
+  it("calls delete variant action and refreshes when a card triggers delete", async () => {
+    const deleteVariant = jest.fn().mockResolvedValue(true);
     const onRefresh = jest.fn().mockResolvedValue(undefined);
-    renderManager({ options, variants, onDeleteVariant, onRefresh });
+    renderManager({ product: { options, variants }, variantActions: { delete: deleteVariant }, onRefresh });
 
     fireEvent.click(screen.getByText("delete-v1"));
 
-    await waitFor(() => expect(onDeleteVariant).toHaveBeenCalledWith("p1", "v1"));
+    await waitFor(() => expect(deleteVariant).toHaveBeenCalledWith("p1", "v1"));
     expect(onRefresh).toHaveBeenCalled();
   });
 });
