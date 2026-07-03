@@ -267,8 +267,13 @@ class CheckoutService(
                         if (componentRows.isEmpty()) throw InsufficientStockException()
                         for (componentRow in componentRows) {
                             val componentProductId = componentRow[ProductBundleComponentsTable.componentId]
+                            val componentVariantId = componentRow[ProductBundleComponentsTable.componentVariantId]?.value
                             val componentQuantity = componentRow[ProductBundleComponentsTable.quantity] * item.quantity
-                            if (!decrementProductStock(componentProductId, componentQuantity)) {
+                            val componentStockWasDeducted =
+                                componentVariantId
+                                    ?.let { decrementVariantStock(componentProductId, it, componentQuantity) }
+                                    ?: decrementProductStock(componentProductId, componentQuantity)
+                            if (!componentStockWasDeducted) {
                                 throw InsufficientStockException()
                             }
                         }

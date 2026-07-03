@@ -40,6 +40,7 @@ class ProductEntity(
 object ProductBundleComponentsTable : Table("product_bundle_components") {
     val bundleId = reference("bundle_id", ProductsTable)
     val componentId = reference("component_id", ProductsTable)
+    val componentVariantId = reference("component_variant_id", ProductVariantsTable).nullable()
     val quantity = integer("quantity").default(1)
     override val primaryKey = PrimaryKey(bundleId, componentId)
 }

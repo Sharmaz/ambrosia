@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 
 import { BundleProductSelector } from "../BundleProductSelector";
 
@@ -26,11 +26,31 @@ jest.mock("@heroui/react", () => ({
       }}
     />
   ),
+  Select: ({ "aria-label": ariaLabel, children, selectedKeys = [], onSelectionChange }) => (
+    <select
+      aria-label={ariaLabel}
+      value={[...selectedKeys][0] ?? ""}
+      onChange={(selectChangeEvent) => onSelectionChange?.(new Set([selectChangeEvent.target.value]))}
+    >
+      {children}
+    </select>
+  ),
+  SelectItem: ({ children, value, ...props }) => (
+    <option value={value ?? props.key}>{children}</option>
+  ),
 }));
 
 jest.mock("@/components/hooks/useCurrency", () => ({
   useCurrency: () => ({
     formatAmount: (cents) => `$${(cents / 100).toFixed(2)}`,
+  }),
+}));
+
+const mockFetchProductDetail = jest.fn();
+
+jest.mock("@/components/pages/Store/hooks/useProductVariants", () => ({
+  useProductVariants: () => ({
+    fetchProductDetail: mockFetchProductDetail,
   }),
 }));
 
@@ -44,9 +64,28 @@ jest.mock("@/components/shared/DeleteButton", () => ({
 
 const productA = { id: "prod-a", name: "Arduino Nano", SKU: "ARD-NANO", costCents: 500, isBundle: false };
 const productB = { id: "prod-b", name: "Breadboard", SKU: "BB-400", costCents: 300, isBundle: false };
+const variantProduct = { id: "prod-variant", name: "T-Shirt", SKU: "TSHIRT", costCents: 700, hasVariants: true, isBundle: false };
 const bundleProduct = { id: "prod-bundle", name: "Starter Kit", SKU: "KIT-1", costCents: 1000, isBundle: true };
 
-const allProducts = [productA, productB, bundleProduct];
+const variantProductDetail = {
+  variants: [
+    { id: "variant-red", optionValueIds: ["red"], costCents: 800, priceCents: 1200, quantity: 4, isActive: true },
+    { id: "variant-blue", optionValueIds: ["blue"], costCents: 900, priceCents: 1400, quantity: 3, isActive: true },
+    { id: "variant-inactive", optionValueIds: ["inactive"], costCents: 100, priceCents: 100, quantity: 3, isActive: false },
+  ],
+  options: [
+    {
+      id: "color",
+      values: [
+        { id: "red", value: "Red" },
+        { id: "blue", value: "Blue" },
+        { id: "inactive", value: "Inactive" },
+      ],
+    },
+  ],
+};
+
+const allProducts = [productA, productB, variantProduct, bundleProduct];
 
 function renderSelector(props = {}) {
   return render(
@@ -62,6 +101,7 @@ function renderSelector(props = {}) {
 describe("BundleProductSelector", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockFetchProductDetail.mockResolvedValue(variantProductDetail);
   });
 
   it("shows empty state when no products are selected", () => {
@@ -108,6 +148,20 @@ describe("BundleProductSelector", () => {
     fireEvent.click(screen.getByText("Arduino Nano"));
 
     expect(onChange).toHaveBeenCalledWith([{ productId: "prod-a", quantity: 1 }]);
+  });
+
+  it("adds a variant product with its first active variant selected", async () => {
+    const onChange = jest.fn();
+    renderSelector({ onComponentsChange: onChange });
+
+    fireEvent.change(screen.getByLabelText("modal.bundleComponentsLabel"), {
+      target: { value: "T-Shirt" },
+    });
+    fireEvent.click(screen.getByText("T-Shirt"));
+
+    await waitFor(() => {
+      expect(onChange).toHaveBeenCalledWith([{ productId: "prod-variant", variantId: "variant-red", quantity: 1 }]);
+    });
   });
 
   it("excludes bundle products from the searchable list", () => {
@@ -172,6 +226,19 @@ describe("BundleProductSelector", () => {
     expect(onChange).toHaveBeenCalledWith([{ productId: "prod-a", quantity: 3 }]);
   });
 
+  it("calls onComponentsChange with the selected variant when variant selection changes", async () => {
+    const onChange = jest.fn();
+    renderSelector({
+      selectedProducts: [{ productId: "prod-variant", variantId: "variant-red", quantity: 1 }],
+      onComponentsChange: onChange,
+    });
+
+    const variantSelect = await screen.findByLabelText("modal.bundleComponentVariantLabel");
+    fireEvent.change(variantSelect, { target: { value: "variant-blue" } });
+
+    expect(onChange).toHaveBeenCalledWith([{ productId: "prod-variant", variantId: "variant-blue", quantity: 1 }]);
+  });
+
   it("enforces a minimum quantity of 1", () => {
     const onChange = jest.fn();
     renderSelector({
@@ -197,5 +264,16 @@ describe("BundleProductSelector", () => {
     const costLine = screen.getByText(/modal\.bundleCostReference/, { selector: "p" });
     expect(costLine).toBeInTheDocument();
     expect(costLine).toHaveTextContent("$13.00");
+  });
+
+  it("uses selected variant cost in the cost reference", async () => {
+    renderSelector({
+      selectedProducts: [{ productId: "prod-variant", variantId: "variant-blue", quantity: 2 }],
+    });
+
+    await screen.findByLabelText("modal.bundleComponentVariantLabel");
+    const costLine = screen.getByText(/modal\.bundleCostReference/, { selector: "p" });
+
+    expect(costLine).toHaveTextContent("$18.00");
   });
 });

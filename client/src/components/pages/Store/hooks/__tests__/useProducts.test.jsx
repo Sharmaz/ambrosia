@@ -220,6 +220,62 @@ describe("useProducts", () => {
     });
   });
 
+  it("sends selected bundle component variant when adding a bundle", async () => {
+    useUpload.mockReturnValue({ upload: jest.fn(), isUploading: false });
+
+    httpClient.mockResolvedValueOnce({ ok: true });
+    httpClient.mockResolvedValueOnce({ ok: true });
+    httpClient.mockResolvedValueOnce({ ok: true });
+    parseJsonResponse.mockResolvedValueOnce([]);
+    parseJsonResponse.mockResolvedValueOnce({ id: 3, message: "Product added successfully" });
+    parseJsonResponse.mockResolvedValueOnce([]);
+
+    renderWithProvider();
+
+    await waitFor(() => expect(screen.getByTestId("count")).toHaveTextContent("0"));
+
+    await act(async () => {
+      await handlers.addProduct({
+        productSKU: "KIT-1",
+        productName: "Starter Kit",
+        productDescription: "",
+        productImage: null,
+        productImageUrl: null,
+        productPrice: 25,
+        productCategories: [],
+        isBundle: true,
+        hasVariants: true,
+        bundleComponents: [{ productId: "prod-shirt", variantId: "variant-red", quantity: 2 }],
+        productStock: 9,
+        productMinStock: 1,
+        productMaxStock: 5,
+      });
+    });
+
+    expect(httpClient).toHaveBeenCalledWith("/products", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        SKU: "KIT-1",
+        name: "Starter Kit",
+        description: null,
+        imageUrl: null,
+        costCents: 2500,
+        categoryIds: [],
+        quantity: 0,
+        minStockThreshold: 1,
+        maxStockThreshold: 5,
+        hasVariants: false,
+        priceCents: 2500,
+        isBundle: true,
+        bundleComponents: [{ componentId: "prod-shirt", variantId: "variant-red", quantity: 2 }],
+      }),
+      notShowError: false,
+    });
+  });
+
   it("updates a product without uploading when no file is provided", async () => {
     const uploadFile = jest.fn();
     useUpload.mockReturnValue({ upload: uploadFile, isUploading: false });

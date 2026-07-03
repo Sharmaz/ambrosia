@@ -67,6 +67,7 @@ const productsEs = {
       bundleComponentsRequired: "Agrega al menos un componente antes de guardar este paquete.",
       bundleCostReference: "Costo de componentes:",
       bundleComponentQuantityLabel: "Cantidad",
+      bundleComponentVariantLabel: "Variante",
       confirmBundleConversionTitle: "¿Convertir producto con variantes a paquete?",
       confirmBundleConversionDescription:
         "Las variantes de este producto se desactivarán al guardar, y el paquete necesitará componentes antes de poder guardarse.",

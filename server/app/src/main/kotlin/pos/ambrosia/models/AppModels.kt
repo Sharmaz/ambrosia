@@ -415,6 +415,7 @@ data class UpsertOptionValueRequest(
 @Serializable
 data class BundleComponent(
     val componentId: String,
+    val variantId: String? = null,
     val quantity: Int,
 )
 

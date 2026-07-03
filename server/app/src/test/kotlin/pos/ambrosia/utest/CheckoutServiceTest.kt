@@ -8,6 +8,7 @@ import pos.ambrosia.db.tables.OrderEntity
 import pos.ambrosia.db.tables.PaymentEntity
 import pos.ambrosia.models.StoreCheckoutItem
 import pos.ambrosia.models.StoreCheckoutRequest
+import pos.ambrosia.models.UpsertVariantRequest
 import pos.ambrosia.models.phoenix.IncomingPayment
 import pos.ambrosia.services.CheckoutResult
 import pos.ambrosia.services.CheckoutService
@@ -476,6 +477,29 @@ class CheckoutServiceTest {
             assertTrue(result is CheckoutResult.Success)
             assertEquals(8, productQuantity(componentId))
             assertEquals(0, productQuantity(bundleId))
+        }
+    }
+
+    @Test
+    fun `checkout deducts selected component variant stock when item is a bundle`() {
+        runBlocking {
+            val userId = seedUser()
+            val componentId = ExposedTestDb.seedProduct(name = "Shirt", quantity = 10)
+            val defaultVariantId = variantService.getVariants(componentId)[0].id!!
+            val selectedVariantId =
+                variantService.addVariant(
+                    componentId,
+                    UpsertVariantRequest(priceCents = 1500, costCents = 700, quantity = 6),
+                )!!
+            val bundleId = ExposedTestDb.seedProduct(name = "Kit", isBundle = true, quantity = 0)
+            ExposedTestDb.seedBundleComponent(bundleId, componentId, componentVariantId = selectedVariantId, quantity = 2)
+
+            val checkoutItems = listOf(StoreCheckoutItem(productId = bundleId, quantity = 2, priceAtOrder = 500))
+            val result = service.checkout(validStoreRequest(userId, items = checkoutItems))
+
+            assertTrue(result is CheckoutResult.Success)
+            assertEquals(10, variantService.getVariantById(defaultVariantId)?.quantity)
+            assertEquals(2, variantService.getVariantById(selectedVariantId)?.quantity)
         }
     }
 

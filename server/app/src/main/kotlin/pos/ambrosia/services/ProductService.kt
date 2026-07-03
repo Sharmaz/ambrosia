@@ -1,5 +1,6 @@
 package pos.ambrosia.services
 
+import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.dao.id.EntityID
 import org.jetbrains.exposed.v1.core.eq
@@ -45,6 +46,7 @@ class ProductService {
             .map { bundleComponentRow ->
                 BundleComponent(
                     componentId = bundleComponentRow[ProductBundleComponentsTable.componentId].value.toString(),
+                    variantId = bundleComponentRow[ProductBundleComponentsTable.componentVariantId]?.value?.toString(),
                     quantity = bundleComponentRow[ProductBundleComponentsTable.quantity],
                 )
             }
@@ -73,15 +75,51 @@ class ProductService {
         if (components.isEmpty()) return 0
         return components.minOf { component ->
             val componentProductId = EntityID(UUID.fromString(component.componentId), ProductsTable)
-            variantAggregate(componentProductId).quantity / component.quantity
+            val componentStock =
+                component.variantId
+                    ?.let { componentVariantId -> variantQuantity(componentProductId, UUID.fromString(componentVariantId)) }
+                    ?: variantAggregate(componentProductId).quantity
+            componentStock / component.quantity
         }
     }
 
     private fun computeBundleCostCents(components: List<BundleComponent>): Int =
         components.sumOf { component ->
             val componentProductId = EntityID(UUID.fromString(component.componentId), ProductsTable)
-            variantAggregate(componentProductId).minCostCents * component.quantity
+            val componentCostCents =
+                component.variantId
+                    ?.let { componentVariantId -> variantCostCents(componentProductId, UUID.fromString(componentVariantId)) }
+                    ?: variantAggregate(componentProductId).minCostCents
+            componentCostCents * component.quantity
         }
+
+    private fun selectedVariantRow(
+        productEntityId: EntityID<UUID>,
+        variantId: UUID,
+    ): ResultRow? =
+        ProductVariantsTable
+            .selectAll()
+            .where {
+                (ProductVariantsTable.productId eq productEntityId) and
+                    (ProductVariantsTable.id eq EntityID(variantId, ProductVariantsTable)) and
+                    (ProductVariantsTable.isActive eq true)
+            }.firstOrNull()
+
+    private fun variantQuantity(
+        productEntityId: EntityID<UUID>,
+        variantId: UUID,
+    ): Int =
+        selectedVariantRow(productEntityId, variantId)
+            ?.get(ProductVariantsTable.quantity)
+            ?: 0
+
+    private fun variantCostCents(
+        productEntityId: EntityID<UUID>,
+        variantId: UUID,
+    ): Int =
+        selectedVariantRow(productEntityId, variantId)
+            ?.get(ProductVariantsTable.costCents)
+            ?: 0
 
     private fun replaceBundleComponents(
         bundleId: UUID,
@@ -94,6 +132,10 @@ class ProductService {
             ProductBundleComponentsTable.insert {
                 it[ProductBundleComponentsTable.bundleId] = EntityID(bundleId, ProductsTable)
                 it[ProductBundleComponentsTable.componentId] = EntityID(UUID.fromString(component.componentId), ProductsTable)
+                it[ProductBundleComponentsTable.componentVariantId] =
+                    component.variantId?.let { componentVariantId ->
+                        EntityID(UUID.fromString(componentVariantId), ProductVariantsTable)
+                    }
                 it[ProductBundleComponentsTable.quantity] = component.quantity
             }
         }
@@ -227,6 +269,31 @@ class ProductService {
 
     private fun normalizeSku(sku: String?): String? = sku?.takeIf { it.isNotBlank() }
 
+    private fun bundleComponentVariantsAreValid(components: List<BundleComponent>): Boolean =
+        components.all { component ->
+            val componentVariantId = component.variantId ?: return@all true
+            val componentProductId =
+                try {
+                    EntityID(UUID.fromString(component.componentId), ProductsTable)
+                } catch (_: IllegalArgumentException) {
+                    return@all false
+                }
+            val variantEntityId =
+                try {
+                    EntityID(UUID.fromString(componentVariantId), ProductVariantsTable)
+                } catch (_: IllegalArgumentException) {
+                    return@all false
+                }
+
+            ProductVariantsTable
+                .selectAll()
+                .where {
+                    (ProductVariantsTable.id eq variantEntityId) and
+                        (ProductVariantsTable.productId eq componentProductId) and
+                        (ProductVariantsTable.isActive eq true)
+                }.count() == 1L
+        }
+
     private fun valid(product: Product): Boolean {
         if (product.name.isBlank()) return false
         if (product.priceCents < 0) return false
@@ -236,6 +303,7 @@ class ProductService {
         if (product.maxStockThreshold < 0) return false
         if (product.maxStockThreshold > 0 && product.minStockThreshold > product.maxStockThreshold) return false
         if (product.isBundle && product.bundleComponents.isEmpty()) return false
+        if (product.isBundle && !bundleComponentVariantsAreValid(product.bundleComponents)) return false
         return true
     }
 

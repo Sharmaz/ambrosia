@@ -1,17 +1,22 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
-import { Input, NumberInput } from "@heroui/react";
+import { Input, NumberInput, Select, SelectItem } from "@heroui/react";
 import { useTranslations } from "next-intl";
 
 import { useCurrency } from "@/components/hooks/useCurrency";
+import { useProductVariants } from "@/components/pages/Store/hooks/useProductVariants";
+import { variantIsActive } from "@/components/pages/Store/utils/productVariantAvailability";
+import { deriveVariantDisplayName } from "@/components/pages/Store/utils/productVariantOptionValues";
 import { DeleteButton } from "@/components/shared/DeleteButton";
 
 export function BundleProductSelector({ selectedProducts, allProducts, onComponentsChange }) {
   const productsTranslation = useTranslations("products");
   const { formatAmount } = useCurrency();
+  const { fetchProductDetail } = useProductVariants();
   const [searchQuery, setSearchQuery] = useState("");
+  const [componentDetailByProductId, setComponentDetailByProductId] = useState({});
 
   const selectableProducts = allProducts.filter(
     (product) => !product.isBundle &&
@@ -25,14 +30,66 @@ export function BundleProductSelector({ selectedProducts, allProducts, onCompone
   ));
 
   const resolveProduct = (productId) => allProducts.find((product) => product.id === productId);
+  const activeVariantsForProduct = (productId) => (
+    componentDetailByProductId[productId]?.variants ?? []
+  ).filter(variantIsActive);
+
+  const variantLabel = (productId, variant) => {
+    const componentDetail = componentDetailByProductId[productId];
+    return deriveVariantDisplayName(variant.optionValueIds, componentDetail?.options) ?? variant.SKU ?? formatAmount(variant.priceCents);
+  };
+
+  useEffect(() => {
+    let isCancelled = false;
+
+    const loadMissingComponentDetails = async () => {
+      const productsThatNeedDetails = selectedProducts
+        .map((selectedProduct) => resolveProduct(selectedProduct.productId))
+        .filter((product) => product?.hasVariants && !componentDetailByProductId[product.id]);
+
+      for (const product of productsThatNeedDetails) {
+        const productDetail = await fetchProductDetail(product.id);
+        if (isCancelled || !productDetail) return;
+        setComponentDetailByProductId((previousComponentDetails) => ({
+          ...previousComponentDetails,
+          [product.id]: productDetail,
+        }));
+      }
+    };
+
+    loadMissingComponentDetails();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [allProducts, componentDetailByProductId, fetchProductDetail, selectedProducts]);
 
   const bundleCostCents = selectedProducts.reduce((accumulatedCents, selectedProduct) => {
     const product = resolveProduct(selectedProduct.productId);
-    return accumulatedCents + (product?.costCents ?? 0) * selectedProduct.quantity;
+    const selectedVariant = activeVariantsForProduct(selectedProduct.productId)
+      .find((variant) => variant.id === selectedProduct.variantId);
+    const componentCostCents = selectedVariant?.costCents ?? product?.costCents ?? 0;
+    return accumulatedCents + componentCostCents * selectedProduct.quantity;
   }, 0);
 
-  const handleAddProduct = (product) => {
-    onComponentsChange([...selectedProducts, { productId: product.id, quantity: 1 }]);
+  const handleAddProduct = async (product) => {
+    const productDetail = product.hasVariants ? await fetchProductDetail(product.id) : null;
+    const activeVariants = (productDetail?.variants ?? []).filter(variantIsActive);
+    if (productDetail) {
+      setComponentDetailByProductId((previousComponentDetails) => ({
+        ...previousComponentDetails,
+        [product.id]: productDetail,
+      }));
+    }
+
+    onComponentsChange([
+      ...selectedProducts,
+      {
+        productId: product.id,
+        ...(activeVariants[0]?.id ? { variantId: activeVariants[0].id } : {}),
+        quantity: 1,
+      },
+    ]);
     setSearchQuery("");
   };
 
@@ -45,6 +102,15 @@ export function BundleProductSelector({ selectedProducts, allProducts, onCompone
     onComponentsChange(
       selectedProducts.map((selectedProduct) => (selectedProduct.productId === productId
         ? { ...selectedProduct, quantity: validatedQuantity }
+        : selectedProduct),
+      ),
+    );
+  };
+
+  const handleVariantChange = (productId, variantId) => {
+    onComponentsChange(
+      selectedProducts.map((selectedProduct) => (selectedProduct.productId === productId
+        ? { ...selectedProduct, variantId }
         : selectedProduct),
       ),
     );
@@ -95,25 +161,52 @@ export function BundleProductSelector({ selectedProducts, allProducts, onCompone
           {selectedProducts.map((selectedProduct) => {
             const product = resolveProduct(selectedProduct.productId);
             if (!product) return null;
+            const componentVariants = activeVariantsForProduct(selectedProduct.productId);
+            const hasComponentVariants = componentVariants.length > 0;
             return (
               <div
                 key={selectedProduct.productId}
-                className="flex items-center gap-3 py-2"
+                className={`grid grid-cols-[minmax(0,1fr)_7rem_2.5rem] gap-3 py-3 ${
+                  hasComponentVariants ? "items-end" : "items-center"
+                }`}
               >
-                <span className="flex-1 text-sm truncate">{product.name}</span>
+                <div className="flex-1 min-w-0">
+                  <span className="block truncate text-sm font-medium text-green-900">{product.name}</span>
+                  {hasComponentVariants && (
+                    <Select
+                      aria-label={productsTranslation("modal.bundleComponentVariantLabel")}
+                      size="sm"
+                      className="mt-1"
+                      classNames={{
+                        trigger: "min-h-12 h-12 shadow-none",
+                        value: "text-sm text-green-900",
+                      }}
+                      selectedKeys={selectedProduct.variantId ? [selectedProduct.variantId] : []}
+                      onSelectionChange={(selectedKeys) => handleVariantChange(selectedProduct.productId, [...selectedKeys][0])}
+                    >
+                      {componentVariants.map((variant) => (
+                        <SelectItem key={variant.id} value={variant.id}>
+                          {variantLabel(selectedProduct.productId, variant)}
+                        </SelectItem>
+                      ))}
+                    </Select>
+                  )}
+                </div>
                 <NumberInput
                   aria-label={productsTranslation("modal.bundleComponentQuantityLabel")}
                   size="sm"
-                  className="w-24 shrink-0"
-                  classNames={{ inputWrapper: "shadow-none" }}
+                  className="w-full"
+                  classNames={{ inputWrapper: "min-h-12 h-12 shadow-none" }}
                   minValue={1}
                   value={selectedProduct.quantity}
                   onValueChange={(newQuantity) => handleQuantityChange(selectedProduct.productId, newQuantity)}
                   onChange={(event) => handleQuantityChange(selectedProduct.productId, Number(event.target.value))}
                 />
-                <DeleteButton
-                  onPress={() => handleRemoveProduct(selectedProduct.productId)}
-                />
+                <div className="flex h-12 items-center justify-end">
+                  <DeleteButton
+                    onPress={() => handleRemoveProduct(selectedProduct.productId)}
+                  />
+                </div>
               </div>
             );
           })}

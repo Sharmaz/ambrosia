@@ -29,6 +29,7 @@ export const buildRequestPayload = (product, imageUrl, { includeId = false } = {
     bundleComponents: isBundle
       ? (product.bundleComponents ?? []).map((bundleProduct) => ({
           componentId: bundleProduct.productId,
+          variantId: bundleProduct.variantId ?? null,
           quantity: bundleProduct.quantity,
         }))
       : [],

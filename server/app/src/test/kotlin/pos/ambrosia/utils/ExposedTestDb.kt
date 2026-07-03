@@ -505,12 +505,15 @@ object ExposedTestDb {
     fun seedBundleComponent(
         bundleId: String,
         componentId: String,
+        componentVariantId: String? = null,
         quantity: Int = 1,
     ) {
         transaction {
             ProductBundleComponentsTable.insert {
                 it[ProductBundleComponentsTable.bundleId] = EntityID(UUID.fromString(bundleId), ProductsTable)
                 it[ProductBundleComponentsTable.componentId] = EntityID(UUID.fromString(componentId), ProductsTable)
+                it[ProductBundleComponentsTable.componentVariantId] =
+                    componentVariantId?.let { variantId -> EntityID(UUID.fromString(variantId), ProductVariantsTable) }
                 it[ProductBundleComponentsTable.quantity] = quantity
             }
         }

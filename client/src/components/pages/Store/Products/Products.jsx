@@ -102,6 +102,7 @@ export function Products() {
       isBundle: product.isBundle ?? false,
       bundleComponents: product.bundleComponents?.map((bundleComponent) => ({
         productId: bundleComponent.componentId,
+        variantId: bundleComponent.variantId ?? null,
         quantity: bundleComponent.quantity,
       })) ?? [],
     });

@@ -372,6 +372,7 @@ class ProductServiceTest {
     fun `addProduct creates bundle and persists components`() {
         runBlocking {
             val componentId = ExposedTestDb.seedProduct(name = "Part A", costCents = 100, quantity = 10)
+            val componentVariantId = variantService.getVariants(componentId)[0].id!!
             val bundle =
                 Product(
                     name = "Kit",
@@ -381,7 +382,7 @@ class ProductServiceTest {
                     maxStockThreshold = 0,
                     priceCents = 500,
                     isBundle = true,
-                    bundleComponents = listOf(BundleComponent(componentId, quantity = 2)),
+                    bundleComponents = listOf(BundleComponent(componentId, variantId = componentVariantId, quantity = 2)),
                 )
             val bundleId = service.addProduct(bundle)
             assertNotNull(bundleId)
@@ -391,6 +392,7 @@ class ProductServiceTest {
             assertTrue(created.isBundle)
             assertEquals(1, created.bundleComponents.size)
             assertEquals(componentId, created.bundleComponents[0].componentId)
+            assertEquals(componentVariantId, created.bundleComponents[0].variantId)
             assertEquals(2, created.bundleComponents[0].quantity)
         }
     }
@@ -434,6 +436,51 @@ class ProductServiceTest {
 
             val result = service.getProductById(bundleId)
             assertEquals(800, result?.bundleCostCents)
+        }
+    }
+
+    @Test
+    fun `getProductById returns bundle stock and cost from selected component variant`() {
+        runBlocking {
+            val componentId = ExposedTestDb.seedProduct(name = "Shirt", costCents = 300, quantity = 2)
+            val selectedVariantId =
+                variantService.addVariant(
+                    componentId,
+                    UpsertVariantRequest(priceCents = 1500, costCents = 600, quantity = 9),
+                )
+            val bundleId = ExposedTestDb.seedProduct(name = "Bundle", isBundle = true)
+            ExposedTestDb.seedBundleComponent(bundleId, componentId, componentVariantId = selectedVariantId, quantity = 3)
+
+            val result = service.getProductById(bundleId)
+
+            assertEquals(3, result?.quantity)
+            assertEquals(1800, result?.bundleCostCents)
+            assertEquals(selectedVariantId, result?.bundleComponents?.first()?.variantId)
+        }
+    }
+
+    @Test
+    fun `updateProduct returns false when bundle component variant belongs to another product`() {
+        runBlocking {
+            val componentId = ExposedTestDb.seedProduct(name = "Component")
+            val otherProductId = ExposedTestDb.seedProduct(name = "Other")
+            val foreignVariantId = variantService.getVariants(otherProductId)[0].id!!
+            val bundleId = ExposedTestDb.seedProduct(name = "Bundle", isBundle = true)
+
+            val bundleUpdateRequest =
+                Product(
+                    id = bundleId,
+                    name = "Bundle",
+                    costCents = 0,
+                    quantity = 0,
+                    minStockThreshold = 0,
+                    maxStockThreshold = 0,
+                    priceCents = 500,
+                    isBundle = true,
+                    bundleComponents = listOf(BundleComponent(componentId, variantId = foreignVariantId, quantity = 1)),
+                )
+
+            assertFalse(service.updateProduct(bundleUpdateRequest))
         }
     }
 

@@ -67,6 +67,7 @@ const productsEn = {
       bundleComponentsRequired: "Add at least one component before saving this bundle.",
       bundleCostReference: "Components cost:",
       bundleComponentQuantityLabel: "Quantity",
+      bundleComponentVariantLabel: "Variant",
       confirmBundleConversionTitle: "Convert variant product to bundle?",
       confirmBundleConversionDescription:
         "This product's variants will be disabled after saving, and the bundle will need components before it can be saved.",
