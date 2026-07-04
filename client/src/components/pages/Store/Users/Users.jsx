@@ -138,11 +138,14 @@ export function Users() {
         deleteUsersShowModal={deleteUsersShowModal}
         setDeleteUsersShowModal={setDeleteUsersShowModal}
         onConfirm={async () => {
-          if (userToDelete?.id) {
-            await deleteUser(userToDelete.id);
-            addToast({ description: userTranslations("toasts.deleteSuccess"), color: "success" });
+          try {
+            if (userToDelete?.id) {
+              await deleteUser(userToDelete.id);
+              addToast({ description: userTranslations("toasts.deleteSuccess"), color: "success" });
+            }
+            setDeleteUsersShowModal(false);
+          } catch {
           }
-          setDeleteUsersShowModal(false);
         }}
       />
     </>

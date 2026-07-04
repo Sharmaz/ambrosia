@@ -309,6 +309,33 @@ describe("Users page", () => {
     });
   });
 
+  it("keeps delete modal open when deleteUser fails", async () => {
+    mockDeleteUser.mockRejectedValueOnce(new Error("delete failed"));
+
+    await act(async () => {
+      renderUsers();
+    });
+
+    const deleteButtons = screen.getAllByRole("button", {
+      name: "Delete User",
+    });
+
+    await act(async () => {
+      fireEvent.click(deleteButtons[0]);
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByText("modal.deleteButton"));
+    });
+
+    expect(mockDeleteUser).toHaveBeenCalledWith(1);
+    expect(addToast).not.toHaveBeenCalledWith({
+      description: "toasts.deleteSuccess",
+      color: "success",
+    });
+    expect(screen.getByText("modal.titleDelete")).toBeInTheDocument();
+  });
+
   it("does not delete when user id is missing", async () => {
     await act(async () => {
       renderUsers();

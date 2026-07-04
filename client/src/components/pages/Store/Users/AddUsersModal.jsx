@@ -34,7 +34,11 @@ export function AddUsersModal({ data, setData, roles, onChange, addUsersShowModa
             className="space-y-4"
             onSubmit={async (event) => {
               event.preventDefault();
-              await addUser(data);
+              try {
+                await addUser(data);
+              } catch {
+                return;
+              }
               addToast({ description: userTranslations("users.toasts.createSuccess"), color: "success" });
               setData({
                 userName: "",

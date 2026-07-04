@@ -172,6 +172,28 @@ describe("AddUsersModal", () => {
     expect(setAddUsersShowModal).toHaveBeenCalledWith(false);
   });
 
+  it("does not reset or close when addUser fails", async () => {
+    const addUser = jest.fn(() => Promise.reject(new Error("add failed")));
+    const setData = jest.fn();
+    const setAddUsersShowModal = jest.fn();
+
+    renderModal({
+      addUser,
+      setData,
+      setAddUsersShowModal,
+    });
+
+    fireEvent.click(screen.getByText("users.modal.submitButton"));
+
+    await waitFor(() => expect(addUser).toHaveBeenCalledWith(baseData));
+    expect(addToast).not.toHaveBeenCalledWith({
+      description: "users.toasts.createSuccess",
+      color: "success",
+    });
+    expect(setData).not.toHaveBeenCalled();
+    expect(setAddUsersShowModal).not.toHaveBeenCalledWith(false);
+  });
+
   it("requires name and pin fields", () => {
     renderModal();
 

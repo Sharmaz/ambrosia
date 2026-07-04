@@ -8,10 +8,10 @@ import { toArray } from "@/components/utils/array";
 import { httpClient, parseJsonResponse } from "@/lib/http";
 import { useFetchList } from "@/lib/http/useFetchList";
 
-async function buildHttpRequestError(response, fallbackMessage) {
-  const responsePayload = await parseJsonResponse(response, null);
+async function buildHttpRequestError(httpResponse, fallbackMessage) {
+  const responsePayload = await parseJsonResponse(httpResponse, null);
   const requestError = new Error(fallbackMessage);
-  requestError.status = response.status;
+  requestError.status = httpResponse.status;
   requestError.responseMessage = responsePayload?.message;
   return requestError;
 }
@@ -21,7 +21,7 @@ function isLastAdminConflict(requestError) {
 }
 
 export function useUsers() {
-  const t = useTranslations("users");
+  const usersTranslations = useTranslations("users");
   const { fetchList } = useFetchList();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -29,24 +29,24 @@ export function useUsers() {
 
   const showGenericMutationErrorToast = useCallback(() => {
     addToast({
-      title: t("toasts.genericErrorTitle"),
-      description: t("toasts.genericErrorDescription"),
+      title: usersTranslations("toasts.genericErrorTitle"),
+      description: usersTranslations("toasts.genericErrorDescription"),
       color: "danger",
     });
-  }, [t]);
+  }, [usersTranslations]);
 
   const showUserConflictToast = useCallback((requestError, fallbackConflictToast) => {
     if (isLastAdminConflict(requestError)) {
       addToast({
-        title: t("toasts.lastAdminTitle"),
-        description: t("toasts.lastAdminDescription"),
+        title: usersTranslations("toasts.lastAdminTitle"),
+        description: usersTranslations("toasts.lastAdminDescription"),
         color: "warning",
       });
       return;
     }
 
     addToast(fallbackConflictToast);
-  }, [t]);
+  }, [usersTranslations]);
 
   const fetchUsers = useCallback(async () => {
     setLoading(true);
@@ -94,14 +94,15 @@ export function useUsers() {
     } catch (requestError) {
       if (requestError?.status === 409) {
         showUserConflictToast(requestError, {
-          title: t("toasts.duplicateNameTitle"),
-          description: t("toasts.duplicateNameDescription"),
+          title: usersTranslations("toasts.duplicateNameTitle"),
+          description: usersTranslations("toasts.duplicateNameDescription"),
           color: "danger",
         });
-        return;
+        throw requestError;
       }
 
       showGenericMutationErrorToast();
+      throw requestError;
     }
   };
 
@@ -130,14 +131,15 @@ export function useUsers() {
     } catch (requestError) {
       if (requestError?.status === 409) {
         showUserConflictToast(requestError, {
-          title: t("toasts.duplicateNameTitle"),
-          description: t("toasts.duplicateNameDescription"),
+          title: usersTranslations("toasts.duplicateNameTitle"),
+          description: usersTranslations("toasts.duplicateNameDescription"),
           color: "danger",
         });
-        return;
+        throw requestError;
       }
 
       showGenericMutationErrorToast();
+      throw requestError;
     }
   };
 
@@ -156,14 +158,15 @@ export function useUsers() {
     } catch (requestError) {
       if (requestError?.status === 409) {
         showUserConflictToast(requestError, {
-          title: t("toasts.lastUserTitle"),
-          description: t("toasts.lastUserDescription"),
+          title: usersTranslations("toasts.lastUserTitle"),
+          description: usersTranslations("toasts.lastUserDescription"),
           color: "warning",
         });
-        return;
+        throw requestError;
       }
 
       showGenericMutationErrorToast();
+      throw requestError;
     }
   };
 

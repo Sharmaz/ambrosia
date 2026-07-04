@@ -47,7 +47,11 @@ export function EditUsersModal({ data, setData, roles, onChange, editUsersShowMo
             className="space-y-4"
             onSubmit={async (event) => {
               event.preventDefault();
-              await updateUser(data);
+              try {
+                await updateUser(data);
+              } catch {
+                return;
+              }
               addToast({ description: userTranslations("users.toasts.updateSuccess"), color: "success" });
               setData({
                 userId: "",

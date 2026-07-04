@@ -132,6 +132,24 @@ describe("EditUsersModal", () => {
     expect(setEditUsersShowModal).toHaveBeenCalledWith(false);
   });
 
+  it("does not reset or close when updateUser fails", async () => {
+    const setData = jest.fn();
+    const setEditUsersShowModal = jest.fn();
+    const updateUser = jest.fn(() => Promise.reject(new Error("update failed")));
+
+    renderModal({ setData, setEditUsersShowModal, updateUser });
+
+    fireEvent.click(screen.getByText("users.modal.editButton"));
+
+    await waitFor(() => expect(updateUser).toHaveBeenCalledWith(baseData));
+    expect(addToast).not.toHaveBeenCalledWith({
+      description: "users.toasts.updateSuccess",
+      color: "success",
+    });
+    expect(setData).not.toHaveBeenCalled();
+    expect(setEditUsersShowModal).not.toHaveBeenCalledWith(false);
+  });
+
   it("normalizes phone and pin to digits and toggles pin visibility", () => {
     const onChange = jest.fn();
 
