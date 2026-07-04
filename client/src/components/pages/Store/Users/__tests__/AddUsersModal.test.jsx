@@ -22,6 +22,11 @@ jest.mock("framer-motion", () => {
   };
 });
 
+jest.mock("@heroui/react", () => {
+  const actual = jest.requireActual("@heroui/react");
+  return { ...actual, addToast: jest.fn() };
+});
+
 const roles = [
   { id: "seller", role: "Seller" },
   { id: "admin", role: "Admin" },
@@ -41,6 +46,8 @@ const localStorageMock = {
   clear: jest.fn(),
 };
 global.localStorage = localStorageMock;
+
+const { addToast } = require("@heroui/react");
 
 const renderModal = (props = {}) => render(
   <I18nProvider>
@@ -151,6 +158,10 @@ describe("AddUsersModal", () => {
     fireEvent.click(screen.getByText("users.modal.submitButton"));
 
     await waitFor(() => expect(addUser).toHaveBeenCalledWith(baseData));
+    expect(addToast).toHaveBeenCalledWith({
+      description: "users.toasts.createSuccess",
+      color: "success",
+    });
     expect(setData).toHaveBeenCalledWith({
       userName: "",
       userPin: "",

@@ -2,14 +2,14 @@
 
 import { useState } from "react";
 
-import { Button, Input, Select, SelectItem, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter } from "@heroui/react";
+import { addToast, Button, Input, Select, SelectItem, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter } from "@heroui/react";
 import { Eye, EyeOff } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import { resolveRoleName } from "@/components/pages/Store/Users/Roles/utils/roleTemplates";
 
 export function EditUsersModal({ data, setData, roles, onChange, editUsersShowModal, setEditUsersShowModal, updateUser }) {
-  const t = useTranslations();
+  const userTranslations = useTranslations();
   const [showPin, setShowPin] = useState(false);
   const handleOnCloseModal = () => {
     setData({
@@ -40,13 +40,15 @@ export function EditUsersModal({ data, setData, roles, onChange, editUsersShowMo
     >
       <ModalContent>
         <ModalHeader>
-          {t("users.modal.titleEdit")}
+          {userTranslations("users.modal.titleEdit")}
         </ModalHeader>
         <ModalBody>
           <form
             className="space-y-4"
-            onSubmit={(e) => {
-              e.preventDefault();
+            onSubmit={async (event) => {
+              event.preventDefault();
+              await updateUser(data);
+              addToast({ description: userTranslations("users.toasts.updateSuccess"), color: "success" });
               setData({
                 userId: "",
                 userName: "",
@@ -55,47 +57,46 @@ export function EditUsersModal({ data, setData, roles, onChange, editUsersShowMo
                 userEmail: "",
                 userRole: "Vendedor",
               });
-              updateUser(data);
               setEditUsersShowModal(false);
             }}
           >
             <Input
-              label={t("users.modal.userNameLabel")}
+              label={userTranslations("users.modal.userNameLabel")}
               type="text"
-              placeholder={t("users.modal.userNamePlaceholder")}
+              placeholder={userTranslations("users.modal.userNamePlaceholder")}
               isRequired
-              errorMessage={t("users.modal.userNameError")}
+              errorMessage={userTranslations("users.modal.userNameError")}
               value={data.userName ?? ""}
-              onChange={(e) => onChange({ ...data, userName: e.target.value })}
+              onChange={(event) => onChange({ ...data, userName: event.target.value })}
             />
             <Input
-              label={t("users.modal.userEmailLabel")}
+              label={userTranslations("users.modal.userEmailLabel")}
               type="email"
-              placeholder={t("users.modal.userEmailPlaceholder")}
+              placeholder={userTranslations("users.modal.userEmailPlaceholder")}
               value={data?.userEmail ?? ""}
-              onChange={(e) => onChange({ ...data, userEmail: e.target.value })}
+              onChange={(event) => onChange({ ...data, userEmail: event.target.value })}
             />
             <Input
-              label={t("users.modal.userPhoneLabel")}
+              label={userTranslations("users.modal.userPhoneLabel")}
               type="tel"
-              placeholder={t("users.modal.userPhonePlaceholder")}
+              placeholder={userTranslations("users.modal.userPhonePlaceholder")}
               maxLength={10}
               value={data.userPhone ?? ""}
-              onChange={(e) => {
-                const onlyNumbers = e.target.value.replace(/\D/g, "");
+              onChange={(event) => {
+                const onlyNumbers = event.target.value.replace(/\D/g, "");
                 onChange({ ...data, userPhone: onlyNumbers });
               }}
             />
             <Input
-              label={t("users.modal.userPinLabel")}
+              label={userTranslations("users.modal.userPinLabel")}
               type={showPin ? "text" : "password"}
-              placeholder={t("users.modal.userPinPlaceholder")}
+              placeholder={userTranslations("users.modal.userPinPlaceholder")}
               minLength={4}
               maxLength={4}
-              errorMessage={t("users.modal.userPinError")}
+              errorMessage={userTranslations("users.modal.userPinError")}
               value={data.userPin ?? ""}
-              onChange={(e) => {
-                const onlyNumbers = e.target.value.replace(/\D/g, "");
+              onChange={(event) => {
+                const onlyNumbers = event.target.value.replace(/\D/g, "");
                 onChange({ ...data, userPin: onlyNumbers });
               }}
               endContent={
@@ -112,15 +113,15 @@ export function EditUsersModal({ data, setData, roles, onChange, editUsersShowMo
               }
             />
             <Select
-              label={t("users.modal.userRoleLabel")}
+              label={userTranslations("users.modal.userRoleLabel")}
               isRequired
               defaultSelectedKeys={[data.userRole]}
               value={data.userRole}
-              onChange={(e) => onChange({ ...data, userRole: e.target.value })}
+              onChange={(event) => onChange({ ...data, userRole: event.target.value })}
             >
               {roles.map((role) => (
                 <SelectItem key={role.id}>
-                  {resolveRoleName(role.role, t)}
+                  {resolveRoleName(role.role, userTranslations)}
                 </SelectItem>
               ))}
             </Select>
@@ -132,7 +133,7 @@ export function EditUsersModal({ data, setData, roles, onChange, editUsersShowMo
                 className="px-6 py-2 border border-border text-foreground hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 onPress={() => handleOnCloseModal()}
               >
-                {t("users.modal.cancelButton")}
+                {userTranslations("users.modal.cancelButton")}
               </Button>
               <Button
                 color="primary"
@@ -140,7 +141,7 @@ export function EditUsersModal({ data, setData, roles, onChange, editUsersShowMo
                 type="submit"
                 isDisabled={!data.userRole}
               >
-                {t("users.modal.editButton")}
+                {userTranslations("users.modal.editButton")}
               </Button>
             </ModalFooter>
           </form>

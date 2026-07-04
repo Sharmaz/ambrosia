@@ -38,6 +38,9 @@ const usersEs = {
       deleteButton: "Eliminar",
     },
     toasts: {
+      createSuccess: "Usuario creado con éxito",
+      updateSuccess: "Usuario actualizado con éxito",
+      deleteSuccess: "Usuario eliminado con éxito",
       duplicateNameTitle: "Nombre duplicado",
       duplicateNameDescription: "Ya existe un usuario con ese nombre.",
       genericErrorTitle: "Error",

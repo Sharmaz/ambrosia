@@ -14,6 +14,11 @@ let mockRoles = [
   { id: "seller", role: "Seller" },
 ];
 
+jest.mock("@heroui/react", () => {
+  const actual = jest.requireActual("@heroui/react");
+  return { ...actual, addToast: jest.fn() };
+});
+
 jest.mock("next/navigation", () => ({
   usePathname: jest.fn(() => "/store/users"),
 }));
@@ -47,7 +52,7 @@ jest.mock("../AddUsersModal", () => ({
           <input
             aria-label="modal.userNameLabel"
             value={data?.userName || ""}
-            onChange={(e) => onChange?.({ userName: e.target.value })}
+            onChange={(event) => onChange?.({ userName: event.target.value })}
           />
         </label>
         <button onClick={() => addUser?.(data)}>modal.submitButton</button>
@@ -64,12 +69,12 @@ jest.mock("../EditUsersModal", () => ({
         <input
           aria-label="modal.userNameLabel"
           value={data?.userName || user?.name || ""}
-          onChange={(e) => onChange?.({ userName: e.target.value })}
+          onChange={(event) => onChange?.({ userName: event.target.value })}
         />
         <input
           aria-label="modal.userPhoneLabel"
           value={data?.userPhone || user?.phone || ""}
-          onChange={(e) => onChange?.({ userPhone: e.target.value })}
+          onChange={(event) => onChange?.({ userPhone: event.target.value })}
         />
         <button onClick={() => updateUser?.(data)}>modal.editButton</button>
       </div>
@@ -129,6 +134,8 @@ const localStorageMock = {
   clear: jest.fn(),
 };
 global.localStorage = localStorageMock;
+
+const { addToast } = require("@heroui/react");
 
 function renderUsers() {
   return render(
@@ -296,6 +303,10 @@ describe("Users page", () => {
     });
 
     expect(mockDeleteUser).toHaveBeenCalledWith(1);
+    expect(addToast).toHaveBeenCalledWith({
+      description: "toasts.deleteSuccess",
+      color: "success",
+    });
   });
 
   it("does not delete when user id is missing", async () => {
