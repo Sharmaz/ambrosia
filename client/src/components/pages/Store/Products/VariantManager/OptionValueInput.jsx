@@ -5,6 +5,10 @@ import { Button, Chip, Input } from "@heroui/react";
 import { Plus, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 
+const OPTION_VALUE_FIELD_CLASS_NAMES = {
+  inputWrapper: "min-h-12 h-12 shadow-none",
+};
+
 export function OptionValueInput({ optionValueNames, onOptionValueNamesChange }) {
   const productsTranslation = useTranslations("products");
   const [pendingOptionValueName, setPendingOptionValueName] = useState("");
@@ -34,14 +38,18 @@ export function OptionValueInput({ optionValueNames, onOptionValueNamesChange })
       <div className="flex gap-2">
         <Input
           size="sm"
+          aria-label={productsTranslation("optionValuePlaceholder")}
           placeholder={productsTranslation("optionValuePlaceholder")}
           value={pendingOptionValueName}
+          classNames={OPTION_VALUE_FIELD_CLASS_NAMES}
           onChange={(optionValueChangeEvent) => setPendingOptionValueName(optionValueChangeEvent.target.value)}
           onKeyDown={handleKeyDown}
         />
         <Button
+          isIconOnly
           size="sm"
           variant="flat"
+          className="min-w-12 h-12"
           onPress={addValue}
           isDisabled={!pendingOptionValueName.trim()}
         >

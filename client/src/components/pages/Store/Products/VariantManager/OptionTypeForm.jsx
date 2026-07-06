@@ -6,6 +6,10 @@ import { useTranslations } from "next-intl";
 
 import { OptionValueInput } from "./OptionValueInput";
 
+const OPTION_TYPE_FIELD_CLASS_NAMES = {
+  inputWrapper: "min-h-12 h-12 shadow-none",
+};
+
 export function OptionTypeForm({ initial, onSave, onCancel, isSaving }) {
   const productsTranslation = useTranslations("products");
   const [optionTypeName, setOptionTypeName] = useState(initial?.name ?? "");
@@ -27,6 +31,7 @@ export function OptionTypeForm({ initial, onSave, onCancel, isSaving }) {
         label={productsTranslation("optionTypeName")}
         placeholder={productsTranslation("optionTypeNamePlaceholder")}
         value={optionTypeName}
+        classNames={OPTION_TYPE_FIELD_CLASS_NAMES}
         onChange={(optionTypeNameChangeEvent) => setOptionTypeName(optionTypeNameChangeEvent.target.value)}
       />
       <OptionValueInput optionValueNames={optionValueNames} onOptionValueNamesChange={setOptionValueNames} />
