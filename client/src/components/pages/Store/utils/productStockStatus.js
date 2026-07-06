@@ -6,16 +6,17 @@ export const PRODUCT_STOCK_STATUS = {
   OK: "ok",
 };
 
+export const DEFAULT_LOW_STOCK_THRESHOLD = 11;
+
 export function getProductStockQuantity(product) {
   return toFiniteNumber(product.quantity ?? product.productStock);
 }
 
 export function getProductStockStatus(product) {
   const productStockQuantity = getProductStockQuantity(product);
-  const productMinimumStockThreshold = toFiniteNumber(product.minStockThreshold);
 
   if (productStockQuantity <= 0) return PRODUCT_STOCK_STATUS.OUT;
-  if (productStockQuantity <= productMinimumStockThreshold) return PRODUCT_STOCK_STATUS.LOW;
+  if (productStockQuantity < DEFAULT_LOW_STOCK_THRESHOLD) return PRODUCT_STOCK_STATUS.LOW;
   return PRODUCT_STOCK_STATUS.OK;
 }
 

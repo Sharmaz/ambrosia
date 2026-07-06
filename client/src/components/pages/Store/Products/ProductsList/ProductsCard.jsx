@@ -5,14 +5,13 @@ import { ImageIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import { useCurrency } from "@/components/hooks/useCurrency";
+import { getProductStockQuantity, getProductStockStatus, getStockChipClassName } from "@/components/pages/Store/utils/productStockStatus";
 import { DeleteButton } from "@/components/shared/DeleteButton";
 import { EditButton } from "@/components/shared/EditButton";
 import { VariantsButton } from "@/components/shared/VariantsButton";
 import { ViewButton } from "@/components/shared/ViewButton";
 import { storedAssetUrl } from "@/components/utils/storedAssetUrl";
 import { RequirePermission } from "@/hooks/usePermission";
-
-import { getProductStockQuantity, getProductStockStatus, getStockChipClassName } from "./utils/productStockStatus";
 
 export function ProductsCard({
   product,

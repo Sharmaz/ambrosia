@@ -7,9 +7,9 @@ import { ChevronUp, ImageIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import { useCurrency } from "@/components/hooks/useCurrency";
+import { getProductStockQuantity, getProductStockStatus, getStockChipClassName } from "@/components/pages/Store/utils/productStockStatus";
 import { ProductDetailsModal } from "@/components/shared/ProductDetailsModal";
 import { ViewButton } from "@/components/shared/ViewButton";
-import { toFiniteNumber } from "@/components/utils/numberParsers";
 import { storedAssetUrl } from "@/components/utils/storedAssetUrl";
 
 import { VariantSelectorModal } from "./VariantSelectorModal";
@@ -17,24 +17,6 @@ import { VariantSelectorModal } from "./VariantSelectorModal";
 const XL_BREAKPOINT_PX = 1280;
 const XL_COLUMN_COUNT = 3;
 const DEFAULT_COLUMN_COUNT = 2;
-const LOW_STOCK_THRESHOLD = 11;
-
-function getStockLevel(productQuantity) {
-  const quantity = toFiniteNumber(productQuantity);
-  if (quantity <= 0) return "out";
-  if (quantity < LOW_STOCK_THRESHOLD) return "low";
-  return "ok";
-}
-
-function getStockChipClassName(stockLevel) {
-  if (stockLevel === "out") {
-    return "bg-rose-100 text-rose-800 border border-rose-200 text-xs";
-  }
-  if (stockLevel === "low") {
-    return "bg-amber-100 text-amber-800 border border-amber-200 text-xs";
-  }
-  return "bg-green-200 text-xs text-green-800 border border-green-300";
-}
 
 function useColumnCount() {
   const [columnCount, setColumnCount] = useState(DEFAULT_COLUMN_COUNT);
@@ -88,7 +70,8 @@ export function ProductList({ products, onAddProduct, categories }) {
           <div key={columnIndex} className="flex flex-col gap-3 md:gap-4 flex-1 min-w-0">
             {productColumn.map((product) => {
               const { id, description, priceCents, name, imageUrl, SKU, categoryIds, quantity } = product;
-              const stockLevel = getStockLevel(quantity);
+              const stockQuantity = getProductStockQuantity(product);
+              const stockStatus = getProductStockStatus(product);
               const productImageUrl = storedAssetUrl(imageUrl);
               const categoryNames = getCategoryNames(categoryIds);
               return (
@@ -176,9 +159,9 @@ export function ProductList({ products, onAddProduct, categories }) {
                       )}
                       <Chip
                         size="sm"
-                        className={getStockChipClassName(stockLevel)}
+                        className={getStockChipClassName(stockStatus)}
                       >
-                        {toFiniteNumber(quantity)} {cardProductTranslation("card.stock")}
+                        {stockQuantity} {cardProductTranslation("card.stock")}
                       </Chip>
                     </div>
                     <div className="flex justify-between sm:flex-1">

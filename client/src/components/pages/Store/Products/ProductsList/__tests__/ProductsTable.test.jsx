@@ -193,4 +193,18 @@ describe("ProductsTable", () => {
     expect(screen.getByText("regular")).toBeInTheDocument();
     expect(screen.queryByText("bundle")).not.toBeInTheDocument();
   });
+
+  it("uses fixed stock threshold for out, low, and ok status", () => {
+    renderTable({
+      products: [
+        { ...products[0], id: "out", quantity: 0 },
+        { ...products[0], id: "low", quantity: 10 },
+        { ...products[0], id: "ok", quantity: 11 },
+      ],
+    });
+
+    expect(screen.getByText("status.out")).toHaveClass("bg-rose-100");
+    expect(screen.getByText("status.low")).toHaveClass("bg-amber-100");
+    expect(screen.getByText("status.ok")).toHaveClass("bg-green-200");
+  });
 });

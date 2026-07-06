@@ -156,4 +156,15 @@ describe("ProductsCard", () => {
 
     expect(screen.queryByText("bundle")).not.toBeInTheDocument();
   });
+
+  it("uses fixed stock threshold for out, low, and ok status", () => {
+    const { rerender } = renderCard({ product: { ...product, quantity: 0 } });
+    expect(screen.getByText("status.out")).toHaveClass("bg-rose-100");
+
+    rerender(<ProductsCard {...defaultProps} product={{ ...product, quantity: 10 }} />);
+    expect(screen.getByText("status.low")).toHaveClass("bg-amber-100");
+
+    rerender(<ProductsCard {...defaultProps} product={{ ...product, quantity: 11 }} />);
+    expect(screen.getByText("status.ok")).toHaveClass("bg-green-200");
+  });
 });

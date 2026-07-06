@@ -19,6 +19,7 @@ jest.mock("@heroui/react", () => ({
       <div>{children}</div>
     </div>
   ),
+  Chip: ({ children, className }) => <span className={className}>{children}</span>,
 }));
 
 jest.mock("@/components/shared/ViewButton", () => ({
@@ -238,5 +239,25 @@ describe("ProductList", () => {
     );
 
     expect(screen.queryByText("card.bundle")).not.toBeInTheDocument();
+  });
+
+  it("uses shared stock status styles with the fixed low-stock threshold", () => {
+    render(
+      <I18nProvider>
+        <ProductList
+          products={[
+            { ...products[0], id: "out", quantity: 0 },
+            { ...products[0], id: "low", quantity: 10 },
+            { ...products[0], id: "ok", quantity: 11 },
+          ]}
+          categories={categories}
+          onAddProduct={jest.fn()}
+        />
+      </I18nProvider>,
+    );
+
+    expect(screen.getByText("0 card.stock")).toHaveClass("bg-rose-100");
+    expect(screen.getByText("10 card.stock")).toHaveClass("bg-amber-100");
+    expect(screen.getByText("11 card.stock")).toHaveClass("bg-green-200");
   });
 });

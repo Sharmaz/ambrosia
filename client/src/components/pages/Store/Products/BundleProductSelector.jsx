@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { Input, NumberInput, Select, SelectItem } from "@heroui/react";
 import { useTranslations } from "next-intl";
@@ -18,6 +18,11 @@ export function BundleProductSelector({ selectedProducts, allProducts, onCompone
   const [searchQuery, setSearchQuery] = useState("");
   const [componentDetailByProductId, setComponentDetailByProductId] = useState({});
 
+  const productById = useMemo(
+    () => new Map(allProducts.map((product) => [product.id, product])),
+    [allProducts],
+  );
+
   const selectableProducts = allProducts.filter(
     (product) => !product.isBundle &&
       !selectedProducts.some((selectedProduct) => selectedProduct.productId === product.id),
@@ -29,7 +34,7 @@ export function BundleProductSelector({ selectedProducts, allProducts, onCompone
     product.SKU?.toLowerCase().includes(normalizedSearchQuery)
   ));
 
-  const resolveProduct = (productId) => allProducts.find((product) => product.id === productId);
+  const resolveProduct = useCallback((productId) => productById.get(productId), [productById]);
   const activeVariantsForProduct = (productId) => (
     componentDetailByProductId[productId]?.variants ?? []
   ).filter(variantIsActive);
@@ -62,7 +67,7 @@ export function BundleProductSelector({ selectedProducts, allProducts, onCompone
     return () => {
       isCancelled = true;
     };
-  }, [allProducts, componentDetailByProductId, fetchProductDetail, selectedProducts]);
+  }, [componentDetailByProductId, fetchProductDetail, resolveProduct, selectedProducts]);
 
   const bundleCostCents = selectedProducts.reduce((accumulatedCents, selectedProduct) => {
     const product = resolveProduct(selectedProduct.productId);
