@@ -9,6 +9,8 @@ const toFiniteNumber = (value) => {
 
 export const buildRequestPayload = (product, imageUrl, { includeId = false } = {}) => {
   const priceCents = Math.round(toFiniteNumber(product.productPrice) * 100);
+  const isBundle = product.isBundle ?? false;
+  const hasVariants = isBundle ? false : (product.hasVariants ?? false);
 
   return {
     ...(includeId ? { id: product.productId } : {}),
@@ -18,14 +20,16 @@ export const buildRequestPayload = (product, imageUrl, { includeId = false } = {
     imageUrl,
     costCents: priceCents,
     categoryIds: toArray(product.productCategories),
-    quantity: toFiniteNumber(product.productStock),
+    quantity: isBundle ? 0 : toFiniteNumber(product.productStock),
     minStockThreshold: toFiniteNumber(product.productMinStock),
     maxStockThreshold: toFiniteNumber(product.productMaxStock),
+    hasVariants,
     priceCents,
-    isBundle: product.isBundle ?? false,
-    bundleComponents: product.isBundle
+    isBundle,
+    bundleComponents: isBundle
       ? (product.bundleComponents ?? []).map((bundleProduct) => ({
           componentId: bundleProduct.productId,
+          variantId: bundleProduct.variantId ?? null,
           quantity: bundleProduct.quantity,
         }))
       : [],

@@ -34,8 +34,8 @@ jest.mock("@heroui/react", () => {
       aria-label={label}
       type="number"
       value={value}
-      onChange={(e) => {
-        const parsed = Number(e.target.value);
+      onChange={(numberInputChangeEvent) => {
+        const parsed = Number(numberInputChangeEvent.target.value);
         const clamped = Number.isNaN(parsed) ? "" : Math.max(0, parsed);
         onValueChange?.(clamped);
       }}
@@ -46,7 +46,7 @@ jest.mock("@heroui/react", () => {
   const Switch = ({ children, isSelected, onValueChange }) => (
     <label>
       <input
-        data-testid="bundle-switch"
+        data-testid={children === "modal.isBundle" ? "bundle-switch" : "variants-switch"}
         type="checkbox"
         checked={isSelected ?? false}
         onChange={(event) => onValueChange?.(event.target.checked)}
@@ -247,6 +247,7 @@ describe("AddProductsModal", () => {
 
     expect(onChange).toHaveBeenCalledWith({
       isBundle: true,
+      hasVariants: false,
       bundleComponents: [],
       productStock: 0,
       productMinStock: 0,

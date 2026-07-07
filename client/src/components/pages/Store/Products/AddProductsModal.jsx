@@ -5,7 +5,6 @@ import { useState } from "react";
 import {
   Button,
   Input,
-  NumberInput,
   Switch,
   Textarea,
   Modal,
@@ -21,6 +20,7 @@ import { ImageUploader } from "@components/shared/ImageUploader";
 
 import { BundleProductSelector } from "./BundleProductSelector";
 import { CategorySelector } from "./CategorySelector";
+import { ProductPricingFields } from "./ProductPricingFields";
 
 export function AddProductsModal({
   data,
@@ -39,8 +39,8 @@ export function AddProductsModal({
   const { currency } = useCurrency();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = async (event) => {
-    event.preventDefault();
+  const handleSubmit = async (productFormSubmission) => {
+    productFormSubmission.preventDefault();
     if (isSubmitting || isUploading) return;
 
     try {
@@ -53,13 +53,14 @@ export function AddProductsModal({
     }
   };
 
-  const handleBundleToggle = (checked) => {
+  const handleBundleToggle = (isBundleSelected) => {
     onChange({
-      isBundle: checked,
+      isBundle: isBundleSelected,
+      hasVariants: isBundleSelected ? false : data.hasVariants,
       bundleComponents: [],
-      productStock: 0,
-      productMinStock: 0,
-      productMaxStock: 0,
+      productStock: isBundleSelected ? 0 : data.productStock,
+      productMinStock: isBundleSelected ? 0 : data.productMinStock,
+      productMaxStock: isBundleSelected ? 0 : data.productMaxStock,
     });
   };
 
@@ -97,14 +98,14 @@ export function AddProductsModal({
               isRequired
               errorMessage={productsTranslation("modal.errorMsgInputFieldEmpty")}
               value={data.productName}
-              onChange={(event) => onChange({ productName: event.target.value })}
+              onChange={({ target: productNameInput }) => onChange({ productName: productNameInput.value })}
             />
 
             <Textarea
               label={productsTranslation("modal.productDescriptionLabel")}
               placeholder={productsTranslation("modal.productDescriptionPlaceholder")}
               value={data.productDescription}
-              onChange={(event) => onChange({ productDescription: event.target.value })}
+              onChange={({ target: productDescriptionInput }) => onChange({ productDescription: productDescriptionInput.value })}
             />
 
             <CategorySelector
@@ -119,45 +120,31 @@ export function AddProductsModal({
               label={productsTranslation("modal.productSKULabel")}
               placeholder={productsTranslation("modal.productSKUPlaceholder")}
               value={data.productSKU}
-              onChange={(event) => onChange({ productSKU: event.target.value })}
-            />
-
-            <NumberInput
-              label={productsTranslation("modal.productPriceLabel")}
-              placeholder={productsTranslation("modal.productPricePlaceholder")}
-              isRequired
-              errorMessage={productsTranslation("modal.errorMsgInputFieldEmpty")}
-              startContent={(
-                <span className="text-default-400 text-small">
-                  {currency?.acronym || "$"}
-                </span>
-              )}
-              minValue={0}
-              value={data.productPrice}
-              classNames={{ inputWrapper: "shadow-none" }}
-              onValueChange={(value) => {
-                const numeric = value === null ? "" : Number(value);
-                onChange({ productPrice: numeric });
-              }}
-              step={0.01}
+              onChange={({ target: productSkuInput }) => onChange({ productSKU: productSkuInput.value })}
             />
 
             {!data.isBundle && (
-              <NumberInput
-                label={productsTranslation("modal.productStockLabel")}
-                placeholder={productsTranslation("modal.productStockPlaceholder")}
-                value={data.productStock}
-                minValue={0}
-                maxValue={1000000}
-                isRequired
-                errorMessage={productsTranslation("modal.errorMsgInputFieldEmpty")}
-                classNames={{ inputWrapper: "shadow-none" }}
-                onValueChange={(value) => {
-                  const numeric = value === null ? "" : Number(value);
-                  onChange({ productStock: numeric });
-                }}
-                step={1}
+              <div className="flex items-center gap-3">
+                <Switch
+                  isSelected={data.hasVariants ?? false}
+                  onValueChange={(hasVariantsSelected) => onChange({ hasVariants: hasVariantsSelected })}
+                  size="sm"
+                />
+                <span className="text-sm text-gray-700">{productsTranslation("hasVariants")}</span>
+              </div>
+            )}
+
+            {!data.hasVariants && (
+              <ProductPricingFields
+                data={data}
+                onChange={onChange}
+                currency={currency}
+                includeStock={!data.isBundle}
               />
+            )}
+
+            {data.hasVariants && !data.isBundle && (
+              <p className="text-xs text-gray-400">{productsTranslation("hasVariantsHint")}</p>
             )}
 
             {data.isBundle && (

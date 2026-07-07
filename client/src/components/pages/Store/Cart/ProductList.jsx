@@ -7,9 +7,12 @@ import { ChevronUp, ImageIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import { useCurrency } from "@/components/hooks/useCurrency";
+import { getProductStockQuantity, getProductStockStatus, getStockChipClassName } from "@/components/pages/Store/utils/productStockStatus";
 import { ProductDetailsModal } from "@/components/shared/ProductDetailsModal";
 import { ViewButton } from "@/components/shared/ViewButton";
 import { storedAssetUrl } from "@/components/utils/storedAssetUrl";
+
+import { VariantSelectorModal } from "./VariantSelectorModal";
 
 const XL_BREAKPOINT_PX = 1280;
 const XL_COLUMN_COUNT = 3;
@@ -29,9 +32,9 @@ function useColumnCount() {
 export function ProductList({ products, onAddProduct, categories }) {
   const cardProductTranslation = useTranslations("cart");
   const { formatAmount } = useCurrency();
-  const defaultMaxStock = 11;
   const [showProductDetails, setShowProductDetails] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
+  const [variantProduct, setVariantProduct] = useState(null);
   const columnCount = useColumnCount();
   const productColumns = useMemo(() => {
     const columnGroups = Array.from({ length: columnCount }, () => []);
@@ -40,28 +43,24 @@ export function ProductList({ products, onAddProduct, categories }) {
   }, [products, columnCount]);
 
   const getCategoryNames = (categoryIds) => {
-    const ids = categoryIds ?? [];
-    const names = categories
-      .filter((cat) => ids.includes(cat.id))
-      .map((cat) => cat.name);
-    return names.length > 0 ? names.join(", ") : cardProductTranslation("card.errors.unknownCategory");
-  };
-
-  const normalizeNumber = (value, fallback = 0) => {
-    const numeric = Number(value ?? fallback);
-    return Number.isFinite(numeric) ? numeric : fallback;
-  };
-
-  const stockStatus = (product) => {
-    const quantity = normalizeNumber(product.quantity);
-    if (quantity <= 0) return "out";
-    if (quantity < defaultMaxStock) return "low";
-    return "ok";
+    const selectedCategoryIds = categoryIds ?? [];
+    return categories
+      .filter((category) => selectedCategoryIds.includes(category.id))
+      .map((category) => category.name)
+      .join(", ");
   };
 
   const handleShowProductDetails = (product) => {
     setShowProductDetails(true);
     setSelectedProduct(product);
+  };
+
+  const handleAddClick = (product) => {
+    if (product.hasVariants && !product.isBundle) {
+      setVariantProduct(product);
+    } else {
+      onAddProduct(product);
+    }
   };
 
   return (
@@ -70,9 +69,11 @@ export function ProductList({ products, onAddProduct, categories }) {
         {productColumns.map((productColumn, columnIndex) => (
           <div key={columnIndex} className="flex flex-col gap-3 md:gap-4 flex-1 min-w-0">
             {productColumn.map((product) => {
-              const status = stockStatus(product);
               const { id, description, priceCents, name, imageUrl, SKU, categoryIds, quantity } = product;
+              const stockQuantity = getProductStockQuantity(product);
+              const stockStatus = getProductStockStatus(product);
               const productImageUrl = storedAssetUrl(imageUrl);
+              const categoryNames = getCategoryNames(categoryIds);
               return (
                 <Card shadow="none" className="bg-white rounded-lg w-full" key={id}>
                   <div className="h-28 md:h-36 bg-gray-100 overflow-hidden flex items-center justify-center">
@@ -85,17 +86,36 @@ export function ProductList({ products, onAddProduct, categories }) {
                       />
                     ) : (
                       <div data-testid={`product-image-placeholder-${id}`}>
-                        <ImageIcon aria-hidden="true" className="h-8 w-8 text-gray-400" />
+                        <ImageIcon className="h-8 w-8 text-gray-400" />
                       </div>
                     )}
                   </div>
-                  <CardHeader className="flex flex-col items-start pb-1">
-                    <h2 className="text-sm md:text-lg font-medium">{name}</h2>
-                    <p className="text-xs">{getCategoryNames(categoryIds)}</p>
+                  <CardHeader className="flex flex-row items-start justify-between pb-1">
+                    <div className="flex flex-col flex-1 min-w-0">
+                      <h2 className="text-sm md:text-lg font-medium [overflow-wrap:anywhere]">{name}</h2>
+                      <p className="text-xs">{categoryNames || cardProductTranslation("card.noCategory")}</p>
+                    </div>
+                    <div className="hidden sm:flex flex-wrap justify-end gap-1 shrink-0 ml-2">
+                      {product.isBundle && (
+                        <Chip size="sm" className="bg-blue-100 text-blue-700 border border-blue-200">
+                          {cardProductTranslation("card.bundle")}
+                        </Chip>
+                      )}
+                      {product.hasVariants && !product.isBundle && (
+                        <Chip size="sm" className="bg-blue-100 text-blue-700 border border-blue-200">
+                          {cardProductTranslation("card.hasVariants")}
+                        </Chip>
+                      )}
+                    </div>
                   </CardHeader>
                   <CardBody className="py-1">
                     <h2 className="text-lg md:text-2xl font-bold text-green-800">
-                      {formatAmount(priceCents)}
+                      {product.hasVariants && product.maxPriceCents !== priceCents ? (
+                        <span className="flex flex-wrap gap-x-1">
+                          <span>{formatAmount(priceCents)} -</span>
+                          <span>{formatAmount(product.maxPriceCents)}</span>
+                        </span>
+                      ) : formatAmount(priceCents)}
                     </h2>
                     <p className="hidden md:block text-xs">
                       SKU: <span className="text-gray-800">{SKU}</span>
@@ -125,25 +145,24 @@ export function ProductList({ products, onAddProduct, categories }) {
                       </Accordion>
                     )}
                   </CardBody>
-                  <CardFooter className="flex flex-col pt-0 items-stretch gap-2 md:gap-5 sm:flex-row sm:items-end sm:justify-between">
-                    <div className="flex flex-col gap-1 shrink-0">
-                      <Chip
-                        size="sm"
-                        className={
-                          status === "out"
-                            ? "bg-rose-100 text-rose-800 border border-rose-200 text-xs"
-                            : status === "low"
-                              ? "bg-amber-100 text-amber-800 border border-amber-200 text-xs"
-                              : "bg-green-200 text-xs text-green-800 border border-green-300"
-                        }
-                      >
-                        {normalizeNumber(quantity)} {cardProductTranslation("card.stock")}
-                      </Chip>
+                  <CardFooter className="flex flex-col pt-0 items-stretch gap-2 md:gap-5 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex flex-wrap gap-1.5 shrink-0">
                       {product.isBundle && (
-                        <Chip size="sm" className="bg-blue-100 text-xs text-blue-800 border border-blue-200">
+                        <Chip size="sm" className="sm:hidden bg-blue-100 text-blue-700 border border-blue-200">
                           {cardProductTranslation("card.bundle")}
                         </Chip>
                       )}
+                      {product.hasVariants && !product.isBundle && (
+                        <Chip size="sm" className="sm:hidden bg-blue-100 text-blue-700 border border-blue-200">
+                          {cardProductTranslation("card.hasVariants")}
+                        </Chip>
+                      )}
+                      <Chip
+                        size="sm"
+                        className={getStockChipClassName(stockStatus)}
+                      >
+                        {stockQuantity} {cardProductTranslation("card.stock")}
+                      </Chip>
                     </div>
                     <div className="flex justify-between sm:flex-1">
                       <div className="md:hidden">
@@ -153,8 +172,8 @@ export function ProductList({ products, onAddProduct, categories }) {
                         className="w-full ml-3"
                         color="primary"
                         size="sm"
-                        isDisabled={quantity === 0}
-                        onPress={() => onAddProduct(product)}
+                        isDisabled={!product.hasVariants && quantity === 0}
+                        onPress={() => handleAddClick(product)}
                       >
                         {cardProductTranslation("card.add")}
                       </Button>
@@ -172,6 +191,15 @@ export function ProductList({ products, onAddProduct, categories }) {
         showAddButton={false}
         product={selectedProduct}
         categories={categories}
+      />
+      <VariantSelectorModal
+        product={variantProduct}
+        isOpen={!!variantProduct}
+        onClose={() => setVariantProduct(null)}
+        onAddToCart={(product, variant) => {
+          onAddProduct(product, variant);
+          setVariantProduct(null);
+        }}
       />
     </>
   );

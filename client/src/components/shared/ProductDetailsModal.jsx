@@ -15,12 +15,14 @@ export function ProductDetailsModal({ isOpen, onClose, onAddProduct, showAddButt
   const imageUrl = storedAssetUrl(product.imageUrl);
   const categoryIds = product.categoryIds ?? [];
   const categoryNames = categories
-    .filter((cat) => categoryIds.includes(cat.id))
-    .map((cat) => cat.name)
-    .join(", ") || productDetailsTranslation("unknownCategory");
+    .filter((category) => categoryIds.includes(category.id))
+    .map((category) => category.name)
+    .join(", ") || productDetailsTranslation("noCategory");
 
   const quantity = Number(product.quantity ?? 0);
   const isOutOfStock = quantity <= 0;
+  const shouldShowVariantPriceRange =
+    product.hasVariants && !product.isBundle && product.maxPriceCents !== product.priceCents;
 
   const stockChipClassName = isOutOfStock
     ? "bg-rose-100 text-rose-800 border border-rose-200 text-xs"
@@ -62,28 +64,42 @@ export function ProductDetailsModal({ isOpen, onClose, onAddProduct, showAddButt
           </div>
         )}
 
-        <ModalHeader className="flex flex-col pb-2">
-          <div className="flex items-center justify-between">
-            {product.name}
+        <ModalHeader className="flex flex-row items-start justify-between gap-3 pb-2">
+          <div className="flex flex-col min-w-0">
+            <span className="[overflow-wrap:anywhere]">{product.name}</span>
+            <span className="text-sm font-normal text-gray-500">{categoryNames}</span>
+          </div>
+          <div className="flex flex-wrap justify-end gap-1 shrink-0">
             {product.isBundle && (
               <Chip size="sm" className="bg-blue-100 text-xs text-blue-800 border border-blue-200">
                 {productDetailsTranslation("bundle")}
               </Chip>
             )}
+            {product.hasVariants && !product.isBundle && (
+              <Chip size="sm" className="bg-blue-100 text-xs text-blue-800 border border-blue-200">
+                {productDetailsTranslation("hasVariants")}
+              </Chip>
+            )}
           </div>
-          <span className="text-sm font-normal text-gray-500">{categoryNames}</span>
         </ModalHeader>
 
         <ModalBody className="space-y-3 pt-0">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-2xl font-bold text-green-800">{formatAmount(product.priceCents)}</h2>
+              <h2 className="text-2xl font-bold text-green-800">
+                {shouldShowVariantPriceRange ? (
+                  <span className="flex flex-wrap gap-x-1">
+                    <span>{formatAmount(product.priceCents)} -</span>
+                    <span>{formatAmount(product.maxPriceCents)}</span>
+                  </span>
+                ) : formatAmount(product.priceCents)}
+              </h2>
               <p className="text-xs">
                 SKU: <span className="text-gray-800">{product.SKU ?? "—"}</span>
               </p>
             </div>
             <Chip size="sm" className={stockChipClassName}>
-              {quantity} {productDetailsTranslation("stock")}
+              {quantity} {product.hasVariants && !product.isBundle ? productDetailsTranslation("totalStock") : productDetailsTranslation("stock")}
             </Chip>
           </div>
 

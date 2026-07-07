@@ -22,6 +22,7 @@ import pos.ambrosia.db.tables.PaymentMethodsTable
 import pos.ambrosia.db.tables.PaymentsTable
 import pos.ambrosia.db.tables.ProductBundleComponentsTable
 import pos.ambrosia.db.tables.ProductEntity
+import pos.ambrosia.db.tables.ProductVariantsTable
 import pos.ambrosia.db.tables.ProductsTable
 import pos.ambrosia.db.tables.TicketEntity
 import pos.ambrosia.db.tables.TicketPaymentsTable
@@ -63,6 +64,7 @@ class CheckoutService(
                 .map {
                     StoreOrderItem(
                         productId = it[OrderProductsTable.productId].value.toString(),
+                        variantId = it[OrderProductsTable.variantId],
                         quantity = it[OrderProductsTable.quantity],
                         priceAtOrder = it[OrderProductsTable.priceAtOrder],
                     )
@@ -78,6 +80,65 @@ class CheckoutService(
         )
     }
 
+    private fun firstActiveVariantId(productEntityId: EntityID<UUID>): UUID? =
+        ProductVariantsTable
+            .selectAll()
+            .where {
+                (ProductVariantsTable.productId eq productEntityId) and
+                    (ProductVariantsTable.isActive eq true)
+            }.firstOrNull()
+            ?.get(ProductVariantsTable.id)
+            ?.value
+
+    private fun decrementVariantStock(
+        productEntityId: EntityID<UUID>,
+        variantId: UUID,
+        quantity: Int,
+    ): Boolean {
+        val variantEntityId = EntityID(variantId, ProductVariantsTable)
+        val stockRowsUpdated =
+            ProductVariantsTable.update({
+                (ProductVariantsTable.id eq variantEntityId) and
+                    (ProductVariantsTable.productId eq productEntityId) and
+                    (ProductVariantsTable.isActive eq true) and
+                    (ProductVariantsTable.quantity greaterEq quantity)
+            }) {
+                it[ProductVariantsTable.quantity] = ProductVariantsTable.quantity - quantity
+            }
+        return stockRowsUpdated > 0
+    }
+
+    private fun decrementProductStock(
+        productEntityId: EntityID<UUID>,
+        quantity: Int,
+    ): Boolean {
+        var remainingQuantity = quantity
+        val activeVariantRows =
+            ProductVariantsTable
+                .selectAll()
+                .where {
+                    (ProductVariantsTable.productId eq productEntityId) and
+                        (ProductVariantsTable.isActive eq true) and
+                        (ProductVariantsTable.quantity greaterEq 1)
+                }.toList()
+
+        for (variantRow in activeVariantRows) {
+            if (remainingQuantity == 0) return true
+            val availableQuantity = variantRow[ProductVariantsTable.quantity]
+            val quantityToDeduct = minOf(availableQuantity, remainingQuantity)
+            val stockWasDeducted =
+                decrementVariantStock(
+                    productEntityId = productEntityId,
+                    variantId = variantRow[ProductVariantsTable.id].value,
+                    quantity = quantityToDeduct,
+                )
+            if (!stockWasDeducted) return false
+            remainingQuantity -= quantityToDeduct
+        }
+
+        return remainingQuantity == 0
+    }
+
     fun getStoreOrders(status: String? = null): List<StoreOrder> =
         transaction {
             val baseCondition = (OrdersTable.isDeleted eq false) and OrdersTable.tableId.isNull()
@@ -90,29 +151,29 @@ class CheckoutService(
 
     fun getStoreOrderById(id: String): StoreOrder? =
         transaction {
-            val uuid =
+            val orderUuid =
                 try {
                     UUID.fromString(id)
                 } catch (_: IllegalArgumentException) {
                     return@transaction null
                 }
             OrderEntity
-                .findById(uuid)
+                .findById(orderUuid)
                 ?.takeIf { !it.isDeleted && it.tableId == null }
                 ?.let { toStoreOrder(it) }
         }
 
     fun cancelStoreOrder(id: String): Boolean =
         transaction {
-            val uuid =
+            val orderUuid =
                 try {
                     UUID.fromString(id)
                 } catch (_: IllegalArgumentException) {
                     return@transaction false
                 }
-            val entity = OrderEntity.findById(uuid)
-            if (entity == null || entity.status != "open" || entity.tableId != null) return@transaction false
-            entity.status = "closed"
+            val orderEntity = OrderEntity.findById(orderUuid) ?: return@transaction false
+            if (orderEntity.status != "open" || orderEntity.tableId != null) return@transaction false
+            orderEntity.status = "closed"
             logger.info("Store order cancelled: $id")
             true
         }
@@ -172,6 +233,7 @@ class CheckoutService(
             UUID.fromString(request.paymentMethodId)
             UUID.fromString(request.currencyId)
             request.items.forEach { UUID.fromString(it.productId) }
+            request.items.mapNotNull { it.variantId }.forEach { UUID.fromString(it) }
         } catch (_: IllegalArgumentException) {
             return null
         }
@@ -191,41 +253,42 @@ class CheckoutService(
 
                 for (item in request.items) {
                     val productEntityId = EntityID(UUID.fromString(item.productId), ProductsTable)
-                    val product = ProductEntity.findById(productEntityId) ?: throw InsufficientStockException()
+                    val productEntity = ProductEntity.findById(productEntityId) ?: throw InsufficientStockException()
+                    val orderVariantId = item.variantId?.let { UUID.fromString(it) } ?: firstActiveVariantId(productEntityId)
 
-                    if (product.isBundle) {
-                        val components =
+                    if (orderVariantId == null) throw InsufficientStockException()
+
+                    if (productEntity.isBundle) {
+                        val componentRows =
                             ProductBundleComponentsTable
                                 .selectAll()
                                 .where { ProductBundleComponentsTable.bundleId eq productEntityId }
                                 .toList()
-                        for (row in components) {
-                            val needed = row[ProductBundleComponentsTable.quantity] * item.quantity
-                            val updatedRowCount =
-                                ProductsTable.update({
-                                    (ProductsTable.id eq row[ProductBundleComponentsTable.componentId]) and
-                                        (ProductsTable.isDeleted eq false) and
-                                        (ProductsTable.quantity greaterEq needed)
-                                }) {
-                                    it[ProductsTable.quantity] = ProductsTable.quantity - needed
-                                }
-                            if (updatedRowCount == 0) throw InsufficientStockException()
+                        if (componentRows.isEmpty()) throw InsufficientStockException()
+                        for (componentRow in componentRows) {
+                            val componentProductId = componentRow[ProductBundleComponentsTable.componentId]
+                            val componentVariantId = componentRow[ProductBundleComponentsTable.componentVariantId]?.value
+                            val componentQuantity = componentRow[ProductBundleComponentsTable.quantity] * item.quantity
+                            val componentStockWasDeducted =
+                                componentVariantId
+                                    ?.let { decrementVariantStock(componentProductId, it, componentQuantity) }
+                                    ?: decrementProductStock(componentProductId, componentQuantity)
+                            if (!componentStockWasDeducted) {
+                                throw InsufficientStockException()
+                            }
                         }
                     } else {
-                        val updated =
-                            ProductsTable.update({
-                                (ProductsTable.id eq productEntityId) and
-                                    (ProductsTable.isDeleted eq false) and
-                                    (ProductsTable.quantity greaterEq item.quantity)
-                            }) {
-                                it[ProductsTable.quantity] = ProductsTable.quantity - item.quantity
-                            }
-                        if (updated == 0) throw InsufficientStockException()
+                        val stockWasDeducted =
+                            item.variantId
+                                ?.let { decrementVariantStock(productEntityId, UUID.fromString(it), item.quantity) }
+                                ?: decrementProductStock(productEntityId, item.quantity)
+                        if (!stockWasDeducted) throw InsufficientStockException()
                     }
 
                     OrderProductsTable.insert {
                         it[orderId] = order.id
-                        it[productId] = productEntityId
+                        it[OrderProductsTable.productId] = productEntityId
+                        it[variantId] = orderVariantId.toString()
                         it[quantity] = item.quantity
                         it[priceAtOrder] = item.priceAtOrder
                     }

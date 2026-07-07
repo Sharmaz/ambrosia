@@ -6,11 +6,15 @@ import { useTranslations } from "next-intl";
 
 import { useUpload } from "@/components/hooks/useUpload";
 import { toArray } from "@/components/utils/array";
+import { toFiniteNumber } from "@/components/utils/numberParsers";
 import { httpClient, parseJsonResponse } from "@/lib/http";
 
 import { buildHttpError } from "../utils/buildHttpError";
 import { buildRequestPayload } from "../utils/buildRequestPayload";
+import { normalizeSku } from "../utils/normalizeSku";
 import { resolveImageUrl } from "../utils/resolveImageUrl";
+
+import { useProductVariants } from "./useProductVariants";
 
 export function useProducts() {
   const productsTranslation = useTranslations("products");
@@ -18,6 +22,7 @@ export function useProducts() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const { upload, isUploading } = useUpload();
+  const { updateVariant } = useProductVariants();
 
   const notifyMutationError = (mutationError) => {
     if (mutationError?.status === 409) {
@@ -36,10 +41,29 @@ export function useProducts() {
     });
   };
 
+  const notifyBundleComponentDeleteError = () => {
+    addToast({
+      title: productsTranslation("toasts.bundleComponentErrorTitle"),
+      description: productsTranslation("toasts.bundleComponentErrorDescription"),
+      color: "danger",
+    });
+  };
+
   const ensureSuccess = async (response) => {
     const responseBody = await parseJsonResponse(response, null);
     if (!response.ok) throw buildHttpError(response, responseBody);
     return responseBody;
+  };
+
+  const buildDefaultVariantPayload = (productForm) => {
+    const priceCents = Math.round(toFiniteNumber(productForm.productPrice) * 100);
+    return {
+      SKU: normalizeSku(productForm.productSKU),
+      priceCents,
+      costCents: priceCents,
+      quantity: productForm.isBundle ? 0 : toFiniteNumber(productForm.productStock),
+      isActive: true,
+    };
   };
 
   const fetchProducts = useCallback(async () => {
@@ -57,43 +81,48 @@ export function useProducts() {
     }
   }, []);
 
-  const addProduct = async (product) => {
+  const addProduct = async (productForm) => {
     try {
-      const uploadedUrl = await resolveImageUrl(product, upload);
+      const uploadedImageUrl = await resolveImageUrl(productForm, upload);
 
       const createProductResponse = await httpClient("/products", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(buildRequestPayload(product, uploadedUrl)),
+        body: JSON.stringify(buildRequestPayload(productForm, uploadedImageUrl)),
         notShowError: false,
       });
 
       const createdProduct = await ensureSuccess(createProductResponse);
       await fetchProducts();
       return createdProduct;
-    } catch (addError) {
-      notifyMutationError(addError);
-      throw addError;
+    } catch (addProductError) {
+      notifyMutationError(addProductError);
+      throw addProductError;
     }
   };
 
-  const updateProduct = async (product) => {
+  const updateProduct = async (productForm) => {
     try {
-      const uploadedUrl = await resolveImageUrl(product, upload);
+      const uploadedImageUrl = await resolveImageUrl(productForm, upload);
 
-      const updateProductResponse = await httpClient(`/products/${product.productId}`, {
+      const updateProductResponse = await httpClient(`/products/${productForm.productId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(buildRequestPayload(product, uploadedUrl, { includeId: true })),
+        body: JSON.stringify(buildRequestPayload(productForm, uploadedImageUrl, { includeId: true })),
         notShowError: false,
       });
 
       const updatedProduct = await ensureSuccess(updateProductResponse);
+
+      if (!productForm.hasVariants && productForm.productVariantId) {
+        await updateVariant(productForm.productId, productForm.productVariantId, buildDefaultVariantPayload(productForm));
+      }
+
       await fetchProducts();
       return updatedProduct;
-    } catch (updateError) {
-      notifyMutationError(updateError);
-      throw updateError;
+    } catch (updateProductError) {
+      notifyMutationError(updateProductError);
+      throw updateProductError;
     }
   };
 
@@ -105,16 +134,14 @@ export function useProducts() {
       });
       await ensureSuccess(deleteProductResponse);
       await fetchProducts();
-    } catch (deleteError) {
-      if (deleteError?.status === 409) {
-        addToast({
-          title: productsTranslation("toasts.bundleComponentErrorTitle"),
-          description: productsTranslation("toasts.bundleComponentErrorDescription"),
-          color: "danger",
-        });
-        return;
+      return true;
+    } catch (deleteProductError) {
+      if (deleteProductError?.status === 409) {
+        notifyBundleComponentDeleteError();
+        return false;
       }
-      notifyMutationError(deleteError);
+      notifyMutationError(deleteProductError);
+      return false;
     }
   };
 

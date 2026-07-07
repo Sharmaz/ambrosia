@@ -37,6 +37,10 @@ import pos.ambrosia.db.tables.PrinterConfigsTable
 import pos.ambrosia.db.tables.ProductBundleComponentsTable
 import pos.ambrosia.db.tables.ProductCategoriesTable
 import pos.ambrosia.db.tables.ProductEntity
+import pos.ambrosia.db.tables.ProductOptionTypesTable
+import pos.ambrosia.db.tables.ProductOptionValuesTable
+import pos.ambrosia.db.tables.ProductVariantEntity
+import pos.ambrosia.db.tables.ProductVariantsTable
 import pos.ambrosia.db.tables.ProductsTable
 import pos.ambrosia.db.tables.RoleEntity
 import pos.ambrosia.db.tables.RolePermissionsTable
@@ -57,6 +61,7 @@ import pos.ambrosia.db.tables.TicketsDishTable
 import pos.ambrosia.db.tables.TicketsTable
 import pos.ambrosia.db.tables.UserEntity
 import pos.ambrosia.db.tables.UsersTable
+import pos.ambrosia.db.tables.VariantOptionValuesTable
 import pos.ambrosia.db.tables.WalletInvoiceRatesTable
 import java.io.File
 import java.util.UUID
@@ -93,6 +98,10 @@ object ExposedTestDb {
                 ProductsTable,
                 ProductBundleComponentsTable,
                 ProductCategoriesTable,
+                ProductOptionTypesTable,
+                ProductOptionValuesTable,
+                ProductVariantsTable,
+                VariantOptionValuesTable,
                 DishesIngredientsTable,
                 ShiftsTable,
                 PrinterConfigsTable,
@@ -113,6 +122,10 @@ object ExposedTestDb {
                 PrinterConfigsTable,
                 ShiftsTable,
                 DishesIngredientsTable,
+                VariantOptionValuesTable,
+                ProductVariantsTable,
+                ProductOptionValuesTable,
+                ProductOptionTypesTable,
                 ProductCategoriesTable,
                 ProductBundleComponentsTable,
                 ProductsTable,
@@ -367,6 +380,7 @@ object ExposedTestDb {
     fun seedOrderProduct(
         orderId: String,
         productId: String,
+        variantId: String? = null,
         quantity: Int = 1,
         priceAtOrder: Int,
     ) {
@@ -374,6 +388,7 @@ object ExposedTestDb {
             OrderProductsTable.insert {
                 it[OrderProductsTable.orderId] = EntityID(UUID.fromString(orderId), OrdersTable)
                 it[OrderProductsTable.productId] = EntityID(UUID.fromString(productId), ProductsTable)
+                it[OrderProductsTable.variantId] = variantId
                 it[OrderProductsTable.quantity] = quantity
                 it[OrderProductsTable.priceAtOrder] = priceAtOrder
             }
@@ -454,41 +469,51 @@ object ExposedTestDb {
         sku: String? = null,
         description: String? = null,
         imageUrl: String? = null,
-        costCents: Int = 100,
         quantity: Int = 1,
         minStockThreshold: Int = 0,
         maxStockThreshold: Int = 0,
-        priceCents: Int = 200,
+        hasVariants: Boolean = false,
         isDeleted: Boolean = false,
         isBundle: Boolean = false,
+        priceCents: Int = 200,
+        costCents: Int? = null,
     ): String =
         transaction {
-            ProductEntity
-                .new(UUID.randomUUID()) {
-                    this.name = name
-                    this.sku = sku
-                    this.description = description
-                    this.imageUrl = imageUrl
-                    this.costCents = costCents
-                    this.quantity = quantity
-                    this.minStockThreshold = minStockThreshold
-                    this.maxStockThreshold = maxStockThreshold
-                    this.priceCents = priceCents
-                    this.isDeleted = isDeleted
-                    this.isBundle = isBundle
-                }.id.value
-                .toString()
+            val productId =
+                ProductEntity
+                    .new(UUID.randomUUID()) {
+                        this.name = name
+                        this.sku = sku
+                        this.description = description
+                        this.imageUrl = imageUrl
+                        this.minStockThreshold = minStockThreshold
+                        this.maxStockThreshold = maxStockThreshold
+                        this.hasVariants = hasVariants
+                        this.isDeleted = isDeleted
+                        this.isBundle = isBundle
+                    }.id.value
+            ProductVariantEntity.new(UUID.randomUUID()) {
+                this.productId = EntityID(productId, ProductsTable)
+                this.priceCents = priceCents
+                this.costCents = costCents
+                this.quantity = if (isBundle) 0 else quantity
+                this.isActive = true
+            }
+            productId.toString()
         }
 
     fun seedBundleComponent(
         bundleId: String,
         componentId: String,
+        componentVariantId: String? = null,
         quantity: Int = 1,
     ) {
         transaction {
             ProductBundleComponentsTable.insert {
                 it[ProductBundleComponentsTable.bundleId] = EntityID(UUID.fromString(bundleId), ProductsTable)
                 it[ProductBundleComponentsTable.componentId] = EntityID(UUID.fromString(componentId), ProductsTable)
+                it[ProductBundleComponentsTable.componentVariantId] =
+                    componentVariantId?.let { variantId -> EntityID(UUID.fromString(variantId), ProductVariantsTable) }
                 it[ProductBundleComponentsTable.quantity] = quantity
             }
         }

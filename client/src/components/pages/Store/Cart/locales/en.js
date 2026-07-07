@@ -9,13 +9,21 @@ const cartEn = {
     },
     card: {
       add: "Add",
+      hasVariants: "Variants",
+      noCategory: "No category",
       stock: "in stock",
       bundle: "Bundle",
       showProductDetails: "Show Details",
       showProductDescription: "Description",
-      errors: {
-        unknownCategory: "Unknown category",
-      },
+    },
+    variantSelector: {
+      title: "Select variant",
+      addToCart: "Add to cart",
+      cancel: "Cancel",
+      loading: "Loading...",
+      outOfStock: "Out of stock",
+      inStock: "in stock",
+      noVariantFound: "This combination is not available",
     },
     summary: {
       clearCart: "Remove All Items",
