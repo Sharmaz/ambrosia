@@ -21,7 +21,7 @@ function StatCard({ icon: Icon, label, value, secondaryValue }) {
 }
 
 export function NodeSummary({ info, totalBalance, currentRate, currencyAcronym, locale }) {
-  const t = useTranslations("wallet");
+  const walletTranslations = useTranslations("wallet");
 
   const totalBalanceFiat = currentRate != null
     ? formatFiat({
@@ -35,23 +35,23 @@ export function NodeSummary({ info, totalBalance, currentRate, currencyAcronym, 
     <div className="grid grid-cols-2 gap-4 mb-6">
       <StatCard
         icon={Wallet}
-        label={t("nodeInfo.totalBalance")}
+        label={walletTranslations("nodeInfo.totalBalance")}
         value={`${formatSats(totalBalance)} sats`}
         secondaryValue={totalBalanceFiat}
       />
       <StatCard
         icon={Globe}
-        label={t("nodeInfo.network")}
+        label={walletTranslations("nodeInfo.network")}
         value={info.chain}
       />
       <StatCard
         icon={Zap}
-        label={t("nodeInfo.channels")}
+        label={walletTranslations("nodeInfo.channels")}
         value={info.channels?.filter((channel) => channel.state === "Normal").length ?? 0}
       />
       <StatCard
         icon={Layers}
-        label={t("nodeInfo.block")}
+        label={walletTranslations("nodeInfo.block")}
         value={info.blockHeight}
       />
     </div>
