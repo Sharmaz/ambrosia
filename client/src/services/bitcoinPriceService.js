@@ -1,14 +1,10 @@
+const sharedPriceCache = new Map();
+
 class BitcoinPriceService {
   constructor() {
-    this.cache = new Map();
-    this.CACHE_DURATION = 5 * 60 * 1000;
+    this.cache = sharedPriceCache;
+    this.CACHE_DURATION = 60 * 1000;
     this.SATOSHIS_PER_BTC = 100000000;
-    this.FALLBACK_PRICES = {
-      usd: 45000,
-      mxn: 900000,
-      eur: 42000,
-      btc: 1,
-    };
   }
 
   async getBitcoinPrice(currency = "usd") {
@@ -53,13 +49,6 @@ class BitcoinPriceService {
       return price;
     } catch (error) {
       console.warn(`Error fetching BTC price for ${currency}:`, error.message);
-
-      const fallbackPrice = this.FALLBACK_PRICES[currency.toLowerCase()];
-      if (fallbackPrice) {
-        console.warn(`Using fallback price for ${currency}: ${fallbackPrice}`);
-        return fallbackPrice;
-      }
-
       throw new Error(`Unable to get BTC price for ${currency}`);
     }
   }
