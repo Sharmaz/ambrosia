@@ -1,4 +1,11 @@
 import {
+  deleteCheckout,
+  markCheckoutCompleted,
+  registerBtcCheckoutSync,
+  savePendingCheckout,
+} from "@/lib/btcCheckoutStore";
+
+import {
   classifyPaymentMethod,
   PAYMENT_METHODS,
 } from "../utils/paymentMethods";
@@ -89,6 +96,7 @@ export function buildHandlePay({
           invoiceDescription,
           selectedPaymentMethod,
           currencyId,
+          userId: user.userId,
         });
         return;
       }
@@ -130,6 +138,7 @@ export function buildHandlePay({
       await printCustomerReceipt?.({
         items: cartItems,
         totalCents: paymentAmounts.total,
+        discountAmountCents: paymentAmounts.discountAmount,
         ticketId: storeCheckoutResult.ticketId,
       });
 
@@ -146,10 +155,35 @@ export function buildHandlePay({
 }
 
 export function buildHandleBtcInvoiceReady({ setBtcPaymentConfig }) {
-  return (data) => {
-    setBtcPaymentConfig((prev) => {
-      if (!prev) return prev;
-      return { ...prev, invoiceData: data };
+  return (invoiceReadyData) => {
+    setBtcPaymentConfig((prevConfig) => {
+      if (!prevConfig) return prevConfig;
+
+      if (invoiceReadyData?.invoice?.paymentHash) {
+        const checkoutPayload = {
+          paymentHash: invoiceReadyData.invoice.paymentHash,
+          userId: prevConfig.userId,
+          items: (prevConfig.cartItems || []).map((item) => ({
+            productId: String(item?.productId ?? item?.id ?? ""),
+            variantId: item?.variantId ?? null,
+            quantity: Number(item?.quantity) || 0,
+            priceAtOrder: Number(item?.price) || 0,
+          })),
+          paymentMethodId: prevConfig.selectedPaymentMethod,
+          currencyId: prevConfig.currencyId,
+          amount: prevConfig.amountFiat,
+          discountAmount: prevConfig.discountAmount ?? 0,
+          transactionId: invoiceReadyData.invoice.serialized || "",
+          satoshiAmount: invoiceReadyData.satoshis ?? null,
+          exchangeRateAtPayment: invoiceReadyData.exchangeRate ?? null,
+          exchangeRateCurrency: prevConfig.currencyAcronym ?? null,
+          fiatAmountAtPayment: prevConfig.amountFiat ?? null,
+        };
+        savePendingCheckout({ paymentHash: invoiceReadyData.invoice.paymentHash, checkoutPayload }).catch(() => {});
+        registerBtcCheckoutSync().catch(() => {});
+      }
+
+      return { ...prevConfig, invoiceData: invoiceReadyData };
     });
   };
 }
@@ -162,6 +196,8 @@ async function runDeferredCheckout({
   buildOnPayPayload,
   successKey,
   errorKey,
+  pendingKey,
+  onCheckoutSuccess,
   finalize,
   dispatch,
   onPay,
@@ -171,15 +207,25 @@ async function runDeferredCheckout({
   user,
   printCustomerReceipt,
   refreshShiftTickets,
+  receiptDiscountAmount,
 }) {
   dispatch({ type: "start" });
   try {
     const storeCheckoutResult = await processCheckout({ ...checkoutArgs, user });
 
+    if (storeCheckoutResult?.pending) {
+      onResetCart?.();
+      notifySuccess(pendingKey);
+      return;
+    }
+
+    await onCheckoutSuccess?.(storeCheckoutResult);
+
     await refreshShiftTickets?.();
     await printCustomerReceipt?.({
       items: receiptItems,
       totalCents: receiptTotal,
+      discountAmountCents: receiptDiscountAmount,
       ticketId: storeCheckoutResult.ticketId,
       invoice: receiptInvoice,
     });
@@ -201,6 +247,8 @@ export function buildHandleBtcComplete({ getConfig, setConfig, ...context }) {
     const config = getConfig();
     if (!config) return;
 
+    const paymentHash = completionData?.invoice?.paymentHash ?? null;
+
     await runDeferredCheckout({
       ...context,
       checkoutArgs: {
@@ -217,12 +265,13 @@ export function buildHandleBtcComplete({ getConfig, setConfig, ...context }) {
         transactionId: completionData?.invoice?.serialized || "",
         satoshiAmount: completionData?.satoshis ?? null,
         exchangeRateAtPayment: config.invoiceData?.exchangeRate ?? null,
-        paymentHash: completionData?.invoice?.paymentHash ?? null,
+        paymentHash,
         exchangeRateCurrency: config.currencyAcronym ?? null,
         fiatAmountAtPayment: config.amountFiat ?? null,
       },
       receiptItems: config.cartItems,
       receiptTotal: config.total,
+      receiptDiscountAmount: config.discountAmount,
       receiptInvoice: completionData?.invoice?.serialized || "",
       buildOnPayPayload: (storeCheckoutResult) => ({
         items: config.cartItems,
@@ -237,6 +286,12 @@ export function buildHandleBtcComplete({ getConfig, setConfig, ...context }) {
       }),
       successKey: "success.btcPaid",
       errorKey: "errors.btcComplete",
+      pendingKey: "success.btcConfirming",
+      onCheckoutSuccess: async (storeCheckoutResult) => {
+        if (!paymentHash) return;
+        await markCheckoutCompleted(paymentHash, storeCheckoutResult).catch(() => {});
+        await deleteCheckout(paymentHash).catch(() => {});
+      },
       finalize: () => setConfig((previousConfig) => (
         previousConfig ? { ...previousConfig, paymentCompleted: true } : previousConfig
       )),
@@ -259,6 +314,7 @@ export function buildHandleCashComplete({ getConfig, setConfig, ...context }) {
       },
       receiptItems: config.cartItems,
       receiptTotal: config.paymentAmounts.total,
+      receiptDiscountAmount: config.paymentAmounts.discountAmount,
       buildOnPayPayload: (storeCheckoutResult) => ({
         items: config.cartItems,
         ...config.paymentAmounts,
@@ -289,6 +345,7 @@ export function buildHandleCardComplete({ getConfig, setConfig, ...context }) {
       },
       receiptItems: config.cartItems,
       receiptTotal: config.paymentAmounts.total,
+      receiptDiscountAmount: config.paymentAmounts.discountAmount,
       buildOnPayPayload: (storeCheckoutResult) => ({
         items: config.cartItems,
         ...config.paymentAmounts,

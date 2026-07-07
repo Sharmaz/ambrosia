@@ -6,148 +6,143 @@ import { useTranslations } from "next-intl";
 
 import { useUpload } from "@/components/hooks/useUpload";
 import { toArray } from "@/components/utils/array";
+import { toFiniteNumber } from "@/components/utils/numberParsers";
 import { httpClient, parseJsonResponse } from "@/lib/http";
-import { useFetchList } from "@/lib/http/useFetchList";
+
+import { buildHttpError } from "../utils/buildHttpError";
+import { buildRequestPayload } from "../utils/buildRequestPayload";
+import { normalizeSku } from "../utils/normalizeSku";
+import { resolveImageUrl } from "../utils/resolveImageUrl";
+
+import { useProductVariants } from "./useProductVariants";
 
 export function useProducts() {
-  const t = useTranslations("products");
-  const { fetchList } = useFetchList();
+  const productsTranslation = useTranslations("products");
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const { upload, isUploading } = useUpload();
+  const { updateVariant } = useProductVariants();
 
-  const normalizeSku = (sku) => sku?.trim() || null;
-
-  const buildRequestPayload = (product, imageUrl, { includeId = false } = {}) => {
-    const priceNumber = Number(product.productPrice ?? 0);
-    const priceCents = Number.isFinite(priceNumber)
-      ? Math.round(priceNumber * 100)
-      : 0;
-    const quantityNumber = Number(product.productStock ?? 0);
-    const minStockNumber = Number(product.productMinStock ?? 0);
-    const maxStockNumber = Number(product.productMaxStock ?? 0);
-
-    return {
-      ...(includeId ? { id: product.productId } : {}),
-      SKU: normalizeSku(product.productSKU),
-      name: product.productName,
-      description: product.productDescription || null,
-      imageUrl,
-      costCents: priceCents,
-      categoryIds: toArray(product.productCategories),
-      quantity: Number.isFinite(quantityNumber) ? quantityNumber : 0,
-      minStockThreshold: Number.isFinite(minStockNumber) ? minStockNumber : 0,
-      maxStockThreshold: Number.isFinite(maxStockNumber) ? maxStockNumber : 0,
-      priceCents,
-    };
-  };
-
-  const buildHttpError = (response, payload) => ({
-    status: response.status,
-    message: payload?.message || "Request failed",
-  });
-
-  const notifyMutationError = (error) => {
-    if (error?.status === 409) {
+  const notifyMutationError = (mutationError) => {
+    if (mutationError?.status === 409) {
       addToast({
-        title: t("toasts.duplicateSkuTitle"),
-        description: t("toasts.duplicateSkuDescription"),
+        title: productsTranslation("toasts.duplicateSkuTitle"),
+        description: productsTranslation("toasts.duplicateSkuDescription"),
         color: "danger",
       });
       return;
     }
 
     addToast({
-      title: t("toasts.genericErrorTitle"),
-      description: t("toasts.genericErrorDescription"),
+      title: productsTranslation("toasts.genericErrorTitle"),
+      description: productsTranslation("toasts.genericErrorDescription"),
+      color: "danger",
+    });
+  };
+
+  const notifyBundleComponentDeleteError = () => {
+    addToast({
+      title: productsTranslation("toasts.bundleComponentErrorTitle"),
+      description: productsTranslation("toasts.bundleComponentErrorDescription"),
       color: "danger",
     });
   };
 
   const ensureSuccess = async (response) => {
-    const payload = await parseJsonResponse(response, null);
-    if (!response.ok) throw buildHttpError(response, payload);
-    return payload;
+    const responseBody = await parseJsonResponse(response, null);
+    if (!response.ok) throw buildHttpError(response, responseBody);
+    return responseBody;
+  };
+
+  const buildDefaultVariantPayload = (productForm) => {
+    const priceCents = Math.round(toFiniteNumber(productForm.productPrice) * 100);
+    return {
+      SKU: normalizeSku(productForm.productSKU),
+      priceCents,
+      costCents: priceCents,
+      quantity: productForm.isBundle ? 0 : toFiniteNumber(productForm.productStock),
+      isActive: true,
+    };
   };
 
   const fetchProducts = useCallback(async () => {
     setLoading(true);
     setError(null);
-
     try {
-      const productsData = await fetchList("/products");
-      if (productsData === null) return;
-      setProducts(toArray(productsData));
-    } catch (error) {
-      console.error("Error fetching products:", error);
-      setError(error);
+      const productsResponse = await httpClient("/products");
+      if (!productsResponse.ok) return;
+      const fetchedProducts = await parseJsonResponse(productsResponse, []);
+      setProducts(toArray(fetchedProducts));
+    } catch (loadError) {
+      setError(loadError);
     } finally {
       setLoading(false);
     }
-  }, [fetchList]);
+  }, []);
 
-  const addProduct = async (product) => {
+  const addProduct = async (productForm) => {
     try {
-      let uploadedUrl = product.productImageUrl || null;
-      if (product.productImage instanceof File) {
-        const uploads = await upload([product.productImage]);
-        uploadedUrl = uploads?.[0]?.url || uploads?.[0]?.path || null;
-      }
+      const uploadedImageUrl = await resolveImageUrl(productForm, upload);
 
-      const response = await httpClient("/products", {
+      const createProductResponse = await httpClient("/products", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(buildRequestPayload(product, uploadedUrl)),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(buildRequestPayload(productForm, uploadedImageUrl)),
         notShowError: false,
       });
 
-      const payload = await ensureSuccess(response);
+      const createdProduct = await ensureSuccess(createProductResponse);
       await fetchProducts();
-      return payload;
-    } catch (error) {
-      notifyMutationError(error);
-      throw error;
+      return createdProduct;
+    } catch (addProductError) {
+      notifyMutationError(addProductError);
+      throw addProductError;
     }
   };
 
-  const updateProduct = async (product) => {
+  const updateProduct = async (productForm) => {
     try {
-      let uploadedUrl = product.productImageUrl || null;
-      if (product.productImage instanceof File) {
-        const uploads = await upload([product.productImage]);
-        uploadedUrl = uploads?.[0]?.url || uploads?.[0]?.path || null;
-      } else if (product.productImageRemoved) {
-        uploadedUrl = null;
-      }
+      const uploadedImageUrl = await resolveImageUrl(productForm, upload);
 
-      const response = await httpClient(`/products/${product.productId}`, {
+      const updateProductResponse = await httpClient(`/products/${productForm.productId}`, {
         method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(buildRequestPayload(product, uploadedUrl, { includeId: true })),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(buildRequestPayload(productForm, uploadedImageUrl, { includeId: true })),
         notShowError: false,
       });
 
-      const payload = await ensureSuccess(response);
+      const updatedProduct = await ensureSuccess(updateProductResponse);
+
+      if (!productForm.hasVariants && productForm.productVariantId) {
+        await updateVariant(productForm.productId, productForm.productVariantId, buildDefaultVariantPayload(productForm));
+      }
+
       await fetchProducts();
-      return payload;
-    } catch (error) {
-      notifyMutationError(error);
-      throw error;
+      return updatedProduct;
+    } catch (updateProductError) {
+      notifyMutationError(updateProductError);
+      throw updateProductError;
     }
   };
 
   const deleteProduct = async (product) => {
-    await httpClient(`/products/${product.id}`, {
-      method: "DELETE",
-      notShowError: false,
-    });
-
-    await fetchProducts();
+    try {
+      const deleteProductResponse = await httpClient(`/products/${product.id}`, {
+        method: "DELETE",
+        notShowError: false,
+      });
+      await ensureSuccess(deleteProductResponse);
+      await fetchProducts();
+      return true;
+    } catch (deleteProductError) {
+      if (deleteProductError?.status === 409) {
+        notifyBundleComponentDeleteError();
+        return false;
+      }
+      notifyMutationError(deleteProductError);
+      return false;
+    }
   };
 
   useEffect(() => {

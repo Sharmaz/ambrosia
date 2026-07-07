@@ -78,8 +78,12 @@ class TicketFactory(
 
                 ElementType.TOTAL_ROW -> {
                     val label = content.ifEmpty { "TOTAL" }
-                    val row = formatTicketLine(label, data.total.toString())
                     escpos.writeLF(style, "-".repeat(DEFAULT_TICKET_WIDTH))
+                    if (data.discountAmount > 0) {
+                        val discountRow = formatTicketLine("DISCOUNT", "-${data.discountAmount}")
+                        escpos.writeLF(style, discountRow)
+                    }
+                    val row = formatTicketLine(label, data.total.toString())
                     escpos.writeLF(style, row)
                 }
 
@@ -159,6 +163,7 @@ class TicketFactory(
             put("{{ticket.roomName}}", data.roomName)
             put("{{ticket.date}}", data.date)
             put("{{ticket.total}}", data.total.toString())
+            put("{{ticket.discountAmount}}", data.discountAmount.toString())
             put("{{ticket.invoice}}", data.invoice ?: "")
             config?.let {
                 put("{{config.businessName}}", it.businessName)

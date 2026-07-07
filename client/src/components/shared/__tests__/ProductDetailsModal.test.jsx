@@ -17,9 +17,9 @@ jest.mock("@heroui/react", () => ({
   ModalContent: ({ children }) => (
     <div>{typeof children === "function" ? children() : children}</div>
   ),
-  ModalHeader: ({ children }) => <div data-testid="modal-header">{children}</div>,
-  ModalBody: ({ children }) => <div data-testid="modal-body">{children}</div>,
-  ModalFooter: ({ children }) => <div data-testid="modal-footer">{children}</div>,
+  ModalHeader: ({ children }) => <div>{children}</div>,
+  ModalBody: ({ children }) => <div>{children}</div>,
+  ModalFooter: ({ children }) => <div>{children}</div>,
   Button: ({ children, onPress, isDisabled }) => (
     <button onClick={onPress} disabled={isDisabled}>
       {children}
@@ -135,5 +135,19 @@ describe("ProductDetailsModal", () => {
     );
 
     expect(screen.getByText("add")).toBeDisabled();
+  });
+
+  it("shows bundle chip in header when product is a bundle", () => {
+    render(
+      <ProductDetailsModal {...defaultProps} product={{ ...baseProduct, isBundle: true }} />,
+    );
+
+    expect(screen.getByText("bundle")).toBeInTheDocument();
+  });
+
+  it("does not show bundle chip when product is not a bundle", () => {
+    render(<ProductDetailsModal {...defaultProps} />);
+
+    expect(screen.queryByText("bundle")).not.toBeInTheDocument();
   });
 });

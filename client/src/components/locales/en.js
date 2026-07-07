@@ -51,11 +51,14 @@ const componentsEn = {
     takePhoto: "Take a photo",
   },
   productDetails: {
+    bundle: "Bundle",
     description: "Description",
     close: "Close",
     add: "Add",
     stock: "in stock",
-    unknownCategory: "Unknown category",
+    totalStock: "total in stock",
+    hasVariants: "Variants",
+    noCategory: "No category",
   },
   shifts: {
     requiredOpenShiftTitle: "Open Shift Required",

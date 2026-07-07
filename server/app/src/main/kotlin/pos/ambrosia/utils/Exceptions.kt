@@ -52,10 +52,6 @@ class DuplicateUserNameException(
     message: String = "User name already exists",
 ) : IllegalStateException(message)
 
-class DuplicateProductSkuException(
-    message: String = "SKU already exists",
-) : IllegalStateException(message)
-
 class MissingRoleException(
     message: String = "No assigned role for this user, contact Admin",
 ) : Exception(message)
@@ -79,3 +75,11 @@ class InitialSetupException(
 class DatabaseException(
     message: String = "Database operation failed",
 ) : RuntimeException(message)
+
+class PaymentNotConfirmedException(
+    message: String = "Payment not yet confirmed",
+) : RuntimeException(message)
+
+class ProductIsBundleComponentException(
+    val bundleNames: List<String>,
+) : IllegalStateException("Product is a component of bundles: ${bundleNames.joinToString(", ")}")

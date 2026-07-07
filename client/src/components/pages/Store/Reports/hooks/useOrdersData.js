@@ -16,6 +16,7 @@ export function useOrdersData(sales) {
       exchangeRateAtPayment,
       exchangeRateCurrency,
       fiatAmountAtPayment,
+      discountAmount,
     } of sales) {
       if (!byOrder[orderId]) {
         byOrder[orderId] = {
@@ -25,8 +26,10 @@ export function useOrdersData(sales) {
           userName,
           paymentMethod,
           items: [],
+          subtotal: 0,
           total: 0,
           itemCount: 0,
+          discountAmount: discountAmount ?? 0,
           satoshiAmount: satoshiAmount ?? null,
           exchangeRateAtPayment: exchangeRateAtPayment ?? null,
           exchangeRateCurrency: exchangeRateCurrency ?? null,
@@ -34,9 +37,14 @@ export function useOrdersData(sales) {
         };
       }
       byOrder[orderId].items.push({ productName, quantity, priceAtOrder });
-      byOrder[orderId].total += quantity * priceAtOrder;
+      byOrder[orderId].subtotal += quantity * priceAtOrder;
       byOrder[orderId].itemCount += quantity;
     }
-    return Object.values(byOrder).sort((a, b) => b.date.localeCompare(a.date));
+    return Object.values(byOrder)
+      .map((order) => ({
+        ...order,
+        total: Math.max(order.subtotal - order.discountAmount, 0),
+      }))
+      .sort((newerOrder, olderOrder) => olderOrder.date.localeCompare(newerOrder.date));
   }, [sales]);
 }

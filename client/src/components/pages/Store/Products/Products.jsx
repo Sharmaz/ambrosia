@@ -10,12 +10,14 @@ import { PageHeader } from "@components/shared/PageHeader";
 
 import { useCategories } from "../hooks/useCategories";
 import { useProducts } from "../hooks/useProducts";
+import { useProductVariants } from "../hooks/useProductVariants";
 
 import { AddProductsModal } from "./AddProductsModal";
 import { Categories } from "./Categories";
 import { DeleteProductsModal } from "./DeleteProductsModal";
 import { EditProductsModal } from "./EditProductsModal";
 import { ProductsList } from "./ProductsList";
+import { ProductVariantsModal } from "./ProductVariantsModal";
 
 function createEmptyProductForm() {
   return {
@@ -28,18 +30,25 @@ function createEmptyProductForm() {
     productStock: 1,
     productMinStock: 0,
     productMaxStock: 0,
+    hasVariants: false,
+    productVariantId: null,
     productImage: null,
     productImageUrl: "",
     productImageRemoved: false,
+    isBundle: false,
+    bundleComponents: [],
   };
 }
 
 export function Products() {
+  const productsTranslation = useTranslations("products");
   const [addProductsShowModal, setAddProductsShowModal] = useState(false);
   const [editProductsShowModal, setEditProductsShowModal] = useState(false);
   const [deleteProductsShowModal, setDeleteProductsShowModal] = useState(false);
   const [productForm, setProductForm] = useState(createEmptyProductForm);
   const [productToDelete, setProductToDelete] = useState(null);
+  const [variantsProduct, setVariantsProduct] = useState(null);
+
   const { products, addProduct, updateProduct, deleteProduct, isUploading, refetch: refetchProducts } = useProducts();
   const {
     categories,
@@ -49,9 +58,10 @@ export function Products() {
     deleteCategory,
     refetch: refetchCategories,
   } = useCategories("product");
+  const { fetchProductDetail } = useProductVariants();
 
-  const handleProductFormChange = (newData) => {
-    setProductForm((prev) => ({ ...prev, ...newData }));
+  const handleProductFormChange = (productFormUpdates) => {
+    setProductForm((previousProductForm) => ({ ...previousProductForm, ...productFormUpdates }));
   };
 
   const resetProductForm = () => {
@@ -68,19 +78,33 @@ export function Products() {
     setEditProductsShowModal(false);
   };
 
-  const handleEditProduct = (product) => {
+  const handleEditProduct = async (product) => {
+    const productDetail = await fetchProductDetail(product.id);
+    if (!productDetail) return;
+
+    const primaryVariant = productDetail.variants?.[0];
+
     setProductForm({
       productId: product.id,
       productName: product.name,
-      productDescription: product.description,
+      productDescription: product.description ?? "",
       productCategories: toArray(product.categoryIds),
-      productSKU: product.SKU,
-      productPrice: product.priceCents ? product.priceCents / 100 : "",
-      productStock: product.quantity,
+      productSKU: product.SKU ?? "",
+      hasVariants: product.isBundle ? false : (product.hasVariants ?? false),
+      productVariantId: primaryVariant?.id ?? null,
+      productPrice: primaryVariant?.priceCents ? primaryVariant.priceCents / 100 : "",
+      productStock: primaryVariant?.quantity ?? 0,
       productMinStock: product.minStockThreshold ?? 0,
       productMaxStock: product.maxStockThreshold ?? 0,
       productImage: null,
-      productImageUrl: product.imageUrl,
+      productImageUrl: product.imageUrl ?? "",
+      productImageRemoved: false,
+      isBundle: product.isBundle ?? false,
+      bundleComponents: product.bundleComponents?.map((bundleComponent) => ({
+        productId: bundleComponent.componentId,
+        variantId: bundleComponent.variantId ?? null,
+        quantity: bundleComponent.quantity,
+      })) ?? [],
     });
 
     setEditProductsShowModal(true);
@@ -91,17 +115,24 @@ export function Products() {
     setDeleteProductsShowModal(true);
   };
 
+  const handleManageVariants = (product) => {
+    setVariantsProduct(product);
+  };
+
   const handleRefreshData = async () => {
     await Promise.all([refetchProducts(), refetchCategories()]);
   };
 
-  const t = useTranslations("products");
+  const handleCloseVariantsModal = () => {
+    setVariantsProduct(null);
+    refetchProducts();
+  };
 
   return (
     <>
       <PageHeader
-        title={t("title")}
-        subtitle={t("subtitle")}
+        title={productsTranslation("title")}
+        subtitle={productsTranslation("subtitle")}
         actions={(
           <RequirePermission allOf={["products_create"]}>
             <Button
@@ -112,7 +143,7 @@ export function Products() {
                 setAddProductsShowModal(true);
               }}
             >
-              {t("addProduct")}
+              {productsTranslation("addProduct")}
             </Button>
           </RequirePermission>
         )}
@@ -123,6 +154,7 @@ export function Products() {
           categories={categories}
           onEditProduct={handleEditProduct}
           onDeleteProduct={handleDeleteProduct}
+          onManageVariants={handleManageVariants}
         />
       </div>
 
@@ -130,6 +162,7 @@ export function Products() {
         addProductsShowModal={addProductsShowModal}
         onClose={handleCloseAddProductsModal}
         data={productForm}
+        allProducts={products}
         addProduct={addProduct}
         isUploading={isUploading}
         categories={categories}
@@ -141,6 +174,7 @@ export function Products() {
 
       <EditProductsModal
         data={productForm}
+        allProducts={products}
         onChange={handleProductFormChange}
         updateProduct={updateProduct}
         isUploading={isUploading}
@@ -152,13 +186,19 @@ export function Products() {
         onClose={handleCloseEditProductsModal}
       />
 
+      <ProductVariantsModal
+        product={variantsProduct}
+        isOpen={!!variantsProduct}
+        onClose={handleCloseVariantsModal}
+      />
+
       <DeleteProductsModal
         product={productToDelete}
         deleteProductsShowModal={deleteProductsShowModal}
         setDeleteProductsShowModal={setDeleteProductsShowModal}
-        onConfirm={() => {
-          setDeleteProductsShowModal(false);
-          deleteProduct(productToDelete);
+        onConfirm={async () => {
+          const wasDeleted = await deleteProduct(productToDelete);
+          if (wasDeleted) setDeleteProductsShowModal(false);
         }}
       />
 

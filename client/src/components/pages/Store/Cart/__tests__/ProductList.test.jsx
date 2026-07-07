@@ -6,7 +6,7 @@ import { ProductList } from "../ProductList";
 
 jest.mock("@/components/hooks/useCurrency", () => ({
   useCurrency: () => ({
-    formatAmount: (value) => `fmt-${value}`,
+    formatAmount: (amountCents) => `fmt-${amountCents}`,
   }),
 }));
 
@@ -19,6 +19,7 @@ jest.mock("@heroui/react", () => ({
       <div>{children}</div>
     </div>
   ),
+  Chip: ({ children, className }) => <span className={className}>{children}</span>,
 }));
 
 jest.mock("@/components/shared/ViewButton", () => ({
@@ -97,7 +98,7 @@ describe("ProductList", () => {
     expect(screen.getByTestId("product-image-placeholder-2")).toBeInTheDocument();
     expect(screen.getAllByText("SKU:")).toHaveLength(2);
     expect(screen.getByText("jade-wallet")).toBeInTheDocument();
-    expect(screen.getByText("card.errors.unknownCategory")).toBeInTheDocument();
+    expect(screen.getByText("card.noCategory")).toBeInTheDocument();
   });
 
   it("calls onAddProduct when add button is clicked", () => {
@@ -210,5 +211,53 @@ describe("ProductList", () => {
     fireEvent.click(screen.getByText("close-modal"));
 
     expect(screen.queryByTestId("product-details-modal")).not.toBeInTheDocument();
+  });
+
+  it("shows bundle chip for bundle products", () => {
+    render(
+      <I18nProvider>
+        <ProductList
+          products={[{ ...products[0], isBundle: true }]}
+          categories={categories}
+          onAddProduct={jest.fn()}
+        />
+      </I18nProvider>,
+    );
+
+    expect(screen.getAllByText("card.bundle")).not.toHaveLength(0);
+  });
+
+  it("does not show bundle chip for non-bundle products", () => {
+    render(
+      <I18nProvider>
+        <ProductList
+          products={products}
+          categories={categories}
+          onAddProduct={jest.fn()}
+        />
+      </I18nProvider>,
+    );
+
+    expect(screen.queryByText("card.bundle")).not.toBeInTheDocument();
+  });
+
+  it("uses shared stock status styles with the fixed low-stock threshold", () => {
+    render(
+      <I18nProvider>
+        <ProductList
+          products={[
+            { ...products[0], id: "out", quantity: 0 },
+            { ...products[0], id: "low", quantity: 10 },
+            { ...products[0], id: "ok", quantity: 11 },
+          ]}
+          categories={categories}
+          onAddProduct={jest.fn()}
+        />
+      </I18nProvider>,
+    );
+
+    expect(screen.getByText("0 card.stock")).toHaveClass("bg-rose-100");
+    expect(screen.getByText("10 card.stock")).toHaveClass("bg-amber-100");
+    expect(screen.getByText("11 card.stock")).toHaveClass("bg-green-200");
   });
 });

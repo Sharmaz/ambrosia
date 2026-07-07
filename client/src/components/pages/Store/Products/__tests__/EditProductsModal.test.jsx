@@ -12,6 +12,10 @@ jest.mock("../CategorySelector", () => ({
   ),
 }));
 
+jest.mock("../BundleProductSelector", () => ({
+  BundleProductSelector: () => <div data-testid="bundle-product-selector" />,
+}));
+
 jest.mock("@heroui/react", () => {
   const actual = jest.requireActual("@heroui/react");
   const NumberInput = ({
@@ -23,14 +27,15 @@ jest.mock("@heroui/react", () => {
     startContent,
     minValue,
     maxValue,
+    classNames,
     ...props
   }) => (
     <input
       aria-label={label}
       type="number"
       value={value}
-      onChange={(e) => {
-        const parsed = Number(e.target.value);
+      onChange={(numberInputChangeEvent) => {
+        const parsed = Number(numberInputChangeEvent.target.value);
         const clamped = Number.isNaN(parsed) ? "" : Math.max(0, parsed);
         onValueChange?.(clamped);
       }}
@@ -38,7 +43,35 @@ jest.mock("@heroui/react", () => {
     />
   );
 
-  return { ...actual, NumberInput };
+  const Switch = ({ children, isSelected, onValueChange }) => (
+    <label>
+      <input
+        data-testid={children === "modal.isBundle" ? "bundle-switch" : "variants-switch"}
+        type="checkbox"
+        checked={isSelected ?? false}
+        onChange={(switchChangeEvent) => onValueChange?.(switchChangeEvent.target.checked)}
+      />
+      {children}
+    </label>
+  );
+
+  const Button = ({
+    children,
+    onPress,
+    isDisabled,
+    disabled,
+    type = "button",
+    isLoading,
+    isIconOnly,
+    fullWidth,
+    ...buttonProps
+  }) => (
+    <button type={type} onClick={onPress} disabled={isDisabled || disabled || isLoading} {...buttonProps}>
+      {children}
+    </button>
+  );
+
+  return { ...actual, Button, NumberInput, Switch };
 });
 
 jest.mock("@/components/hooks/useCurrency", () => ({
@@ -192,6 +225,77 @@ describe("EditProductsModal", () => {
     expect(onClose).toHaveBeenCalled();
   });
 
+  it("renders the bundle toggle", () => {
+    renderModal();
+
+    expect(screen.getByText("modal.isBundle")).toBeInTheDocument();
+  });
+
+  it("hides stock field when product is a bundle", () => {
+    renderModal({ data: { ...baseData, isBundle: true } });
+
+    expect(screen.queryByLabelText("modal.productStockLabel")).not.toBeInTheDocument();
+  });
+
+  it("shows BundleComponentSelector when product is a bundle", () => {
+    renderModal({ data: { ...baseData, isBundle: true } });
+
+    expect(screen.getByTestId("bundle-product-selector")).toBeInTheDocument();
+  });
+
+  it("requires bundle components before saving a bundle", () => {
+    const updateProduct = jest.fn();
+    renderModal({
+      updateProduct,
+      data: { ...baseData, isBundle: true, bundleComponents: [] },
+    });
+
+    expect(screen.getByText("modal.bundleComponentsRequired")).toBeInTheDocument();
+    expect(screen.getByText("modal.editButton")).toBeDisabled();
+
+    fireEvent.click(screen.getByText("modal.editButton"));
+
+    expect(updateProduct).not.toHaveBeenCalled();
+  });
+
+  it("calls onChange with bundle fields when bundle toggle is switched on", () => {
+    const onChange = jest.fn();
+    renderModal({ onChange });
+
+    fireEvent.click(screen.getByTestId("bundle-switch"));
+
+    expect(onChange).toHaveBeenCalledWith({
+      isBundle: true,
+      hasVariants: false,
+      bundleComponents: [],
+      productStock: 0,
+      productMinStock: 0,
+      productMaxStock: 0,
+    });
+  });
+
+  it("asks for confirmation before converting a variant product to a bundle", () => {
+    const onChange = jest.fn();
+    renderModal({ data: { ...baseData, hasVariants: true, isBundle: false }, onChange });
+
+    fireEvent.click(screen.getByTestId("bundle-switch"));
+
+    expect(screen.getByText("modal.confirmBundleConversionTitle")).toBeInTheDocument();
+    expect(screen.getByText("modal.confirmBundleConversionDescription")).toBeInTheDocument();
+    expect(onChange).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByText("modal.confirmBundleConversionButton"));
+
+    expect(onChange).toHaveBeenCalledWith({
+      isBundle: true,
+      hasVariants: false,
+      bundleComponents: [],
+      productStock: 0,
+      productMinStock: 0,
+      productMaxStock: 0,
+    });
+  });
+
   it("saves changes and closes on submit", async () => {
     const onClose = jest.fn();
     const updateProduct = jest.fn(() => Promise.resolve());
@@ -204,6 +308,20 @@ describe("EditProductsModal", () => {
     await waitFor(() => expect(updateProduct).toHaveBeenCalledWith(baseData));
     expect(onClose).toHaveBeenCalled();
     expect(onProductUpdated).toHaveBeenCalled();
+  });
+
+  it("keeps the modal open when update fails", async () => {
+    const onClose = jest.fn();
+    const updateProduct = jest.fn(() => Promise.reject(new Error("Invalid product data")));
+    const onProductUpdated = jest.fn();
+
+    renderModal({ onClose, updateProduct, onProductUpdated });
+
+    fireEvent.click(screen.getByText("modal.editButton"));
+
+    await waitFor(() => expect(updateProduct).toHaveBeenCalledWith(baseData));
+    expect(onClose).not.toHaveBeenCalled();
+    expect(onProductUpdated).not.toHaveBeenCalled();
   });
 
   it("does not submit when uploading", () => {

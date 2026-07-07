@@ -51,11 +51,14 @@ const componentsEs = {
     takePhoto: "Tomar una foto",
   },
   productDetails: {
+    bundle: "Paquete",
     description: "Descripción",
     close: "Cerrar",
     add: "Agregar",
     stock: "en almacén",
-    unknownCategory: "Categoría desconocida",
+    totalStock: "total en almacén",
+    hasVariants: "Variantes",
+    noCategory: "Sin categoría",
   },
   shifts: {
     requiredOpenShiftTitle: "Abrir Turno Requerido",

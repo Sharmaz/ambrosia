@@ -9,12 +9,21 @@ const cartEn = {
     },
     card: {
       add: "Add",
+      hasVariants: "Variants",
+      noCategory: "No category",
       stock: "in stock",
+      bundle: "Bundle",
       showProductDetails: "Show Details",
       showProductDescription: "Description",
-      errors: {
-        unknownCategory: "Unknown category",
-      },
+    },
+    variantSelector: {
+      title: "Select variant",
+      addToCart: "Add to cart",
+      cancel: "Cancel",
+      loading: "Loading...",
+      outOfStock: "Out of stock",
+      inStock: "in stock",
+      noVariantFound: "This combination is not available",
     },
     summary: {
       clearCart: "Remove All Items",
@@ -23,6 +32,9 @@ const cartEn = {
       total: "Total",
       subtotal: "Subtotal",
       discount: "Discount",
+      discountAdd: "Add",
+      discountRemove: "Remove",
+      discountApply: "Apply",
       quantity: "Quantity",
       paymentMethodLabel: "Payment Method",
       paymentMethodSelectPlaceholder: "Choose a payment method",
@@ -53,6 +65,8 @@ const cartEn = {
         btcPaid: "Bitcoin payment marked as completed",
         cashPaid: "Cash payment registered successfully",
         cardPaid: "Card payment registered successfully",
+        btcRecovered: "A pending Bitcoin payment was completed in the background",
+        btcConfirming: "Payment received, confirming in the background",
       },
       receipt: {
         tableName: "Counter",

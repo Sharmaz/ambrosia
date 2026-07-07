@@ -1,258 +1,453 @@
 package pos.ambrosia.services
 
+import org.jetbrains.exposed.v1.core.ResultRow
+import org.jetbrains.exposed.v1.core.and
+import org.jetbrains.exposed.v1.core.dao.id.EntityID
+import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.core.inList
+import org.jetbrains.exposed.v1.jdbc.deleteWhere
+import org.jetbrains.exposed.v1.jdbc.insert
+import org.jetbrains.exposed.v1.jdbc.insertIgnore
+import org.jetbrains.exposed.v1.jdbc.selectAll
+import org.jetbrains.exposed.v1.jdbc.transactions.transaction
+import org.jetbrains.exposed.v1.jdbc.update
+import pos.ambrosia.db.tables.CategoriesTable
+import pos.ambrosia.db.tables.ProductBundleComponentsTable
+import pos.ambrosia.db.tables.ProductCategoriesTable
+import pos.ambrosia.db.tables.ProductEntity
+import pos.ambrosia.db.tables.ProductOptionTypesTable
+import pos.ambrosia.db.tables.ProductOptionValueEntity
+import pos.ambrosia.db.tables.ProductOptionValuesTable
+import pos.ambrosia.db.tables.ProductVariantEntity
+import pos.ambrosia.db.tables.ProductVariantsTable
+import pos.ambrosia.db.tables.ProductsTable
+import pos.ambrosia.db.tables.VariantOptionValuesTable
 import pos.ambrosia.logger
+import pos.ambrosia.models.BundleComponent
 import pos.ambrosia.models.Product
-import pos.ambrosia.utils.DuplicateProductSkuException
-import java.sql.Connection
-import java.sql.SQLException
+import pos.ambrosia.models.ProductOptionType
+import pos.ambrosia.models.ProductOptionValue
+import pos.ambrosia.models.ProductStockAdjustment
+import pos.ambrosia.models.ProductVariant
+import pos.ambrosia.utils.ProductIsBundleComponentException
+import java.util.UUID
 
-class ProductService(
-    private val connection: Connection,
-) {
-    companion object {
-        private const val ADD_PRODUCT =
-            "INSERT INTO products (id, SKU, name, description, image_url, cost_cents, quantity, min_stock_threshold, max_stock_threshold, price_cents) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
-        private const val GET_PRODUCTS =
-            "SELECT id, SKU, name, description, image_url, cost_cents, quantity, min_stock_threshold, max_stock_threshold, price_cents FROM products WHERE is_deleted = 0"
-        private const val GET_PRODUCT_BY_ID =
-            "SELECT id, SKU, name, description, image_url, cost_cents, quantity, min_stock_threshold, max_stock_threshold, price_cents FROM products WHERE id = ? AND is_deleted = 0"
-        private const val GET_PRODUCT_BY_SKU =
-            "SELECT id, SKU, name, description, image_url, cost_cents, quantity, min_stock_threshold, max_stock_threshold, price_cents FROM products WHERE SKU = ? AND is_deleted = 0"
-        private const val UPDATE_PRODUCT =
-            "UPDATE products SET SKU = ?, name = ?, description = ?, image_url = ?, cost_cents = ?, quantity = ?, min_stock_threshold = ?, max_stock_threshold = ?, price_cents = ? WHERE id = ?"
-        private const val DELETE_PRODUCT = "UPDATE products SET is_deleted = 1, SKU = ? WHERE id = ?"
-        private const val GET_CATEGORY_IDS =
-            "SELECT category_id FROM product_categories WHERE product_id = ?"
-        private const val INSERT_CATEGORY =
-            "INSERT OR IGNORE INTO product_categories (product_id, category_id) VALUES (?, ?)"
-        private const val DELETE_CATEGORIES =
-            "DELETE FROM product_categories WHERE product_id = ?"
-        private const val GET_PRODUCTS_BY_CATEGORY =
-            "SELECT DISTINCT p.id, p.SKU, p.name, p.description, p.image_url, p.cost_cents, p.quantity, p.min_stock_threshold, p.max_stock_threshold, p.price_cents FROM products p INNER JOIN product_categories pc ON p.id = pc.product_id WHERE pc.category_id = ? AND p.is_deleted = 0"
+class ProductService {
+    private fun getCategoryIds(productId: UUID): List<String> =
+        ProductCategoriesTable
+            .selectAll()
+            .where { ProductCategoriesTable.productId eq EntityID(productId, ProductsTable) }
+            .map { it[ProductCategoriesTable.categoryId].value.toString() }
+
+    private fun getBundleComponents(bundleId: UUID): List<BundleComponent> =
+        ProductBundleComponentsTable
+            .selectAll()
+            .where { ProductBundleComponentsTable.bundleId eq EntityID(bundleId, ProductsTable) }
+            .map { bundleComponentRow ->
+                BundleComponent(
+                    componentId = bundleComponentRow[ProductBundleComponentsTable.componentId].value.toString(),
+                    variantId = bundleComponentRow[ProductBundleComponentsTable.componentVariantId]?.value?.toString(),
+                    quantity = bundleComponentRow[ProductBundleComponentsTable.quantity],
+                )
+            }
+
+    private data class VariantAggregate(
+        val minPriceCents: Int,
+        val maxPriceCents: Int,
+        val quantity: Int,
+        val minCostCents: Int,
+    )
+
+    private fun variantAggregate(productId: EntityID<UUID>): VariantAggregate {
+        val activeVariantRows =
+            ProductVariantsTable
+                .selectAll()
+                .where { (ProductVariantsTable.productId eq productId) and (ProductVariantsTable.isActive eq true) }
+                .toList()
+        val minPriceCents = activeVariantRows.minOfOrNull { it[ProductVariantsTable.priceCents] } ?: 0
+        val maxPriceCents = activeVariantRows.maxOfOrNull { it[ProductVariantsTable.priceCents] } ?: 0
+        val quantity = activeVariantRows.sumOf { it[ProductVariantsTable.quantity] }
+        val minCostCents = activeVariantRows.mapNotNull { it[ProductVariantsTable.costCents] }.minOrNull() ?: 0
+        return VariantAggregate(minPriceCents, maxPriceCents, quantity, minCostCents)
     }
 
-    private fun map(result: java.sql.ResultSet): Product {
-        val productId = result.getString("id")
+    private fun computeBundleQuantity(components: List<BundleComponent>): Int {
+        if (components.isEmpty()) return 0
+        return components.minOf { component ->
+            val componentProductId = EntityID(UUID.fromString(component.componentId), ProductsTable)
+            val componentStock =
+                component.variantId
+                    ?.let { componentVariantId -> variantQuantity(componentProductId, UUID.fromString(componentVariantId)) }
+                    ?: variantAggregate(componentProductId).quantity
+            componentStock / component.quantity
+        }
+    }
+
+    private fun computeBundleCostCents(components: List<BundleComponent>): Int =
+        components.sumOf { component ->
+            val componentProductId = EntityID(UUID.fromString(component.componentId), ProductsTable)
+            val componentCostCents =
+                component.variantId
+                    ?.let { componentVariantId -> variantCostCents(componentProductId, UUID.fromString(componentVariantId)) }
+                    ?: variantAggregate(componentProductId).minCostCents
+            componentCostCents * component.quantity
+        }
+
+    private fun selectedVariantRow(
+        productEntityId: EntityID<UUID>,
+        variantId: UUID,
+    ): ResultRow? =
+        ProductVariantsTable
+            .selectAll()
+            .where {
+                (ProductVariantsTable.productId eq productEntityId) and
+                    (ProductVariantsTable.id eq EntityID(variantId, ProductVariantsTable)) and
+                    (ProductVariantsTable.isActive eq true)
+            }.firstOrNull()
+
+    private fun variantQuantity(
+        productEntityId: EntityID<UUID>,
+        variantId: UUID,
+    ): Int =
+        selectedVariantRow(productEntityId, variantId)
+            ?.get(ProductVariantsTable.quantity)
+            ?: 0
+
+    private fun variantCostCents(
+        productEntityId: EntityID<UUID>,
+        variantId: UUID,
+    ): Int =
+        selectedVariantRow(productEntityId, variantId)
+            ?.get(ProductVariantsTable.costCents)
+            ?: 0
+
+    private fun replaceBundleComponents(
+        bundleId: UUID,
+        components: List<BundleComponent>,
+    ) {
+        ProductBundleComponentsTable.deleteWhere {
+            ProductBundleComponentsTable.bundleId eq EntityID(bundleId, ProductsTable)
+        }
+        for (component in components) {
+            ProductBundleComponentsTable.insert {
+                it[ProductBundleComponentsTable.bundleId] = EntityID(bundleId, ProductsTable)
+                it[ProductBundleComponentsTable.componentId] = EntityID(UUID.fromString(component.componentId), ProductsTable)
+                it[ProductBundleComponentsTable.componentVariantId] =
+                    component.variantId?.let { componentVariantId ->
+                        EntityID(UUID.fromString(componentVariantId), ProductVariantsTable)
+                    }
+                it[ProductBundleComponentsTable.quantity] = component.quantity
+            }
+        }
+    }
+
+    private fun replaceCategories(
+        productId: UUID,
+        categoryIds: List<String>,
+    ) {
+        ProductCategoriesTable.deleteWhere { ProductCategoriesTable.productId eq EntityID(productId, ProductsTable) }
+        for (categoryId in categoryIds) {
+            ProductCategoriesTable.insertIgnore {
+                it[ProductCategoriesTable.productId] = EntityID(productId, ProductsTable)
+                it[ProductCategoriesTable.categoryId] = EntityID(UUID.fromString(categoryId), CategoriesTable)
+            }
+        }
+    }
+
+    private fun replaceBundlePricingVariant(
+        productId: UUID,
+        product: Product,
+    ) {
+        val productEntityId = EntityID(productId, ProductsTable)
+        val existingVariantEntities =
+            ProductVariantEntity
+                .find { ProductVariantsTable.productId eq productEntityId }
+                .toList()
+        val pricingVariantEntity =
+            existingVariantEntities.firstOrNull()
+                ?: ProductVariantEntity.new(UUID.randomUUID()) {
+                    this.productId = productEntityId
+                }
+
+        pricingVariantEntity.priceCents = product.priceCents
+        pricingVariantEntity.costCents = product.costCents.takeIf { it > 0 }
+        pricingVariantEntity.quantity = 0
+        pricingVariantEntity.isActive = true
+        pricingVariantEntity.flush()
+
+        val previousVariantIds =
+            existingVariantEntities
+                .filter { variantEntity -> variantEntity.id != pricingVariantEntity.id }
+                .map { variantEntity -> variantEntity.id }
+        if (previousVariantIds.isEmpty()) return
+
+        ProductVariantsTable.update({ ProductVariantsTable.id inList previousVariantIds }) {
+            it[ProductVariantsTable.isActive] = false
+        }
+    }
+
+    private fun toModel(entity: ProductEntity): Product {
+        val aggregate = variantAggregate(entity.id)
+        val bundleComponents = getBundleComponents(entity.id.value)
+        val bundleCostCents = if (entity.isBundle) computeBundleCostCents(bundleComponents) else 0
+        val productQuantity = if (entity.isBundle) computeBundleQuantity(bundleComponents) else aggregate.quantity
+        val productCostCents = if (entity.isBundle) bundleCostCents else aggregate.minCostCents
         return Product(
-            id = productId,
-            SKU = result.getString("SKU"),
-            name = result.getString("name"),
-            description = result.getString("description"),
-            imageUrl = result.getString("image_url"),
-            costCents = result.getInt("cost_cents"),
-            categoryIds = getCategoryIds(productId),
-            quantity = result.getInt("quantity"),
-            minStockThreshold = result.getInt("min_stock_threshold"),
-            maxStockThreshold = result.getInt("max_stock_threshold"),
-            priceCents = result.getInt("price_cents"),
+            id = entity.id.value.toString(),
+            SKU = entity.sku,
+            name = entity.name,
+            description = entity.description,
+            imageUrl = entity.imageUrl,
+            priceCents = aggregate.minPriceCents,
+            maxPriceCents = aggregate.maxPriceCents,
+            quantity = productQuantity,
+            minStockThreshold = entity.minStockThreshold,
+            maxStockThreshold = entity.maxStockThreshold,
+            hasVariants = entity.hasVariants,
+            categoryIds = getCategoryIds(entity.id.value),
+            costCents = productCostCents,
+            isBundle = entity.isBundle,
+            bundleComponents = bundleComponents,
+            bundleCostCents = bundleCostCents,
         )
     }
 
-    private fun getCategoryIds(productId: String): List<String> {
-        val statement = connection.prepareStatement(GET_CATEGORY_IDS)
-        statement.setString(1, productId)
-        val resultSet = statement.executeQuery()
-        val ids = mutableListOf<String>()
-        while (resultSet.next()) ids.add(resultSet.getString("category_id"))
-        return ids
+    private fun fetchOptions(productId: UUID): List<ProductOptionType> {
+        val productEntityId = EntityID(productId, ProductsTable)
+        return ProductOptionTypesTable
+            .selectAll()
+            .where { ProductOptionTypesTable.productId eq productEntityId }
+            .orderBy(ProductOptionTypesTable.displayOrder)
+            .map { optionTypeRow ->
+                val optionTypeId = optionTypeRow[ProductOptionTypesTable.id].value
+                val optionValues =
+                    ProductOptionValuesTable
+                        .selectAll()
+                        .where { ProductOptionValuesTable.optionTypeId eq EntityID(optionTypeId, ProductOptionTypesTable) }
+                        .orderBy(ProductOptionValuesTable.displayOrder)
+                        .map { optionValueRow ->
+                            ProductOptionValue(
+                                id = optionValueRow[ProductOptionValuesTable.id].value.toString(),
+                                optionTypeId = optionTypeId.toString(),
+                                value = optionValueRow[ProductOptionValuesTable.value],
+                                displayOrder = optionValueRow[ProductOptionValuesTable.displayOrder],
+                            )
+                        }
+                ProductOptionType(
+                    id = optionTypeId.toString(),
+                    productId = productId.toString(),
+                    name = optionTypeRow[ProductOptionTypesTable.name],
+                    displayOrder = optionTypeRow[ProductOptionTypesTable.displayOrder],
+                    values = optionValues,
+                )
+            }
     }
 
-    private fun insertCategories(
-        productId: String,
-        categoryIds: List<String>,
-    ) {
-        val statement = connection.prepareStatement(INSERT_CATEGORY)
-        for (categoryId in categoryIds) {
-            statement.setString(1, productId)
-            statement.setString(2, categoryId)
-            statement.addBatch()
-        }
-        statement.executeBatch()
+    private fun fetchVariants(productId: UUID): List<ProductVariant> {
+        val productEntityId = EntityID(productId, ProductsTable)
+        return ProductVariantEntity
+            .find { (ProductVariantsTable.productId eq productEntityId) and (ProductVariantsTable.isActive eq true) }
+            .map { variantEntity ->
+                val optionValueIds =
+                    VariantOptionValuesTable
+                        .selectAll()
+                        .where { VariantOptionValuesTable.variantId eq variantEntity.id }
+                        .map { it[VariantOptionValuesTable.optionValueId].value.toString() }
+                ProductVariant(
+                    id = variantEntity.id.value.toString(),
+                    productId = productId.toString(),
+                    SKU = variantEntity.sku,
+                    priceCents = variantEntity.priceCents,
+                    costCents = variantEntity.costCents,
+                    quantity = variantEntity.quantity,
+                    isActive = variantEntity.isActive,
+                    imageUrl = variantEntity.imageUrl,
+                    optionValueIds = optionValueIds,
+                )
+            }
     }
 
     private fun normalizeSku(sku: String?): String? = sku?.takeIf { it.isNotBlank() }
 
-    private fun valid(p: Product): Boolean {
-        if (p.name.isBlank()) return false
-        if (p.costCents < 0) return false
-        if (p.priceCents < 0) return false
-        if (p.quantity < 0) return false
-        if (p.minStockThreshold < 0) return false
-        if (p.maxStockThreshold < 0) return false
-        if (p.maxStockThreshold > 0 && p.minStockThreshold > p.maxStockThreshold) return false
+    private fun bundleComponentVariantsAreValid(components: List<BundleComponent>): Boolean =
+        components.all { component ->
+            val componentVariantId = component.variantId ?: return@all true
+            val componentProductId =
+                try {
+                    EntityID(UUID.fromString(component.componentId), ProductsTable)
+                } catch (_: IllegalArgumentException) {
+                    return@all false
+                }
+            val variantEntityId =
+                try {
+                    EntityID(UUID.fromString(componentVariantId), ProductVariantsTable)
+                } catch (_: IllegalArgumentException) {
+                    return@all false
+                }
+
+            ProductVariantsTable
+                .selectAll()
+                .where {
+                    (ProductVariantsTable.id eq variantEntityId) and
+                        (ProductVariantsTable.productId eq componentProductId) and
+                        (ProductVariantsTable.isActive eq true)
+                }.count() == 1L
+        }
+
+    private fun valid(product: Product): Boolean {
+        if (product.name.isBlank()) return false
+        if (product.priceCents < 0) return false
+        if (product.costCents < 0) return false
+        if (product.quantity < 0) return false
+        if (product.minStockThreshold < 0) return false
+        if (product.maxStockThreshold < 0) return false
+        if (product.maxStockThreshold > 0 && product.minStockThreshold > product.maxStockThreshold) return false
+        if (product.isBundle && product.bundleComponents.isEmpty()) return false
+        if (product.isBundle && !bundleComponentVariantsAreValid(product.bundleComponents)) return false
         return true
     }
 
-    suspend fun addProduct(product: Product): String? {
-        if (!valid(product)) return null
-        val normalizedSku = normalizeSku(product.SKU)
-        if (normalizedSku != null) {
-            val existing = getProductBySKU(normalizedSku)
-            if (existing != null) throw DuplicateProductSkuException()
-        }
-        val id =
-            java.util.UUID
-                .randomUUID()
-                .toString()
-        val prev = connection.autoCommit
-        connection.autoCommit = false
-        try {
-            val statement = connection.prepareStatement(ADD_PRODUCT)
-            statement.setString(1, id)
-            statement.setString(2, normalizedSku)
-            statement.setString(3, product.name)
-            statement.setString(4, product.description)
-            statement.setString(5, product.imageUrl)
-            statement.setInt(6, product.costCents)
-            statement.setInt(7, product.quantity)
-            statement.setInt(8, product.minStockThreshold)
-            statement.setInt(9, product.maxStockThreshold)
-            statement.setInt(10, product.priceCents)
-            val rows = statement.executeUpdate()
-            if (rows == 0) {
-                connection.rollback()
-                return null
+    fun addProduct(product: Product): String? =
+        transaction {
+            if (!valid(product)) return@transaction null
+            val normalizedSku = normalizeSku(product.SKU)
+
+            val productId =
+                ProductEntity
+                    .new(UUID.randomUUID()) {
+                        this.sku = normalizedSku
+                        this.name = product.name
+                        this.description = product.description
+                        this.imageUrl = product.imageUrl
+                        this.minStockThreshold = product.minStockThreshold
+                        this.maxStockThreshold = product.maxStockThreshold
+                        this.hasVariants = if (product.isBundle) false else product.hasVariants
+                        this.isBundle = product.isBundle
+                    }.id.value
+
+            ProductVariantEntity.new(UUID.randomUUID()) {
+                this.productId = EntityID(productId, ProductsTable)
+                this.priceCents = product.priceCents
+                this.costCents = product.costCents.takeIf { it > 0 }
+                this.quantity = if (product.isBundle) 0 else product.quantity
+                this.isActive = true
             }
-            insertCategories(id, product.categoryIds)
-            connection.commit()
-            logger.info("Product created: $id")
-            return id
-        } catch (e: SQLException) {
-            connection.rollback()
-            if (isDuplicateSkuViolation(e)) throw DuplicateProductSkuException()
-            throw e
-        } catch (e: Exception) {
-            connection.rollback()
-            throw e
-        } finally {
-            connection.autoCommit = prev
+            replaceCategories(productId, product.categoryIds)
+            replaceBundleComponents(productId, if (product.isBundle) product.bundleComponents else emptyList())
+            logger.info("Product created: $productId")
+            productId.toString()
         }
-    }
 
-    suspend fun getProducts(): List<Product> {
-        val statement = connection.prepareStatement(GET_PRODUCTS)
-        val resultSet = statement.executeQuery()
-        val out = mutableListOf<Product>()
-        while (resultSet.next()) out.add(map(resultSet))
-        return out
-    }
-
-    suspend fun getProductById(id: String): Product? {
-        val statement = connection.prepareStatement(GET_PRODUCT_BY_ID)
-        statement.setString(1, id)
-        val resultSet = statement.executeQuery()
-        return if (resultSet.next()) map(resultSet) else null
-    }
-
-    suspend fun getProductBySKU(sku: String?): Product? {
-        val normalizedSku = normalizeSku(sku) ?: return null
-        val statement = connection.prepareStatement(GET_PRODUCT_BY_SKU)
-        statement.setString(1, normalizedSku)
-        val resultSet = statement.executeQuery()
-        return if (resultSet.next()) map(resultSet) else null
-    }
-
-    suspend fun getProductsByCategory(category: String): List<Product> {
-        val statement = connection.prepareStatement(GET_PRODUCTS_BY_CATEGORY)
-        statement.setString(1, category)
-        val resultSet = statement.executeQuery()
-        val out = mutableListOf<Product>()
-        while (resultSet.next()) out.add(map(resultSet))
-        return out
-    }
-
-    suspend fun updateProduct(product: Product): Boolean {
-        if (product.id == null) return false
-        if (!valid(product)) return false
-        val normalizedSku = normalizeSku(product.SKU)
-        if (normalizedSku != null) {
-            val current = getProductBySKU(normalizedSku)
-            if (current != null && current.id != product.id) throw DuplicateProductSkuException()
+    fun getProducts(): List<Product> =
+        transaction {
+            ProductEntity.find { ProductsTable.isDeleted eq false }.map { toModel(it) }
         }
-        val prev = connection.autoCommit
-        connection.autoCommit = false
-        try {
-            val rows =
-                connection.prepareStatement(UPDATE_PRODUCT).use { statement ->
-                    statement.setString(1, normalizedSku)
-                    statement.setString(2, product.name)
-                    statement.setString(3, product.description)
-                    statement.setString(4, product.imageUrl)
-                    statement.setInt(5, product.costCents)
-                    statement.setInt(6, product.quantity)
-                    statement.setInt(7, product.minStockThreshold)
-                    statement.setInt(8, product.maxStockThreshold)
-                    statement.setInt(9, product.priceCents)
-                    statement.setString(10, product.id)
-                    statement.executeUpdate()
+
+    fun getProductById(id: String): Product? =
+        transaction {
+            val productUuid =
+                try {
+                    UUID.fromString(id)
+                } catch (_: IllegalArgumentException) {
+                    return@transaction null
                 }
-            if (rows == 0) {
-                connection.rollback()
-                return false
+            val productEntity = ProductEntity.findById(productUuid)
+            if (productEntity == null || productEntity.isDeleted) {
+                null
+            } else {
+                toModel(productEntity).copy(
+                    options = fetchOptions(productUuid),
+                    variants = fetchVariants(productUuid),
+                )
             }
-            connection.prepareStatement(DELETE_CATEGORIES).use { statement ->
-                statement.setString(1, product.id)
-                statement.executeUpdate()
-            }
-            insertCategories(product.id, product.categoryIds)
-            connection.commit()
-            logger.info("Product updated: ${product.id}")
-            return true
-        } catch (e: SQLException) {
-            connection.rollback()
-            if (isDuplicateSkuViolation(e)) throw DuplicateProductSkuException()
-            throw e
-        } catch (e: Exception) {
-            connection.rollback()
-            throw e
-        } finally {
-            connection.autoCommit = prev
         }
-    }
 
-    suspend fun deleteProduct(id: String): Boolean {
-        val statement = connection.prepareStatement(DELETE_PRODUCT)
-        statement.setString(1, deletedSku(id))
-        statement.setString(2, id)
-        val rows = statement.executeUpdate()
-        if (rows > 0) logger.info("Product deleted: $id")
-        return rows > 0
-    }
+    private fun getProductBySKUInternal(sku: String): Product? =
+        ProductEntity
+            .find { (ProductsTable.sku eq sku) and (ProductsTable.isDeleted eq false) }
+            .firstOrNull()
+            ?.let { toModel(it) }
+
+    fun getProductBySKU(sku: String?): Product? =
+        transaction {
+            val normalizedSku = normalizeSku(sku) ?: return@transaction null
+            getProductBySKUInternal(normalizedSku)
+        }
+
+    fun getProductsByCategory(category: String): List<Product> =
+        transaction {
+            val productIds =
+                ProductCategoriesTable
+                    .selectAll()
+                    .where { ProductCategoriesTable.categoryId eq EntityID(UUID.fromString(category), CategoriesTable) }
+                    .map { it[ProductCategoriesTable.productId].value }
+                    .toSet()
+
+            val productEntityIds = productIds.map { EntityID(it, ProductsTable) }
+            ProductEntity
+                .find { (ProductsTable.id inList productEntityIds) and (ProductsTable.isDeleted eq false) }
+                .map { toModel(it) }
+        }
+
+    fun updateProduct(product: Product): Boolean =
+        transaction {
+            val productId =
+                try {
+                    product.id?.let { UUID.fromString(it) } ?: return@transaction false
+                } catch (_: IllegalArgumentException) {
+                    return@transaction false
+                }
+            if (!valid(product)) return@transaction false
+            val productEntity = ProductEntity.findById(productId) ?: return@transaction false
+
+            productEntity.sku = normalizeSku(product.SKU)
+            productEntity.name = product.name
+            productEntity.description = product.description
+            productEntity.imageUrl = product.imageUrl
+            productEntity.minStockThreshold = product.minStockThreshold
+            productEntity.maxStockThreshold = product.maxStockThreshold
+            productEntity.hasVariants = if (product.isBundle) false else product.hasVariants
+            productEntity.isBundle = product.isBundle
+            productEntity.flush()
+
+            replaceCategories(productId, product.categoryIds)
+            replaceBundleComponents(productId, if (product.isBundle) product.bundleComponents else emptyList())
+            if (product.isBundle) replaceBundlePricingVariant(productId, product)
+            logger.info("Product updated: ${product.id}")
+            true
+        }
+
+    fun deleteProduct(id: String): Boolean =
+        transaction {
+            val productId =
+                try {
+                    UUID.fromString(id)
+                } catch (_: IllegalArgumentException) {
+                    return@transaction false
+                }
+            val bundleNames =
+                ProductBundleComponentsTable
+                    .selectAll()
+                    .where { ProductBundleComponentsTable.componentId eq EntityID(productId, ProductsTable) }
+                    .mapNotNull { bundleComponentRow ->
+                        ProductEntity
+                            .findById(bundleComponentRow[ProductBundleComponentsTable.bundleId])
+                            ?.takeIf { !it.isDeleted }
+                            ?.name
+                    }
+            if (bundleNames.isNotEmpty()) throw ProductIsBundleComponentException(bundleNames)
+
+            val productEntity = ProductEntity.findById(productId) ?: return@transaction false
+            ProductVariantsTable.update({ ProductVariantsTable.productId eq productEntity.id }) {
+                it[ProductVariantsTable.isActive] = false
+            }
+            productEntity.isDeleted = true
+            productEntity.sku = deletedSku(id)
+            logger.info("Product deleted: $id")
+            true
+        }
 
     private fun deletedSku(id: String): String = "DELETED-$id"
 
-    private fun isDuplicateSkuViolation(error: SQLException): Boolean =
-        error.message?.contains("UNIQUE constraint failed: products.SKU", ignoreCase = true) == true
-
-    suspend fun adjustStock(adjustments: List<pos.ambrosia.models.ProductStockAdjustment>): Boolean {
-        if (adjustments.isEmpty()) return true
-        if (adjustments.any { it.productId.isBlank() || it.quantity < 0 }) return false
-
-        val previousAutoCommit = connection.autoCommit
-        connection.autoCommit = false
-        try {
-            val statement =
-                connection.prepareStatement(
-                    "UPDATE products SET quantity = quantity - ? WHERE id = ? AND is_deleted = 0 AND quantity >= ?",
-                )
-            for (adjustment in adjustments) {
-                if (adjustment.quantity == 0) continue
-                statement.setInt(1, adjustment.quantity)
-                statement.setString(2, adjustment.productId)
-                statement.setInt(3, adjustment.quantity)
-                val rows = statement.executeUpdate()
-                if (rows == 0) {
-                    connection.rollback()
-                    return false
-                }
-            }
-            connection.commit()
-            return true
-        } catch (e: Exception) {
-            connection.rollback()
-            throw e
-        } finally {
-            connection.autoCommit = previousAutoCommit
-        }
-    }
+    fun adjustStock(adjustments: List<ProductStockAdjustment>): Boolean = ProductVariantService().adjustStock(adjustments)
 }

@@ -7,12 +7,12 @@ import io.ktor.server.engine.defaultExceptionStatusCode
 import io.ktor.server.plugins.statuspages.StatusPages
 import io.ktor.server.response.respond
 import io.ktor.server.response.respondText
+import org.jetbrains.exposed.v1.exceptions.ExposedSQLException
 import pos.ambrosia.logger
 import pos.ambrosia.models.Message
 import pos.ambrosia.models.WalletErrorResponse
 import pos.ambrosia.utils.AdminOnlyException
 import pos.ambrosia.utils.DatabaseException
-import pos.ambrosia.utils.DuplicateProductSkuException
 import pos.ambrosia.utils.DuplicateUserNameException
 import pos.ambrosia.utils.InitialSetupException
 import pos.ambrosia.utils.InvalidCredentialsException
@@ -20,12 +20,14 @@ import pos.ambrosia.utils.InvalidTokenException
 import pos.ambrosia.utils.LastAdminRemovalException
 import pos.ambrosia.utils.LastUserDeletionException
 import pos.ambrosia.utils.MissingRoleException
+import pos.ambrosia.utils.PaymentNotConfirmedException
 import pos.ambrosia.utils.PermissionDeniedException
 import pos.ambrosia.utils.PhoenixBalanceException
 import pos.ambrosia.utils.PhoenixConnectionException
 import pos.ambrosia.utils.PhoenixNodeInfoException
 import pos.ambrosia.utils.PhoenixServiceException
 import pos.ambrosia.utils.PrintTicketException
+import pos.ambrosia.utils.ProductIsBundleComponentException
 import pos.ambrosia.utils.ResourceNotFoundException
 import pos.ambrosia.utils.UnauthorizedApiException
 import pos.ambrosia.utils.WalletOnlyException
@@ -60,10 +62,6 @@ fun Application.handler() {
         exception<DuplicateUserNameException> { call, cause ->
             logger.warn("Duplicate user name: ${cause.message}")
             call.respond(HttpStatusCode.Conflict, Message("User name already exists"))
-        }
-        exception<DuplicateProductSkuException> { call, cause ->
-            logger.warn("Duplicate product SKU: ${cause.message}")
-            call.respond(HttpStatusCode.Conflict, Message(cause.message ?: "SKU already exists"))
         }
         exception<LastUserDeletionException> { call, cause ->
             logger.warn("Attempt to delete last user: ${cause.message}")
@@ -123,12 +121,38 @@ fun Application.handler() {
                 ),
             )
         }
+        exception<PaymentNotConfirmedException> { call, cause ->
+            logger.info("Payment not yet confirmed: ${cause.message}")
+            call.respond(HttpStatusCode.Accepted, mapOf("status" to "pending"))
+        }
+        exception<ProductIsBundleComponentException> { call, cause ->
+            logger.warn("Attempt to delete product used as bundle component: ${cause.message}")
+            call.respond(HttpStatusCode.Conflict, Message(cause.message ?: "Product is used as a bundle component"))
+        }
         exception<DatabaseException> { call, cause ->
             logger.error("Database operation failed: ${cause.message}")
             call.respond(HttpStatusCode.InternalServerError, Message(cause.message ?: "Database operation failed"))
         }
 
         // --- Generic and SQL Exceptions Last ---
+        exception<ExposedSQLException> { call, cause ->
+            when {
+                cause.message?.contains("UNIQUE constraint failed: products.SKU", ignoreCase = true) == true -> {
+                    logger.warn("Duplicate product SKU: ${cause.message}")
+                    call.respond(HttpStatusCode.Conflict, Message("SKU already exists"))
+                }
+
+                cause.message?.contains("UNIQUE constraint failed: product_variants.sku", ignoreCase = true) == true -> {
+                    logger.warn("Duplicate variant SKU: ${cause.message}")
+                    call.respond(HttpStatusCode.Conflict, Message("Variant SKU already exists"))
+                }
+
+                else -> {
+                    logger.error("Database operation failed: ${cause.message}", cause)
+                    call.respond(HttpStatusCode.InternalServerError, Message("Database operation failed"))
+                }
+            }
+        }
         exception<SQLException> { call, cause ->
             logger.error("Database connection error: ${cause.message}", cause)
             call.respond(HttpStatusCode.InternalServerError, Message("Error connecting to the database"))

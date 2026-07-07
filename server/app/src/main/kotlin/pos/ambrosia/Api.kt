@@ -34,6 +34,7 @@ import pos.ambrosia.api.configurePayments
 import pos.ambrosia.api.configurePermissions
 import pos.ambrosia.api.configurePhoenixWebhook
 import pos.ambrosia.api.configurePrinters
+import pos.ambrosia.api.configureProductVariants
 import pos.ambrosia.api.configureProducts
 import pos.ambrosia.api.configureReports
 import pos.ambrosia.api.configureRoles
@@ -133,8 +134,7 @@ class Api {
                     val scope = credential.payload.getClaim("scope").asString()
                     val userId = credential.payload.getClaim("userId").asString()
                     val walletAccessToken = request.cookies["walletAccessToken"]
-                    val connection = DatabaseConnection.getConnection()
-                    val tokenService = TokenService(application.environment, connection)
+                    val tokenService = TokenService(application.environment)
                     val isValidWalletSession =
                         scope == "wallet_access" &&
                             userId.isNotEmpty() &&
@@ -165,6 +165,7 @@ class Api {
         configureConfig()
         configureTicketTemplates()
         configureProducts()
+        configureProductVariants()
         configureStoreOrders()
         configureCheckout()
         configureCategories()
