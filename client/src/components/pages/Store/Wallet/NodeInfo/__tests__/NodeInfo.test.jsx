@@ -4,10 +4,10 @@ import { I18nProvider } from "@i18n/I18nProvider";
 
 import { NodeInfo } from "../NodeInfo";
 
-function renderNodeInfo(info) {
+function renderNodeInfo(info, props = {}) {
   return render(
     <I18nProvider>
-      <NodeInfo info={info} />
+      <NodeInfo info={info} {...props} />
     </I18nProvider>,
   );
 }
@@ -282,6 +282,34 @@ describe("NodeInfo Component", () => {
 
       expect(screen.getByText("0 sats")).toBeInTheDocument();
       expect(screen.getByText("0")).toBeInTheDocument();
+    });
+  });
+
+  describe("Total Balance in Local Currency", () => {
+    it("does not show a fiat value when no exchange rate is available", () => {
+      renderNodeInfo(mockNodeInfo);
+
+      expect(screen.queryByText(/\$/)).not.toBeInTheDocument();
+    });
+
+    it("shows the total balance converted to the configured local currency", () => {
+      renderNodeInfo(mockNodeInfo, {
+        currentRate: 45000,
+        currencyAcronym: "USD",
+        locale: "en-US",
+      });
+
+      expect(screen.getByText("$36.00")).toBeInTheDocument();
+    });
+
+    it("reflects a different configured currency", () => {
+      renderNodeInfo(mockNodeInfo, {
+        currentRate: 900000,
+        currencyAcronym: "MXN",
+        locale: "es-MX",
+      });
+
+      expect(screen.getByText(/720\.00/)).toBeInTheDocument();
     });
   });
 

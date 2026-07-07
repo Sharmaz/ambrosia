@@ -140,7 +140,13 @@ export function StoreWallet() {
       {nodeAvailable && (
         <>
           <div className="lg:grid lg:grid-cols-2 lg:gap-6">
-            <NodeInfo info={info} onRefresh={fetchInfo} />
+            <NodeInfo
+              info={info}
+              onRefresh={fetchInfo}
+              currentRate={currentRate}
+              currencyAcronym={currency.acronym}
+              locale={currency.locale}
+            />
 
             <Transactions
               transactions={transactions}
