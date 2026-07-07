@@ -20,6 +20,12 @@ const settingsEs = {
     cardLanguage: {
       title: "Idioma",
     },
+    cardDisplay: {
+      title: "Pantalla",
+      subtitle: "Opciones de apariencia y accesibilidad",
+      disableAnimations: "Desactivar animaciones",
+      disableAnimationsHint: "Recomendado para dispositivos de bajos recursos para mejorar el rendimiento",
+    },
     cardInstall: {
       title: "Instalar App",
       subtitle: "Instala Ambrosia POS en tu dispositivo para acceso rápido.",

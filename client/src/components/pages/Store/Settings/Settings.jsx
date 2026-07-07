@@ -6,6 +6,7 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { isElectron } from "@lib/isElectron";
 
 import { Currency } from "./Currency";
+import { Display } from "./Display";
 import { InstallPWA } from "./InstallPWA";
 import { Language } from "./Language";
 import { LightningCard } from "./Lightning/LightningCard";
@@ -27,6 +28,7 @@ export function Settings() {
           <StoreInfo />
           <Currency />
           <Language />
+          <Display />
           <Seed />
           <Tutorials />
         </div>
