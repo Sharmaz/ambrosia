@@ -11,7 +11,7 @@ import { CloseChannelModal } from "../CloseChannel/CloseChannelModal";
 import { ChannelCard } from "./ChannelCard";
 import { NodeSummary } from "./NodeSummary";
 
-export function NodeInfo({ info, onRefresh }) {
+export function NodeInfo({ info, onRefresh, currentRate, currencyAcronym, locale }) {
   const t = useTranslations("wallet");
   const [selectedChannel, setSelectedChannel] = useState(null);
   const [isCloseModalOpen, setIsCloseModalOpen] = useState(false);
@@ -41,7 +41,13 @@ export function NodeInfo({ info, onRefresh }) {
           </h3>
         </CardHeader>
         <CardBody>
-          <NodeSummary info={info} totalBalance={totalBalance} />
+          <NodeSummary
+            info={info}
+            totalBalance={totalBalance}
+            currentRate={currentRate}
+            currencyAcronym={currencyAcronym}
+            locale={locale}
+          />
           {!info.channels?.length ? (
             <div className="flex flex-col items-center py-8 text-forest opacity-60">
               <Zap className="w-8 h-8 mb-2" />
