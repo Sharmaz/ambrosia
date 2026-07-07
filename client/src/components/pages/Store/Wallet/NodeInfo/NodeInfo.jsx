@@ -12,7 +12,7 @@ import { ChannelCard } from "./ChannelCard";
 import { NodeSummary } from "./NodeSummary";
 
 export function NodeInfo({ info, onRefresh, currentRate, currencyAcronym, locale }) {
-  const t = useTranslations("wallet");
+  const walletTranslations = useTranslations("wallet");
   const [selectedChannel, setSelectedChannel] = useState(null);
   const [isCloseModalOpen, setIsCloseModalOpen] = useState(false);
 
@@ -37,7 +37,7 @@ export function NodeInfo({ info, onRefresh, currentRate, currencyAcronym, locale
       <Card className="rounded-lg mb-6 p-6">
         <CardHeader>
           <h3 className="text-lg font-bold text-deep flex items-center">
-            {t("nodeInfo.title")}
+            {walletTranslations("nodeInfo.title")}
           </h3>
         </CardHeader>
         <CardBody>
@@ -51,11 +51,11 @@ export function NodeInfo({ info, onRefresh, currentRate, currencyAcronym, locale
           {!info.channels?.length ? (
             <div className="flex flex-col items-center py-8 text-forest opacity-60">
               <Zap className="w-8 h-8 mb-2" />
-              <p className="text-sm">{t("nodeInfo.noChannels")}</p>
+              <p className="text-sm">{walletTranslations("nodeInfo.noChannels")}</p>
             </div>
           ) : (
             <div className="space-y-3">
-              <h4 className="font-semibold text-deep">{t("nodeInfo.subtitle")}</h4>
+              <h4 className="font-semibold text-deep">{walletTranslations("nodeInfo.subtitle")}</h4>
               {(info.channels ?? []).map((channel, index) => (
                 <ChannelCard
                   key={channel.channelId}
