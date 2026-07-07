@@ -13,6 +13,14 @@ export function useDisplaySettings() {
   return useContext(DisplayContext);
 }
 
+export function DisplayContextProvider({ value, children }) {
+  return (
+    <DisplayContext.Provider value={value}>
+      {children}
+    </DisplayContext.Provider>
+  );
+}
+
 export function getInitialDisableAnimation() {
   if (typeof window === "undefined") return false;
   return localStorage.getItem(STORAGE_KEY) === "true";

@@ -8,7 +8,7 @@ import { I18nProvider } from "@/i18n/I18nProvider";
 import { AuthProvider } from "@/providers/auth/AuthProvider";
 import { ConfigurationsProvider } from "@/providers/configurations/configurationsProvider";
 import {
-  DisplayContext,
+  DisplayContextProvider,
   getInitialDisableAnimation,
   persistDisableAnimation,
 } from "@/providers/display/DisplayProvider";
@@ -28,12 +28,12 @@ export default function Providers({ children }) {
         <ConfigurationsProvider>
           <I18nProvider>
             <TurnProvider>
-              <DisplayContext.Provider value={{ disableAnimation, setDisableAnimation: handleSetDisableAnimation }}>
+              <DisplayContextProvider value={{ disableAnimation, setDisableAnimation: handleSetDisableAnimation }}>
                 <HeroUIProvider disableAnimation={disableAnimation}>
                   <ToastProvider placement="top-right" maxVisibleToasts={1} />
                   {children}
                 </HeroUIProvider>
-              </DisplayContext.Provider>
+              </DisplayContextProvider>
             </TurnProvider>
           </I18nProvider>
         </ConfigurationsProvider>
