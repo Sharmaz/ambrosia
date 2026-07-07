@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { HeroUIProvider, ToastProvider } from "@heroui/react";
 
@@ -15,11 +15,15 @@ import {
 import { TurnProvider } from "@/providers/turn/TurnProvider";
 
 export default function Providers({ children }) {
-  const [disableAnimation, setDisableAnimation] = useState(getInitialDisableAnimation);
+  const [disableAnimation, setDisableAnimation] = useState(false);
+
+  useEffect(() => {
+    setDisableAnimation(getInitialDisableAnimation());
+  }, []);
 
   const handleSetDisableAnimation = (value) => {
     persistDisableAnimation(value);
-    setDisableAnimation(value);
+    window.location.reload();
   };
 
   return (
