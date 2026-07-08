@@ -501,25 +501,6 @@ data class CreateStoreOrderRequest(
 )
 
 @Serializable
-data class StoreOrderItem(
-    val productId: String,
-    val variantId: String? = null,
-    val quantity: Int,
-    val priceAtOrder: Int,
-)
-
-@Serializable
-data class StoreOrder(
-    val id: String,
-    val userId: String,
-    val userName: String? = null,
-    val status: String,
-    val total: Int,
-    val createdAt: String,
-    val items: List<StoreOrderItem>,
-)
-
-@Serializable
 data class StoreCheckoutItem(
     val productId: String,
     val variantId: String? = null,
