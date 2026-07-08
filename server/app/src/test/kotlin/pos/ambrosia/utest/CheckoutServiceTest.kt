@@ -314,7 +314,6 @@ class CheckoutServiceTest {
             assertEquals(first.response.ticketId, second.response.ticketId)
             assertEquals(first.response.paymentId, second.response.paymentId)
 
-            // Only one order persisted — the recovered checkout must not duplicate.
             assertEquals(1, transaction { OrderEntity.all().toList() }.size)
             assertEquals(9, productQuantity(productId))
         }
