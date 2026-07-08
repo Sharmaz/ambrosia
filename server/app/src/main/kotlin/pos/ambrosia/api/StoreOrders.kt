@@ -5,7 +5,6 @@ import io.ktor.server.application.Application
 import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.delete
-import io.ktor.server.routing.get
 import io.ktor.server.routing.route
 import io.ktor.server.routing.routing
 import pos.ambrosia.models.Message
@@ -18,22 +17,6 @@ fun Application.configureStoreOrders() {
 }
 
 fun Route.storeOrders(checkoutService: CheckoutService) {
-    authorizePermission("orders_read") {
-        get("") {
-            val orderStatus = call.request.queryParameters["status"]
-            val orders = checkoutService.getStoreOrders(orderStatus)
-            call.respond(HttpStatusCode.OK, orders)
-        }
-        get("/{id}") {
-            val id =
-                call.parameters["id"]
-                    ?: return@get call.respond(HttpStatusCode.BadRequest, Message("Missing order ID"))
-            val order =
-                checkoutService.getStoreOrderById(id)
-                    ?: return@get call.respond(HttpStatusCode.NotFound, Message("Order not found"))
-            call.respond(HttpStatusCode.OK, order)
-        }
-    }
     authorizePermission("orders_delete") {
         delete("/{id}") {
             val id =
