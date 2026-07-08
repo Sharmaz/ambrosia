@@ -11,6 +11,7 @@ import { resolveRoleName } from "@/components/pages/Store/Users/Roles/utils/role
 export function EditUsersModal({ data, setData, roles, onChange, editUsersShowModal, setEditUsersShowModal, updateUser }) {
   const userTranslations = useTranslations();
   const [showPin, setShowPin] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const handleOnCloseModal = () => {
     setData({
       userId: "",
@@ -21,6 +22,35 @@ export function EditUsersModal({ data, setData, roles, onChange, editUsersShowMo
       userRole: roles?.[0]?.id || "",
     });
 
+    setEditUsersShowModal(false);
+  };
+
+  const handleSubmitEditUser = async (event) => {
+    event.preventDefault();
+
+    if (isSubmitting) {
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      await updateUser(data);
+    } catch {
+      return;
+    } finally {
+      setIsSubmitting(false);
+    }
+
+    addToast({ description: userTranslations("users.toasts.updateSuccess"), color: "success" });
+    setData({
+      userId: "",
+      userName: "",
+      userPin: "",
+      userPhone: "",
+      userEmail: "",
+      userRole: "Vendedor",
+    });
     setEditUsersShowModal(false);
   };
 
@@ -45,24 +75,7 @@ export function EditUsersModal({ data, setData, roles, onChange, editUsersShowMo
         <ModalBody>
           <form
             className="space-y-4"
-            onSubmit={async (event) => {
-              event.preventDefault();
-              try {
-                await updateUser(data);
-              } catch {
-                return;
-              }
-              addToast({ description: userTranslations("users.toasts.updateSuccess"), color: "success" });
-              setData({
-                userId: "",
-                userName: "",
-                userPin: "",
-                userPhone: "",
-                userEmail: "",
-                userRole: "Vendedor",
-              });
-              setEditUsersShowModal(false);
-            }}
+            onSubmit={handleSubmitEditUser}
           >
             <Input
               label={userTranslations("users.modal.userNameLabel")}
@@ -143,7 +156,8 @@ export function EditUsersModal({ data, setData, roles, onChange, editUsersShowMo
                 color="primary"
                 className="bg-green-800"
                 type="submit"
-                isDisabled={!data.userRole}
+                isDisabled={!data.userRole || isSubmitting}
+                isLoading={isSubmitting}
               >
                 {userTranslations("users.modal.editButton")}
               </Button>

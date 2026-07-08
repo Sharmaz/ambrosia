@@ -150,6 +150,29 @@ describe("EditUsersModal", () => {
     expect(setEditUsersShowModal).not.toHaveBeenCalledWith(false);
   });
 
+  it("does not submit twice while update is pending", async () => {
+    const setData = jest.fn();
+    const setEditUsersShowModal = jest.fn();
+    let resolveUpdateUser;
+    const updateUser = jest.fn(() => new Promise((resolve) => {
+      resolveUpdateUser = resolve;
+    }));
+
+    renderModal({ setData, setEditUsersShowModal, updateUser });
+
+    const submitButton = screen.getByText("users.modal.editButton");
+    fireEvent.click(submitButton);
+    fireEvent.click(submitButton);
+
+    await waitFor(() => expect(updateUser).toHaveBeenCalledTimes(1));
+
+    resolveUpdateUser();
+
+    await waitFor(() => {
+      expect(setEditUsersShowModal).toHaveBeenCalledWith(false);
+    });
+  });
+
   it("normalizes phone and pin to digits and toggles pin visibility", () => {
     const onChange = jest.fn();
 
