@@ -2,12 +2,10 @@ package pos.ambrosia.services
 
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.dao.id.EntityID
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.greaterEq
-import org.jetbrains.exposed.v1.core.isNull
 import org.jetbrains.exposed.v1.core.minus
 import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.selectAll
@@ -26,13 +24,10 @@ import pos.ambrosia.db.tables.ProductVariantsTable
 import pos.ambrosia.db.tables.ProductsTable
 import pos.ambrosia.db.tables.TicketEntity
 import pos.ambrosia.db.tables.TicketPaymentsTable
-import pos.ambrosia.db.tables.UserEntity
 import pos.ambrosia.db.tables.UsersTable
 import pos.ambrosia.logger
 import pos.ambrosia.models.StoreCheckoutRequest
 import pos.ambrosia.models.StoreCheckoutResponse
-import pos.ambrosia.models.StoreOrder
-import pos.ambrosia.models.StoreOrderItem
 import java.time.LocalDateTime
 import java.util.UUID
 
@@ -54,30 +49,6 @@ class CheckoutService(
 ) {
     companion object {
         private val checkoutMutex = Mutex()
-    }
-
-    private fun toStoreOrder(entity: OrderEntity): StoreOrder {
-        val items =
-            OrderProductsTable
-                .selectAll()
-                .where { OrderProductsTable.orderId eq entity.id }
-                .map {
-                    StoreOrderItem(
-                        productId = it[OrderProductsTable.productId].value.toString(),
-                        variantId = it[OrderProductsTable.variantId],
-                        quantity = it[OrderProductsTable.quantity],
-                        priceAtOrder = it[OrderProductsTable.priceAtOrder],
-                    )
-                }
-        return StoreOrder(
-            id = entity.id.value.toString(),
-            userId = entity.userId.value.toString(),
-            userName = UserEntity.findById(entity.userId)?.name,
-            status = entity.status,
-            total = entity.total.toInt(),
-            createdAt = entity.createdAt.replace(" ", "T"),
-            items = items,
-        )
     }
 
     private fun firstActiveVariantId(productEntityId: EntityID<UUID>): UUID? =
@@ -138,30 +109,6 @@ class CheckoutService(
 
         return remainingQuantity == 0
     }
-
-    fun getStoreOrders(status: String? = null): List<StoreOrder> =
-        transaction {
-            val baseCondition = (OrdersTable.isDeleted eq false) and OrdersTable.tableId.isNull()
-            val condition = if (status != null) baseCondition and (OrdersTable.status eq status) else baseCondition
-            OrderEntity
-                .find { condition }
-                .orderBy(OrdersTable.createdAt to SortOrder.DESC)
-                .map { toStoreOrder(it) }
-        }
-
-    fun getStoreOrderById(id: String): StoreOrder? =
-        transaction {
-            val orderUuid =
-                try {
-                    UUID.fromString(id)
-                } catch (_: IllegalArgumentException) {
-                    return@transaction null
-                }
-            OrderEntity
-                .findById(orderUuid)
-                ?.takeIf { !it.isDeleted && it.tableId == null }
-                ?.let { toStoreOrder(it) }
-        }
 
     fun cancelStoreOrder(id: String): Boolean =
         transaction {
