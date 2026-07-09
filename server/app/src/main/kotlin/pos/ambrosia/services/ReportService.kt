@@ -30,6 +30,7 @@ import pos.ambrosia.models.OrderWithPayment
 import pos.ambrosia.models.OrderWithPaymentFilters
 import pos.ambrosia.models.ProductSaleItem
 import pos.ambrosia.models.ProductSalesReport
+import pos.ambrosia.models.StoreRefund
 import java.sql.Connection
 import java.sql.PreparedStatement
 import java.sql.ResultSet
@@ -57,6 +58,10 @@ class ReportService {
                    MAX(p.exchange_rate_currency) AS exchange_rate_currency,
                    MAX(p.fiat_amount_at_payment) AS fiat_amount_at_payment,
                    MAX(p.payment_hash) AS payment_hash,
+                   MAX(rf.id) AS refund_id,
+                   MAX(rf.refund_invoice) AS refund_invoice,
+                   MAX(rf.satoshi_amount) AS refund_satoshi_amount,
+                   MAX(rf.refunded_at) AS refund_refunded_at,
                    GROUP_CONCAT(pr.name || '|||' || op.quantity || '|||' || op.price_at_order, ';;;') AS items
             FROM orders o
             LEFT JOIN users u ON u.id = o.user_id
@@ -66,11 +71,12 @@ class ReportService {
             LEFT JOIN payment_methods pm ON pm.id = p.method_id
             LEFT JOIN order_products op ON op.order_id = o.id
             LEFT JOIN products pr ON pr.id = op.product_id
+            LEFT JOIN refunds rf ON rf.order_id = o.id
             WHERE o.is_deleted = 0
             """
     }
 
-    private val validStatuses = setOf("open", "closed", "paid")
+    private val validStatuses = setOf("open", "closed", "paid", "refunded")
     private val validSortByColumns =
         mapOf(
             "date" to "datetime(o.created_at)",
@@ -110,6 +116,18 @@ class ReportService {
         val paymentIds =
             paymentIdsConcat.split(",").mapNotNull { it.takeIf { id -> id.isNotBlank() } }
 
+        val refundedAt = resultSet.getString("refund_refunded_at")
+        val refund =
+            refundedAt?.let {
+                StoreRefund(
+                    id = resultSet.getString("refund_id") ?: "",
+                    orderId = resultSet.getString("id"),
+                    refundInvoice = resultSet.getString("refund_invoice") ?: "",
+                    satoshiAmount = (resultSet.getObject("refund_satoshi_amount") as? Number)?.toLong() ?: 0L,
+                    refundedAt = it.replace(" ", "T"),
+                )
+            }
+
         return OrderWithPayment(
             id = resultSet.getString("id"),
             userId = resultSet.getString("user_id"),
@@ -127,6 +145,7 @@ class ReportService {
             fiatAmountAtPayment = (resultSet.getObject("fiat_amount_at_payment") as? Number)?.toDouble(),
             paymentHash = resultSet.getString("payment_hash"),
             items = parseOrderItems(resultSet.getString("items")),
+            refund = refund,
         )
     }
 
