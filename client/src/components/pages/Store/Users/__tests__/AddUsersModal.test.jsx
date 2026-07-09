@@ -194,6 +194,31 @@ describe("AddUsersModal", () => {
     expect(setAddUsersShowModal).not.toHaveBeenCalledWith(false);
   });
 
+  it("does not submit twice while add is pending", async () => {
+    let resolveAddUser;
+    const addUser = jest.fn(() => new Promise((resolve) => {
+      resolveAddUser = resolve;
+    }));
+    const setAddUsersShowModal = jest.fn();
+
+    renderModal({
+      addUser,
+      setAddUsersShowModal,
+    });
+
+    const submitButton = screen.getByText("users.modal.submitButton");
+    fireEvent.click(submitButton);
+    fireEvent.click(submitButton);
+
+    await waitFor(() => expect(addUser).toHaveBeenCalledTimes(1));
+
+    resolveAddUser();
+
+    await waitFor(() => {
+      expect(setAddUsersShowModal).toHaveBeenCalledWith(false);
+    });
+  });
+
   it("requires name and pin fields", () => {
     renderModal();
 

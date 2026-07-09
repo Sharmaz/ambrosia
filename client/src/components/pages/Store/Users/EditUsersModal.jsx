@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 import { addToast, Button, Input, Select, SelectItem, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter } from "@heroui/react";
 import { Eye, EyeOff } from "lucide-react";
@@ -12,6 +12,7 @@ export function EditUsersModal({ data, setData, roles, onChange, editUsersShowMo
   const userTranslations = useTranslations();
   const [showPin, setShowPin] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const isSubmittingRef = useRef(false);
   const handleOnCloseModal = () => {
     setData({
       userId: "",
@@ -28,10 +29,11 @@ export function EditUsersModal({ data, setData, roles, onChange, editUsersShowMo
   const handleSubmitEditUser = async (event) => {
     event.preventDefault();
 
-    if (isSubmitting) {
+    if (isSubmittingRef.current) {
       return;
     }
 
+    isSubmittingRef.current = true;
     setIsSubmitting(true);
 
     try {
@@ -39,6 +41,7 @@ export function EditUsersModal({ data, setData, roles, onChange, editUsersShowMo
     } catch {
       return;
     } finally {
+      isSubmittingRef.current = false;
       setIsSubmitting(false);
     }
 

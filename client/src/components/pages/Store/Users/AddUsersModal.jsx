@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 import { addToast, Button, Input, Select, SelectItem, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter } from "@heroui/react";
 import { Eye, EyeOff } from "lucide-react";
@@ -11,6 +11,39 @@ import { resolveRoleName } from "@/components/pages/Store/Users/Roles/utils/role
 export function AddUsersModal({ data, setData, roles, onChange, addUsersShowModal, setAddUsersShowModal, addUser }) {
   const userTranslations = useTranslations();
   const [showPin, setShowPin] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const isSubmittingRef = useRef(false);
+
+  const handleSubmitAddUser = async (event) => {
+    event.preventDefault();
+
+    if (isSubmittingRef.current) {
+      return;
+    }
+
+    isSubmittingRef.current = true;
+    setIsSubmitting(true);
+
+    try {
+      await addUser(data);
+    } catch {
+      return;
+    } finally {
+      isSubmittingRef.current = false;
+      setIsSubmitting(false);
+    }
+
+    addToast({ description: userTranslations("users.toasts.createSuccess"), color: "success" });
+    setData({
+      userName: "",
+      userPin: "",
+      userPhone: "",
+      userEmail: "",
+      userRole: "Vendedor",
+    });
+    setAddUsersShowModal(false);
+  };
+
   return (
     <Modal
       isOpen={addUsersShowModal}
@@ -32,23 +65,7 @@ export function AddUsersModal({ data, setData, roles, onChange, addUsersShowModa
         <ModalBody>
           <form
             className="space-y-4"
-            onSubmit={async (event) => {
-              event.preventDefault();
-              try {
-                await addUser(data);
-              } catch {
-                return;
-              }
-              addToast({ description: userTranslations("users.toasts.createSuccess"), color: "success" });
-              setData({
-                userName: "",
-                userPin: "",
-                userPhone: "",
-                userEmail: "",
-                userRole: "Vendedor",
-              });
-              setAddUsersShowModal(false);
-            }}
+            onSubmit={handleSubmitAddUser}
           >
             <Input
               label={userTranslations("users.modal.userNameLabel")}
@@ -129,7 +146,8 @@ export function AddUsersModal({ data, setData, roles, onChange, addUsersShowModa
                 color="primary"
                 className="bg-green-800"
                 type="submit"
-                isDisabled={!data.userRole}
+                isDisabled={!data.userRole || isSubmitting}
+                isLoading={isSubmitting}
               >
                 {userTranslations("users.modal.submitButton")}
               </Button>
