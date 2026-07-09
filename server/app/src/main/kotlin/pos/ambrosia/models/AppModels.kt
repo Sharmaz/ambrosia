@@ -175,6 +175,7 @@ data class OrderWithPayment(
     val fiatAmountAtPayment: Double? = null,
     val paymentHash: String? = null,
     val items: List<OrderItem> = emptyList(),
+    val refund: StoreRefund? = null,
 )
 
 data class OrderWithPaymentFilters(
@@ -448,6 +449,20 @@ data class ProductStockAdjustment(
     val productId: String,
     val variantId: String? = null,
     val quantity: Int,
+)
+
+@Serializable
+data class StoreRefund(
+    val id: String,
+    val orderId: String,
+    val refundInvoice: String,
+    val satoshiAmount: Long,
+    val refundedAt: String,
+)
+
+@Serializable
+data class RefundRequest(
+    val invoice: String = "",
 )
 
 @Serializable data class CategoryItem(
