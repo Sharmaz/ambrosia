@@ -1,0 +1,283 @@
+package pos.ambrosia.utest
+
+import io.ktor.client.HttpClient
+import io.ktor.client.engine.mock.MockEngine
+import io.ktor.client.engine.mock.respond
+import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.http.HttpHeaders
+import io.ktor.http.HttpStatusCode
+import io.ktor.http.headersOf
+import io.ktor.serialization.kotlinx.json.json
+import io.ktor.server.application.ApplicationEnvironment
+import io.ktor.server.config.ApplicationConfig
+import io.ktor.server.config.ApplicationConfigValue
+import io.ktor.utils.io.ByteReadChannel
+import kotlinx.coroutines.runBlocking
+import kotlinx.serialization.json.Json
+import org.jetbrains.exposed.v1.jdbc.transactions.transaction
+import org.junit.After
+import org.junit.Before
+import org.mockito.kotlin.doReturn
+import org.mockito.kotlin.mock
+import org.mockito.kotlin.whenever
+import pos.ambrosia.db.tables.OrderEntity
+import pos.ambrosia.models.RefundRequest
+import pos.ambrosia.models.UpsertVariantRequest
+import pos.ambrosia.services.PhoenixService
+import pos.ambrosia.services.ProductVariantService
+import pos.ambrosia.services.RefundService
+import pos.ambrosia.utils.ExposedTestDb
+import pos.ambrosia.utils.OrderAlreadyRefundedException
+import pos.ambrosia.utils.OrderNotRefundableException
+import pos.ambrosia.utils.ResourceNotFoundException
+import java.io.File
+import java.util.UUID
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
+
+class RefundServiceTest {
+    private lateinit var dbFile: File
+    private val variantService = ProductVariantService()
+
+    private val mockConfig: ApplicationConfig = mock()
+    private val mockEnv: ApplicationEnvironment =
+        mock {
+            on { config } doReturn mockConfig
+        }
+
+    @Before
+    fun setUp() {
+        dbFile = ExposedTestDb.connect()
+        val mockUrlValue: ApplicationConfigValue = mock()
+        whenever(mockUrlValue.getString()).thenReturn("http://dummy-url")
+        whenever(mockConfig.property("phoenixd-url")).thenReturn(mockUrlValue)
+        val mockPasswordValue: ApplicationConfigValue = mock()
+        whenever(mockPasswordValue.getString()).thenReturn("dummy-password")
+        whenever(mockConfig.property("phoenixd-password")).thenReturn(mockPasswordValue)
+    }
+
+    @After
+    fun tearDown() {
+        ExposedTestDb.cleanup(dbFile)
+    }
+
+    private fun refundServiceRespondingWithSats(recipientAmountSat: Long): RefundService {
+        val mockJsonResponse =
+            """
+            {
+                "recipientAmountSat": $recipientAmountSat,
+                "routingFeeSat": 0,
+                "paymentId": "refund-payment-id",
+                "paymentHash": "refund-payment-hash",
+                "paymentPreimage": "refund-payment-preimage"
+            }
+            """.trimIndent()
+        val mockEngine =
+            MockEngine { _ ->
+                respond(
+                    content = ByteReadChannel(mockJsonResponse.toByteArray(Charsets.UTF_8)),
+                    status = HttpStatusCode.OK,
+                    headers = headersOf(HttpHeaders.ContentType, "application/json"),
+                )
+            }
+        val mockHttpClient =
+            HttpClient(mockEngine) {
+                install(ContentNegotiation) {
+                    json(Json { ignoreUnknownKeys = true })
+                }
+            }
+        return RefundService(PhoenixService(mockEnv, mockHttpClient))
+    }
+
+    private fun refundServiceWithNoPhoenixCallExpected(): RefundService {
+        val mockEngine = MockEngine { _ -> error("phoenixd should not be called for a non-BTC refund") }
+        val mockHttpClient = HttpClient(mockEngine)
+        return RefundService(PhoenixService(mockEnv, mockHttpClient))
+    }
+
+    private fun seedUser(): String {
+        val roleId = ExposedTestDb.seedRole("admin", isAdmin = true)
+        return ExposedTestDb.seedUser("Alice", roleId)
+    }
+
+    private fun defaultVariantId(productId: String): String =
+        variantService.getVariants(productId).first().id ?: error("No variant for product $productId")
+
+    private fun variantQuantity(variantId: String): Int =
+        variantService.getVariantById(variantId)?.quantity ?: error("Variant not found: $variantId")
+
+    private fun orderStatus(orderId: String): String =
+        transaction { OrderEntity.findById(UUID.fromString(orderId))?.status ?: error("Order not found: $orderId") }
+
+    private fun seedPaidOrderWithLine(
+        userId: String,
+        productId: String,
+        variantId: String?,
+        quantity: Int,
+        priceAtOrder: Int,
+        total: Double = 10.0,
+    ): String {
+        val orderId = ExposedTestDb.seedOrder(userId = userId, status = "paid", total = total)
+        ExposedTestDb.seedOrderProduct(
+            orderId = orderId,
+            productId = productId,
+            variantId = variantId,
+            quantity = quantity,
+            priceAtOrder = priceAtOrder,
+        )
+        return orderId
+    }
+
+    @Test
+    fun `processRefund on non-BTC order sets status refunded and satoshiAmount zero`() =
+        runBlocking {
+            val userId = seedUser()
+            val productId = ExposedTestDb.seedProduct(name = "Widget", quantity = 5)
+            val variantId = defaultVariantId(productId)
+            val orderId = seedPaidOrderWithLine(userId, productId, variantId, quantity = 2, priceAtOrder = 500)
+
+            val refund = refundServiceWithNoPhoenixCallExpected().processRefund(orderId, RefundRequest(invoice = ""))
+
+            assertEquals(0L, refund.satoshiAmount)
+            assertEquals("refunded", orderStatus(orderId))
+        }
+
+    @Test
+    fun `processRefund on BTC order calls payInvoice and stores recipientAmountSat`() =
+        runBlocking {
+            val userId = seedUser()
+            val productId = ExposedTestDb.seedProduct(name = "Widget", quantity = 5)
+            val variantId = defaultVariantId(productId)
+            val orderId = seedPaidOrderWithLine(userId, productId, variantId, quantity = 1, priceAtOrder = 500)
+
+            val refund = refundServiceRespondingWithSats(1234).processRefund(orderId, RefundRequest(invoice = "lnbc1..."))
+
+            assertEquals(1234L, refund.satoshiAmount)
+            assertEquals("refunded", orderStatus(orderId))
+        }
+
+    @Test
+    fun `processRefund rejects already refunded order`() {
+        runBlocking {
+            val userId = seedUser()
+            val orderId = ExposedTestDb.seedOrder(userId = userId, status = "refunded", total = 10.0)
+
+            assertFailsWith<OrderAlreadyRefundedException> {
+                refundServiceWithNoPhoenixCallExpected().processRefund(orderId, RefundRequest())
+            }
+        }
+    }
+
+    @Test
+    fun `processRefund rejects order not in paid status`() {
+        runBlocking {
+            val userId = seedUser()
+            val openOrderId = ExposedTestDb.seedOrder(userId = userId, status = "open", total = 10.0)
+            val closedOrderId = ExposedTestDb.seedOrder(userId = userId, status = "closed", total = 10.0)
+
+            assertFailsWith<OrderNotRefundableException> {
+                refundServiceWithNoPhoenixCallExpected().processRefund(openOrderId, RefundRequest())
+            }
+            assertFailsWith<OrderNotRefundableException> {
+                refundServiceWithNoPhoenixCallExpected().processRefund(closedOrderId, RefundRequest())
+            }
+        }
+    }
+
+    @Test
+    fun `processRefund throws ResourceNotFoundException for missing or malformed order id`() {
+        runBlocking {
+            assertFailsWith<ResourceNotFoundException> {
+                refundServiceWithNoPhoenixCallExpected().processRefund(UUID.randomUUID().toString(), RefundRequest())
+            }
+            assertFailsWith<ResourceNotFoundException> {
+                refundServiceWithNoPhoenixCallExpected().processRefund("not-a-uuid", RefundRequest())
+            }
+        }
+    }
+
+    @Test
+    fun `processRefund restores stock to the variant recorded on the order line`() =
+        runBlocking {
+            val userId = seedUser()
+            val productId = ExposedTestDb.seedProduct(name = "Widget", quantity = 5)
+            val defaultVariant = defaultVariantId(productId)
+            val secondVariantId =
+                variantService.addVariant(productId, UpsertVariantRequest(priceCents = 300, quantity = 2))
+                    ?: error("Failed to create second variant")
+
+            val orderId = seedPaidOrderWithLine(userId, productId, secondVariantId, quantity = 2, priceAtOrder = 300, total = 3.0)
+
+            refundServiceWithNoPhoenixCallExpected().processRefund(orderId, RefundRequest())
+
+            assertEquals(4, variantQuantity(secondVariantId))
+            assertEquals(5, variantQuantity(defaultVariant))
+        }
+
+    @Test
+    fun `processRefund restores to the default variant when variant_id is null`() =
+        runBlocking {
+            val userId = seedUser()
+            val productId = ExposedTestDb.seedProduct(name = "Widget", quantity = 5)
+            val defaultVariant = defaultVariantId(productId)
+
+            val orderId = seedPaidOrderWithLine(userId, productId, variantId = null, quantity = 3, priceAtOrder = 200, total = 5.0)
+
+            refundServiceWithNoPhoenixCallExpected().processRefund(orderId, RefundRequest())
+
+            assertEquals(8, variantQuantity(defaultVariant))
+        }
+
+    @Test
+    fun `processRefund restores bundle component pinned variant and leaves bundle stock untouched`() =
+        runBlocking {
+            val userId = seedUser()
+            val componentId = ExposedTestDb.seedProduct(name = "Component", quantity = 5)
+            val componentDefaultVariant = defaultVariantId(componentId)
+            val componentSecondVariant =
+                variantService.addVariant(componentId, UpsertVariantRequest(priceCents = 100, quantity = 1))
+                    ?: error("Failed to create component variant")
+
+            val bundleId = ExposedTestDb.seedProduct(name = "Bundle", quantity = 0, isBundle = true)
+            val bundleVariant = defaultVariantId(bundleId)
+            ExposedTestDb.seedBundleComponent(
+                bundleId = bundleId,
+                componentId = componentId,
+                componentVariantId = componentSecondVariant,
+                quantity = 2,
+            )
+
+            val orderId = seedPaidOrderWithLine(userId, bundleId, bundleVariant, quantity = 1, priceAtOrder = 1000)
+
+            refundServiceWithNoPhoenixCallExpected().processRefund(orderId, RefundRequest())
+
+            assertEquals(3, variantQuantity(componentSecondVariant))
+            assertEquals(5, variantQuantity(componentDefaultVariant))
+            assertEquals(0, variantQuantity(bundleVariant))
+        }
+
+    @Test
+    fun `processRefund restores bundle component default variant when component_variant_id is null`() =
+        runBlocking {
+            val userId = seedUser()
+            val componentId = ExposedTestDb.seedProduct(name = "Component", quantity = 5)
+            val componentDefaultVariant = defaultVariantId(componentId)
+
+            val bundleId = ExposedTestDb.seedProduct(name = "Bundle", quantity = 0, isBundle = true)
+            val bundleVariant = defaultVariantId(bundleId)
+            ExposedTestDb.seedBundleComponent(
+                bundleId = bundleId,
+                componentId = componentId,
+                componentVariantId = null,
+                quantity = 3,
+            )
+
+            val orderId = seedPaidOrderWithLine(userId, bundleId, bundleVariant, quantity = 1, priceAtOrder = 1000)
+
+            refundServiceWithNoPhoenixCallExpected().processRefund(orderId, RefundRequest())
+
+            assertEquals(8, variantQuantity(componentDefaultVariant))
+            assertEquals(0, variantQuantity(bundleVariant))
+        }
+}
