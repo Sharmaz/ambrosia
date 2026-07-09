@@ -13,7 +13,9 @@ object RefundsTable : SQLiteUUIDTable("refunds") {
     val refundedAt = varchar("refunded_at", 50)
 }
 
-class RefundEntity(id: EntityID<UUID>) : UUIDEntity(id) {
+class RefundEntity(
+    id: EntityID<UUID>,
+) : UUIDEntity(id) {
     companion object : UUIDEntityClass<RefundEntity>(RefundsTable)
 
     var orderId by RefundsTable.orderId
