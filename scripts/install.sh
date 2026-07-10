@@ -60,8 +60,13 @@ check_dependencies() {
 download_file() {
   local url="$1"
   local dest="$2"
-  # Retry 3 times, fail on error, follow redirects, silent unless error
-  if ! curl -fL --retry 3 --retry-delay 2 -o "$dest" "$url"; then
+  if ! curl -fL \
+    --retry 5 \
+    --retry-delay 5 \
+    --retry-all-errors \
+    --connect-timeout 30 \
+    -o "$dest" \
+    "$url"; then
     log_error "Failed to download $url"
     exit 1
   fi

@@ -137,7 +137,11 @@ install-phoenixd:
 	TMP=$$(mktemp -d); \
 	trap 'rm -rf "$$TMP"' EXIT; \
 	echo "Downloading phoenixd $(PHOENIXD_TAG) ($$ZIP)..."; \
-	curl -fL --retry 3 \
+	curl -fL \
+	  --retry 5 \
+	  --retry-delay 5 \
+	  --retry-all-errors \
+	  --connect-timeout 30 \
 	  -o "$$TMP/$$ZIP" \
 	  "https://github.com/ACINQ/phoenixd/releases/download/v$(PHOENIXD_TAG)/$$ZIP" && \
 	sudo unzip -j -o "$$TMP/$$ZIP" -d "$(PHOENIXD_INSTALL_DIR)" && \
