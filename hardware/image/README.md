@@ -2,6 +2,8 @@
 
 This directory contains the tooling to produce reproducible, flashable SD card images for supported hardware targets with Ambrosia POS pre-installed and ready to boot.
 
+> New to this? Read [`HOW-IT-WORKS.md`](HOW-IT-WORKS.md) first — a step-by-step walkthrough with diagrams of the whole pipeline, from source code to flashable image to first boot.
+
 The image embeds the full stack: Ambrosia server (Kotlin/Ktor), the Next.js client, Phoenixd (Lightning node), and Caddy as a reverse proxy. On first boot the device self-initializes — SSH host keys and the machine ID are regenerated, secrets are provisioned, and an optional preseed file is consumed to configure hostname, admin password, Wi-Fi country, and locale.
 
 ## Supported boards
