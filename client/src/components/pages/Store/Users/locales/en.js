@@ -38,6 +38,9 @@ const usersEn = {
       deleteButton: "Delete",
     },
     toasts: {
+      createSuccess: "User created successfully",
+      updateSuccess: "User updated successfully",
+      deleteSuccess: "User deleted successfully",
       duplicateNameTitle: "Duplicate name",
       duplicateNameDescription: "A user with that name already exists.",
       genericErrorTitle: "Error",
