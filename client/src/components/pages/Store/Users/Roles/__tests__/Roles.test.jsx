@@ -241,4 +241,27 @@ describe("Roles", () => {
 
     await waitFor(() => expect(screen.queryByText("roles.actions.deleteConfirmTitle")).not.toBeInTheDocument());
   });
+
+  it("shows delete-specific error feedback when role deletion fails", async () => {
+    const deleteRole = jest.fn(() => Promise.reject(new Error("delete failed")));
+
+    renderRoles({
+      roles: [{ id: "role-id", role: "cashier", isAdmin: false }],
+      deleteRole,
+    });
+
+    fireEvent.click(screen.getByText("delete role"));
+
+    await waitFor(() => expect(screen.getByText("roles.actions.deleteConfirmTitle")).toBeInTheDocument());
+
+    fireEvent.click(screen.getByText("roles.actions.delete"));
+
+    await waitFor(() => expect(deleteRole).toHaveBeenCalledWith("role-id"));
+    expect(addToast).toHaveBeenCalledWith({
+      title: "roles.actions.saveErrorTitle",
+      description: "roles.actions.deleteError",
+      color: "danger",
+    });
+    expect(screen.getByText("roles.actions.deleteConfirmTitle")).toBeInTheDocument();
+  });
 });
