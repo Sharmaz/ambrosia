@@ -7,15 +7,16 @@ const STATUS_STYLES = {
   paid: "bg-green-200 text-green-800 border border-green-300",
   open: "bg-blue-100 text-blue-800 border border-blue-200",
   closed: "bg-gray-200 text-gray-700 border border-gray-300",
+  refunded: "bg-purple-100 text-purple-800 border border-purple-200",
 };
 
 export function StatusChip({ status }) {
-  const t = useTranslations("orders");
+  const ordersTranslations = useTranslations("orders");
   const className = STATUS_STYLES[status] ?? STATUS_STYLES.closed;
 
   return (
     <Chip className={`text-xs ${className}`} size="sm">
-      {t(`status.${status}`)}
+      {ordersTranslations(`status.${status}`)}
     </Chip>
   );
 }
