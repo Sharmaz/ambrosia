@@ -12,6 +12,8 @@ const rolesEs = {
       createSuccess: "Rol creado correctamente",
       createErrorTitle: "Error",
       createErrorDescription: "No se pudo crear el rol",
+      createConflictTitle: "El rol ya existe",
+      createConflictDescription: "Usa un nombre de rol diferente.",
       save: "Guardar cambios",
       saveSuccess: "Rol actualizado correctamente",
       saveErrorTitle: "Error",

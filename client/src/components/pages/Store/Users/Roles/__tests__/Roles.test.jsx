@@ -163,6 +163,34 @@ describe("Roles", () => {
     expect(screen.getByText("roles.create.title")).toBeInTheDocument();
   });
 
+  it("shows duplicate role feedback when role creation conflicts", async () => {
+    const createConflictError = new Error("role already exists");
+    createConflictError.status = 409;
+    const createRole = jest.fn(() => Promise.reject(createConflictError));
+
+    renderRoles({ createRole });
+
+    fireEvent.click(screen.getByText("roles.actions.new"));
+    fireEvent.click(screen.getByText("set role name"));
+
+    await waitFor(() => expect(screen.getByTestId("role-name")).toHaveTextContent("cashier"));
+
+    fireEvent.click(screen.getByText("roles.actions.create"));
+
+    await waitFor(() => expect(createRole).toHaveBeenCalledWith({
+      name: "cashier",
+      password: undefined,
+      isAdmin: false,
+      permissions: [],
+    }));
+    expect(addToast).toHaveBeenCalledWith({
+      title: "roles.actions.createConflictTitle",
+      description: "roles.actions.createConflictDescription",
+      color: "warning",
+    });
+    expect(screen.getByText("roles.create.title")).toBeInTheDocument();
+  });
+
   it("does not create a role twice while creation is pending", async () => {
     let resolveCreateRole;
     const createRole = jest.fn(() => new Promise((resolve) => {

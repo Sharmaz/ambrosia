@@ -12,6 +12,8 @@ const rolesEn = {
       createSuccess: "Role created successfully",
       createErrorTitle: "Error",
       createErrorDescription: "Could not create the role",
+      createConflictTitle: "Role already exists",
+      createConflictDescription: "Use a different role name.",
       save: "Save changes",
       saveSuccess: "Role updated successfully",
       saveErrorTitle: "Error",

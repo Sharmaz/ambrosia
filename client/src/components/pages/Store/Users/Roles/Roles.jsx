@@ -72,11 +72,11 @@ export function Roles({ roles, createRole, deleteRole, loading: loadingRoles, up
       setForm({ name: "", password: "", isAdmin: false, permissions: [] });
       setShowModal(false);
       addToast({ title: roleTranslations("roles.actions.createSuccess"), color: "success" });
-    } catch {
+    } catch (error) {
       addToast({
-        title: roleTranslations("roles.actions.createErrorTitle"),
-        description: roleTranslations("roles.actions.createErrorDescription"),
-        color: "danger",
+        title: error?.status === 409 ? roleTranslations("roles.actions.createConflictTitle") : roleTranslations("roles.actions.createErrorTitle"),
+        description: error?.status === 409 ? roleTranslations("roles.actions.createConflictDescription") : roleTranslations("roles.actions.createErrorDescription"),
+        color: error?.status === 409 ? "warning" : "danger",
       });
     } finally {
       creatingRef.current = false;
