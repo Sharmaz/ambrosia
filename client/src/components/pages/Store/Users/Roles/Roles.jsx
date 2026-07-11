@@ -19,7 +19,7 @@ import { permissionCatalog } from "./utils/permissionCatalog";
 
 export function Roles({ roles, createRole, deleteRole, loading: loadingRoles, updateRoleWithPermissions, getRolePermissions }) {
   const { permissions, loading: loadingPerms } = usePermissions();
-  const t = useTranslations();
+  const roleTranslations = useTranslations();
   const { businessType } = useConfigurations();
   const [showModal, setShowModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -43,7 +43,7 @@ export function Roles({ roles, createRole, deleteRole, loading: loadingRoles, up
   }), [permSet, businessType]);
 
   const togglePermission = (name) => {
-    setForm((prev) => {
+      setForm((prev) => {
       const exists = prev.permissions.includes(name);
       return {
         ...prev,
@@ -66,6 +66,13 @@ export function Roles({ roles, createRole, deleteRole, loading: loadingRoles, up
       });
       setForm({ name: "", password: "", isAdmin: false, permissions: [] });
       setShowModal(false);
+      addToast({ title: roleTranslations("roles.actions.createSuccess"), color: "success" });
+    } catch {
+      addToast({
+        title: roleTranslations("roles.actions.createErrorTitle"),
+        description: roleTranslations("roles.actions.createErrorDescription"),
+        color: "danger",
+      });
     } finally {
       setCreating(false);
     }
@@ -100,11 +107,11 @@ export function Roles({ roles, createRole, deleteRole, loading: loadingRoles, up
       setShowEditModal(false);
       setEditingRole(null);
       setForm({ name: "", password: "", isAdmin: false, permissions: [] });
-      addToast({ title: t("roles.actions.saveSuccess"), color: "success" });
+      addToast({ title: roleTranslations("roles.actions.saveSuccess"), color: "success" });
     } catch (error) {
       addToast({
-        title: error?.status === 409 ? t("roles.actions.lastAdminErrorTittle") : t("roles.actions.saveErrorTitle"),
-        description: error?.status == 409 ? t("roles.actions.lastAdminErrorDescription") : t("roles.actions.saveErrorDescription"),
+        title: error?.status === 409 ? roleTranslations("roles.actions.lastAdminErrorTittle") : roleTranslations("roles.actions.saveErrorTitle"),
+        description: error?.status == 409 ? roleTranslations("roles.actions.lastAdminErrorDescription") : roleTranslations("roles.actions.saveErrorDescription"),
         color: error?.status === 409 ? "warning" : "danger",
       });
     } finally {
@@ -118,11 +125,11 @@ export function Roles({ roles, createRole, deleteRole, loading: loadingRoles, up
       setDeleting(true);
       await deleteRole(roleToDelete.id);
       setRoleToDelete(null);
-      addToast({ title: t("roles.actions.deleteSuccess"), color: "success" });
+      addToast({ title: roleTranslations("roles.actions.deleteSuccess"), color: "success" });
     } catch (error) {
       addToast({
-        title: error?.status === 409 ? t("roles.actions.lastAdminErrorTittle") : t("roles.actions.saveErrorTitle"),
-        description: error?.status == 409 ? t("roles.actions.lastAdminErrorDescription") : t("roles.actions.saveErrorDescription"),
+        title: error?.status === 409 ? roleTranslations("roles.actions.lastAdminErrorTittle") : roleTranslations("roles.actions.saveErrorTitle"),
+        description: error?.status == 409 ? roleTranslations("roles.actions.lastAdminErrorDescription") : roleTranslations("roles.actions.saveErrorDescription"),
         color: error?.status === 409 ? "warning" : "danger",
       });
     } finally {
@@ -133,8 +140,8 @@ export function Roles({ roles, createRole, deleteRole, loading: loadingRoles, up
   return (
     <div>
       <PageHeader
-        title={t("roles.header.title")}
-        subtitle={t("roles.header.subtitle")}
+        title={roleTranslations("roles.header.title")}
+        subtitle={roleTranslations("roles.header.subtitle")}
         actions={(
           <RequirePermission allOf={["roles_create"]}>
             <Button
@@ -143,7 +150,7 @@ export function Roles({ roles, createRole, deleteRole, loading: loadingRoles, up
               onPress={() => setShowModal(true)}
               isDisabled={loadingPerms}
             >
-              {t("roles.actions.new")}
+              {roleTranslations("roles.actions.new")}
             </Button>
           </RequirePermission>
         )}
@@ -169,7 +176,7 @@ export function Roles({ roles, createRole, deleteRole, loading: loadingRoles, up
         setForm={setForm}
         permissionOptions={filteredCatalog}
         togglePermission={togglePermission}
-        t={t}
+        t={roleTranslations}
         businessType={businessType}
       />
 
@@ -194,7 +201,7 @@ export function Roles({ roles, createRole, deleteRole, loading: loadingRoles, up
           togglePermission={togglePermission}
           updating={updating}
           roleName={editingRole?.role}
-          t={t}
+          t={roleTranslations}
           businessType={businessType}
         />
       )}
