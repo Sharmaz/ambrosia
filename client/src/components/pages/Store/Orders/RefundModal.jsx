@@ -1,0 +1,122 @@
+"use client";
+
+import { useState } from "react";
+
+import {
+  Modal,
+  ModalContent,
+  ModalHeader,
+  ModalBody,
+  ModalFooter,
+  Button,
+  Textarea,
+  addToast,
+} from "@heroui/react";
+import { useTranslations } from "next-intl";
+
+import { httpClient, parseJsonResponse } from "@/lib/http";
+
+async function buildHttpRequestError(response, fallbackMessage) {
+  const responsePayload = await parseJsonResponse(response, null);
+  const requestError = new Error(fallbackMessage);
+  requestError.status = response.status;
+  requestError.responseMessage = responsePayload?.message;
+  return requestError;
+}
+
+export function RefundModal({ order, isOpen, onClose, onRefunded }) {
+  const ordersTranslations = useTranslations("orders");
+  const [invoice, setInvoice] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const isBtcOrder = order?.satoshiAmount != null;
+
+  async function handleRefund() {
+    setLoading(true);
+    try {
+      const refundResponse = await httpClient(`/store/orders/${order.id}/refund`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ invoice: isBtcOrder ? invoice.trim() : "" }),
+      });
+
+      if (refundResponse.ok === false) {
+        throw await buildHttpRequestError(refundResponse, ordersTranslations("details.refundError"));
+      }
+
+      addToast({
+        color: "success",
+        description: ordersTranslations("details.refundSuccess"),
+      });
+      setInvoice("");
+      onRefunded();
+    } catch (error) {
+      addToast({
+        color: "danger",
+        description: error?.responseMessage || error?.message || ordersTranslations("details.refundError"),
+      });
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function handleClose() {
+    setInvoice("");
+    onClose();
+  }
+
+  return (
+    <Modal
+      isOpen={isOpen}
+      onOpenChange={handleClose}
+      size="sm"
+      backdrop="blur"
+      classNames={{ backdrop: "backdrop-blur-xs bg-white/10", base: "my-auto" }}
+    >
+      <ModalContent>
+        <ModalHeader>{ordersTranslations("details.refundTitle")}</ModalHeader>
+        <ModalBody className="pt-0">
+          <p className="text-sm text-gray-600 mb-3">
+            {ordersTranslations("details.refundDescription")}
+          </p>
+          {isBtcOrder && (
+            <div className="space-y-3">
+              <p className="text-sm font-medium">
+                {ordersTranslations("details.refundAmountLabel")}:{" "}
+                <span className="font-mono">
+                  {order.satoshiAmount} {ordersTranslations("details.sats")}
+                </span>
+              </p>
+              <Textarea
+                label={ordersTranslations("details.refundInvoiceLabel")}
+                placeholder={ordersTranslations("details.refundInvoicePlaceholder")}
+                value={invoice}
+                onValueChange={setInvoice}
+                minRows={3}
+                classNames={{ inputWrapper: "shadow-none" }}
+              />
+            </div>
+          )}
+        </ModalBody>
+        <ModalFooter className="flex justify-between">
+          <Button
+            className="px-6 py-2 border border-border text-foreground hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            variant="bordered"
+            onPress={handleClose}
+            isDisabled={loading}
+          >
+            {ordersTranslations("details.close")}
+          </Button>
+          <Button
+            color="danger"
+            isLoading={loading}
+            isDisabled={isBtcOrder && !invoice.trim()}
+            onPress={handleRefund}
+          >
+            {ordersTranslations("details.refundConfirm")}
+          </Button>
+        </ModalFooter>
+      </ModalContent>
+    </Modal>
+  );
+}

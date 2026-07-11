@@ -82,6 +82,7 @@ const ordersEn = {
       refundInvoiceLabel: "Customer Lightning invoice",
       refundInvoicePlaceholder: "lnbc...",
       refundAmountLabel: "Amount to refund",
+      sats: "sats",
       refundInvoice: "Refund invoice",
       refundedAt: "Refunded at",
       refundConfirm: "Process refund",
