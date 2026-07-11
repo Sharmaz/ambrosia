@@ -8,7 +8,6 @@ import {
   ModalFooter,
   ModalHeader,
   Checkbox,
-  Spinner,
 } from "@heroui/react";
 
 import { PermissionSelector } from "./PermissionSelector";
@@ -23,7 +22,7 @@ export function EditRoleModal({
   togglePermission,
   updating = false,
   roleName = "",
-  t,
+  roleTranslations,
   businessType = null,
 }) {
   return (
@@ -43,41 +42,41 @@ export function EditRoleModal({
     >
       <ModalContent>
         <ModalHeader>
-          {t("roles.edit.title")} {roleName ? `(${roleName})` : ""}
+          {roleTranslations("roles.edit.title")} {roleName ? `(${roleName})` : ""}
         </ModalHeader>
         <ModalBody className="max-h-[70vh] overflow-y-auto space-y-4">
           <div className="grid md:grid-cols-2 gap-4">
             <Input
-              label={t("roles.edit.roleName")}
-              placeholder={t("roles.edit.roleNamePlaceholder")}
+              label={roleTranslations("roles.edit.roleName")}
+              placeholder={roleTranslations("roles.edit.roleNamePlaceholder")}
               value={form.name}
-              onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
+              onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))}
               isRequired
             />
             <Input
-              label={t("roles.edit.password")}
-              placeholder={t("roles.edit.passwordPlaceholder")}
+              label={roleTranslations("roles.edit.password")}
+              placeholder={roleTranslations("roles.edit.passwordPlaceholder")}
               type="password"
               value={form.password}
-              onChange={(e) => setForm((prev) => ({ ...prev, password: e.target.value }))}
+              onChange={(event) => setForm((prev) => ({ ...prev, password: event.target.value }))}
             />
             <Checkbox
               isSelected={form.isAdmin}
-              onValueChange={(v) => setForm((prev) => ({ ...prev, isAdmin: v }))}
+              onValueChange={(isSelected) => setForm((prev) => ({ ...prev, isAdmin: isSelected }))}
             >
-              {t("roles.edit.isAdmin")}
+              {roleTranslations("roles.edit.isAdmin")}
             </Checkbox>
           </div>
 
           <div className="mt-4 space-y-4">
             <p className="text-sm text-default-600">
-              {t("roles.permissions.legend")}
+              {roleTranslations("roles.permissions.legend")}
             </p>
             <PermissionSelector
               catalog={permissionOptions}
               selected={form.permissions}
               togglePermission={togglePermission}
-              t={t}
+              roleTranslations={roleTranslations}
               businessType={businessType}
             />
           </div>
@@ -87,20 +86,18 @@ export function EditRoleModal({
             variant="bordered"
             className="px-6 py-2 border border-border text-foreground hover:bg-muted transition-colors"
             onPress={onClose}
+            isDisabled={updating}
           >
-            {t("roles.actions.cancel")}
+            {roleTranslations("roles.actions.cancel")}
           </Button>
           <Button
             color="primary"
             className="bg-green-800"
             onPress={onSubmit}
-            isDisabled={!form.name.trim()}
+            isDisabled={!form.name.trim() || updating}
+            isLoading={updating}
           >
-            {updating ? (
-              <Spinner color="white" size="sm" />
-            ) : (
-              t("roles.actions.save")
-            )}
+            {roleTranslations("roles.actions.save")}
           </Button>
         </ModalFooter>
       </ModalContent>

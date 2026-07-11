@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 
 import { addToast, Button, Card, CardBody } from "@heroui/react";
 import { useTranslations } from "next-intl";
@@ -28,6 +28,9 @@ export function Roles({ roles, createRole, deleteRole, loading: loadingRoles, up
   const [updating, setUpdating] = useState(false);
   const [roleToDelete, setRoleToDelete] = useState(null);
   const [deleting, setDeleting] = useState(false);
+  const creatingRef = useRef(false);
+  const updatingRef = useRef(false);
+  const deletingRef = useRef(false);
   const [form, setForm] = useState({
     name: "",
     password: "",
@@ -36,14 +39,14 @@ export function Roles({ roles, createRole, deleteRole, loading: loadingRoles, up
   });
 
   const permSet = useMemo(() => buildPermissionSet(permissions), [permissions]);
-  const filteredCatalog = useMemo(() => permissionCatalog.filter((perm) => {
-    if (!permSet.has(perm.key)) return false;
+  const filteredCatalog = useMemo(() => permissionCatalog.filter((permission) => {
+    if (!permSet.has(permission.key)) return false;
     if (!businessType) return true;
-    return perm.business === "both" || perm.business === businessType;
+    return permission.business === "both" || permission.business === businessType;
   }), [permSet, businessType]);
 
   const togglePermission = (name) => {
-      setForm((prev) => {
+    setForm((prev) => {
       const exists = prev.permissions.includes(name);
       return {
         ...prev,
@@ -56,6 +59,8 @@ export function Roles({ roles, createRole, deleteRole, loading: loadingRoles, up
 
   const handleCreateRole = async () => {
     if (!form.name.trim()) return;
+    if (creatingRef.current) return;
+    creatingRef.current = true;
     try {
       setCreating(true);
       await createRole({
@@ -74,6 +79,7 @@ export function Roles({ roles, createRole, deleteRole, loading: loadingRoles, up
         color: "danger",
       });
     } finally {
+      creatingRef.current = false;
       setCreating(false);
     }
   };
@@ -96,6 +102,8 @@ export function Roles({ roles, createRole, deleteRole, loading: loadingRoles, up
 
   const handleUpdateRole = async () => {
     if (!editingRole) return;
+    if (updatingRef.current) return;
+    updatingRef.current = true;
     try {
       setUpdating(true);
       await updateRoleWithPermissions(editingRole.id, {
@@ -115,12 +123,15 @@ export function Roles({ roles, createRole, deleteRole, loading: loadingRoles, up
         color: error?.status === 409 ? "warning" : "danger",
       });
     } finally {
+      updatingRef.current = false;
       setUpdating(false);
     }
   };
 
   const handleDeleteRole = async () => {
     if (!roleToDelete) return;
+    if (deletingRef.current) return;
+    deletingRef.current = true;
     try {
       setDeleting(true);
       await deleteRole(roleToDelete.id);
@@ -133,6 +144,7 @@ export function Roles({ roles, createRole, deleteRole, loading: loadingRoles, up
         color: error?.status === 409 ? "warning" : "danger",
       });
     } finally {
+      deletingRef.current = false;
       setDeleting(false);
     }
   };
@@ -176,7 +188,7 @@ export function Roles({ roles, createRole, deleteRole, loading: loadingRoles, up
         setForm={setForm}
         permissionOptions={filteredCatalog}
         togglePermission={togglePermission}
-        t={roleTranslations}
+        roleTranslations={roleTranslations}
         businessType={businessType}
       />
 
@@ -201,7 +213,7 @@ export function Roles({ roles, createRole, deleteRole, loading: loadingRoles, up
           togglePermission={togglePermission}
           updating={updating}
           roleName={editingRole?.role}
-          t={roleTranslations}
+          roleTranslations={roleTranslations}
           businessType={businessType}
         />
       )}
