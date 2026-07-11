@@ -18,7 +18,7 @@ const baseForm = {
   permissions: [],
 };
 
-const t = (key) => key;
+const roleTranslations = (key) => key;
 
 const renderModal = (props = {}) => render(
   <I18nProvider>
@@ -31,7 +31,7 @@ const renderModal = (props = {}) => render(
       permissionOptions={[]}
       togglePermission={jest.fn()}
       creating={false}
-      t={t}
+      roleTranslations={roleTranslations}
       businessType="store"
       {...props}
     />
@@ -121,10 +121,10 @@ describe("CreateRoleModal", () => {
     expect(onSubmit).toHaveBeenCalled();
   });
 
-  it("shows spinner when creating", () => {
+  it("disables submit button when creating", () => {
     renderModal({ creating: true, form: { ...baseForm, name: "cashier" } });
     fireEvent.click(screen.getByText("roles.create.advanced"));
-    expect(screen.queryByText("roles.actions.create")).not.toBeInTheDocument();
+    expect(screen.getByText("roles.actions.create").closest("button")).toBeDisabled();
   });
 
   it("resolves template key to translated name in advanced name input", () => {
