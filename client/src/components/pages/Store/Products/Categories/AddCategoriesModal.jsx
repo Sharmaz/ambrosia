@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 import {
   Button,
@@ -21,19 +21,22 @@ export function AddCategoriesModal({
   addCategoriesShowModal,
   setAddCategoriesShowModal,
 }) {
-  const t = useTranslations("categories");
+  const categoryTranslations = useTranslations("categories");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const isSubmittingRef = useRef(false);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (isSubmitting) return;
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    if (isSubmittingRef.current) return;
 
+    isSubmittingRef.current = true;
     try {
       setIsSubmitting(true);
       await addCategory(data);
       setData({ categoryName: "" });
       setAddCategoriesShowModal(false);
     } finally {
+      isSubmittingRef.current = false;
       setIsSubmitting(false);
     }
   };
@@ -52,17 +55,17 @@ export function AddCategoriesModal({
       placement="center"
     >
       <ModalContent>
-        <ModalHeader>{t("modal.titleAdd")}</ModalHeader>
+        <ModalHeader>{categoryTranslations("modal.titleAdd")}</ModalHeader>
         <ModalBody>
           <form className="space-y-4" onSubmit={handleSubmit}>
             <Input
-              label={t("modal.categoryNameLabel")}
+              label={categoryTranslations("modal.categoryNameLabel")}
               type="text"
-              placeholder={t("modal.categoryNamePlaceholder")}
+              placeholder={categoryTranslations("modal.categoryNamePlaceholder")}
               isRequired
-              errorMessage={t("modal.errorMsgInputFieldEmpty")}
+              errorMessage={categoryTranslations("modal.errorMsgInputFieldEmpty")}
               value={data.categoryName ?? ""}
-              onChange={(e) => onChange({ categoryName: e.target.value })}
+              onChange={(event) => onChange({ categoryName: event.target.value })}
             />
             <ModalFooter className="flex justify-between p-0 my-4">
               <Button
@@ -71,15 +74,16 @@ export function AddCategoriesModal({
                 className="px-6 py-2 border border-border text-foreground hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 onPress={() => setAddCategoriesShowModal(false)}
               >
-                {t("modal.cancelButton")}
+                {categoryTranslations("modal.cancelButton")}
               </Button>
               <Button
                 color="primary"
                 className="bg-green-800"
                 type="submit"
+                isDisabled={isSubmitting}
                 isLoading={isSubmitting}
               >
-                {t("modal.submitButton")}
+                {categoryTranslations("modal.submitButton")}
               </Button>
             </ModalFooter>
           </form>
