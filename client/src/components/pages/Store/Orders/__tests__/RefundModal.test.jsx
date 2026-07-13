@@ -22,10 +22,11 @@ jest.mock("@heroui/react", () => ({
       {children}
     </button>
   ),
-  Textarea: ({ label, value, onValueChange }) => (
+  Textarea: ({ label, value, onValueChange, errorMessage }) => (
     <label>
       {label}
       <textarea aria-label={label} value={value} onChange={(e) => onValueChange(e.target.value)} />
+      {errorMessage && <span>{errorMessage}</span>}
     </label>
   ),
 }));
@@ -73,7 +74,7 @@ describe("RefundModal", () => {
     expect(screen.getByText("details.refundConfirm")).toBeDisabled();
 
     fireEvent.change(screen.getByLabelText("details.refundInvoiceLabel"), {
-      target: { value: "lnbc1..." },
+      target: { value: "lnbc1000n1pj9h8uqpp5test" },
     });
 
     expect(screen.getByText("details.refundConfirm")).not.toBeDisabled();
@@ -83,9 +84,61 @@ describe("RefundModal", () => {
     await waitFor(() => expect(httpClient).toHaveBeenCalledWith("/store/orders/order-btc/refund", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ invoice: "lnbc1..." }),
+      body: JSON.stringify({ invoice: "lnbc1000n1pj9h8uqpp5test" }),
     }));
     expect(onRefunded).toHaveBeenCalled();
+  });
+
+  it("shows a format error and does not call httpClient when the invoice has an invalid prefix", async () => {
+    const onRefunded = jest.fn();
+    const order = { id: "order-btc", satoshiAmount: 5000 };
+
+    render(<RefundModal order={order} isOpen onClose={jest.fn()} onRefunded={onRefunded} />);
+
+    fireEvent.change(screen.getByLabelText("details.refundInvoiceLabel"), {
+      target: { value: "not-an-invoice-at-all" },
+    });
+
+    fireEvent.click(screen.getByText("details.refundConfirm"));
+
+    expect(await screen.findByText("details.refundInvoiceInvalid")).toBeInTheDocument();
+    expect(httpClient).not.toHaveBeenCalled();
+    expect(onRefunded).not.toHaveBeenCalled();
+  });
+
+  it("shows a format error and does not call httpClient when the invoice is shorter than 20 characters", async () => {
+    const onRefunded = jest.fn();
+    const order = { id: "order-btc", satoshiAmount: 5000 };
+
+    render(<RefundModal order={order} isOpen onClose={jest.fn()} onRefunded={onRefunded} />);
+
+    fireEvent.change(screen.getByLabelText("details.refundInvoiceLabel"), {
+      target: { value: "lnbc123" },
+    });
+
+    fireEvent.click(screen.getByText("details.refundConfirm"));
+
+    expect(await screen.findByText("details.refundInvoiceInvalid")).toBeInTheDocument();
+    expect(httpClient).not.toHaveBeenCalled();
+    expect(onRefunded).not.toHaveBeenCalled();
+  });
+
+  it("clears the invoice format error when the user edits the field again", async () => {
+    const order = { id: "order-btc", satoshiAmount: 5000 };
+
+    render(<RefundModal order={order} isOpen onClose={jest.fn()} onRefunded={jest.fn()} />);
+
+    fireEvent.change(screen.getByLabelText("details.refundInvoiceLabel"), {
+      target: { value: "not-an-invoice-at-all" },
+    });
+    fireEvent.click(screen.getByText("details.refundConfirm"));
+    expect(await screen.findByText("details.refundInvoiceInvalid")).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("details.refundInvoiceLabel"), {
+      target: { value: "lnbc1000n1pj9h8uqpp5test" },
+    });
+
+    expect(screen.queryByText("details.refundInvoiceInvalid")).not.toBeInTheDocument();
   });
 
   it("shows an error toast and does not call onRefunded when the request throws", async () => {

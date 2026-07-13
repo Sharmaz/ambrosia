@@ -81,6 +81,7 @@ const ordersEs = {
       refundDescription: "Esto restaurará el stock de los productos y marcará la orden como reembolsada.",
       refundInvoiceLabel: "Invoice Lightning del cliente",
       refundInvoicePlaceholder: "lnbc...",
+      refundInvoiceInvalid: "Formato de invoice Lightning inválido",
       refundAmountLabel: "Monto a reembolsar",
       sats: "sats",
       refundInvoice: "Invoice de reembolso",

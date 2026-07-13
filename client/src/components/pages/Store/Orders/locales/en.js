@@ -81,6 +81,7 @@ const ordersEn = {
       refundDescription: "This will restore product stock and mark the order as refunded.",
       refundInvoiceLabel: "Customer Lightning invoice",
       refundInvoicePlaceholder: "lnbc...",
+      refundInvoiceInvalid: "Invalid Lightning invoice format",
       refundAmountLabel: "Amount to refund",
       sats: "sats",
       refundInvoice: "Refund invoice",

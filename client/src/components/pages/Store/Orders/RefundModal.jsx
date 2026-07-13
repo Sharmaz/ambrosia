@@ -15,6 +15,7 @@ import {
 import { useTranslations } from "next-intl";
 
 import { httpClient, parseJsonResponse } from "@/lib/http";
+import { getBolt11ValidationErrorCode } from "@/utils/validateBolt11Invoice";
 
 async function buildHttpRequestError(response, fallbackMessage) {
   const responsePayload = await parseJsonResponse(response, null);
@@ -24,14 +25,33 @@ async function buildHttpRequestError(response, fallbackMessage) {
   return requestError;
 }
 
+function getInvoiceErrorMessage(invoiceValue, translate) {
+  const hasFormatError = getBolt11ValidationErrorCode(invoiceValue) !== "";
+  return hasFormatError ? translate("details.refundInvoiceInvalid") : "";
+}
+
 export function RefundModal({ order, isOpen, onClose, onRefunded }) {
   const ordersTranslations = useTranslations("orders");
   const [invoice, setInvoice] = useState("");
+  const [invoiceError, setInvoiceError] = useState("");
   const [loading, setLoading] = useState(false);
 
   const isBtcOrder = order?.satoshiAmount != null;
 
+  function handleInvoiceChange(value) {
+    setInvoice(value);
+    setInvoiceError("");
+  }
+
   async function handleRefund() {
+    if (isBtcOrder) {
+      const errorMessage = getInvoiceErrorMessage(invoice, ordersTranslations);
+      if (errorMessage) {
+        setInvoiceError(errorMessage);
+        return;
+      }
+    }
+
     setLoading(true);
     try {
       const refundResponse = await httpClient(`/store/orders/${order.id}/refund`, {
@@ -62,6 +82,7 @@ export function RefundModal({ order, isOpen, onClose, onRefunded }) {
 
   function handleClose() {
     setInvoice("");
+    setInvoiceError("");
     onClose();
   }
 
@@ -91,7 +112,9 @@ export function RefundModal({ order, isOpen, onClose, onRefunded }) {
                 label={ordersTranslations("details.refundInvoiceLabel")}
                 placeholder={ordersTranslations("details.refundInvoicePlaceholder")}
                 value={invoice}
-                onValueChange={setInvoice}
+                onValueChange={handleInvoiceChange}
+                isInvalid={Boolean(invoiceError)}
+                errorMessage={invoiceError}
                 minRows={3}
                 classNames={{ inputWrapper: "shadow-none" }}
               />
