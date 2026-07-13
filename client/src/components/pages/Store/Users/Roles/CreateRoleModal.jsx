@@ -12,6 +12,7 @@ import {
   Checkbox,
 } from "@heroui/react";
 import { ArrowLeft } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 import { PermissionSelector } from "./PermissionSelector";
 import { roleTemplates, resolveRoleName } from "./utils/roleTemplates";
@@ -25,9 +26,9 @@ export function CreateRoleModal({
   permissionOptions = [],
   togglePermission,
   creating = false,
-  roleTranslations,
   businessType = null,
 }) {
+  const roleTranslations = useTranslations();
   const [advanced, setAdvanced] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState(null);
 
@@ -151,7 +152,6 @@ export function CreateRoleModal({
                   catalog={permissionOptions}
                   selected={form.permissions}
                   togglePermission={togglePermission}
-                  roleTranslations={roleTranslations}
                   businessType={businessType}
                 />
               </div>

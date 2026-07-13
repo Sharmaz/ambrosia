@@ -188,7 +188,6 @@ export function Roles({ roles, createRole, deleteRole, loading: loadingRoles, up
         setForm={setForm}
         permissionOptions={filteredCatalog}
         togglePermission={togglePermission}
-        roleTranslations={roleTranslations}
         businessType={businessType}
       />
 
@@ -213,7 +212,6 @@ export function Roles({ roles, createRole, deleteRole, loading: loadingRoles, up
           togglePermission={togglePermission}
           updating={updating}
           roleName={editingRole?.role}
-          roleTranslations={roleTranslations}
           businessType={businessType}
         />
       )}

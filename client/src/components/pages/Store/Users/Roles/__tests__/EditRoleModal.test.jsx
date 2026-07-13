@@ -18,8 +18,6 @@ const baseForm = {
   permissions: ["products_read", "orders_read"],
 };
 
-const roleTranslations = (key) => key;
-
 const renderModal = (props = {}) => render(
   <I18nProvider>
     <EditRoleModal
@@ -32,7 +30,6 @@ const renderModal = (props = {}) => render(
       togglePermission={jest.fn()}
       updating={false}
       roleName="cashier"
-      roleTranslations={roleTranslations}
       businessType="store"
       {...props}
     />

@@ -18,8 +18,6 @@ const baseForm = {
   permissions: [],
 };
 
-const roleTranslations = (key) => key;
-
 const renderModal = (props = {}) => render(
   <I18nProvider>
     <CreateRoleModal
@@ -31,7 +29,6 @@ const renderModal = (props = {}) => render(
       permissionOptions={[]}
       togglePermission={jest.fn()}
       creating={false}
-      roleTranslations={roleTranslations}
       businessType="store"
       {...props}
     />

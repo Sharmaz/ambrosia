@@ -2,14 +2,15 @@
 import { useMemo } from "react";
 
 import { Checkbox, Chip, Divider } from "@heroui/react";
+import { useTranslations } from "next-intl";
 
 export function PermissionSelector({
   catalog = [],
   selected = [],
   togglePermission,
-  roleTranslations,
   businessType,
 }) {
+  const roleTranslations = useTranslations();
   const selectedSet = useMemo(() => new Set(selected), [selected]);
 
   const groupedPermissions = useMemo(() => catalog.reduce((permissionsByGroup, permission) => {

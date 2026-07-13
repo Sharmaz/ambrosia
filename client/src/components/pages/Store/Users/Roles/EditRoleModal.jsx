@@ -9,6 +9,7 @@ import {
   ModalHeader,
   Checkbox,
 } from "@heroui/react";
+import { useTranslations } from "next-intl";
 
 import { PermissionSelector } from "./PermissionSelector";
 
@@ -22,9 +23,10 @@ export function EditRoleModal({
   togglePermission,
   updating = false,
   roleName = "",
-  roleTranslations,
   businessType = null,
 }) {
+  const roleTranslations = useTranslations();
+
   return (
     <Modal
       isOpen={isOpen}
@@ -76,7 +78,6 @@ export function EditRoleModal({
               catalog={permissionOptions}
               selected={form.permissions}
               togglePermission={togglePermission}
-              roleTranslations={roleTranslations}
               businessType={businessType}
             />
           </div>
