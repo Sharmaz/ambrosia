@@ -35,6 +35,8 @@ export function AddCategoriesModal({
       await addCategory(data);
       setData({ categoryName: "" });
       setAddCategoriesShowModal(false);
+    } catch {
+      return;
     } finally {
       isSubmittingRef.current = false;
       setIsSubmitting(false);

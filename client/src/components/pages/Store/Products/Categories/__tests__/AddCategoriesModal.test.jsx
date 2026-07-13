@@ -69,6 +69,20 @@ describe("AddCategoriesModal", () => {
     expect(setAddCategoriesShowModal).toHaveBeenCalledWith(false);
   });
 
+  it("does not reset or close when addCategory fails", async () => {
+    const addCategory = jest.fn(() => Promise.reject(new Error("add failed")));
+    const setAddCategoriesShowModal = jest.fn();
+    const setData = jest.fn();
+
+    renderModal({ addCategory, setAddCategoriesShowModal, setData });
+
+    fireEvent.click(screen.getByText("modal.submitButton"));
+
+    await waitFor(() => expect(addCategory).toHaveBeenCalledWith(baseData));
+    expect(setData).not.toHaveBeenCalled();
+    expect(setAddCategoriesShowModal).not.toHaveBeenCalledWith(false);
+  });
+
   it("prevents double submit while submitting", () => {
     const addCategory = jest.fn(() => new Promise(() => {}));
     renderModal({ addCategory });

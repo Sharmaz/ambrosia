@@ -17,6 +17,8 @@ export function DeleteCategoriesModal({ category, deleteCategoriesShowModal, set
     try {
       setIsDeleting(true);
       await onConfirm?.();
+    } catch {
+      return;
     } finally {
       isDeletingRef.current = false;
       setIsDeleting(false);

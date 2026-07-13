@@ -39,6 +39,8 @@ export function EditCategoriesModal({
       setIsSubmitting(true);
       await updateCategory(data);
       setEditCategoriesShowModal(false);
+    } catch {
+      return;
     } finally {
       isSubmittingRef.current = false;
       setIsSubmitting(false);

@@ -70,6 +70,18 @@ describe("EditCategoriesModal", () => {
     expect(setEditCategoriesShowModal).toHaveBeenCalledWith(false);
   });
 
+  it("does not close when updateCategory fails", async () => {
+    const updateCategory = jest.fn(() => Promise.reject(new Error("update failed")));
+    const setEditCategoriesShowModal = jest.fn();
+
+    renderModal({ updateCategory, setEditCategoriesShowModal });
+
+    fireEvent.click(screen.getByText("modal.editButton"));
+
+    await waitFor(() => expect(updateCategory).toHaveBeenCalledWith(baseData));
+    expect(setEditCategoriesShowModal).not.toHaveBeenCalledWith(false);
+  });
+
   it("prevents double submit while submitting", () => {
     const updateCategory = jest.fn(() => new Promise(() => {}));
     renderModal({ updateCategory });

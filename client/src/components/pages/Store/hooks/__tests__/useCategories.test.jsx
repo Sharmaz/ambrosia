@@ -16,8 +16,8 @@ jest.mock("@heroui/react", () => ({
 }));
 
 jest.mock("next-intl", () => {
-  const t = (key) => key;
-  return { useTranslations: () => t };
+  const categoryTranslations = (key) => key;
+  return { useTranslations: () => categoryTranslations };
 });
 
 const handlers = {};
@@ -173,6 +173,26 @@ describe("useCategories", () => {
     await waitFor(() => expect(screen.getByTestId("first-name")).toHaveTextContent("Hardware Updated"));
   });
 
+  it("throws when updating a category is rejected by the API", async () => {
+    httpClient.mockResolvedValueOnce({ ok: true });
+    parseJsonResponse.mockResolvedValueOnce([{ id: "cat-1", name: "Hardware" }]);
+    httpClient.mockResolvedValueOnce({ ok: false, status: 400 });
+
+    render(<TestComponent />);
+    await waitFor(() => expect(screen.getByTestId("count")).toHaveTextContent("1"));
+
+    let thrownError;
+    await act(async () => {
+      try {
+        await handlers.updateCategory({ categoryId: "cat-1", categoryName: "Hardware Updated" });
+      } catch (error) {
+        thrownError = error;
+      }
+    });
+
+    expect(thrownError?.status).toBe(400);
+  });
+
   it("deletes a category and refetches", async () => {
     httpClient.mockResolvedValue({ ok: true });
     parseJsonResponse.mockResolvedValueOnce([{ id: "cat-1", name: "Hardware" }]);
@@ -189,5 +209,25 @@ describe("useCategories", () => {
       method: "DELETE",
     });
     await waitFor(() => expect(screen.getByTestId("count")).toHaveTextContent("0"));
+  });
+
+  it("throws when deleting a category is rejected by the API", async () => {
+    httpClient.mockResolvedValueOnce({ ok: true });
+    parseJsonResponse.mockResolvedValueOnce([{ id: "cat-1", name: "Hardware" }]);
+    httpClient.mockResolvedValueOnce({ ok: false, status: 409 });
+
+    render(<TestComponent />);
+    await waitFor(() => expect(screen.getByTestId("count")).toHaveTextContent("1"));
+
+    let thrownError;
+    await act(async () => {
+      try {
+        await handlers.deleteCategory("cat-1");
+      } catch (error) {
+        thrownError = error;
+      }
+    });
+
+    expect(thrownError?.status).toBe(409);
   });
 });
