@@ -11,10 +11,13 @@ import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.jetbrains.exposed.v1.jdbc.update
 import pos.ambrosia.db.tables.OrderEntity
 import pos.ambrosia.db.tables.OrderProductsTable
+import pos.ambrosia.db.tables.PaymentsTable
 import pos.ambrosia.db.tables.ProductBundleComponentsTable
 import pos.ambrosia.db.tables.ProductEntity
 import pos.ambrosia.db.tables.ProductVariantsTable
 import pos.ambrosia.db.tables.RefundEntity
+import pos.ambrosia.db.tables.TicketPaymentsTable
+import pos.ambrosia.db.tables.TicketsTable
 import pos.ambrosia.models.RefundRequest
 import pos.ambrosia.models.StoreRefund
 import pos.ambrosia.models.phoenix.PayInvoiceRequest
@@ -104,7 +107,7 @@ class RefundService(
                     throw ResourceNotFoundException("Order not found")
                 }
 
-            val (order, items) =
+            val (order, items, originalSatoshiAmount) =
                 transaction {
                     val entity = OrderEntity.findById(orderUuid) ?: throw ResourceNotFoundException("Order not found")
                     if (entity.status == "refunded") throw OrderAlreadyRefundedException()
@@ -114,12 +117,21 @@ class RefundService(
                             .selectAll()
                             .where { OrderProductsTable.orderId eq entity.id }
                             .toList()
-                    entity to orderItems
+                    val paidSatoshiAmount =
+                        (TicketsTable innerJoin TicketPaymentsTable innerJoin PaymentsTable)
+                            .selectAll()
+                            .where { TicketsTable.orderId eq entity.id }
+                            .firstOrNull()
+                            ?.get(PaymentsTable.satoshiAmount)
+                    Triple(entity, orderItems, paidSatoshiAmount)
                 }
 
             var satoshiAmount = 0L
             if (request.invoice.isNotBlank()) {
-                val paymentResponse = phoenixService.payInvoice(PayInvoiceRequest(invoice = request.invoice))
+                val paymentResponse =
+                    phoenixService.payInvoice(
+                        PayInvoiceRequest(invoice = request.invoice, amountSat = originalSatoshiAmount),
+                    )
                 satoshiAmount = paymentResponse.recipientAmountSat
             }
 

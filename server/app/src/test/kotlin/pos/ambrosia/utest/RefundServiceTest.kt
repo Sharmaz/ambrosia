@@ -4,6 +4,7 @@ import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.client.request.forms.FormDataContent
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.headersOf
@@ -90,6 +91,39 @@ class RefundServiceTest {
         return RefundService(PhoenixService(mockEnv, mockHttpClient))
     }
 
+    private fun refundServiceCapturingAmountSat(
+        recipientAmountSat: Long,
+        onAmountSatSent: (Long?) -> Unit,
+    ): RefundService {
+        val mockJsonResponse =
+            """
+            {
+                "recipientAmountSat": $recipientAmountSat,
+                "routingFeeSat": 0,
+                "paymentId": "refund-payment-id",
+                "paymentHash": "refund-payment-hash",
+                "paymentPreimage": "refund-payment-preimage"
+            }
+            """.trimIndent()
+        val mockEngine =
+            MockEngine { request ->
+                val sentAmountSat = (request.body as FormDataContent).formData["amountSat"]?.toLong()
+                onAmountSatSent(sentAmountSat)
+                respond(
+                    content = ByteReadChannel(mockJsonResponse.toByteArray(Charsets.UTF_8)),
+                    status = HttpStatusCode.OK,
+                    headers = headersOf(HttpHeaders.ContentType, "application/json"),
+                )
+            }
+        val mockHttpClient =
+            HttpClient(mockEngine) {
+                install(ContentNegotiation) {
+                    json(Json { ignoreUnknownKeys = true })
+                }
+            }
+        return RefundService(PhoenixService(mockEnv, mockHttpClient))
+    }
+
     private fun refundServiceWithNoPhoenixCallExpected(): RefundService {
         val mockEngine = MockEngine { _ -> error("phoenixd should not be called for a non-BTC refund") }
         val mockHttpClient = HttpClient(mockEngine)
@@ -150,11 +184,34 @@ class RefundServiceTest {
             val productId = ExposedTestDb.seedProduct(name = "Widget", quantity = 5)
             val variantId = defaultVariantId(productId)
             val orderId = seedPaidOrderWithLine(userId, productId, variantId, quantity = 1, priceAtOrder = 500)
+            val paymentId = ExposedTestDb.seedPayment(satoshiAmount = 1234)
+            val ticketId = ExposedTestDb.seedTicket(orderId, userId)
+            ExposedTestDb.seedTicketPayment(paymentId, ticketId)
 
             val refund = refundServiceRespondingWithSats(1234).processRefund(orderId, RefundRequest(invoice = "lnbc1..."))
 
             assertEquals(1234L, refund.satoshiAmount)
             assertEquals("refunded", orderStatus(orderId))
+        }
+
+    @Test
+    fun `processRefund forces amountSat to the order's original paid amount regardless of what the invoice itself requests`() =
+        runBlocking {
+            val userId = seedUser()
+            val productId = ExposedTestDb.seedProduct(name = "Widget", quantity = 5)
+            val variantId = defaultVariantId(productId)
+            val orderId = seedPaidOrderWithLine(userId, productId, variantId, quantity = 1, priceAtOrder = 500)
+            val paymentId = ExposedTestDb.seedPayment(satoshiAmount = 895)
+            val ticketId = ExposedTestDb.seedTicket(orderId, userId)
+            ExposedTestDb.seedTicketPayment(paymentId, ticketId)
+
+            var sentAmountSat: Long? = null
+            val refund =
+                refundServiceCapturingAmountSat(recipientAmountSat = 895) { sentAmountSat = it }
+                    .processRefund(orderId, RefundRequest(invoice = "lnbc2000n1...invoice-requesting-more-than-owed"))
+
+            assertEquals(895L, sentAmountSat)
+            assertEquals(895L, refund.satoshiAmount)
         }
 
     @Test
