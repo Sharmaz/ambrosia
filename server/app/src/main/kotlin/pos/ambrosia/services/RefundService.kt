@@ -126,6 +126,10 @@ class RefundService(
                     Triple(entity, orderItems, paidSatoshiAmount)
                 }
 
+            if (request.invoice.isNotBlank() && originalSatoshiAmount == null) {
+                throw OrderNotRefundableException("This order has no Bitcoin payment to refund via Lightning")
+            }
+
             var satoshiAmount = 0L
             if (request.invoice.isNotBlank()) {
                 val paymentResponse =

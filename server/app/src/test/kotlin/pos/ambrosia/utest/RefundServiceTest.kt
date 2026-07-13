@@ -243,6 +243,20 @@ class RefundServiceTest {
     }
 
     @Test
+    fun `processRefund rejects a non-blank invoice when the order has no Bitcoin payment on record`() {
+        runBlocking {
+            val userId = seedUser()
+            val productId = ExposedTestDb.seedProduct(name = "Widget", quantity = 5)
+            val variantId = defaultVariantId(productId)
+            val orderId = seedPaidOrderWithLine(userId, productId, variantId, quantity = 1, priceAtOrder = 500)
+
+            assertFailsWith<OrderNotRefundableException> {
+                refundServiceWithNoPhoenixCallExpected().processRefund(orderId, RefundRequest(invoice = "lnbc1..."))
+            }
+        }
+    }
+
+    @Test
     fun `processRefund throws ResourceNotFoundException for missing or malformed order id`() {
         runBlocking {
             assertFailsWith<ResourceNotFoundException> {
