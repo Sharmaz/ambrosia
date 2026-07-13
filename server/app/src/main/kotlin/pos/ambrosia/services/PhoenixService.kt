@@ -441,11 +441,9 @@ class PhoenixService(
         if (rawBody.isBlank()) return null
 
         return try {
-            phoenixJson
-                .parseToJsonElement(rawBody)
-                .jsonObject["message"]
-                ?.jsonPrimitive
-                ?.contentOrNull
+            val errorObject = phoenixJson.parseToJsonElement(rawBody).jsonObject
+            errorObject["message"]?.jsonPrimitive?.contentOrNull
+                ?: errorObject["reason"]?.jsonPrimitive?.contentOrNull
                 ?: rawBody
         } catch (_: Exception) {
             rawBody
