@@ -18,8 +18,6 @@ const baseForm = {
   permissions: ["products_read", "orders_read"],
 };
 
-const t = (key) => key;
-
 const renderModal = (props = {}) => render(
   <I18nProvider>
     <EditRoleModal
@@ -32,7 +30,6 @@ const renderModal = (props = {}) => render(
       togglePermission={jest.fn()}
       updating={false}
       roleName="cashier"
-      t={t}
       businessType="store"
       {...props}
     />
@@ -101,8 +98,9 @@ describe("EditRoleModal", () => {
     expect(onClose).toHaveBeenCalled();
   });
 
-  it("shows spinner when updating", () => {
+  it("disables action buttons when updating", () => {
     renderModal({ updating: true });
-    expect(screen.queryByText("roles.actions.save")).not.toBeInTheDocument();
+    expect(screen.getByText("roles.actions.save").closest("button")).toBeDisabled();
+    expect(screen.getByText("roles.actions.cancel").closest("button")).toBeDisabled();
   });
 });
