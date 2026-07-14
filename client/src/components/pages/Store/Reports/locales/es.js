@@ -31,6 +31,10 @@ const reportsEs = {
       errorTitle: "Error",
       errorGenerate: "No se pudo generar el reporte",
     },
+    status: {
+      paid: "Pagada",
+      refunded: "Reembolsada",
+    },
     tabs: {
       orders: "Órdenes",
       products: "Productos",
@@ -68,10 +72,6 @@ const reportsEs = {
       avgItems: "Items Promedio / Orden",
       shortId: "ID Orden",
       statusLabel: "Estado",
-      status: {
-        paid: "Pagada",
-        refunded: "Reembolsada",
-      },
       products: "Productos",
       total: "Total",
       discount: "Descuento",

@@ -7,13 +7,13 @@ const STATUS_STYLES = {
   refunded: "bg-purple-100 text-purple-800 border border-purple-200",
 };
 
-export function OrderStatusChip({ refunded }) {
+export function StatusChip({ refunded }) {
   const reportsTranslations = useTranslations("reports");
   const status = refunded ? "refunded" : "paid";
 
   return (
     <Chip className={`text-xs ${STATUS_STYLES[status]}`} size="sm">
-      {reportsTranslations(`orders.status.${status}`)}
+      {reportsTranslations(`status.${status}`)}
     </Chip>
   );
 }

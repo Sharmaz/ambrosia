@@ -8,9 +8,10 @@ import { DataTable } from "@/components/shared/DataTable";
 import { ViewButton } from "@/components/shared/ViewButton";
 import { formatDateParts } from "@lib/formatDate";
 
+import { StatusChip } from "../StatusChip";
+
 import { OrderDetailModal } from "./OrderDetailModal";
 import { OrdersCard } from "./OrdersCard";
-import { OrderStatusChip } from "./OrderStatusChip";
 
 const buildProductSummary = (items, overflowLabel) => {
   if (!items.length) return "—";
@@ -46,7 +47,7 @@ export function ReportsOrdersList({ orders, formatCurrency, currentRate }) {
     {
       key: "status",
       label: reportsTranslations("orders.statusLabel"),
-      render: ({ refunded }) => <OrderStatusChip refunded={refunded} />,
+      render: ({ refunded }) => <StatusChip refunded={refunded} />,
     },
     {
       key: "date",
