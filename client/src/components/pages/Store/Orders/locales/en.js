@@ -83,6 +83,8 @@ const ordersEn = {
       refundInvoicePlaceholder: "lnbc...",
       refundInvoiceInvalid: "Invalid Lightning invoice format",
       refundAmountLabel: "Amount to refund",
+      cashGivenLabel: "Cash given to customer",
+      differenceLabel: "Difference",
       sats: "sats",
       refundInvoice: "Refund invoice",
       refundedAt: "Refunded at",

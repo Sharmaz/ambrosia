@@ -17,6 +17,8 @@ import { useTranslations } from "next-intl";
 import { httpClient, parseJsonResponse } from "@/lib/http";
 import { getBolt11ValidationErrorCode } from "@/utils/validateBolt11Invoice";
 
+import { CashRefundFields } from "./CashRefundFields";
+
 async function buildHttpRequestError(response, fallbackMessage) {
   const responsePayload = await parseJsonResponse(response, null);
   const requestError = new Error(fallbackMessage);
@@ -30,13 +32,20 @@ function getInvoiceErrorMessage(invoiceValue, translate) {
   return hasFormatError ? translate("details.refundInvoiceInvalid") : "";
 }
 
-export function RefundModal({ order, isOpen, onClose, onRefunded }) {
+export function RefundModal({ order, isOpen, onClose, onRefunded, formatAmount }) {
   const ordersTranslations = useTranslations("orders");
   const [invoice, setInvoice] = useState("");
   const [invoiceError, setInvoiceError] = useState("");
+  const [cashGiven, setCashGiven] = useState(0);
   const [loading, setLoading] = useState(false);
 
   const isBtcOrder = order?.satoshiAmount != null;
+  const isCashOrder = !isBtcOrder && order?.paymentMethod?.toLowerCase() === "cash";
+  const orderTotalCents = Math.round((order?.total ?? 0) * 100);
+  const cashGivenCents = Math.round((cashGiven || 0) * 100);
+  const cashDifferenceCents = cashGivenCents - orderTotalCents;
+  const isCashAmountExact = cashDifferenceCents === 0;
+  const isConfirmDisabled = isBtcOrder ? !invoice.trim() : isCashOrder ? !isCashAmountExact : false;
 
   function handleInvoiceChange(value) {
     setInvoice(value);
@@ -83,6 +92,7 @@ export function RefundModal({ order, isOpen, onClose, onRefunded }) {
   function handleClose() {
     setInvoice("");
     setInvoiceError("");
+    setCashGiven(0);
     onClose();
   }
 
@@ -120,6 +130,16 @@ export function RefundModal({ order, isOpen, onClose, onRefunded }) {
               />
             </div>
           )}
+          {isCashOrder && (
+            <CashRefundFields
+              orderTotalCents={orderTotalCents}
+              cashGiven={cashGiven}
+              onCashGivenChange={(value) => setCashGiven(value ?? 0)}
+              cashDifferenceCents={cashDifferenceCents}
+              isCashAmountExact={isCashAmountExact}
+              formatAmount={formatAmount}
+            />
+          )}
         </ModalBody>
         <ModalFooter className="flex justify-between">
           <Button
@@ -133,7 +153,7 @@ export function RefundModal({ order, isOpen, onClose, onRefunded }) {
           <Button
             color="danger"
             isLoading={loading}
-            isDisabled={isBtcOrder && !invoice.trim()}
+            isDisabled={isConfirmDisabled}
             onPress={handleRefund}
           >
             {ordersTranslations("details.refundConfirm")}

@@ -29,6 +29,17 @@ jest.mock("@heroui/react", () => ({
       {errorMessage && <span>{errorMessage}</span>}
     </label>
   ),
+  NumberInput: ({ label, value, onValueChange }) => (
+    <label>
+      {label}
+      <input
+        type="number"
+        aria-label={label}
+        value={value}
+        onChange={(e) => onValueChange(e.target.value === "" ? null : parseFloat(e.target.value))}
+      />
+    </label>
+  ),
 }));
 
 jest.mock("next-intl", () => ({
@@ -186,6 +197,52 @@ describe("RefundModal", () => {
       expect.objectContaining({ color: "danger", description: "details.refundError" }),
     ));
     expect(onRefunded).not.toHaveBeenCalled();
+  });
+
+  it("shows the amount to refund and disables confirm until cash given matches exactly", () => {
+    const order = { id: "order-cash", total: 10, paymentMethod: "Cash" };
+    const formatAmount = (cents) => `$${(cents / 100).toFixed(2)}`;
+
+    render(<RefundModal order={order} isOpen onClose={jest.fn()} onRefunded={jest.fn()} formatAmount={formatAmount} />);
+
+    expect(screen.getByText("$10.00")).toBeInTheDocument();
+    expect(screen.getByText("details.refundConfirm")).toBeDisabled();
+
+    fireEvent.change(screen.getByLabelText("details.cashGivenLabel"), { target: { value: "8" } });
+    expect(screen.getByText("details.refundConfirm")).toBeDisabled();
+    expect(screen.getByText("$-2.00")).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("details.cashGivenLabel"), { target: { value: "10" } });
+    expect(screen.getByText("details.refundConfirm")).not.toBeDisabled();
+    expect(screen.getByText("$0.00")).toBeInTheDocument();
+  });
+
+  it("refunds a cash order without sending the cash given amount in the request body", async () => {
+    httpClient.mockResolvedValue({ ok: true });
+    const onRefunded = jest.fn();
+    const order = { id: "order-cash", total: 10, paymentMethod: "Cash" };
+    const formatAmount = (cents) => `$${(cents / 100).toFixed(2)}`;
+
+    render(<RefundModal order={order} isOpen onClose={jest.fn()} onRefunded={onRefunded} formatAmount={formatAmount} />);
+
+    fireEvent.change(screen.getByLabelText("details.cashGivenLabel"), { target: { value: "10" } });
+    fireEvent.click(screen.getByText("details.refundConfirm"));
+
+    await waitFor(() => expect(httpClient).toHaveBeenCalledWith("/store/orders/order-cash/refund", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ invoice: "" }),
+    }));
+    expect(onRefunded).toHaveBeenCalled();
+  });
+
+  it("does not show the cash-given input for a non-cash, non-BTC order", () => {
+    const order = { id: "order-card", total: 10, paymentMethod: "Credit Card" };
+
+    render(<RefundModal order={order} isOpen onClose={jest.fn()} onRefunded={jest.fn()} />);
+
+    expect(screen.queryByLabelText("details.cashGivenLabel")).not.toBeInTheDocument();
+    expect(screen.getByText("details.refundConfirm")).not.toBeDisabled();
   });
 
   it("resets the invoice and calls onClose when cancelled", () => {

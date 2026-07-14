@@ -159,6 +159,7 @@ export function OrderDetailsModal({ order, isOpen, onClose, onRefunded, formatAm
           setIsRefundOpen(false);
           onRefunded?.();
         }}
+        formatAmount={formatAmount}
       />
     </>
   );
