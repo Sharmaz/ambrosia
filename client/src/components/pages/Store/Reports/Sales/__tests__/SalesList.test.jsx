@@ -29,7 +29,8 @@ jest.mock("@/components/shared/DataTable", () => ({
 jest.mock("@heroui/react", () => {
   const Card = ({ children, ...props }) => <div {...props}>{children}</div>;
   const CardBody = ({ children, className }) => <div className={className}>{children}</div>;
-  return { Card, CardBody };
+  const Chip = ({ children }) => <span>{children}</span>;
+  return { Card, CardBody, Chip };
 });
 
 const mockFormatCurrency = jest.fn((cents) => `$${cents / 100}`);
@@ -225,7 +226,7 @@ describe("SalesList", () => {
     expect(screen.queryByText(/amount-display/)).not.toBeInTheDocument();
   });
 
-  it("shows the refunded badge when the sale is refunded", () => {
+  it("shows the refunded status chip when the sale is refunded", () => {
     const sales = [
       {
         productName: "Widget",
@@ -240,10 +241,10 @@ describe("SalesList", () => {
 
     render(<SalesList sales={sales} formatCurrency={mockFormatCurrency} />);
 
-    expect(screen.getByText("sales.refundedBadge")).toBeInTheDocument();
+    expect(screen.getByText("status.refunded")).toBeInTheDocument();
   });
 
-  it("does not show the refunded badge when the sale is not refunded", () => {
+  it("shows the paid status chip when the sale is not refunded", () => {
     const sales = [
       {
         productName: "Widget",
@@ -257,6 +258,7 @@ describe("SalesList", () => {
 
     render(<SalesList sales={sales} formatCurrency={mockFormatCurrency} />);
 
-    expect(screen.queryByText("sales.refundedBadge")).not.toBeInTheDocument();
+    expect(screen.queryByText("status.refunded")).not.toBeInTheDocument();
+    expect(screen.getByText("status.paid")).toBeInTheDocument();
   });
 });

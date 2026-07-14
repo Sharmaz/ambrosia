@@ -75,13 +75,14 @@ describe("SalesCard", () => {
     expect(screen.queryByText(/amount-display/)).not.toBeInTheDocument();
   });
 
-  it("shows the refunded badge when the sale is refunded", () => {
+  it("shows the refunded status chip when the sale is refunded", () => {
     render(<SalesCard sale={{ ...baseSale, refunded: true }} formatCurrency={formatCurrency} />);
-    expect(screen.getByText("sales.refundedBadge")).toBeInTheDocument();
+    expect(screen.getByText("status.refunded")).toBeInTheDocument();
   });
 
-  it("does not show the refunded badge when the sale is not refunded", () => {
+  it("shows the paid status chip when the sale is not refunded", () => {
     render(<SalesCard sale={baseSale} formatCurrency={formatCurrency} />);
-    expect(screen.queryByText("sales.refundedBadge")).not.toBeInTheDocument();
+    expect(screen.queryByText("status.refunded")).not.toBeInTheDocument();
+    expect(screen.getByText("status.paid")).toBeInTheDocument();
   });
 });
