@@ -9,6 +9,7 @@ import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.dao.id.EntityID
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.greaterEq
+import org.jetbrains.exposed.v1.core.inList
 import org.jetbrains.exposed.v1.core.lessEq
 import org.jetbrains.exposed.v1.core.like
 import org.jetbrains.exposed.v1.jdbc.andWhere
@@ -21,6 +22,7 @@ import pos.ambrosia.db.tables.OrdersTable
 import pos.ambrosia.db.tables.PaymentMethodsTable
 import pos.ambrosia.db.tables.PaymentsTable
 import pos.ambrosia.db.tables.ProductsTable
+import pos.ambrosia.db.tables.RefundsTable
 import pos.ambrosia.db.tables.TicketPaymentsTable
 import pos.ambrosia.db.tables.TicketsTable
 import pos.ambrosia.db.tables.UsersTable
@@ -235,7 +237,7 @@ class ReportService {
             var query =
                 join
                     .selectAll()
-                    .where { (OrdersTable.status eq "paid") and (OrdersTable.isDeleted eq false) }
+                    .where { (OrdersTable.status inList listOf("paid", "refunded")) and (OrdersTable.isDeleted eq false) }
 
             dateRange?.let { (start, end) ->
                 query = query.andWhere { dateFunc(OrdersTable.createdAt) greaterEq start }
@@ -270,6 +272,7 @@ class ReportService {
                             fiatAmountAtPayment = row[PaymentsTable.fiatAmountAtPayment],
                             paymentId = row[PaymentsTable.id].value.toString(),
                             discountAmount = row[OrdersTable.discountAmount],
+                            refunded = row[OrdersTable.status] == "refunded",
                         )
                     }
 
@@ -281,13 +284,63 @@ class ReportService {
                     .distinctBy { it.paymentId }
                     .sumOf { it.satoshiAmount!! }
 
+            val (totalRefundedCents, totalRefundedSatoshis, refundCount) =
+                getRefundTotals(dateRange, userId, paymentMethod)
+
             ProductSalesReport(
                 totalRevenueCents = sales.sumOf { it.priceAtOrder.toLong() * it.quantity },
                 totalItemsSold = sales.sumOf { it.quantity },
                 sales = sales,
                 totalBtcSatoshis = totalBtcSatoshis,
+                totalRefundedCents = totalRefundedCents,
+                totalRefundedSatoshis = totalRefundedSatoshis,
+                refundCount = refundCount,
             )
         }
+
+    private data class RefundTotal(
+        val refundId: String,
+        val satoshiAmount: Long,
+        val fiatCents: Long,
+    )
+
+    private fun getRefundTotals(
+        dateRange: Pair<String, String>?,
+        userId: String?,
+        paymentMethod: String?,
+    ): Triple<Long, Long, Int> {
+        val join =
+            RefundsTable
+                .join(OrdersTable, JoinType.INNER, RefundsTable.orderId, OrdersTable.id)
+                .join(TicketsTable, JoinType.INNER, TicketsTable.orderId, OrdersTable.id)
+                .join(TicketPaymentsTable, JoinType.INNER, TicketPaymentsTable.ticketId, TicketsTable.id)
+                .join(PaymentsTable, JoinType.INNER, PaymentsTable.id, TicketPaymentsTable.paymentId)
+                .join(PaymentMethodsTable, JoinType.INNER, PaymentMethodsTable.id, PaymentsTable.methodId)
+
+        var query = join.selectAll()
+        dateRange?.let { (start, end) ->
+            query = query.andWhere { dateFunc(RefundsTable.refundedAt) greaterEq start }
+            query = query.andWhere { dateFunc(RefundsTable.refundedAt) lessEq end }
+        }
+        userId?.let { uid -> query = query.andWhere { OrdersTable.userId eq EntityID(UUID.fromString(uid), UsersTable) } }
+        paymentMethod?.let { method -> query = query.andWhere { lowerFunc(PaymentMethodsTable.name) eq method.lowercase() } }
+
+        val refundTotals =
+            query
+                .map { row ->
+                    RefundTotal(
+                        refundId = row[RefundsTable.id].value.toString(),
+                        satoshiAmount = row[RefundsTable.satoshiAmount],
+                        fiatCents = Math.round((row[OrdersTable.total] - row[OrdersTable.discountAmount]) * 100),
+                    )
+                }.distinctBy { it.refundId }
+
+        return Triple(
+            refundTotals.filter { it.satoshiAmount == 0L }.sumOf { it.fiatCents },
+            refundTotals.sumOf { it.satoshiAmount },
+            refundTotals.size,
+        )
+    }
 
     fun getOrdersWithPaymentsFiltered(filters: OrderWithPaymentFilters = OrderWithPaymentFilters()): List<OrderWithPayment> =
         transaction {

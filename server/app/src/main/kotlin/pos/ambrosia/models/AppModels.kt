@@ -563,6 +563,7 @@ data class ProductSaleItem(
     val fiatAmountAtPayment: Double? = null,
     val paymentId: String? = null,
     val discountAmount: Double = 0.0,
+    val refunded: Boolean = false,
 )
 
 @Serializable
@@ -571,6 +572,9 @@ data class ProductSalesReport(
     val totalItemsSold: Int,
     val sales: List<ProductSaleItem>,
     val totalBtcSatoshis: Long = 0L,
+    val totalRefundedCents: Long = 0L,
+    val totalRefundedSatoshis: Long = 0L,
+    val refundCount: Int = 0,
 )
 
 @Serializable

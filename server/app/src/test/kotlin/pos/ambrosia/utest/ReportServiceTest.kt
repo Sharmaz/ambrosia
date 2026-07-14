@@ -457,6 +457,176 @@ class ReportServiceTest {
     }
 
     @Test
+    fun `refunded orders still appear as sales and are flagged as refunded`() {
+        val sale = seedSale(orderStatus = "refunded", createdAt = "2024-06-15T12:00:00")
+        addOrderProduct(sale.orderId, productName = "Widget", quantity = 2, priceAtOrder = 1000)
+        ExposedTestDb.seedRefund(sale.orderId, refundedAt = "2024-06-16T09:00:00")
+
+        val report =
+            service.getProductSalesReport(
+                period = null,
+                startDate = "2024-06-01",
+                endDate = "2024-06-30",
+                productName = null,
+                userId = null,
+                paymentMethod = null,
+            )
+
+        assertEquals(1, report.sales.size)
+        assertTrue(report.sales[0].refunded)
+        assertEquals(2000L, report.totalRevenueCents)
+        assertEquals(2, report.totalItemsSold)
+    }
+
+    @Test
+    fun `totalRefundedCents and refundCount reflect a refund within the report's date range`() {
+        val sale = seedSale(orderStatus = "refunded", total = 50.0, createdAt = "2024-06-15T12:00:00")
+        addOrderProduct(sale.orderId)
+        ExposedTestDb.seedRefund(sale.orderId, refundedAt = "2024-06-16T09:00:00")
+
+        val report =
+            service.getProductSalesReport(
+                period = null,
+                startDate = "2024-06-01",
+                endDate = "2024-06-30",
+                productName = null,
+                userId = null,
+                paymentMethod = null,
+            )
+
+        assertEquals(1, report.refundCount)
+        assertEquals(5000L, report.totalRefundedCents)
+        assertEquals(0L, report.totalRefundedSatoshis)
+    }
+
+    @Test
+    fun `totalRefundedSatoshis reflects BTC refunds instead of totalRefundedCents`() {
+        val sale =
+            seedSale(orderStatus = "refunded", paymentMethodName = "BTC", satoshiAmount = 10_000L, createdAt = "2024-06-15T12:00:00")
+        addOrderProduct(sale.orderId)
+        ExposedTestDb.seedRefund(sale.orderId, satoshiAmount = 895L, refundedAt = "2024-06-16T09:00:00")
+
+        val report =
+            service.getProductSalesReport(
+                period = null,
+                startDate = "2024-06-01",
+                endDate = "2024-06-30",
+                productName = null,
+                userId = null,
+                paymentMethod = null,
+            )
+
+        assertEquals(1, report.refundCount)
+        assertEquals(895L, report.totalRefundedSatoshis)
+        assertEquals(0L, report.totalRefundedCents)
+    }
+
+    @Test
+    fun `a sale from one period stays stable in its own report even after being refunded in a later period`() {
+        val sale = seedSale(orderStatus = "refunded", total = 30.0, createdAt = "2024-06-15T12:00:00")
+        addOrderProduct(sale.orderId, quantity = 1, priceAtOrder = 3000)
+        ExposedTestDb.seedRefund(sale.orderId, refundedAt = "2024-07-05T09:00:00")
+
+        val juneReport =
+            service.getProductSalesReport(
+                period = null,
+                startDate = "2024-06-01",
+                endDate = "2024-06-30",
+                productName = null,
+                userId = null,
+                paymentMethod = null,
+            )
+        val julyReport =
+            service.getProductSalesReport(
+                period = null,
+                startDate = "2024-07-01",
+                endDate = "2024-07-31",
+                productName = null,
+                userId = null,
+                paymentMethod = null,
+            )
+
+        assertEquals(1, juneReport.sales.size)
+        assertEquals(3000L, juneReport.totalRevenueCents)
+        assertEquals(0, juneReport.refundCount)
+
+        assertTrue(julyReport.sales.isEmpty())
+        assertEquals(1, julyReport.refundCount)
+        assertEquals(3000L, julyReport.totalRefundedCents)
+    }
+
+    @Test
+    fun `refund totals attribute userId via the order's original cashier`() {
+        val alice = seedSale(userName = "alice", orderStatus = "refunded", total = 40.0, createdAt = "2024-06-10T12:00:00")
+        addOrderProduct(alice.orderId)
+        ExposedTestDb.seedRefund(alice.orderId, refundedAt = "2024-06-11T09:00:00")
+
+        val bob = seedSale(userName = "bob", orderStatus = "refunded", total = 40.0, createdAt = "2024-06-10T12:00:00")
+        addOrderProduct(bob.orderId)
+        ExposedTestDb.seedRefund(bob.orderId, refundedAt = "2024-06-11T09:00:00")
+
+        val report =
+            service.getProductSalesReport(
+                period = null,
+                startDate = "2024-06-01",
+                endDate = "2024-06-30",
+                productName = null,
+                userId = alice.userId,
+                paymentMethod = null,
+            )
+
+        assertEquals(1, report.refundCount)
+        assertEquals(4000L, report.totalRefundedCents)
+    }
+
+    @Test
+    fun `refund totals include refunds of orders with the matching payment method`() {
+        val cash = seedSale(paymentMethodName = "Cash", orderStatus = "refunded", total = 20.0, createdAt = "2024-06-10T12:00:00")
+        addOrderProduct(cash.orderId)
+        ExposedTestDb.seedRefund(cash.orderId, refundedAt = "2024-06-11T09:00:00")
+
+        val btc =
+            seedSale(paymentMethodName = "BTC", orderStatus = "refunded", satoshiAmount = 500L, createdAt = "2024-06-10T12:00:00")
+        addOrderProduct(btc.orderId)
+        ExposedTestDb.seedRefund(btc.orderId, satoshiAmount = 500L, refundedAt = "2024-06-11T09:00:00")
+
+        val report =
+            service.getProductSalesReport(
+                period = null,
+                startDate = "2024-06-01",
+                endDate = "2024-06-30",
+                productName = null,
+                userId = null,
+                paymentMethod = "cash",
+            )
+
+        assertEquals(1, report.refundCount)
+        assertEquals(2000L, report.totalRefundedCents)
+        assertEquals(0L, report.totalRefundedSatoshis)
+    }
+
+    @Test
+    fun `productName filter does not affect refund totals`() {
+        val sale = seedSale(orderStatus = "refunded", total = 15.0, createdAt = "2024-06-10T12:00:00")
+        addOrderProduct(sale.orderId, productName = "Widget")
+        ExposedTestDb.seedRefund(sale.orderId, refundedAt = "2024-06-11T09:00:00")
+
+        val report =
+            service.getProductSalesReport(
+                period = null,
+                startDate = "2024-06-01",
+                endDate = "2024-06-30",
+                productName = "NonMatchingProduct",
+                userId = null,
+                paymentMethod = null,
+            )
+
+        assertTrue(report.sales.isEmpty())
+        assertEquals(1, report.refundCount)
+        assertEquals(1500L, report.totalRefundedCents)
+    }
+
+    @Test
     fun `getOrdersWithPaymentsFiltered applies status filter and default date desc sort`() =
         runBlocking {
             val older = seedSale(orderStatus = "paid", createdAt = "2025-01-01T10:00:00", total = 100.0)
