@@ -146,4 +146,16 @@ describe("ReportsOrdersList", () => {
     render(<ReportsOrdersList orders={orderWith3Items} formatCurrency={formatCurrency} />);
     expect(screen.getAllByText(/\+1 orders\.more/).length).toBeGreaterThan(0);
   });
+
+  it("shows the refunded status chip in the desktop table when the order is refunded", () => {
+    const refundedOrder = [{ ...ORDER_FIXTURE[0], refunded: true }];
+    render(<ReportsOrdersList orders={refundedOrder} formatCurrency={formatCurrency} />);
+    expect(screen.getByText("orders.status.refunded")).toBeInTheDocument();
+  });
+
+  it("shows the paid status chip in the desktop table when the order is not refunded", () => {
+    render(<ReportsOrdersList orders={ORDER_FIXTURE} formatCurrency={formatCurrency} />);
+    expect(screen.queryByText("orders.status.refunded")).not.toBeInTheDocument();
+    expect(screen.getAllByText("orders.status.paid").length).toBeGreaterThan(0);
+  });
 });

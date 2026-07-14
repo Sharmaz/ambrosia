@@ -10,6 +10,7 @@ import { formatDateParts } from "@lib/formatDate";
 
 import { OrderDetailModal } from "./OrderDetailModal";
 import { OrdersCard } from "./OrdersCard";
+import { OrderStatusChip } from "./OrderStatusChip";
 
 const buildProductSummary = (items, overflowLabel) => {
   if (!items.length) return "—";
@@ -41,6 +42,11 @@ export function ReportsOrdersList({ orders, formatCurrency, currentRate }) {
           #{shortId}
         </span>
       ),
+    },
+    {
+      key: "status",
+      label: reportsTranslations("orders.statusLabel"),
+      render: ({ refunded }) => <OrderStatusChip refunded={refunded} />,
     },
     {
       key: "date",

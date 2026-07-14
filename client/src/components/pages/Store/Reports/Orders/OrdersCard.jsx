@@ -6,9 +6,11 @@ import { useTranslations } from "next-intl";
 import { ViewButton } from "@/components/shared/ViewButton";
 import formatDate from "@lib/formatDate";
 
+import { OrderStatusChip } from "./OrderStatusChip";
+
 export function OrdersCard({ order, formatCurrency, onClick }) {
   const reportsTranslations = useTranslations("reports");
-  const { shortId, userName, paymentMethod, date, itemCount, total } = order;
+  const { shortId, userName, paymentMethod, date, itemCount, total, refunded } = order;
 
   return (
     <Card shadow="none" className="border border-gray-200 rounded-lg">
@@ -18,6 +20,7 @@ export function OrdersCard({ order, formatCurrency, onClick }) {
             <span className="font-mono text-xs text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">
               #{shortId}
             </span>
+            <OrderStatusChip refunded={refunded} />
           </div>
           <div className="flex items-center gap-1 text-sm text-forest mt-0.5">
             <Users aria-hidden="true" className="w-3 h-3 shrink-0" />
