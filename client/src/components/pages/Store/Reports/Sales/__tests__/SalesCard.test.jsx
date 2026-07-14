@@ -74,4 +74,14 @@ describe("SalesCard", () => {
     expect(formatCurrency).toHaveBeenCalledWith(3000);
     expect(screen.queryByText(/amount-display/)).not.toBeInTheDocument();
   });
+
+  it("shows the refunded badge when the sale is refunded", () => {
+    render(<SalesCard sale={{ ...baseSale, refunded: true }} formatCurrency={formatCurrency} />);
+    expect(screen.getByText("sales.refundedBadge")).toBeInTheDocument();
+  });
+
+  it("does not show the refunded badge when the sale is not refunded", () => {
+    render(<SalesCard sale={baseSale} formatCurrency={formatCurrency} />);
+    expect(screen.queryByText("sales.refundedBadge")).not.toBeInTheDocument();
+  });
 });

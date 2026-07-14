@@ -224,4 +224,39 @@ describe("SalesList", () => {
     expect(mockFormatCurrency).toHaveBeenCalledWith(4500);
     expect(screen.queryByText(/amount-display/)).not.toBeInTheDocument();
   });
+
+  it("shows the refunded badge when the sale is refunded", () => {
+    const sales = [
+      {
+        productName: "Widget",
+        quantity: 1,
+        priceAtOrder: 500,
+        userName: "test",
+        paymentMethod: "Cash",
+        saleDate: "2024-01-01 00:00:00",
+        refunded: true,
+      },
+    ];
+
+    render(<SalesList sales={sales} formatCurrency={mockFormatCurrency} />);
+
+    expect(screen.getByText("sales.refundedBadge")).toBeInTheDocument();
+  });
+
+  it("does not show the refunded badge when the sale is not refunded", () => {
+    const sales = [
+      {
+        productName: "Widget",
+        quantity: 1,
+        priceAtOrder: 500,
+        userName: "test",
+        paymentMethod: "Cash",
+        saleDate: "2024-01-01 00:00:00",
+      },
+    ];
+
+    render(<SalesList sales={sales} formatCurrency={mockFormatCurrency} />);
+
+    expect(screen.queryByText("sales.refundedBadge")).not.toBeInTheDocument();
+  });
 });

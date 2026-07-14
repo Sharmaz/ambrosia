@@ -39,6 +39,7 @@ const reportsEs = {
       title: "Resumen",
       subtitle: "Totales consolidados del período seleccionado",
       revenue: "Ingresos Totales",
+      netRevenue: "Ingreso Neto",
       items: "Productos Vendidos",
       transactions: "Transacciones",
       averageTicket: "Ticket Promedio",
@@ -48,6 +49,8 @@ const reportsEs = {
       orderCount: "Órdenes",
       avgItemsPerOrder: "Items Promedio / Orden",
       totalDiscounts: "Total de Descuentos",
+      totalRefunded: "Total Reembolsado",
+      totalRefundedSatoshis: "Total Reembolsado (Bitcoin)",
     },
     charts: {
       title: "Analítica",
@@ -64,6 +67,11 @@ const reportsEs = {
       avgTicket: "Ticket Promedio",
       avgItems: "Items Promedio / Orden",
       shortId: "ID Orden",
+      statusLabel: "Estado",
+      status: {
+        paid: "Pagada",
+        refunded: "Reembolsada",
+      },
       products: "Productos",
       total: "Total",
       discount: "Descuento",
@@ -105,6 +113,7 @@ const reportsEs = {
       ofLabel: "de",
       paginationAria: "Paginación de ventas",
       tableAriaLabel: "Detalle de ventas",
+      refundedBadge: "Reembolsada",
     },
     close: {
       modalTitle: "Confirmar Cierre de Turno",
