@@ -500,9 +500,15 @@ class ReportServiceTest {
     }
 
     @Test
-    fun `totalRefundedSatoshis reflects BTC refunds instead of totalRefundedCents`() {
+    fun `a BTC refund populates both totalRefundedCents and totalRefundedSatoshis`() {
         val sale =
-            seedSale(orderStatus = "refunded", paymentMethodName = "BTC", satoshiAmount = 10_000L, createdAt = "2024-06-15T12:00:00")
+            seedSale(
+                orderStatus = "refunded",
+                paymentMethodName = "BTC",
+                satoshiAmount = 10_000L,
+                total = 10.0,
+                createdAt = "2024-06-15T12:00:00",
+            )
         addOrderProduct(sale.orderId)
         ExposedTestDb.seedRefund(sale.orderId, satoshiAmount = 895L, refundedAt = "2024-06-16T09:00:00")
 
@@ -518,7 +524,7 @@ class ReportServiceTest {
 
         assertEquals(1, report.refundCount)
         assertEquals(895L, report.totalRefundedSatoshis)
-        assertEquals(0L, report.totalRefundedCents)
+        assertEquals(1000L, report.totalRefundedCents)
     }
 
     @Test

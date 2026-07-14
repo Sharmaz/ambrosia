@@ -336,7 +336,7 @@ class ReportService {
                 }.distinctBy { it.refundId }
 
         return Triple(
-            refundTotals.filter { it.satoshiAmount == 0L }.sumOf { it.fiatCents },
+            refundTotals.sumOf { it.fiatCents },
             refundTotals.sumOf { it.satoshiAmount },
             refundTotals.size,
         )
