@@ -86,6 +86,16 @@ describe("walletService", () => {
 
       expect(result).toEqual(info);
     });
+
+    it("throws when wallet info response is not ok", async () => {
+      httpClient.mockResolvedValue(makeResponse(503, false));
+      parseJsonResponse.mockResolvedValue({ message: "Wallet service unavailable" });
+
+      await expect(getInfo()).rejects.toMatchObject({
+        message: "Wallet service unavailable",
+        status: 503,
+      });
+    });
   });
 
   describe("createInvoiceForCart", () => {
@@ -257,6 +267,16 @@ describe("walletService", () => {
 
       expect(result).toEqual([]);
     });
+
+    it("throws when incoming transactions response is not ok", async () => {
+      httpClient.mockResolvedValue(makeResponse(500, false));
+      parseJsonResponse.mockResolvedValue({ message: "Incoming history failed" });
+
+      await expect(getIncomingTransactions()).rejects.toMatchObject({
+        message: "Incoming history failed",
+        status: 500,
+      });
+    });
   });
 
   describe("getOutgoingTransactions", () => {
@@ -276,6 +296,16 @@ describe("walletService", () => {
       const result = await getOutgoingTransactions();
 
       expect(result).toEqual([]);
+    });
+
+    it("throws when outgoing transactions response is not ok", async () => {
+      httpClient.mockResolvedValue(makeResponse(500, false));
+      parseJsonResponse.mockResolvedValue({ message: "Outgoing history failed" });
+
+      await expect(getOutgoingTransactions()).rejects.toMatchObject({
+        message: "Outgoing history failed",
+        status: 500,
+      });
     });
   });
 
