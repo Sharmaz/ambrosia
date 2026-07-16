@@ -8,6 +8,8 @@ import { DataTable } from "@/components/shared/DataTable";
 import { ViewButton } from "@/components/shared/ViewButton";
 import { formatDateParts } from "@lib/formatDate";
 
+import { StatusChip } from "../StatusChip";
+
 import { OrderDetailModal } from "./OrderDetailModal";
 import { OrdersCard } from "./OrdersCard";
 
@@ -41,6 +43,11 @@ export function ReportsOrdersList({ orders, formatCurrency, currentRate }) {
           #{shortId}
         </span>
       ),
+    },
+    {
+      key: "status",
+      label: reportsTranslations("orders.statusLabel"),
+      render: ({ refunded }) => <StatusChip refunded={refunded} />,
     },
     {
       key: "date",

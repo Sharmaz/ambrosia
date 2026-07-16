@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, act } from "@testing-library/react";
 
 import { OrderDetailsModal } from "../OrderDetailsModal";
 
@@ -6,8 +6,16 @@ jest.mock("@/components/shared/AmountDisplay", () => ({
   AmountDisplay: ({ satoshis }) => <span>{`amount-display-${satoshis}`}</span>,
 }));
 
-jest.mock("../OrdersList/StatusChip", () => ({
+jest.mock("../../OrdersList/StatusChip", () => ({
   StatusChip: ({ status }) => <span>{`status-${status}`}</span>,
+}));
+
+let capturedRefundModalProps;
+jest.mock("../../RefundModal", () => ({
+  RefundModal: (props) => {
+    capturedRefundModalProps = props;
+    return props.isOpen ? <div>refund-modal-open</div> : null;
+  },
 }));
 
 jest.mock("@/lib/formatDate", () => ({
@@ -143,5 +151,87 @@ describe("OrderDetailsModal", () => {
 
     expect(screen.getByText("details.title")).toBeInTheDocument();
     expect(screen.queryByText("details.user")).not.toBeInTheDocument();
+  });
+
+  it("shows the refund button only for paid orders", () => {
+    const formatAmount = jest.fn((value) => `fmt-${value}`);
+    const { rerender } = render(
+      <OrderDetailsModal
+        order={{ id: "order-1", status: "paid", total: 10 }}
+        isOpen
+        onClose={jest.fn()}
+        formatAmount={formatAmount}
+      />,
+    );
+    expect(screen.getByText("details.refund")).toBeInTheDocument();
+
+    rerender(
+      <OrderDetailsModal
+        order={{ id: "order-1", status: "open", total: 10 }}
+        isOpen
+        onClose={jest.fn()}
+        formatAmount={formatAmount}
+      />,
+    );
+    expect(screen.queryByText("details.refund")).not.toBeInTheDocument();
+
+    rerender(
+      <OrderDetailsModal
+        order={{ id: "order-1", status: "refunded", total: 10 }}
+        isOpen
+        onClose={jest.fn()}
+        formatAmount={formatAmount}
+      />,
+    );
+    expect(screen.queryByText("details.refund")).not.toBeInTheDocument();
+  });
+
+  it("opens the RefundModal when the refund button is pressed, and wires onRefunded", () => {
+    const onRefunded = jest.fn();
+    const order = { id: "order-1", status: "paid", total: 10 };
+
+    render(
+      <OrderDetailsModal
+        order={order}
+        isOpen
+        onClose={jest.fn()}
+        onRefunded={onRefunded}
+        formatAmount={jest.fn((value) => `fmt-${value}`)}
+      />,
+    );
+
+    expect(screen.queryByText("refund-modal-open")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByText("details.refund"));
+    expect(screen.getByText("refund-modal-open")).toBeInTheDocument();
+
+    act(() => capturedRefundModalProps.onRefunded());
+    expect(onRefunded).toHaveBeenCalled();
+  });
+
+  it("renders refund info when the order has been refunded", () => {
+    const order = {
+      id: "order-1",
+      status: "refunded",
+      total: 10,
+      refund: {
+        refundedAt: "2024-01-05T10:00:00Z",
+        satoshiAmount: 1500,
+        refundInvoice: "lnbc1abcdefghijklmnopqrstuvwxyz",
+      },
+    };
+
+    render(
+      <OrderDetailsModal
+        order={order}
+        isOpen
+        onClose={jest.fn()}
+        formatAmount={jest.fn((value) => `fmt-${value}`)}
+      />,
+    );
+
+    expect(screen.getByText(/details.refundedAt/)).toBeInTheDocument();
+    expect(screen.getByText(/1500\s+details\.sats/)).toBeInTheDocument();
+    expect(screen.getByTitle(order.refund.refundInvoice)).toBeInTheDocument();
   });
 });

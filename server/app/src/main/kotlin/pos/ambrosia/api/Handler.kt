@@ -20,6 +20,8 @@ import pos.ambrosia.utils.InvalidTokenException
 import pos.ambrosia.utils.LastAdminRemovalException
 import pos.ambrosia.utils.LastUserDeletionException
 import pos.ambrosia.utils.MissingRoleException
+import pos.ambrosia.utils.OrderAlreadyRefundedException
+import pos.ambrosia.utils.OrderNotRefundableException
 import pos.ambrosia.utils.PaymentNotConfirmedException
 import pos.ambrosia.utils.PermissionDeniedException
 import pos.ambrosia.utils.PhoenixBalanceException
@@ -128,6 +130,14 @@ fun Application.handler() {
         exception<ProductIsBundleComponentException> { call, cause ->
             logger.warn("Attempt to delete product used as bundle component: ${cause.message}")
             call.respond(HttpStatusCode.Conflict, Message(cause.message ?: "Product is used as a bundle component"))
+        }
+        exception<OrderAlreadyRefundedException> { call, cause ->
+            logger.warn("Refund attempt on already-refunded order: ${cause.message}")
+            call.respond(HttpStatusCode.Conflict, Message(cause.message ?: "Order has already been refunded"))
+        }
+        exception<OrderNotRefundableException> { call, cause ->
+            logger.warn("Refund rejected: ${cause.message}")
+            call.respond(HttpStatusCode.Conflict, Message(cause.message ?: "Order cannot be refunded"))
         }
         exception<DatabaseException> { call, cause ->
             logger.error("Database operation failed: ${cause.message}")

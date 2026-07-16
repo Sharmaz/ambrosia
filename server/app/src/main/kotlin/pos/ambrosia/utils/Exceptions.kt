@@ -83,3 +83,11 @@ class PaymentNotConfirmedException(
 class ProductIsBundleComponentException(
     val bundleNames: List<String>,
 ) : IllegalStateException("Product is a component of bundles: ${bundleNames.joinToString(", ")}")
+
+class OrderAlreadyRefundedException(
+    message: String = "Order has already been refunded",
+) : IllegalStateException(message)
+
+class OrderNotRefundableException(
+    message: String = "Order cannot be refunded",
+) : IllegalStateException(message)

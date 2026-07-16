@@ -7,6 +7,8 @@ import { AmountDisplay } from "@/components/shared/AmountDisplay";
 import { DataTable } from "@/components/shared/DataTable";
 import { formatDateParts } from "@lib/formatDate";
 
+import { StatusChip } from "../StatusChip";
+
 import { SalesCard } from "./SalesCard";
 import { buildSaleItemKey } from "./utils/saleItemKeys";
 
@@ -26,7 +28,12 @@ export function SalesList({ sales, formatCurrency, currentRate }) {
     {
       key: "product",
       label: reportsTranslations("sales.product"),
-      render: ({ productName }) => <span className="font-medium text-deep">{productName}</span>,
+      render: ({ productName, refunded }) => (
+        <div className="flex items-center gap-2">
+          <span className="font-medium text-deep">{productName}</span>
+          <StatusChip refunded={refunded} />
+        </div>
+      ),
     },
     {
       key: "user",
