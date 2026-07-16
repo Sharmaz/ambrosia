@@ -1,7 +1,6 @@
+import { addToast } from "@heroui/react";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-
-import { addToast } from "@heroui/react";
 
 import BitcoinPriceService from "@/services/bitcoinPriceService";
 import * as walletService from "@/services/walletService";
