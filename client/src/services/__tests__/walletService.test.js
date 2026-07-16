@@ -162,6 +162,16 @@ describe("walletService", () => {
 
       expect(result).toEqual(invoice);
     });
+
+    it("throws when invoice creation response is not ok", async () => {
+      httpClient.mockResolvedValue(makeResponse(500, false));
+      parseJsonResponse.mockResolvedValue({ message: "Phoenix is unavailable" });
+
+      await expect(createInvoice({ amountSat: 2000, description: "desc" })).rejects.toMatchObject({
+        message: "Phoenix is unavailable",
+        status: 500,
+      });
+    });
   });
 
   describe("payInvoiceFromService", () => {

@@ -85,7 +85,14 @@ export async function createInvoice({
       fiatAmount,
     }),
   });
-  return await parseJsonResponse(response, null);
+  const invoice = await parseJsonResponse(response, null);
+  if (!response.ok) {
+    throw createWalletServiceError(
+      invoice?.message,
+      { status: response.status },
+    );
+  }
+  return invoice;
 }
 
 export async function payInvoiceFromService(invoice, amountSat, { exchangeRate = null, exchangeRateCurrency = null } = {}) {
