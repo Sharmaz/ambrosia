@@ -9,25 +9,25 @@ function createWalletServiceError(message, errorDetails = {}) {
   return error;
 }
 
-function isValidPaymentResponse(responseBody) {
+function isValidPaymentResponse(paymentResponseBody) {
   return (
-    responseBody &&
-    typeof responseBody.recipientAmountSat === "number" &&
-    typeof responseBody.routingFeeSat === "number" &&
-    typeof responseBody.paymentHash === "string" &&
-    responseBody.paymentHash.trim() !== ""
+    paymentResponseBody &&
+    typeof paymentResponseBody.recipientAmountSat === "number" &&
+    typeof paymentResponseBody.routingFeeSat === "number" &&
+    typeof paymentResponseBody.paymentHash === "string" &&
+    paymentResponseBody.paymentHash.trim() !== ""
   );
 }
 
-async function parseWalletResponseOrThrow(response, fallbackValue, fallbackMessage) {
-  const responseBody = await parseJsonResponse(response, fallbackValue);
-  if (!response.ok) {
+async function parseWalletResponseOrThrow(walletHttpResponse, fallbackValue, fallbackMessage) {
+  const parsedWalletResponse = await parseJsonResponse(walletHttpResponse, fallbackValue);
+  if (!walletHttpResponse.ok) {
     throw createWalletServiceError(
-      responseBody?.message ?? fallbackMessage,
-      { status: response.status },
+      parsedWalletResponse?.message ?? fallbackMessage,
+      { status: walletHttpResponse.status },
     );
   }
-  return responseBody;
+  return parsedWalletResponse;
 }
 
 export const loginWallet = async (password) => {
@@ -51,9 +51,9 @@ export const logoutWallet = async () => {
 };
 
 export async function getInfo() {
-  const response = await httpClient("/wallet/getinfo");
+  const walletInfoResponse = await httpClient("/wallet/getinfo");
   return await parseWalletResponseOrThrow(
-    response,
+    walletInfoResponse,
     null,
     "Could not load wallet information",
   );
@@ -87,7 +87,7 @@ export async function createInvoice({
   exchangeRateCurrency = null,
   fiatAmount = null,
 }) {
-  const response = await httpClient("/wallet/createinvoice", {
+  const createInvoiceResponse = await httpClient("/wallet/createinvoice", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -100,14 +100,14 @@ export async function createInvoice({
       fiatAmount,
     }),
   });
-  const invoice = await parseJsonResponse(response, null);
-  if (!response.ok) {
+  const createdInvoice = await parseJsonResponse(createInvoiceResponse, null);
+  if (!createInvoiceResponse.ok) {
     throw createWalletServiceError(
-      invoice?.message,
-      { status: response.status },
+      createdInvoice?.message,
+      { status: createInvoiceResponse.status },
     );
   }
-  return invoice;
+  return createdInvoice;
 }
 
 export async function payInvoiceFromService(invoice, amountSat, { exchangeRate = null, exchangeRateCurrency = null } = {}) {
@@ -123,20 +123,20 @@ export async function payInvoiceFromService(invoice, amountSat, { exchangeRate =
       exchangeRateCurrency,
     }),
   });
-  const responseBody = await parseJsonResponse(response, null);
+  const paymentResponseBody = await parseJsonResponse(response, null);
 
   if (!response.ok) {
     throw createWalletServiceError(
-      responseBody?.message ?? "Could not process the payment",
+      paymentResponseBody?.message ?? "Could not process the payment",
       {
         status: response.status,
-        code: responseBody?.code,
-        source: responseBody?.source,
+        code: paymentResponseBody?.code,
+        source: paymentResponseBody?.source,
       },
     );
   }
 
-  if (!isValidPaymentResponse(responseBody)) {
+  if (!isValidPaymentResponse(paymentResponseBody)) {
     throw createWalletServiceError(
       "Invalid payment response",
       {
@@ -147,7 +147,7 @@ export async function payInvoiceFromService(invoice, amountSat, { exchangeRate =
     );
   }
 
-  return responseBody;
+  return paymentResponseBody;
 }
 
 export async function decodeInvoice(invoice) {
@@ -165,9 +165,9 @@ export async function decodeInvoice(invoice) {
 }
 
 export async function getIncomingTransactions() {
-  const response = await httpClient("/wallet/payments/incoming");
+  const incomingTransactionsResponse = await httpClient("/wallet/payments/incoming");
   const transactions = await parseWalletResponseOrThrow(
-    response,
+    incomingTransactionsResponse,
     [],
     "Could not load incoming transactions",
   );
@@ -175,9 +175,9 @@ export async function getIncomingTransactions() {
 }
 
 export async function getOutgoingTransactions() {
-  const response = await httpClient("/wallet/payments/outgoing");
+  const outgoingTransactionsResponse = await httpClient("/wallet/payments/outgoing");
   const transactions = await parseWalletResponseOrThrow(
-    response,
+    outgoingTransactionsResponse,
     [],
     "Could not load outgoing transactions",
   );

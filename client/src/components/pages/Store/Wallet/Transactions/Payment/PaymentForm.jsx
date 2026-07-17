@@ -53,10 +53,10 @@ export function PaymentForm({
           canvasContext.drawImage(img, 0, 0, width, height);
 
           const imageData = canvasContext.getImageData(0, 0, width, height);
-          const code = jsQR(imageData.data, imageData.width, imageData.height);
+          const qrCode = jsQR(imageData.data, imageData.width, imageData.height);
 
-          if (code) {
-            const cleanInvoice = code.data.replace(/^lightning:/i, "").trim();
+          if (qrCode) {
+            const cleanInvoice = qrCode.data.replace(/^lightning:/i, "").trim();
 
             if (!cleanInvoice.toLowerCase().startsWith("ln")) {
               addToast({
@@ -86,8 +86,8 @@ export function PaymentForm({
         img.src = fileEvent.target.result;
       };
       reader.readAsDataURL(file);
-    } catch (err) {
-      console.error("QR Scan Error:", err);
+    } catch (qrScanError) {
+      console.error("QR Scan Error:", qrScanError);
       setIsScanning(false);
     } finally {
       if (cameraInputRef.current) cameraInputRef.current.value = "";

@@ -21,7 +21,7 @@ export function CloseChannelModal({ isOpen, onClose, channel, onSuccess }) {
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState({});
   const [txId, setTxId] = useState("");
-  const closeChannelInFlightRef = useRef(false);
+  const isCloseChannelRequestPendingRef = useRef(false);
 
   useEffect(() => {
     if (!isOpen) {
@@ -31,7 +31,7 @@ export function CloseChannelModal({ isOpen, onClose, channel, onSuccess }) {
       setIsLoading(false);
       setErrors({});
       setTxId("");
-      closeChannelInFlightRef.current = false;
+      isCloseChannelRequestPendingRef.current = false;
     }
   }, [isOpen]);
 
@@ -56,13 +56,13 @@ export function CloseChannelModal({ isOpen, onClose, channel, onSuccess }) {
   };
 
   const handleConfirm = async () => {
-    if (closeChannelInFlightRef.current) return;
+    if (isCloseChannelRequestPendingRef.current) return;
 
-    closeChannelInFlightRef.current = true;
+    isCloseChannelRequestPendingRef.current = true;
     setIsLoading(true);
     try {
-      const result = await closeChannel(channel.channelId, address.trim(), parseInt(feerate, 10));
-      setTxId(result?.txId ?? "");
+      const closeChannelResult = await closeChannel(channel.channelId, address.trim(), parseInt(feerate, 10));
+      setTxId(closeChannelResult?.txId ?? "");
       setStep("success");
       addToast({
         title: walletTranslations("closeChannel.successTitle"),
@@ -71,15 +71,15 @@ export function CloseChannelModal({ isOpen, onClose, channel, onSuccess }) {
         color: "success",
       });
       onSuccess?.();
-    } catch (err) {
+    } catch (closeChannelError) {
       addToast({
         title: walletTranslations("closeChannel.errorToast"),
-        description: err?.message,
+        description: closeChannelError?.message,
         variant: "solid",
         color: "danger",
       });
     } finally {
-      closeChannelInFlightRef.current = false;
+      isCloseChannelRequestPendingRef.current = false;
       setIsLoading(false);
     }
   };
