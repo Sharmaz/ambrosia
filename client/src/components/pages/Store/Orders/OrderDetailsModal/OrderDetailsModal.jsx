@@ -7,6 +7,7 @@ import { useTranslations } from "next-intl";
 
 import { AmountDisplay } from "@/components/shared/AmountDisplay";
 import { OrderProductsTable } from "@/components/shared/OrderProductsTable";
+import { usePermission } from "@/hooks/usePermission";
 import formatDate from "@lib/formatDate";
 
 import { StatusChip } from "../OrdersList/StatusChip";
@@ -18,6 +19,7 @@ import { RefundInfo } from "./RefundInfo";
 
 export function OrderDetailsModal({ order, isOpen, onClose, onRefunded, formatAmount, currentRate }) {
   const ordersTranslations = useTranslations("orders");
+  const canRefund = usePermission({ allOf: ["orders_refund"] });
   const [isRefundOpen, setIsRefundOpen] = useState(false);
   const {
     id,
@@ -135,7 +137,7 @@ export function OrderDetailsModal({ order, isOpen, onClose, onRefunded, formatAm
             )}
           </ModalBody>
           <ModalFooter className="flex justify-between">
-            {status === "paid" && (
+            {status === "paid" && canRefund && (
               <Button color="danger" onPress={() => setIsRefundOpen(true)}>
                 {ordersTranslations("details.refund")}
               </Button>

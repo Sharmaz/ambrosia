@@ -23,6 +23,11 @@ jest.mock("@/lib/formatDate", () => ({
   default: jest.fn(() => "formatted-date"),
 }));
 
+let mockCanRefund = true;
+jest.mock("@/hooks/usePermission", () => ({
+  usePermission: () => mockCanRefund,
+}));
+
 jest.mock("@heroui/react", () => {
   const actual = jest.requireActual("@heroui/react");
   const Modal = ({ isOpen, children }) => (isOpen ? <div>{children}</div> : null);
@@ -48,6 +53,10 @@ jest.mock("@heroui/react", () => {
 });
 
 describe("OrderDetailsModal", () => {
+  beforeEach(() => {
+    mockCanRefund = true;
+  });
+
   it("renders order details and handles close", () => {
     const onClose = jest.fn();
     const formatAmount = jest.fn((value) => `fmt-${value}`);
@@ -183,6 +192,22 @@ describe("OrderDetailsModal", () => {
         formatAmount={formatAmount}
       />,
     );
+    expect(screen.queryByText("details.refund")).not.toBeInTheDocument();
+  });
+
+  it("hides the refund button for a paid order when the user lacks orders_refund", () => {
+    mockCanRefund = false;
+    const formatAmount = jest.fn((value) => `fmt-${value}`);
+
+    render(
+      <OrderDetailsModal
+        order={{ id: "order-1", status: "paid", total: 10 }}
+        isOpen
+        onClose={jest.fn()}
+        formatAmount={formatAmount}
+      />,
+    );
+
     expect(screen.queryByText("details.refund")).not.toBeInTheDocument();
   });
 
