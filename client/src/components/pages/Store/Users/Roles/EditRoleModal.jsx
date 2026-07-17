@@ -52,7 +52,7 @@ export function EditRoleModal({
               label={roleTranslations("roles.edit.roleName")}
               placeholder={roleTranslations("roles.edit.roleNamePlaceholder")}
               value={form.name}
-              onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))}
+              onChange={(event) => setForm((previousForm) => ({ ...previousForm, name: event.target.value }))}
               isRequired
             />
             <Input
@@ -60,17 +60,18 @@ export function EditRoleModal({
               placeholder={roleTranslations("roles.edit.passwordPlaceholder")}
               type="password"
               value={form.password}
-              onChange={(event) => setForm((prev) => ({ ...prev, password: event.target.value }))}
+              onChange={(event) => setForm((previousForm) => ({ ...previousForm, password: event.target.value }))}
             />
-            <Checkbox
-              isSelected={form.isAdmin}
-              onValueChange={(isSelected) => setForm((prev) => ({ ...prev, isAdmin: isSelected }))}
-            >
-              {roleTranslations("roles.edit.isAdmin")}
-            </Checkbox>
           </div>
 
-          <div className="mt-4 space-y-4">
+          <Checkbox
+            isSelected={form.isAdmin}
+            onValueChange={(isSelected) => setForm((previousForm) => ({ ...previousForm, isAdmin: isSelected }))}
+          >
+            {roleTranslations("roles.edit.isAdmin")}
+          </Checkbox>
+
+          <div className="space-y-4">
             <p className="text-sm text-default-600">
               {roleTranslations("roles.permissions.legend")}
             </p>
@@ -79,6 +80,7 @@ export function EditRoleModal({
               selected={form.permissions}
               togglePermission={togglePermission}
               businessType={businessType}
+              isAdmin={form.isAdmin}
             />
           </div>
         </ModalBody>
