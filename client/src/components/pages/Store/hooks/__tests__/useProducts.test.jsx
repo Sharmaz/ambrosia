@@ -411,7 +411,7 @@ describe("useProducts", () => {
     });
   });
 
-  it("shows bundle component toast and rejects when delete fails with 409", async () => {
+  it("shows bundle component toast and returns false when delete fails with 409", async () => {
     useUpload.mockReturnValue({ upload: jest.fn(), isUploading: false });
 
     httpClient.mockResolvedValueOnce({ ok: true });
@@ -423,7 +423,7 @@ describe("useProducts", () => {
 
     await waitFor(() => expect(screen.getByTestId("count")).toHaveTextContent("0"));
 
-    await expect(handlers.deleteProduct({ id: 44 })).rejects.toMatchObject({ status: 409 });
+    await expect(handlers.deleteProduct({ id: 44 })).resolves.toBe(false);
 
     expect(addToast).toHaveBeenCalledWith({
       title: "toasts.bundleComponentErrorTitle",
@@ -432,7 +432,7 @@ describe("useProducts", () => {
     });
   });
 
-  it("shows generic error toast and rejects when delete fails without a conflict status", async () => {
+  it("shows generic error toast and returns false when delete fails without a conflict status", async () => {
     useUpload.mockReturnValue({ upload: jest.fn(), isUploading: false });
 
     httpClient.mockResolvedValueOnce({ ok: true });
@@ -444,7 +444,7 @@ describe("useProducts", () => {
 
     await waitFor(() => expect(screen.getByTestId("count")).toHaveTextContent("0"));
 
-    await expect(handlers.deleteProduct({ id: 44 })).rejects.toMatchObject({ status: 500 });
+    await expect(handlers.deleteProduct({ id: 44 })).resolves.toBe(false);
 
     expect(addToast).toHaveBeenCalledWith({
       title: "toasts.genericErrorTitle",

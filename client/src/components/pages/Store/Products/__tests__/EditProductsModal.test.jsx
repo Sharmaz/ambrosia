@@ -86,7 +86,7 @@ const categories = [
 
 const { addToast } = require("@heroui/react");
 
-const baseData = {
+const baseProductForm = {
   productId: "1",
   productName: "Jade Wallet",
   productDescription: "Hardware wallet",
@@ -97,23 +97,23 @@ const baseData = {
   productImage: "",
 };
 
-const mockFileReader = (result = "data:image/png;base64,test") => {
-  const original = global.FileReader;
+const mockFileReader = (fileReaderResult = "data:image/png;base64,test") => {
+  const originalFileReader = global.FileReader;
   global.FileReader = jest.fn(() => ({
     readAsDataURL() {
-      this.result = result;
-      this.onloadend?.({ target: { result } });
+      this.result = fileReaderResult;
+      this.onloadend?.({ target: { result: fileReaderResult } });
     },
   }));
   return () => {
-    global.FileReader = original;
+    global.FileReader = originalFileReader;
   };
 };
 
 const renderModal = (props = {}) => render(
   <I18nProvider>
     <EditProductsModal
-      data={baseData}
+      productForm={baseProductForm}
       onChange={jest.fn()}
       updateProduct={jest.fn()}
       onProductUpdated={jest.fn()}
@@ -159,19 +159,19 @@ describe("EditProductsModal", () => {
     renderModal({ onChange });
 
     fireEvent.change(screen.getByLabelText("modal.productPriceLabel"), { target: { value: "-12" } });
-    const priceCall = onChange.mock.calls.at(-1)[0];
-    expect(typeof priceCall.productPrice).toBe("number");
-    expect(priceCall.productPrice).toBeGreaterThanOrEqual(0);
+    const latestPriceUpdate = onChange.mock.calls.at(-1)[0];
+    expect(typeof latestPriceUpdate.productPrice).toBe("number");
+    expect(latestPriceUpdate.productPrice).toBeGreaterThanOrEqual(0);
 
     fireEvent.change(screen.getByLabelText("modal.productStockLabel"), { target: { value: "-8" } });
-    const stockCall = onChange.mock.calls.at(-1)[0];
-    expect(typeof stockCall.productStock).toBe("number");
-    expect(stockCall.productStock).toBeGreaterThanOrEqual(0);
+    const latestStockUpdate = onChange.mock.calls.at(-1)[0];
+    expect(typeof latestStockUpdate.productStock).toBe("number");
+    expect(latestStockUpdate.productStock).toBeGreaterThanOrEqual(0);
   });
 
   it("handles image upload and removal", async () => {
     const onChange = jest.fn();
-    const restore = mockFileReader();
+    const restoreFileReader = mockFileReader();
     renderModal({ onChange });
     const fileInput = document.querySelector("input[type=\"file\"]");
     const file = new File(["content"], "photo.png", { type: "image/png" });
@@ -183,10 +183,10 @@ describe("EditProductsModal", () => {
     const removeButton = screen.getByTestId("remove-image-button");
     fireEvent.click(removeButton);
 
-    const lastCall = onChange.mock.calls.at(-1)?.[0];
-    expect(lastCall).toEqual({ productImage: null, productImageRemoved: true });
+    const latestImageUpdate = onChange.mock.calls.at(-1)?.[0];
+    expect(latestImageUpdate).toEqual({ productImage: null, productImageRemoved: true });
     expect(screen.queryByAltText("Image preview")).not.toBeInTheDocument();
-    restore();
+    restoreFileReader();
   });
 
   it("ignores image change when no file is provided", () => {
@@ -198,7 +198,11 @@ describe("EditProductsModal", () => {
   });
 
   it("handles category select with empty value and loading", () => {
-    renderModal({ categories: [], categoriesLoading: true, data: { ...baseData, productCategories: [] } });
+    renderModal({
+      categories: [],
+      categoriesLoading: true,
+      productForm: { ...baseProductForm, productCategories: [] },
+    });
 
     const select = screen.getAllByLabelText("modal.productCategoryLabel")[0];
     expect(select).toBeInTheDocument();
@@ -234,13 +238,13 @@ describe("EditProductsModal", () => {
   });
 
   it("hides stock field when product is a bundle", () => {
-    renderModal({ data: { ...baseData, isBundle: true } });
+    renderModal({ productForm: { ...baseProductForm, isBundle: true } });
 
     expect(screen.queryByLabelText("modal.productStockLabel")).not.toBeInTheDocument();
   });
 
   it("shows BundleComponentSelector when product is a bundle", () => {
-    renderModal({ data: { ...baseData, isBundle: true } });
+    renderModal({ productForm: { ...baseProductForm, isBundle: true } });
 
     expect(screen.getByTestId("bundle-product-selector")).toBeInTheDocument();
   });
@@ -249,7 +253,7 @@ describe("EditProductsModal", () => {
     const updateProduct = jest.fn();
     renderModal({
       updateProduct,
-      data: { ...baseData, isBundle: true, bundleComponents: [] },
+      productForm: { ...baseProductForm, isBundle: true, bundleComponents: [] },
     });
 
     expect(screen.getByText("modal.bundleComponentsRequired")).toBeInTheDocument();
@@ -278,7 +282,7 @@ describe("EditProductsModal", () => {
 
   it("asks for confirmation before converting a variant product to a bundle", () => {
     const onChange = jest.fn();
-    renderModal({ data: { ...baseData, hasVariants: true, isBundle: false }, onChange });
+    renderModal({ productForm: { ...baseProductForm, hasVariants: true, isBundle: false }, onChange });
 
     fireEvent.click(screen.getByTestId("bundle-switch"));
 
@@ -307,7 +311,7 @@ describe("EditProductsModal", () => {
 
     fireEvent.click(screen.getByText("modal.editButton"));
 
-    await waitFor(() => expect(updateProduct).toHaveBeenCalledWith(baseData));
+    await waitFor(() => expect(updateProduct).toHaveBeenCalledWith(baseProductForm));
     expect(addToast).toHaveBeenCalledWith({
       description: "toasts.updateSuccess",
       color: "success",
@@ -325,7 +329,7 @@ describe("EditProductsModal", () => {
 
     fireEvent.click(screen.getByText("modal.editButton"));
 
-    await waitFor(() => expect(updateProduct).toHaveBeenCalledWith(baseData));
+    await waitFor(() => expect(updateProduct).toHaveBeenCalledWith(baseProductForm));
     expect(onClose).not.toHaveBeenCalled();
     expect(onProductUpdated).not.toHaveBeenCalled();
   });

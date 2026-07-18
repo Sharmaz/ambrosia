@@ -6,7 +6,7 @@ import * as configurationsProvider from "@/providers/configurations/configuratio
 
 const mockAddProduct = jest.fn(() => Promise.resolve());
 const mockUpdateProduct = jest.fn(() => Promise.resolve());
-const mockDeleteProduct = jest.fn(() => Promise.resolve());
+const mockDeleteProduct = jest.fn(() => Promise.resolve(true));
 const mockRefetchProducts = jest.fn(() => Promise.resolve());
 const mockRefetchCategories = jest.fn(() => Promise.resolve());
 const mockCreateCategory = jest.fn(() => Promise.resolve("cat-3"));
@@ -27,7 +27,7 @@ jest.mock("@/hooks/usePermission", () => ({
 }));
 
 jest.mock("../AddProductsModal", () => ({
-  AddProductsModal: ({ addProductsShowModal, data, onChange, onProductCreated, addProduct, onClose }) => (
+  AddProductsModal: ({ addProductsShowModal, productForm, onChange, onProductCreated, addProduct, onClose }) => (
     addProductsShowModal ? (
       <div>
         modal.titleAdd
@@ -35,8 +35,8 @@ jest.mock("../AddProductsModal", () => ({
           <span>modal.productNameLabel</span>
           <input
             aria-label="modal.productNameLabel"
-            value={data?.productName || ""}
-            onChange={(e) => onChange?.({ productName: e.target.value })}
+            value={productForm?.productName || ""}
+            onChange={(productNameChangeEvent) => onChange?.({ productName: productNameChangeEvent.target.value })}
           />
         </label>
         <button onClick={() => { addProduct?.({}); onProductCreated?.(); }}>modal.submitButton</button>
@@ -47,21 +47,21 @@ jest.mock("../AddProductsModal", () => ({
 }));
 
 jest.mock("../EditProductsModal", () => ({
-  EditProductsModal: ({ editProductsShowModal, data, onChange, product, onProductUpdated, updateProduct, onClose }) => (
+  EditProductsModal: ({ editProductsShowModal, productForm, onChange, onProductUpdated, updateProduct, onClose }) => (
     editProductsShowModal ? (
       <div>
         modal.titleEdit
         <input
           aria-label="modal.productNameLabel"
-          value={data?.productName || product?.name || ""}
-          onChange={(e) => onChange?.({ productName: e.target.value })}
+          value={productForm?.productName || ""}
+          onChange={(productNameChangeEvent) => onChange?.({ productName: productNameChangeEvent.target.value })}
         />
         <input
           aria-label="modal.productDescriptionLabel"
-          value={data?.productDescription || product?.description || ""}
-          onChange={(e) => onChange?.({ productDescription: e.target.value })}
+          value={productForm?.productDescription || ""}
+          onChange={(productDescriptionChangeEvent) => onChange?.({ productDescription: productDescriptionChangeEvent.target.value })}
         />
-        <button onClick={() => { updateProduct?.(product); onProductUpdated?.(); }}>modal.editButton</button>
+        <button onClick={() => { updateProduct?.(productForm); onProductUpdated?.(); }}>modal.editButton</button>
         <button onClick={() => onClose?.()}>modal.cancelButton</button>
       </div>
     ) : null
@@ -161,12 +161,12 @@ afterEach(() => {
 });
 
 describe("Products page", () => {
-  it("merges data correctly with handleDataChange", async () => {
+  it("merges product form changes correctly", async () => {
     await act(async () => {
       renderProducts();
     });
 
-    const editButtons = screen.getAllByText("edit").map((el) => el.closest("button"));
+    const editButtons = screen.getAllByText("edit").map((editTextElement) => editTextElement.closest("button"));
     await act(async () => {
       fireEvent.click(editButtons[0]);
     });
@@ -227,7 +227,7 @@ describe("Products page", () => {
       renderProducts();
     });
 
-    const editButtons = screen.getAllByText("edit").map((el) => el.closest("button"));
+    const editButtons = screen.getAllByText("edit").map((editTextElement) => editTextElement.closest("button"));
 
     await act(async () => {
       fireEvent.click(editButtons[0]);
@@ -243,7 +243,7 @@ describe("Products page", () => {
       renderProducts();
     });
 
-    const editButtons = screen.getAllByText("edit").map((el) => el.closest("button"));
+    const editButtons = screen.getAllByText("edit").map((editTextElement) => editTextElement.closest("button"));
 
     await act(async () => {
       fireEvent.click(editButtons[0]);
@@ -268,7 +268,7 @@ describe("Products page", () => {
       renderProducts();
     });
 
-    const deleteButtons = screen.getAllByText("delete").map((el) => el.closest("button"));
+    const deleteButtons = screen.getAllByText("delete").map((deleteTextElement) => deleteTextElement.closest("button"));
 
     await act(async () => {
       fireEvent.click(deleteButtons[1]);
@@ -291,7 +291,7 @@ describe("Products page", () => {
       renderProducts();
     });
 
-    const deleteButtons = screen.getAllByText("delete").map((el) => el.closest("button"));
+    const deleteButtons = screen.getAllByText("delete").map((deleteTextElement) => deleteTextElement.closest("button"));
     await act(async () => {
       fireEvent.click(deleteButtons[0]);
     });
@@ -309,13 +309,13 @@ describe("Products page", () => {
   });
 
   it("keeps delete modal open when product delete fails", async () => {
-    mockDeleteProduct.mockRejectedValueOnce(new Error("delete-fail"));
+    mockDeleteProduct.mockResolvedValueOnce(false);
 
     await act(async () => {
       renderProducts();
     });
 
-    const deleteButtons = screen.getAllByText("delete").map((el) => el.closest("button"));
+    const deleteButtons = screen.getAllByText("delete").map((deleteTextElement) => deleteTextElement.closest("button"));
     await act(async () => {
       fireEvent.click(deleteButtons[0]);
     });
@@ -349,9 +349,9 @@ describe("Products page", () => {
     await waitFor(() => expect(mockRefetchProducts).toHaveBeenCalled());
     expect(mockRefetchCategories).toHaveBeenCalled();
 
-    const editButtons2 = screen.getAllByText("edit").map((el) => el.closest("button"));
+    const editButtons = screen.getAllByText("edit").map((editTextElement) => editTextElement.closest("button"));
     await act(async () => {
-      fireEvent.click(editButtons2[0]);
+      fireEvent.click(editButtons[0]);
     });
     await act(async () => {
       fireEvent.click(screen.getByText("modal.editButton"));

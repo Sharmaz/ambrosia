@@ -41,7 +41,7 @@ function createEmptyProductForm() {
 }
 
 export function Products() {
-  const productsTranslation = useTranslations("products");
+  const productsTranslations = useTranslations("products");
   const [addProductsShowModal, setAddProductsShowModal] = useState(false);
   const [editProductsShowModal, setEditProductsShowModal] = useState(false);
   const [deleteProductsShowModal, setDeleteProductsShowModal] = useState(false);
@@ -131,8 +131,8 @@ export function Products() {
   return (
     <>
       <PageHeader
-        title={productsTranslation("title")}
-        subtitle={productsTranslation("subtitle")}
+        title={productsTranslations("title")}
+        subtitle={productsTranslations("subtitle")}
         actions={(
           <RequirePermission allOf={["products_create"]}>
             <Button
@@ -143,7 +143,7 @@ export function Products() {
                 setAddProductsShowModal(true);
               }}
             >
-              {productsTranslation("addProduct")}
+              {productsTranslations("addProduct")}
             </Button>
           </RequirePermission>
         )}
@@ -161,7 +161,7 @@ export function Products() {
       <AddProductsModal
         addProductsShowModal={addProductsShowModal}
         onClose={handleCloseAddProductsModal}
-        data={productForm}
+        productForm={productForm}
         allProducts={products}
         addProduct={addProduct}
         isUploading={isUploading}
@@ -173,7 +173,7 @@ export function Products() {
       />
 
       <EditProductsModal
-        data={productForm}
+        productForm={productForm}
         allProducts={products}
         onChange={handleProductFormChange}
         updateProduct={updateProduct}
@@ -199,7 +199,7 @@ export function Products() {
         onConfirm={async () => {
           const wasDeleted = await deleteProduct(productToDelete);
           if (wasDeleted) {
-            addToast({ description: productsTranslation("toasts.deleteSuccess"), color: "success" });
+            addToast({ description: productsTranslations("toasts.deleteSuccess"), color: "success" });
             setProductToDelete(null);
             setDeleteProductsShowModal(false);
           }
