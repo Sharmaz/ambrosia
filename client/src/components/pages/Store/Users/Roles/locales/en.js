@@ -30,7 +30,7 @@ const rolesEn = {
       title: "Create role",
       roleName: "Role name",
       roleNamePlaceholder: "e.g. Cashier",
-      password: "Password for critical actions (optional)",
+      password: "Password for critical actions",
       passwordPlaceholder: "Optional",
       isAdmin: "With admin privileges",
       templateLegend: "Choose a role template to get started, or use advanced mode to configure it manually.",
@@ -74,6 +74,7 @@ const rolesEn = {
       title: "Visible permissions",
       subtitle: "Catalog filtered by business type",
       legend: "Select the permissions for this role. Only those that apply to the current business type are shown.",
+      adminNotice: "Admin roles automatically get every permission.",
       affects: "Affects:",
       related: {
         Users: "Users",

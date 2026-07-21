@@ -9,6 +9,7 @@ export function PermissionSelector({
   selected = [],
   togglePermission,
   businessType,
+  isAdmin = false,
 }) {
   const roleTranslations = useTranslations();
   const selectedSet = useMemo(() => new Set(selected), [selected]);
@@ -22,13 +23,20 @@ export function PermissionSelector({
 
   return (
     <div className="space-y-4">
-      {businessType && (
-        <div className="flex justify-end">
-          <Chip size="sm" variant="flat">
-            {businessType === "store"
-              ? roleTranslations("roles.permissions.scope.store")
-              : roleTranslations("roles.permissions.scope.restaurant")}
-          </Chip>
+      {(businessType || isAdmin) && (
+        <div className="space-y-2">
+          <p className={`text-xs text-primary-600 ${isAdmin ? "" : "invisible"}`}>
+            {roleTranslations("roles.permissions.adminNotice")}
+          </p>
+          {businessType && (
+            <div className="flex justify-end">
+              <Chip size="sm" variant="flat">
+                {businessType === "store"
+                  ? roleTranslations("roles.permissions.scope.store")
+                  : roleTranslations("roles.permissions.scope.restaurant")}
+              </Chip>
+            </div>
+          )}
         </div>
       )}
       {Object.entries(groupedPermissions).map(([groupKey, permissions]) => (
@@ -43,7 +51,8 @@ export function PermissionSelector({
             {permissions.map((permission) => (
               <div key={permission.key} className="flex flex-col gap-1">
                 <Checkbox
-                  isSelected={selectedSet.has(permission.key)}
+                  isSelected={isAdmin || selectedSet.has(permission.key)}
+                  isDisabled={isAdmin}
                   onValueChange={() => togglePermission(permission.key)}
                 >
                   {roleTranslations(`roles.permissions.items.${permission.key}.label`, { defaultValue: permission.key })}

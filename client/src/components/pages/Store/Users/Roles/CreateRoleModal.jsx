@@ -36,8 +36,8 @@ export function CreateRoleModal({
 
   const handleSelectTemplate = (template) => {
     setSelectedTemplate(template.key);
-    setForm((prev) => ({
-      ...prev,
+    setForm((previousForm) => ({
+      ...previousForm,
       name: template.key,
       isAdmin: template.isAdmin ?? false,
       permissions: template.permissions,
@@ -126,7 +126,7 @@ export function CreateRoleModal({
                   label={roleTranslations("roles.create.roleName")}
                   placeholder={roleTranslations("roles.create.roleNamePlaceholder")}
                   value={resolveRoleName(form.name, roleTranslations)}
-                  onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))}
+                  onChange={(event) => setForm((previousForm) => ({ ...previousForm, name: event.target.value }))}
                   isRequired
                 />
                 <Input
@@ -134,17 +134,18 @@ export function CreateRoleModal({
                   placeholder={roleTranslations("roles.create.passwordPlaceholder")}
                   type="password"
                   value={form.password}
-                  onChange={(event) => setForm((prev) => ({ ...prev, password: event.target.value }))}
+                  onChange={(event) => setForm((previousForm) => ({ ...previousForm, password: event.target.value }))}
                 />
-                <Checkbox
-                  isSelected={form.isAdmin}
-                  onValueChange={(isSelected) => setForm((prev) => ({ ...prev, isAdmin: isSelected }))}
-                >
-                  {roleTranslations("roles.create.isAdmin")}
-                </Checkbox>
               </div>
 
-              <div className="mt-4 space-y-4">
+              <Checkbox
+                isSelected={form.isAdmin}
+                onValueChange={(isSelected) => setForm((previousForm) => ({ ...previousForm, isAdmin: isSelected }))}
+              >
+                {roleTranslations("roles.create.isAdmin")}
+              </Checkbox>
+
+              <div className="space-y-4">
                 <p className="text-sm text-default-600">
                   {roleTranslations("roles.permissions.legend")}
                 </p>
@@ -153,6 +154,7 @@ export function CreateRoleModal({
                   selected={form.permissions}
                   togglePermission={togglePermission}
                   businessType={businessType}
+                  isAdmin={form.isAdmin}
                 />
               </div>
             </>

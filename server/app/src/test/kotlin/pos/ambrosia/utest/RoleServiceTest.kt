@@ -8,6 +8,7 @@ import org.junit.After
 import org.junit.Before
 import pos.ambrosia.db.tables.UserEntity
 import pos.ambrosia.models.Role
+import pos.ambrosia.services.PermissionsService
 import pos.ambrosia.services.RolesService
 import pos.ambrosia.utils.ExposedTestDb
 import pos.ambrosia.utils.LastAdminRemovalException
@@ -24,6 +25,7 @@ import kotlin.test.assertTrue
 class RoleServiceTest {
     private val env = applicationEnvironment { config = MapApplicationConfig("secret" to "test-secret") }
     private val service = RolesService(env)
+    private val permissionsService = PermissionsService()
     private lateinit var dbFile: File
 
     @Before
@@ -58,6 +60,32 @@ class RoleServiceTest {
         runBlocking {
             val result = service.addRole(Role(role = "Cashier", password = "1234", isAdmin = false))
             assertNotNull(result)
+        }
+    }
+
+    @Test
+    fun `addRole assigns all enabled permissions when isAdmin is true`() {
+        runBlocking {
+            ExposedTestDb.seedPermission("perm.read", "Read")
+            ExposedTestDb.seedPermission("perm.write", "Write")
+
+            val roleId = service.addRole(Role(role = "Admin", password = "1234", isAdmin = true))
+
+            assertNotNull(roleId)
+            val names = permissionsService.getByRole(roleId!!)!!.map { it.name }
+            assertEquals(listOf("perm.read", "perm.write"), names)
+        }
+    }
+
+    @Test
+    fun `addRole does not assign permissions when isAdmin is false`() {
+        runBlocking {
+            ExposedTestDb.seedPermission("perm.read", "Read")
+
+            val roleId = service.addRole(Role(role = "Cashier", password = "1234", isAdmin = false))
+
+            assertNotNull(roleId)
+            assertTrue(permissionsService.getByRole(roleId!!)!!.isEmpty())
         }
     }
 
@@ -104,6 +132,21 @@ class RoleServiceTest {
 
             val updated = service.getRoleById(roleId)
             assertEquals("Manager", updated?.role)
+        }
+    }
+
+    @Test
+    fun `updateRole assigns all enabled permissions when isAdmin becomes true`() {
+        runBlocking {
+            val roleId = ExposedTestDb.seedRole("Cashier", isAdmin = false)
+            ExposedTestDb.seedPermission("perm.read", "Read")
+            ExposedTestDb.seedPermission("perm.write", "Write")
+
+            val result = service.updateRole(roleId, Role(role = "Manager", isAdmin = true))
+
+            assertTrue(result)
+            val names = permissionsService.getByRole(roleId)!!.map { it.name }
+            assertEquals(listOf("perm.read", "perm.write"), names)
         }
     }
 

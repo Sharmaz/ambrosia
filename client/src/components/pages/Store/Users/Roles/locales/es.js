@@ -30,7 +30,7 @@ const rolesEs = {
       title: "Crear rol",
       roleName: "Nombre del rol",
       roleNamePlaceholder: "Ej. Cajero",
-      password: "Contraseña para acciones críticas (opcional)",
+      password: "Contraseña para acciones críticas",
       passwordPlaceholder: "Opcional",
       isAdmin: "Con privilegios de administrador",
       templateLegend: "Elige una plantilla de rol para comenzar, o usa el modo avanzado para configurarlo manualmente.",
@@ -74,6 +74,7 @@ const rolesEs = {
       title: "Permisos visibles",
       subtitle: "Catálogo filtrado según el tipo de negocio",
       legend: "Selecciona los permisos que tendrá este rol. Solo se muestran los que aplican al tipo de negocio actual.",
+      adminNotice: "Los roles admin reciben automáticamente todos los permisos.",
       affects: "Afecta a:",
       related: {
         Users: "Usuarios",
