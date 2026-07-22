@@ -134,7 +134,6 @@ ambrosia_resolve_tag() {
 PHOENIXD_REPO="ACINQ/phoenixd"
 PHOENIXD_INSTALL_DIR="/usr/local/bin"
 PHOENIXD_TAG="${PHOENIXD_TAG:-}"
-PHOENIXD_OS=""
 PHOENIXD_ARCH=""
 PHOENIXD_ZIP_FILENAME=""
 
@@ -154,10 +153,8 @@ phoenixd_detect_os_arch() {
   if [[ "$OSTYPE" == "linux"* ]]; then
     if [[ "$PHOENIXD_ARCH" == "x86_64" ]]; then
       PHOENIXD_ZIP_FILENAME="phoenixd-${PHOENIXD_TAG}-linux-x64.zip"
-      PHOENIXD_OS="linux-x64"
     elif [[ "$PHOENIXD_ARCH" == "aarch64" ]]; then
       PHOENIXD_ZIP_FILENAME="phoenixd-${PHOENIXD_TAG}-linux-arm64.zip"
-      PHOENIXD_OS="linux-arm64"
     else
       log_error "Unsupported architecture: $PHOENIXD_ARCH"
       exit 1
@@ -165,10 +162,8 @@ phoenixd_detect_os_arch() {
   elif [[ "$OSTYPE" == "darwin"* ]]; then
     if [[ "$PHOENIXD_ARCH" == "x86_64" ]]; then
       PHOENIXD_ZIP_FILENAME="phoenixd-${PHOENIXD_TAG}-macos-x64.zip"
-      PHOENIXD_OS="macos-x64"
     elif [[ "$PHOENIXD_ARCH" == "arm64" ]]; then
       PHOENIXD_ZIP_FILENAME="phoenixd-${PHOENIXD_TAG}-macos-arm64.zip"
-      PHOENIXD_OS="macos-arm64"
     else
       log_error "Unsupported architecture: $PHOENIXD_ARCH"
       exit 1
