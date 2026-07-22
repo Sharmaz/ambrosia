@@ -5,6 +5,7 @@ import fr.acinq.lightning.payment.Bolt11Invoice
 data class DecodedInvoice(
     val amountSat: Long?,
     val description: String?,
+    val paymentHash: String?,
 )
 
 object Bolt11Decoder {
@@ -25,6 +26,7 @@ object Bolt11Decoder {
             DecodedInvoice(
                 amountSat = parsedInvoice.amount?.truncateToSatoshi()?.toLong(),
                 description = parsedInvoice.description,
+                paymentHash = parsedInvoice.paymentHash.toString(),
             )
         } catch (e: Exception) {
             null
