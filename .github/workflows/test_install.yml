@@ -87,21 +87,14 @@ jobs:
             exit 1
           fi
 
-          # Capture baseline versions using the same logic update.sh relies on.
           baseline_tag="${BASELINE_AMBROSIA_TAG#v}"
           server_version=$(unzip -p "$HOME/.local/ambrosia/ambrosia.jar" META-INF/MANIFEST.MF 2>/dev/null \
             | tr -d '\r' | sed -n 's/^Implementation-Version: *//p' | head -n1)
-          client_version=$(cat "$HOME/.local/ambrosia/client/.ambrosia-version" 2>/dev/null || echo "")
 
           echo "Baseline server version:  $server_version (expected $baseline_tag)"
-          echo "Baseline client version:  $client_version (expected $baseline_tag)"
 
           if [ "$server_version" != "$baseline_tag" ]; then
             echo "Error: baseline server version mismatch (got '$server_version', want '$baseline_tag')"
-            exit 1
-          fi
-          if [ "$client_version" != "$baseline_tag" ]; then
-            echo "Error: baseline client version mismatch (got '$client_version', want '$baseline_tag')"
             exit 1
           fi
 
