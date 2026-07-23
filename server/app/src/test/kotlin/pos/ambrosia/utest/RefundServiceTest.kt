@@ -351,4 +351,25 @@ class RefundServiceTest {
             assertEquals(8, variantQuantity(componentDefaultVariant))
             assertEquals(0, variantQuantity(bundleVariant))
         }
+
+    @Test
+    fun `getRefundedOrderPaymentHashes returns only the hashes whose order was refunded`() {
+        val userId = seedUser()
+
+        val refundedOrderId = ExposedTestDb.seedOrder(userId = userId, status = "refunded", total = 10.0)
+        val refundedPaymentId = ExposedTestDb.seedPayment(paymentHash = "refunded-order-hash")
+        val refundedTicketId = ExposedTestDb.seedTicket(refundedOrderId, userId)
+        ExposedTestDb.seedTicketPayment(refundedPaymentId, refundedTicketId)
+
+        val paidOrderId = ExposedTestDb.seedOrder(userId = userId, status = "paid", total = 10.0)
+        val paidPaymentId = ExposedTestDb.seedPayment(paymentHash = "paid-order-hash")
+        val paidTicketId = ExposedTestDb.seedTicket(paidOrderId, userId)
+        ExposedTestDb.seedTicketPayment(paidPaymentId, paidTicketId)
+
+        val result =
+            refundServiceWithNoPhoenixCallExpected()
+                .getRefundedOrderPaymentHashes(listOf("refunded-order-hash", "paid-order-hash", "unknown-hash"))
+
+        assertEquals(setOf("refunded-order-hash"), result)
+    }
 }

@@ -3,14 +3,17 @@ package pos.ambrosia.services
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import org.jetbrains.exposed.v1.core.ResultRow
+import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.dao.id.EntityID
 import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.core.inList
 import org.jetbrains.exposed.v1.core.plus
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.jetbrains.exposed.v1.jdbc.update
 import pos.ambrosia.db.tables.OrderEntity
 import pos.ambrosia.db.tables.OrderProductsTable
+import pos.ambrosia.db.tables.OrdersTable
 import pos.ambrosia.db.tables.PaymentsTable
 import pos.ambrosia.db.tables.ProductBundleComponentsTable
 import pos.ambrosia.db.tables.ProductEntity
@@ -161,5 +164,16 @@ class RefundService(
                     refundedAt = refundedAt,
                 )
             }
+        }
+
+    fun getRefundedOrderPaymentHashes(hashes: List<String>): Set<String> =
+        transaction {
+            if (hashes.isEmpty()) return@transaction emptySet()
+
+            (PaymentsTable innerJoin TicketPaymentsTable innerJoin TicketsTable innerJoin OrdersTable)
+                .selectAll()
+                .where { (PaymentsTable.paymentHash inList hashes) and (OrdersTable.status eq "refunded") }
+                .map { it[PaymentsTable.paymentHash]!! }
+                .toSet()
         }
 }
