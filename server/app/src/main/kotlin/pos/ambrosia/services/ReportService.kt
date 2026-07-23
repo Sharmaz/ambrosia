@@ -285,7 +285,7 @@ class ReportService {
                     .sumOf { it.satoshiAmount!! }
 
             val (totalRefundedCents, totalRefundedSatoshis, refundCount) =
-                getRefundTotals(dateRange, userId, paymentMethod)
+                getRefundTotals(dateRange, productName, userId, paymentMethod)
 
             ProductSalesReport(
                 totalRevenueCents = sales.sumOf { it.priceAtOrder.toLong() * it.quantity },
@@ -306,12 +306,15 @@ class ReportService {
 
     private fun getRefundTotals(
         dateRange: Pair<String, String>?,
+        productName: String?,
         userId: String?,
         paymentMethod: String?,
     ): Triple<Long, Long, Int> {
         val join =
             RefundsTable
                 .join(OrdersTable, JoinType.INNER, RefundsTable.orderId, OrdersTable.id)
+                .join(OrderProductsTable, JoinType.INNER, OrderProductsTable.orderId, OrdersTable.id)
+                .join(ProductsTable, JoinType.INNER, OrderProductsTable.productId, ProductsTable.id)
                 .join(TicketsTable, JoinType.INNER, TicketsTable.orderId, OrdersTable.id)
                 .join(TicketPaymentsTable, JoinType.INNER, TicketPaymentsTable.ticketId, TicketsTable.id)
                 .join(PaymentsTable, JoinType.INNER, PaymentsTable.id, TicketPaymentsTable.paymentId)
@@ -322,6 +325,7 @@ class ReportService {
             query = query.andWhere { dateFunc(RefundsTable.refundedAt) greaterEq start }
             query = query.andWhere { dateFunc(RefundsTable.refundedAt) lessEq end }
         }
+        productName?.let { name -> query = query.andWhere { ProductsTable.name like "%$name%" } }
         userId?.let { uid -> query = query.andWhere { OrdersTable.userId eq EntityID(UUID.fromString(uid), UsersTable) } }
         paymentMethod?.let { method -> query = query.andWhere { lowerFunc(PaymentMethodsTable.name) eq method.lowercase() } }
 
