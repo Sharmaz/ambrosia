@@ -19,9 +19,15 @@ const makeOrders = (count) => (
 const formatCurrency = (cents) => `$${cents}`;
 
 describe("useOrdersDetailData", () => {
+  const OriginalBlob = global.Blob;
+
   beforeEach(() => {
     global.URL.createObjectURL = jest.fn(() => "blob:mock-url");
     global.URL.revokeObjectURL = jest.fn();
+  });
+
+  afterEach(() => {
+    global.Blob = OriginalBlob;
   });
 
   it("starts at page 1 with rowsPerPage 10", () => {
@@ -87,5 +93,43 @@ describe("useOrdersDetailData", () => {
     const { result } = renderHook(() => useOrdersDetailData(makeOrders(1), formatCurrency));
     act(() => result.current.exportToCsv());
     expect(global.URL.revokeObjectURL).toHaveBeenCalledWith("blob:mock-url");
+  });
+
+  it("exportToCsv includes a status column with the row's status", () => {
+    let capturedCsv;
+    global.Blob = jest.fn((parts) => {
+      capturedCsv = parts[0];
+      return {};
+    });
+    const orders = [
+      { shortId: "SH0", date: "2024-01-01", userName: "alice", paymentMethod: "Cash", total: 1000, itemCount: 1, items: [{ productName: "Widget", quantity: 1 }], refunded: true },
+      { shortId: "SH1", date: "2024-01-01", userName: "alice", paymentMethod: "Cash", total: 2000, itemCount: 1, items: [{ productName: "Gadget", quantity: 1 }], refunded: false },
+    ];
+    const { result } = renderHook(() => useOrdersDetailData(orders, formatCurrency));
+    act(() => result.current.exportToCsv());
+
+    expect(capturedCsv).toContain("status.refunded");
+    expect(capturedCsv).toContain("status.paid");
+  });
+
+  it("exportToCsv appends a summary section with revenue and refund totals", () => {
+    let capturedCsv;
+    global.Blob = jest.fn((parts) => {
+      capturedCsv = parts[0];
+      return {};
+    });
+    const orders = [
+      { shortId: "SH0", date: "2024-01-01", userName: "alice", paymentMethod: "Cash", total: 1000, itemCount: 1, items: [{ productName: "Widget", quantity: 1 }], refunded: true },
+      { shortId: "SH1", date: "2024-01-01", userName: "alice", paymentMethod: "Cash", total: 2000, itemCount: 1, items: [{ productName: "Gadget", quantity: 1 }], refunded: false },
+    ];
+    const { result } = renderHook(() => useOrdersDetailData(orders, formatCurrency));
+    act(() => result.current.exportToCsv());
+
+    expect(capturedCsv).toContain("summary.revenue");
+    expect(capturedCsv).toContain("$3000");
+    expect(capturedCsv).toContain("summary.netRevenue");
+    expect(capturedCsv).toContain("$2000");
+    expect(capturedCsv).toContain("summary.totalRefunded");
+    expect(capturedCsv).toContain("$1000");
   });
 });
