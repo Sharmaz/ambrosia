@@ -259,6 +259,24 @@ describe("HistoryTab Component", () => {
       const amount = container.querySelector(".text-red-700.font-bold");
       expect(amount).toBeInTheDocument();
     });
+
+    it("shows a refunded chip for an outgoing payment that was a refund", () => {
+      renderHistoryTab({ transactions: [{ ...mockOutgoingTransaction, refunded: true }] });
+
+      expect(screen.getByText("refunded")).toBeInTheDocument();
+    });
+
+    it("does not show a refunded chip for an outgoing payment that was not a refund", () => {
+      renderHistoryTab({ transactions: [mockOutgoingTransaction] });
+
+      expect(screen.queryByText("refunded")).not.toBeInTheDocument();
+    });
+
+    it("does not show a refunded chip for an incoming payment even if refunded is true", () => {
+      renderHistoryTab({ transactions: [{ ...mockIncomingTransaction, refunded: true }] });
+
+      expect(screen.queryByText("refunded")).not.toBeInTheDocument();
+    });
   });
 
   describe("Transaction Keys", () => {
