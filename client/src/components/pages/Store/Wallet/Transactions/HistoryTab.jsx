@@ -81,7 +81,9 @@ export function HistoryTab({ transactions, loading, filter, setFilter, currentRa
                           {transaction.type === "outgoing_payment"
                             ? walletTranslations("payments.history.sent")
                             : walletTranslations("payments.history.received")}
-                          {transaction.refunded && <StatusChip status="refunded" />}
+                          {transaction.refunded && (
+                            <StatusChip status={transaction.type === "outgoing_payment" ? "refund" : "refunded"} />
+                          )}
                         </span>
                         <span className="text-xs text-gray-400 shrink-0">
                           {transaction.completedAt
