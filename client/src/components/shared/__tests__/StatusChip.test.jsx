@@ -28,4 +28,9 @@ describe("StatusChip", () => {
     render(<StatusChip status="refunded" />);
     expect(screen.getByText("refunded")).toBeInTheDocument();
   });
+
+  it("renders refund status chip", () => {
+    render(<StatusChip status="refund" />);
+    expect(screen.getByText("refund")).toBeInTheDocument();
+  });
 });

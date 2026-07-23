@@ -8,6 +8,7 @@ const STATUS_STYLES = {
   closed: "bg-gray-200 text-gray-700 border border-gray-300",
   paid: "bg-green-200 text-green-800 border border-green-300",
   refunded: "bg-purple-100 text-purple-800 border border-purple-200",
+  refund: "bg-orange-100 text-orange-800 border border-orange-200",
 };
 
 export function StatusChip({ status }) {

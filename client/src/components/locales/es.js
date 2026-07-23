@@ -51,6 +51,7 @@ const componentsEs = {
     closed: "Cerrada",
     paid: "Pagada",
     refunded: "Reembolsada",
+    refund: "Reembolso",
   },
   imageUploader: {
     removeImage: "Eliminar imagen",
