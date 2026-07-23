@@ -7,10 +7,10 @@ import { useTranslations } from "next-intl";
 
 import { AmountDisplay } from "@/components/shared/AmountDisplay";
 import { OrderProductsTable } from "@/components/shared/OrderProductsTable";
+import { StatusChip } from "@/components/shared/StatusChip";
 import { usePermission } from "@/hooks/usePermission";
 import formatDate from "@lib/formatDate";
 
-import { StatusChip } from "../OrdersList/StatusChip";
 import { RefundModal } from "../RefundModal";
 
 import { HashRow } from "./HashRow";

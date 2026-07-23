@@ -6,7 +6,7 @@ jest.mock("@/components/shared/AmountDisplay", () => ({
   AmountDisplay: ({ satoshis }) => <span>{`amount-display-${satoshis}`}</span>,
 }));
 
-jest.mock("../../OrdersList/StatusChip", () => ({
+jest.mock("@/components/shared/StatusChip", () => ({
   StatusChip: ({ status }) => <span>{`status-${status}`}</span>,
 }));
 
