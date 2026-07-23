@@ -272,8 +272,14 @@ describe("HistoryTab Component", () => {
       expect(screen.queryByText("refunded")).not.toBeInTheDocument();
     });
 
-    it("does not show a refunded chip for an incoming payment even if refunded is true", () => {
+    it("shows a refunded chip for an incoming payment whose order was refunded", () => {
       renderHistoryTab({ transactions: [{ ...mockIncomingTransaction, refunded: true }] });
+
+      expect(screen.getByText("refunded")).toBeInTheDocument();
+    });
+
+    it("does not show a refunded chip for an incoming payment whose order was not refunded", () => {
+      renderHistoryTab({ transactions: [mockIncomingTransaction] });
 
       expect(screen.queryByText("refunded")).not.toBeInTheDocument();
     });
