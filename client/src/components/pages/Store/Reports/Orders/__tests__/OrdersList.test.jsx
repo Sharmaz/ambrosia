@@ -150,12 +150,12 @@ describe("ReportsOrdersList", () => {
   it("shows the refunded status chip in the desktop table when the order is refunded", () => {
     const refundedOrder = [{ ...ORDER_FIXTURE[0], refunded: true }];
     render(<ReportsOrdersList orders={refundedOrder} formatCurrency={formatCurrency} />);
-    expect(screen.getByText("status.refunded")).toBeInTheDocument();
+    expect(screen.getByText("refunded")).toBeInTheDocument();
   });
 
   it("shows the paid status chip in the desktop table when the order is not refunded", () => {
     render(<ReportsOrdersList orders={ORDER_FIXTURE} formatCurrency={formatCurrency} />);
-    expect(screen.queryByText("status.refunded")).not.toBeInTheDocument();
-    expect(screen.getAllByText("status.paid").length).toBeGreaterThan(0);
+    expect(screen.queryByText("refunded")).not.toBeInTheDocument();
+    expect(screen.getAllByText("paid").length).toBeGreaterThan(0);
   });
 });
