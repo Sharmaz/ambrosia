@@ -88,7 +88,7 @@ describe("AdvancedFiltersPanel", () => {
       />,
     );
 
-    expect(screen.getByRole("option", { name: "status.refunded" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "refunded" })).toBeInTheDocument();
   });
 
   it("calls onFiltersChange when status changes to refunded", () => {

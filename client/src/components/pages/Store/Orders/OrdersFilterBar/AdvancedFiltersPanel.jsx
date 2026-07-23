@@ -8,6 +8,7 @@ const ORDER_STATUSES = ["open", "closed", "paid", "refunded"];
 
 export function AdvancedFiltersPanel({ filters, paymentMethods, onFiltersChange, onApplyFilters, onClearFilters }) {
   const ordersTranslations = useTranslations("orders");
+  const statusTranslations = useTranslations("status");
 
   const updateFilter = (key, value) => {
     onFiltersChange({ [key]: value === "" ? null : value });
@@ -46,7 +47,7 @@ export function AdvancedFiltersPanel({ filters, paymentMethods, onFiltersChange,
           </SelectItem>
           {ORDER_STATUSES.map((status) => (
             <SelectItem key={status} value={status}>
-              {ordersTranslations(`status.${status}`)}
+              {statusTranslations(status)}
             </SelectItem>
           ))}
         </Select>
