@@ -10,6 +10,7 @@ import {
   ModalFooter,
   Button,
   Textarea,
+  Checkbox,
   addToast,
 } from "@heroui/react";
 import { useTranslations } from "next-intl";
@@ -37,15 +38,25 @@ export function RefundModal({ order, isOpen, onClose, onRefunded, formatAmount }
   const [invoice, setInvoice] = useState("");
   const [invoiceError, setInvoiceError] = useState("");
   const [cashGiven, setCashGiven] = useState(0);
+  const [cardRefundAcknowledged, setCardRefundAcknowledged] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const isBtcOrder = order?.satoshiAmount != null;
   const isCashOrder = !isBtcOrder && order?.paymentMethod?.toLowerCase() === "cash";
+  const isCardOrder = !isBtcOrder && !isCashOrder;
   const orderTotalCents = Math.round((order?.total ?? 0) * 100);
   const cashGivenCents = Math.round((cashGiven || 0) * 100);
   const cashDifferenceCents = cashGivenCents - orderTotalCents;
   const isCashAmountExact = cashDifferenceCents === 0;
-  const isConfirmDisabled = isBtcOrder ? !invoice.trim() : isCashOrder ? !isCashAmountExact : false;
+
+  let isConfirmDisabled = false;
+  if (isBtcOrder) {
+    isConfirmDisabled = !invoice.trim();
+  } else if (isCashOrder) {
+    isConfirmDisabled = !isCashAmountExact;
+  } else if (isCardOrder) {
+    isConfirmDisabled = !cardRefundAcknowledged;
+  }
 
   function handleInvoiceChange(value) {
     setInvoice(value);
@@ -93,6 +104,7 @@ export function RefundModal({ order, isOpen, onClose, onRefunded, formatAmount }
     setInvoice("");
     setInvoiceError("");
     setCashGiven(0);
+    setCardRefundAcknowledged(false);
     onClose();
   }
 
@@ -139,6 +151,16 @@ export function RefundModal({ order, isOpen, onClose, onRefunded, formatAmount }
               isCashAmountExact={isCashAmountExact}
               formatAmount={formatAmount}
             />
+          )}
+          {isCardOrder && (
+            <div className="space-y-3">
+              <p className="text-sm text-gray-600">
+                {ordersTranslations("details.refundCardNotice")}
+              </p>
+              <Checkbox isSelected={cardRefundAcknowledged} onValueChange={setCardRefundAcknowledged}>
+                {ordersTranslations("details.refundCardAcknowledge")}
+              </Checkbox>
+            </div>
           )}
         </ModalBody>
         <ModalFooter className="flex justify-between">
