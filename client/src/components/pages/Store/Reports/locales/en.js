@@ -109,7 +109,6 @@ const reportsEn = {
       ofLabel: "of",
       paginationAria: "Sales pagination",
       tableAriaLabel: "Sales detail",
-      refundedBadge: "Refunded",
     },
     close: {
       modalTitle: "Confirm Shift Close",

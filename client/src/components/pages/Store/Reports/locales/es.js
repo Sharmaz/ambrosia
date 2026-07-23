@@ -109,7 +109,6 @@ const reportsEs = {
       ofLabel: "de",
       paginationAria: "Paginación de ventas",
       tableAriaLabel: "Detalle de ventas",
-      refundedBadge: "Reembolsada",
     },
     close: {
       modalTitle: "Confirmar Cierre de Turno",
