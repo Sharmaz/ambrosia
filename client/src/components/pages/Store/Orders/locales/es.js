@@ -44,12 +44,6 @@ const ordersEs = {
       actions: "Acciones",
       view: "Detalles",
     },
-    status: {
-      open: "Abierta",
-      closed: "Cerrada",
-      paid: "Pagada",
-      refunded: "Reembolsada",
-    },
     empty: {
       titlePaid: "No hay órdenes pagadas",
       titleInProgress: "No hay órdenes en curso",
