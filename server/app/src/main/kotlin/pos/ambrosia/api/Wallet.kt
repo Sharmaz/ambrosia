@@ -29,6 +29,7 @@ import pos.ambrosia.models.phoenix.PayOnchainRequest
 import pos.ambrosia.services.AuthService
 import pos.ambrosia.services.PaymentService
 import pos.ambrosia.services.PhoenixService
+import pos.ambrosia.services.RefundService
 import pos.ambrosia.services.TokenService
 import pos.ambrosia.services.WalletRateService
 import pos.ambrosia.utils.Bolt11Decoder
@@ -42,8 +43,13 @@ fun Application.configureWallet() {
     val tokenService = TokenService(environment)
     val walletRateService = WalletRateService()
     val paymentService = PaymentService()
+    val refundService = RefundService(phoenixService)
 
-    routing { route("/wallet") { wallet(phoenixService, tokenService, authService, paymentService, walletRateService) } }
+    routing {
+        route("/wallet") {
+            wallet(phoenixService, tokenService, authService, paymentService, walletRateService, refundService)
+        }
+    }
 }
 
 fun Route.wallet(
@@ -52,6 +58,7 @@ fun Route.wallet(
     authService: AuthService,
     paymentService: PaymentService,
     walletRateService: WalletRateService,
+    refundService: RefundService,
 ) {
     authenticate("auth-jwt") {
         post("/invoice") {
@@ -194,6 +201,7 @@ fun Route.wallet(
                 val salesPaymentRates = paymentService.getExchangeRatesByPaymentHashes(hashes)
                 val walletInvoiceRates = walletRateService.getRatesByPaymentHashes(hashes.filter { it !in salesPaymentRates })
                 val bitcoinPaymentDataByHash = salesPaymentRates + walletInvoiceRates
+                val refundedHashes = refundService.getRefundedOrderPaymentHashes(hashes)
                 val enriched =
                     payments.map { payment ->
                         val bitcoinPaymentData = bitcoinPaymentDataByHash[payment.paymentHash]
@@ -217,6 +225,7 @@ fun Route.wallet(
                             exchangeRateAtPayment = bitcoinPaymentData?.exchangeRateAtPayment,
                             exchangeRateCurrency = bitcoinPaymentData?.exchangeRateCurrency,
                             fiatAmountAtPayment = bitcoinPaymentData?.fiatAmountAtPayment,
+                            refunded = payment.paymentHash in refundedHashes,
                         )
                     }
                 call.respond(HttpStatusCode.OK, enriched)
@@ -241,6 +250,7 @@ fun Route.wallet(
                 val salesPaymentRates = paymentService.getExchangeRatesByPaymentHashes(hashes)
                 val walletInvoiceRates = walletRateService.getRatesByPaymentHashes(hashes.filter { it !in salesPaymentRates })
                 val bitcoinDataByHash = salesPaymentRates + walletInvoiceRates
+                val refundedHashes = refundService.getRefundedPaymentHashes(hashes)
                 val enriched =
                     payments.map { payment ->
                         val bitcoinData = payment.paymentHash?.let { bitcoinDataByHash[it] }
@@ -261,6 +271,7 @@ fun Route.wallet(
                             exchangeRateAtPayment = bitcoinData?.exchangeRateAtPayment,
                             exchangeRateCurrency = bitcoinData?.exchangeRateCurrency,
                             fiatAmountAtPayment = bitcoinData?.fiatAmountAtPayment,
+                            refunded = payment.paymentHash in refundedHashes,
                         )
                     }
                 call.respond(HttpStatusCode.OK, enriched)

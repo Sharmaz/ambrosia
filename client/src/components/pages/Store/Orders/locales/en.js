@@ -44,12 +44,6 @@ const ordersEn = {
       actions: "Actions",
       view: "Details",
     },
-    status: {
-      open: "Open",
-      closed: "Closed",
-      paid: "Paid",
-      refunded: "Refunded",
-    },
     empty: {
       titlePaid: "No paid orders",
       titleInProgress: "No orders in progress",

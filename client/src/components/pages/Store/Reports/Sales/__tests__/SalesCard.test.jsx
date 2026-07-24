@@ -77,12 +77,12 @@ describe("SalesCard", () => {
 
   it("shows the refunded status chip when the sale is refunded", () => {
     render(<SalesCard sale={{ ...baseSale, refunded: true }} formatCurrency={formatCurrency} />);
-    expect(screen.getByText("status.refunded")).toBeInTheDocument();
+    expect(screen.getByText("refunded")).toBeInTheDocument();
   });
 
   it("shows the paid status chip when the sale is not refunded", () => {
     render(<SalesCard sale={baseSale} formatCurrency={formatCurrency} />);
-    expect(screen.queryByText("status.refunded")).not.toBeInTheDocument();
-    expect(screen.getByText("status.paid")).toBeInTheDocument();
+    expect(screen.queryByText("refunded")).not.toBeInTheDocument();
+    expect(screen.getByText("paid")).toBeInTheDocument();
   });
 });

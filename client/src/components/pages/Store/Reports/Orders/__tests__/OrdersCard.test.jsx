@@ -81,12 +81,12 @@ describe("OrdersCard", () => {
 
   it("shows the refunded status chip when the order is refunded", () => {
     render(<OrdersCard order={{ ...ORDER, refunded: true }} formatCurrency={formatCurrency} onClick={jest.fn()} />);
-    expect(screen.getByText("status.refunded")).toBeInTheDocument();
+    expect(screen.getByText("refunded")).toBeInTheDocument();
   });
 
   it("shows the paid status chip when the order is not refunded", () => {
     render(<OrdersCard order={ORDER} formatCurrency={formatCurrency} onClick={jest.fn()} />);
-    expect(screen.queryByText("status.refunded")).not.toBeInTheDocument();
-    expect(screen.getByText("status.paid")).toBeInTheDocument();
+    expect(screen.queryByText("refunded")).not.toBeInTheDocument();
+    expect(screen.getByText("paid")).toBeInTheDocument();
   });
 });

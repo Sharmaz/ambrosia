@@ -528,6 +528,7 @@ object ExposedTestDb {
         refundInvoice: String = "",
         satoshiAmount: Long = 0L,
         refundedAt: String = "2024-01-01T00:00:00",
+        paymentHash: String? = null,
     ): String =
         transaction {
             RefundEntity
@@ -536,6 +537,7 @@ object ExposedTestDb {
                     this.refundInvoice = refundInvoice
                     this.satoshiAmount = satoshiAmount
                     this.refundedAt = refundedAt
+                    this.paymentHash = paymentHash
                 }.id.value
                 .toString()
         }

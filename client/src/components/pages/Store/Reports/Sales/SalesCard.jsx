@@ -5,9 +5,10 @@ import { Users } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import { AmountDisplay } from "@/components/shared/AmountDisplay";
+import { StatusChip } from "@/components/shared/StatusChip";
 import formatDate from "@lib/formatDate";
 
-import { StatusChip } from "../StatusChip";
+import { refundedToStatus } from "../utils/refundedToStatus";
 
 export function SalesCard({ sale, formatCurrency, currentRate }) {
   const reportsTranslations = useTranslations("reports");
@@ -30,7 +31,7 @@ export function SalesCard({ sale, formatCurrency, currentRate }) {
       <CardBody>
         <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
           <p className="font-bold text-deep">{productName}</p>
-          <StatusChip refunded={refunded} />
+          <StatusChip status={refundedToStatus(refunded)} />
         </div>
         <div className="flex items-center gap-1 text-sm text-forest mt-0.5">
           <Users aria-hidden="true" className="w-3 h-3 shrink-0" />

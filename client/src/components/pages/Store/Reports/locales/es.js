@@ -31,10 +31,6 @@ const reportsEs = {
       errorTitle: "Error",
       errorGenerate: "No se pudo generar el reporte",
     },
-    status: {
-      paid: "Pagada",
-      refunded: "Reembolsada",
-    },
     tabs: {
       orders: "Órdenes",
       products: "Productos",
