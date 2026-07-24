@@ -19,6 +19,7 @@ import pos.ambrosia.db.tables.ProductBundleComponentsTable
 import pos.ambrosia.db.tables.ProductEntity
 import pos.ambrosia.db.tables.ProductVariantsTable
 import pos.ambrosia.db.tables.RefundEntity
+import pos.ambrosia.db.tables.RefundsTable
 import pos.ambrosia.db.tables.TicketPaymentsTable
 import pos.ambrosia.db.tables.TicketsTable
 import pos.ambrosia.logger
@@ -209,6 +210,17 @@ class RefundService(
                 .selectAll()
                 .where { (PaymentsTable.paymentHash inList hashes) and (OrdersTable.status eq "refunded") }
                 .map { it[PaymentsTable.paymentHash]!! }
+                .toSet()
+        }
+
+    fun getRefundedPaymentHashes(hashes: List<String>): Set<String> =
+        transaction {
+            if (hashes.isEmpty()) return@transaction emptySet()
+
+            RefundsTable
+                .selectAll()
+                .where { RefundsTable.paymentHash inList hashes }
+                .map { it[RefundsTable.paymentHash]!! }
                 .toSet()
         }
 }

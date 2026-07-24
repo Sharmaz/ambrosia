@@ -250,6 +250,7 @@ fun Route.wallet(
                 val salesPaymentRates = paymentService.getExchangeRatesByPaymentHashes(hashes)
                 val walletInvoiceRates = walletRateService.getRatesByPaymentHashes(hashes.filter { it !in salesPaymentRates })
                 val bitcoinDataByHash = salesPaymentRates + walletInvoiceRates
+                val refundedHashes = refundService.getRefundedPaymentHashes(hashes)
                 val enriched =
                     payments.map { payment ->
                         val bitcoinData = payment.paymentHash?.let { bitcoinDataByHash[it] }
@@ -270,6 +271,7 @@ fun Route.wallet(
                             exchangeRateAtPayment = bitcoinData?.exchangeRateAtPayment,
                             exchangeRateCurrency = bitcoinData?.exchangeRateCurrency,
                             fiatAmountAtPayment = bitcoinData?.fiatAmountAtPayment,
+                            refunded = payment.paymentHash in refundedHashes,
                         )
                     }
                 call.respond(HttpStatusCode.OK, enriched)
