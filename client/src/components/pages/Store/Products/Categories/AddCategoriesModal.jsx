@@ -14,8 +14,8 @@ import {
 import { useTranslations } from "next-intl";
 
 export function AddCategoriesModal({
-  data,
-  setData,
+  categoryForm,
+  setCategoryForm,
   addCategory,
   onChange,
   addCategoriesShowModal,
@@ -32,8 +32,8 @@ export function AddCategoriesModal({
     isSubmittingRef.current = true;
     try {
       setIsSubmitting(true);
-      await addCategory(data);
-      setData({ categoryName: "" });
+      await addCategory(categoryForm);
+      setCategoryForm({ categoryName: "" });
       setAddCategoriesShowModal(false);
     } catch {
       return;
@@ -66,7 +66,7 @@ export function AddCategoriesModal({
               placeholder={categoryTranslations("modal.categoryNamePlaceholder")}
               isRequired
               errorMessage={categoryTranslations("modal.errorMsgInputFieldEmpty")}
-              value={data.categoryName ?? ""}
+              value={categoryForm.categoryName ?? ""}
               onChange={(event) => onChange({ categoryName: event.target.value })}
             />
             <ModalFooter className="flex justify-between p-0 my-4">

@@ -14,8 +14,8 @@ import {
 import { useTranslations } from "next-intl";
 
 export function EditCategoriesModal({
-  data,
-  setData,
+  categoryForm,
+  setCategoryForm,
   onChange,
   updateCategory,
   editCategoriesShowModal,
@@ -26,7 +26,7 @@ export function EditCategoriesModal({
   const isSubmittingRef = useRef(false);
 
   const handleOnCloseModal = () => {
-    setData({ categoryId: "", categoryName: "" });
+    setCategoryForm({ categoryId: "", categoryName: "" });
     setEditCategoriesShowModal(false);
   };
 
@@ -37,7 +37,7 @@ export function EditCategoriesModal({
     isSubmittingRef.current = true;
     try {
       setIsSubmitting(true);
-      await updateCategory(data);
+      await updateCategory(categoryForm);
       setEditCategoriesShowModal(false);
     } catch {
       return;
@@ -70,7 +70,7 @@ export function EditCategoriesModal({
               placeholder={categoryTranslations("modal.categoryNamePlaceholder")}
               isRequired
               errorMessage={categoryTranslations("modal.errorMsgInputFieldEmpty")}
-              value={data.categoryName ?? ""}
+              value={categoryForm.categoryName ?? ""}
               onChange={(event) => onChange({ categoryName: event.target.value })}
             />
             <ModalFooter className="flex justify-between p-0 my-4">

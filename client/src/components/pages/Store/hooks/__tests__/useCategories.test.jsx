@@ -102,9 +102,9 @@ describe("useCategories", () => {
     render(<TestComponent />);
     await waitFor(() => expect(screen.getByTestId("count")).toHaveTextContent("0"));
 
-    let result;
+    let createdCategoryId;
     await act(async () => {
-      result = await handlers.createCategory("Electronics");
+      createdCategoryId = await handlers.createCategory("Electronics");
     });
 
     expect(httpClient).toHaveBeenCalledWith("/categories", {
@@ -113,7 +113,7 @@ describe("useCategories", () => {
       headers: { "Content-Type": "application/json" },
       notShowError: false,
     });
-    expect(result).toBe("cat-3");
+    expect(createdCategoryId).toBe("cat-3");
     await waitFor(() => expect(screen.getByTestId("count")).toHaveTextContent("1"));
   });
 
@@ -185,8 +185,8 @@ describe("useCategories", () => {
     await act(async () => {
       try {
         await handlers.updateCategory({ categoryId: "cat-1", categoryName: "Hardware Updated" });
-      } catch (error) {
-        thrownError = error;
+      } catch (updateCategoryError) {
+        thrownError = updateCategoryError;
       }
     });
 
@@ -223,8 +223,8 @@ describe("useCategories", () => {
     await act(async () => {
       try {
         await handlers.deleteCategory("cat-1");
-      } catch (error) {
-        thrownError = error;
+      } catch (deleteCategoryError) {
+        thrownError = deleteCategoryError;
       }
     });
 

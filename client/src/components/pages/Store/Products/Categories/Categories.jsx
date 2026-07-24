@@ -25,8 +25,8 @@ export function Categories({ categories, createCategory, updateCategory, deleteC
 
   const categoryTranslations = useTranslations("categories");
 
-  const handleCategoryFormChange = (newData) => {
-    setCategoryForm((prev) => ({ ...prev, ...newData }));
+  const handleCategoryFormChange = (categoryFormUpdates) => {
+    setCategoryForm((previousCategoryForm) => ({ ...previousCategoryForm, ...categoryFormUpdates }));
   };
 
   const handleEditCategory = (category) => {
@@ -48,13 +48,13 @@ export function Categories({ categories, createCategory, updateCategory, deleteC
       await createCategory(formData.categoryName, "product");
       await refreshData();
       addToast({ description: categoryTranslations("toasts.createSuccess"), color: "success" });
-    } catch (error) {
+    } catch (createCategoryError) {
       addToast({
         title: categoryTranslations("toasts.createErrorTitle"),
         description: categoryTranslations("toasts.createErrorDescription"),
         color: "danger",
       });
-      throw error;
+      throw createCategoryError;
     }
   };
 
@@ -62,13 +62,13 @@ export function Categories({ categories, createCategory, updateCategory, deleteC
     try {
       await updateCategory(formData);
       addToast({ description: categoryTranslations("toasts.updateSuccess"), color: "success" });
-    } catch (error) {
+    } catch (updateCategoryError) {
       addToast({
         title: categoryTranslations("toasts.updateErrorTitle"),
         description: categoryTranslations("toasts.updateErrorDescription"),
         color: "danger",
       });
-      throw error;
+      throw updateCategoryError;
     }
   };
 
@@ -80,13 +80,13 @@ export function Categories({ categories, createCategory, updateCategory, deleteC
         addToast({ description: categoryTranslations("toasts.deleteSuccess"), color: "success" });
       }
       setDeleteCategoriesShowModal(false);
-    } catch (error) {
+    } catch (deleteCategoryError) {
       addToast({
         title: categoryTranslations("toasts.deleteErrorTitle"),
         description: categoryTranslations("toasts.deleteErrorDescription"),
         color: "danger",
       });
-      throw error;
+      throw deleteCategoryError;
     }
   };
 
@@ -119,8 +119,8 @@ export function Categories({ categories, createCategory, updateCategory, deleteC
       </div>
 
       <AddCategoriesModal
-        data={categoryForm}
-        setData={setCategoryForm}
+        categoryForm={categoryForm}
+        setCategoryForm={setCategoryForm}
         addCategory={handleAddCategory}
         onChange={handleCategoryFormChange}
         addCategoriesShowModal={addCategoriesShowModal}
@@ -128,8 +128,8 @@ export function Categories({ categories, createCategory, updateCategory, deleteC
       />
 
       <EditCategoriesModal
-        data={categoryForm}
-        setData={setCategoryForm}
+        categoryForm={categoryForm}
+        setCategoryForm={setCategoryForm}
         category={selectedCategory}
         onChange={handleCategoryFormChange}
         updateCategory={handleUpdateCategory}
