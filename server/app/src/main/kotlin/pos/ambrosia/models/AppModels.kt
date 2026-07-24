@@ -595,6 +595,7 @@ data class OutgoingPaymentWithRate(
     val exchangeRateAtPayment: Double? = null,
     val exchangeRateCurrency: String? = null,
     val fiatAmountAtPayment: Double? = null,
+    val refunded: Boolean,
 )
 
 data class WalletInvoiceRate(
@@ -632,4 +633,5 @@ data class IncomingPaymentWithRate(
     val exchangeRateAtPayment: Double? = null,
     val exchangeRateCurrency: String? = null,
     val fiatAmountAtPayment: Double? = null,
+    val refunded: Boolean,
 )

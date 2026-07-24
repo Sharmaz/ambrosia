@@ -46,6 +46,13 @@ const componentsEn = {
     delete: "Delete",
     view: "View",
   },
+  status: {
+    open: "Open",
+    closed: "Closed",
+    paid: "Paid",
+    refunded: "Refunded",
+    refund: "Refund",
+  },
   imageUploader: {
     removeImage: "Remove image",
     takePhoto: "Take a photo",

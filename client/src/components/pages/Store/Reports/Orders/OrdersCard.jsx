@@ -3,10 +3,11 @@ import { Card, CardBody } from "@heroui/react";
 import { Users } from "lucide-react";
 import { useTranslations } from "next-intl";
 
+import { StatusChip } from "@/components/shared/StatusChip";
 import { ViewButton } from "@/components/shared/ViewButton";
 import formatDate from "@lib/formatDate";
 
-import { StatusChip } from "../StatusChip";
+import { refundedToStatus } from "../utils/refundedToStatus";
 
 export function OrdersCard({ order, formatCurrency, onClick }) {
   const reportsTranslations = useTranslations("reports");
@@ -19,7 +20,7 @@ export function OrdersCard({ order, formatCurrency, onClick }) {
           <span className="font-mono text-xs text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">
             #{shortId}
           </span>
-          <StatusChip refunded={refunded} />
+          <StatusChip status={refundedToStatus(refunded)} />
         </div>
         <div className="flex flex-row items-center gap-3">
           <div className="flex-1 min-w-0">

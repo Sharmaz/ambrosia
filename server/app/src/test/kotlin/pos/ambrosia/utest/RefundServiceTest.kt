@@ -2,10 +2,13 @@ package pos.ambrosia.utest
 
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
+import io.ktor.client.engine.mock.MockRequestHandleScope
 import io.ktor.client.engine.mock.respond
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.client.request.HttpRequestData
 import io.ktor.client.request.forms.FormDataContent
 import io.ktor.http.HttpHeaders
+import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.headersOf
 import io.ktor.serialization.kotlinx.json.json
@@ -15,6 +18,8 @@ import io.ktor.server.config.ApplicationConfigValue
 import io.ktor.utils.io.ByteReadChannel
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
+import org.jetbrains.exposed.v1.core.dao.id.EntityID
+import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.junit.After
 import org.junit.Before
@@ -22,6 +27,9 @@ import org.mockito.kotlin.doReturn
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.whenever
 import pos.ambrosia.db.tables.OrderEntity
+import pos.ambrosia.db.tables.OrdersTable
+import pos.ambrosia.db.tables.RefundEntity
+import pos.ambrosia.db.tables.RefundsTable
 import pos.ambrosia.models.RefundRequest
 import pos.ambrosia.models.UpsertVariantRequest
 import pos.ambrosia.services.PhoenixService
@@ -47,6 +55,12 @@ class RefundServiceTest {
             on { config } doReturn mockConfig
         }
 
+    private val decodableInvoice =
+        "lnbc2500u1pvjluezsp5zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zygspp5qqqsyqcy" +
+            "q5rqwzqfqqqsyqcyq5rqwzqfqqqsyqcyq5rqwzqfqypqdq5xysxxatsyp3k7enxv4jsxqzpu9qrsgquk0r" +
+            "l77nj30yxdy8j9vdx85fkpmdla2087ne0xh8nhedh8w27kyke0lp53ut353s06fv3qfegext0eh0ymjpf39" +
+            "tuven09sam30g4vgpfna3rh"
+
     @Before
     fun setUp() {
         dbFile = ExposedTestDb.connect()
@@ -63,25 +77,43 @@ class RefundServiceTest {
         ExposedTestDb.cleanup(dbFile)
     }
 
-    private fun refundServiceRespondingWithSats(recipientAmountSat: Long): RefundService {
-        val mockJsonResponse =
-            """
-            {
-                "recipientAmountSat": $recipientAmountSat,
-                "routingFeeSat": 0,
-                "paymentId": "refund-payment-id",
-                "paymentHash": "refund-payment-hash",
-                "paymentPreimage": "refund-payment-preimage"
-            }
-            """.trimIndent()
-        val mockEngine =
-            MockEngine { _ ->
-                respond(
-                    content = ByteReadChannel(mockJsonResponse.toByteArray(Charsets.UTF_8)),
-                    status = HttpStatusCode.OK,
-                    headers = headersOf(HttpHeaders.ContentType, "application/json"),
-                )
-            }
+    private fun mockPayInvoiceJson(recipientAmountSat: Long) =
+        """
+        {
+            "recipientAmountSat": $recipientAmountSat,
+            "routingFeeSat": 0,
+            "paymentId": "refund-payment-id",
+            "paymentHash": "refund-payment-hash",
+            "paymentPreimage": "refund-payment-preimage"
+        }
+        """.trimIndent()
+
+    private fun mockOutgoingPaymentJson(
+        isPaid: Boolean,
+        sentSat: Long,
+    ) = """
+        {
+            "type": "outgoing_payment",
+            "subType": "lightning",
+            "paymentId": "existing-payment-id",
+            "paymentHash": "existing-payment-hash",
+            "isPaid": $isPaid,
+            "sent": $sentSat,
+            "fees": 0,
+            "createdAt": 0
+        }
+        """.trimIndent()
+
+    private fun isOutgoingByHashRequest(request: HttpRequestData) = request.method == HttpMethod.Get
+
+    private fun MockRequestHandleScope.respondJson(json: String) =
+        respond(
+            content = ByteReadChannel(json.toByteArray(Charsets.UTF_8)),
+            status = HttpStatusCode.OK,
+            headers = headersOf(HttpHeaders.ContentType, "application/json"),
+        )
+
+    private fun refundServiceWithHttpClient(mockEngine: MockEngine): RefundService {
         val mockHttpClient =
             HttpClient(mockEngine) {
                 install(ContentNegotiation) {
@@ -89,45 +121,57 @@ class RefundServiceTest {
                 }
             }
         return RefundService(PhoenixService(mockEnv, mockHttpClient))
+    }
+
+    private fun refundServiceRespondingWithSats(recipientAmountSat: Long): RefundService {
+        val mockEngine = MockEngine { _ -> respondJson(mockPayInvoiceJson(recipientAmountSat)) }
+        return refundServiceWithHttpClient(mockEngine)
     }
 
     private fun refundServiceCapturingAmountSat(
         recipientAmountSat: Long,
         onAmountSatSent: (Long?) -> Unit,
     ): RefundService {
-        val mockJsonResponse =
-            """
-            {
-                "recipientAmountSat": $recipientAmountSat,
-                "routingFeeSat": 0,
-                "paymentId": "refund-payment-id",
-                "paymentHash": "refund-payment-hash",
-                "paymentPreimage": "refund-payment-preimage"
-            }
-            """.trimIndent()
         val mockEngine =
             MockEngine { request ->
                 val sentAmountSat = (request.body as FormDataContent).formData["amountSat"]?.toLong()
                 onAmountSatSent(sentAmountSat)
-                respond(
-                    content = ByteReadChannel(mockJsonResponse.toByteArray(Charsets.UTF_8)),
-                    status = HttpStatusCode.OK,
-                    headers = headersOf(HttpHeaders.ContentType, "application/json"),
-                )
+                respondJson(mockPayInvoiceJson(recipientAmountSat))
             }
-        val mockHttpClient =
-            HttpClient(mockEngine) {
-                install(ContentNegotiation) {
-                    json(Json { ignoreUnknownKeys = true })
-                }
-            }
-        return RefundService(PhoenixService(mockEnv, mockHttpClient))
+        return refundServiceWithHttpClient(mockEngine)
     }
 
     private fun refundServiceWithNoPhoenixCallExpected(): RefundService {
         val mockEngine = MockEngine { _ -> error("phoenixd should not be called for a non-BTC refund") }
         val mockHttpClient = HttpClient(mockEngine)
         return RefundService(PhoenixService(mockEnv, mockHttpClient))
+    }
+
+    private fun refundServiceWithOutgoingPaymentAlreadyPaid(sentSat: Long): RefundService {
+        val mockEngine =
+            MockEngine { request ->
+                if (isOutgoingByHashRequest(request)) {
+                    respondJson(mockOutgoingPaymentJson(isPaid = true, sentSat = sentSat))
+                } else {
+                    error("payInvoice should not be called when the invoice was already paid")
+                }
+            }
+        return refundServiceWithHttpClient(mockEngine)
+    }
+
+    private fun refundServiceWithOutgoingPaymentQueryFailing(
+        recipientAmountSat: Long,
+        failureStatus: HttpStatusCode,
+    ): RefundService {
+        val mockEngine =
+            MockEngine { request ->
+                if (isOutgoingByHashRequest(request)) {
+                    respond(content = "", status = failureStatus)
+                } else {
+                    respondJson(mockPayInvoiceJson(recipientAmountSat))
+                }
+            }
+        return refundServiceWithHttpClient(mockEngine)
     }
 
     private fun seedUser(): String {
@@ -143,6 +187,14 @@ class RefundServiceTest {
 
     private fun orderStatus(orderId: String): String =
         transaction { OrderEntity.findById(UUID.fromString(orderId))?.status ?: error("Order not found: $orderId") }
+
+    private fun refundPaymentHash(orderId: String): String? =
+        transaction {
+            RefundEntity
+                .find { RefundsTable.orderId eq EntityID(UUID.fromString(orderId), OrdersTable) }
+                .firstOrNull()
+                ?.paymentHash
+        }
 
     private fun seedPaidOrderWithLine(
         userId: String,
@@ -163,6 +215,17 @@ class RefundServiceTest {
         return orderId
     }
 
+    private fun seedPaidBtcOrderWithPayment(satoshiAmount: Long): String {
+        val userId = seedUser()
+        val productId = ExposedTestDb.seedProduct(name = "Widget", quantity = 5)
+        val variantId = defaultVariantId(productId)
+        val orderId = seedPaidOrderWithLine(userId, productId, variantId, quantity = 1, priceAtOrder = 500)
+        val paymentId = ExposedTestDb.seedPayment(satoshiAmount = satoshiAmount)
+        val ticketId = ExposedTestDb.seedTicket(orderId, userId)
+        ExposedTestDb.seedTicketPayment(paymentId, ticketId)
+        return orderId
+    }
+
     @Test
     fun `processRefund on non-BTC order sets status refunded and satoshiAmount zero`() =
         runBlocking {
@@ -180,13 +243,7 @@ class RefundServiceTest {
     @Test
     fun `processRefund on BTC order calls payInvoice and stores recipientAmountSat`() =
         runBlocking {
-            val userId = seedUser()
-            val productId = ExposedTestDb.seedProduct(name = "Widget", quantity = 5)
-            val variantId = defaultVariantId(productId)
-            val orderId = seedPaidOrderWithLine(userId, productId, variantId, quantity = 1, priceAtOrder = 500)
-            val paymentId = ExposedTestDb.seedPayment(satoshiAmount = 1234)
-            val ticketId = ExposedTestDb.seedTicket(orderId, userId)
-            ExposedTestDb.seedTicketPayment(paymentId, ticketId)
+            val orderId = seedPaidBtcOrderWithPayment(satoshiAmount = 1234)
 
             val refund = refundServiceRespondingWithSats(1234).processRefund(orderId, RefundRequest(invoice = "lnbc1..."))
 
@@ -197,13 +254,7 @@ class RefundServiceTest {
     @Test
     fun `processRefund forces amountSat to the order's original paid amount regardless of what the invoice itself requests`() =
         runBlocking {
-            val userId = seedUser()
-            val productId = ExposedTestDb.seedProduct(name = "Widget", quantity = 5)
-            val variantId = defaultVariantId(productId)
-            val orderId = seedPaidOrderWithLine(userId, productId, variantId, quantity = 1, priceAtOrder = 500)
-            val paymentId = ExposedTestDb.seedPayment(satoshiAmount = 895)
-            val ticketId = ExposedTestDb.seedTicket(orderId, userId)
-            ExposedTestDb.seedTicketPayment(paymentId, ticketId)
+            val orderId = seedPaidBtcOrderWithPayment(satoshiAmount = 895)
 
             var sentAmountSat: Long? = null
             val refund =
@@ -351,4 +402,94 @@ class RefundServiceTest {
             assertEquals(8, variantQuantity(componentDefaultVariant))
             assertEquals(0, variantQuantity(bundleVariant))
         }
+
+    @Test
+    fun `processRefund skips payInvoice and persists the already-paid amount when the invoice was paid in a previous attempt`() =
+        runBlocking {
+            val orderId = seedPaidBtcOrderWithPayment(satoshiAmount = 1234)
+
+            val refund =
+                refundServiceWithOutgoingPaymentAlreadyPaid(sentSat = 1234)
+                    .processRefund(orderId, RefundRequest(invoice = decodableInvoice))
+
+            assertEquals(1234L, refund.satoshiAmount)
+            assertEquals("refunded", orderStatus(orderId))
+        }
+
+    @Test
+    fun `processRefund calls payInvoice normally when the outgoing payment lookup finds no prior payment`() =
+        runBlocking {
+            val orderId = seedPaidBtcOrderWithPayment(satoshiAmount = 1234)
+
+            val refund =
+                refundServiceWithOutgoingPaymentQueryFailing(recipientAmountSat = 1234, failureStatus = HttpStatusCode.NotFound)
+                    .processRefund(orderId, RefundRequest(invoice = decodableInvoice))
+
+            assertEquals(1234L, refund.satoshiAmount)
+            assertEquals("refunded", orderStatus(orderId))
+        }
+
+    @Test
+    fun `processRefund calls payInvoice normally when the outgoing payment lookup fails unexpectedly`() =
+        runBlocking {
+            val orderId = seedPaidBtcOrderWithPayment(satoshiAmount = 1234)
+
+            val refund =
+                refundServiceWithOutgoingPaymentQueryFailing(
+                    recipientAmountSat = 1234,
+                    failureStatus = HttpStatusCode.InternalServerError,
+                ).processRefund(orderId, RefundRequest(invoice = decodableInvoice))
+
+            assertEquals(1234L, refund.satoshiAmount)
+            assertEquals("refunded", orderStatus(orderId))
+        }
+
+    @Test
+    fun `processRefund persists the invoice's payment hash on the refund row`() =
+        runBlocking {
+            val orderId = seedPaidBtcOrderWithPayment(satoshiAmount = 1234)
+
+            refundServiceWithOutgoingPaymentQueryFailing(recipientAmountSat = 1234, failureStatus = HttpStatusCode.NotFound)
+                .processRefund(orderId, RefundRequest(invoice = decodableInvoice))
+
+            assertEquals(64, refundPaymentHash(orderId)?.length)
+        }
+
+    @Test
+    fun `getRefundedOrderPaymentHashes returns only the hashes whose order was refunded`() {
+        val userId = seedUser()
+
+        val refundedOrderId = ExposedTestDb.seedOrder(userId = userId, status = "refunded", total = 10.0)
+        val refundedPaymentId = ExposedTestDb.seedPayment(paymentHash = "refunded-order-hash")
+        val refundedTicketId = ExposedTestDb.seedTicket(refundedOrderId, userId)
+        ExposedTestDb.seedTicketPayment(refundedPaymentId, refundedTicketId)
+
+        val paidOrderId = ExposedTestDb.seedOrder(userId = userId, status = "paid", total = 10.0)
+        val paidPaymentId = ExposedTestDb.seedPayment(paymentHash = "paid-order-hash")
+        val paidTicketId = ExposedTestDb.seedTicket(paidOrderId, userId)
+        ExposedTestDb.seedTicketPayment(paidPaymentId, paidTicketId)
+
+        val result =
+            refundServiceWithNoPhoenixCallExpected()
+                .getRefundedOrderPaymentHashes(listOf("refunded-order-hash", "paid-order-hash", "unknown-hash"))
+
+        assertEquals(setOf("refunded-order-hash"), result)
+    }
+
+    @Test
+    fun `getRefundedPaymentHashes returns only the hashes present in the refunds table`() {
+        val userId = seedUser()
+
+        val orderId = ExposedTestDb.seedOrder(userId = userId, status = "refunded", total = 10.0)
+        ExposedTestDb.seedRefund(orderId, paymentHash = "refund-payout-hash")
+
+        val otherOrderId = ExposedTestDb.seedOrder(userId = userId, status = "refunded", total = 10.0)
+        ExposedTestDb.seedRefund(otherOrderId, paymentHash = "other-refund-payout-hash")
+
+        val result =
+            refundServiceWithNoPhoenixCallExpected()
+                .getRefundedPaymentHashes(listOf("refund-payout-hash", "unrelated-outgoing-hash"))
+
+        assertEquals(setOf("refund-payout-hash"), result)
+    }
 }

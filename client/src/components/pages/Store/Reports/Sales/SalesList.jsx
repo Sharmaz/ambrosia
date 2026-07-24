@@ -5,9 +5,10 @@ import { useTranslations } from "next-intl";
 
 import { AmountDisplay } from "@/components/shared/AmountDisplay";
 import { DataTable } from "@/components/shared/DataTable";
+import { StatusChip } from "@/components/shared/StatusChip";
 import { formatDateParts } from "@lib/formatDate";
 
-import { StatusChip } from "../StatusChip";
+import { refundedToStatus } from "../utils/refundedToStatus";
 
 import { SalesCard } from "./SalesCard";
 import { buildSaleItemKey } from "./utils/saleItemKeys";
@@ -31,7 +32,7 @@ export function SalesList({ sales, formatCurrency, currentRate }) {
       render: ({ productName, refunded }) => (
         <div className="flex items-center gap-2">
           <span className="font-medium text-deep">{productName}</span>
-          <StatusChip refunded={refunded} />
+          <StatusChip status={refundedToStatus(refunded)} />
         </div>
       ),
     },
