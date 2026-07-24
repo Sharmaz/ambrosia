@@ -40,11 +40,27 @@ jest.mock("@heroui/react", () => ({
       />
     </label>
   ),
+  Checkbox: ({ children, isSelected, onValueChange }) => (
+    <label>
+      <input
+        type="checkbox"
+        aria-label={children}
+        checked={isSelected}
+        onChange={(e) => onValueChange(e.target.checked)}
+      />
+      {children}
+    </label>
+  ),
 }));
 
 jest.mock("next-intl", () => ({
   useTranslations: () => (key) => key,
 }));
+
+function acknowledgeCardRefundAndConfirm() {
+  fireEvent.click(screen.getByLabelText("details.refundCardAcknowledge"));
+  fireEvent.click(screen.getByText("details.refundConfirm"));
+}
 
 describe("RefundModal", () => {
   beforeEach(() => {
@@ -60,7 +76,7 @@ describe("RefundModal", () => {
 
     expect(screen.queryByLabelText("details.refundInvoiceLabel")).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByText("details.refundConfirm"));
+    acknowledgeCardRefundAndConfirm();
 
     await waitFor(() => expect(httpClient).toHaveBeenCalledWith("/store/orders/order-1/refund", {
       method: "POST",
@@ -82,6 +98,7 @@ describe("RefundModal", () => {
     render(<RefundModal order={order} isOpen onClose={jest.fn()} onRefunded={onRefunded} />);
 
     expect(screen.getByText(/5000\s+details\.sats/)).toBeInTheDocument();
+    expect(screen.queryByText("details.refundCardNotice")).not.toBeInTheDocument();
     expect(screen.getByText("details.refundConfirm")).toBeDisabled();
 
     fireEvent.change(screen.getByLabelText("details.refundInvoiceLabel"), {
@@ -159,7 +176,7 @@ describe("RefundModal", () => {
 
     render(<RefundModal order={order} isOpen onClose={jest.fn()} onRefunded={onRefunded} />);
 
-    fireEvent.click(screen.getByText("details.refundConfirm"));
+    acknowledgeCardRefundAndConfirm();
 
     await waitFor(() => expect(addToast).toHaveBeenCalledWith(
       expect.objectContaining({ color: "danger", description: "Network request failed" }),
@@ -175,7 +192,7 @@ describe("RefundModal", () => {
 
     render(<RefundModal order={order} isOpen onClose={jest.fn()} onRefunded={onRefunded} />);
 
-    fireEvent.click(screen.getByText("details.refundConfirm"));
+    acknowledgeCardRefundAndConfirm();
 
     await waitFor(() => expect(addToast).toHaveBeenCalledWith(
       expect.objectContaining({ color: "danger", description: "Order has already been refunded" }),
@@ -191,7 +208,7 @@ describe("RefundModal", () => {
 
     render(<RefundModal order={order} isOpen onClose={jest.fn()} onRefunded={onRefunded} />);
 
-    fireEvent.click(screen.getByText("details.refundConfirm"));
+    acknowledgeCardRefundAndConfirm();
 
     await waitFor(() => expect(addToast).toHaveBeenCalledWith(
       expect.objectContaining({ color: "danger", description: "details.refundError" }),
@@ -206,6 +223,7 @@ describe("RefundModal", () => {
     render(<RefundModal order={order} isOpen onClose={jest.fn()} onRefunded={jest.fn()} formatAmount={formatAmount} />);
 
     expect(screen.getByText("$10.00")).toBeInTheDocument();
+    expect(screen.queryByText("details.refundCardNotice")).not.toBeInTheDocument();
     expect(screen.getByText("details.refundConfirm")).toBeDisabled();
 
     fireEvent.change(screen.getByLabelText("details.cashGivenLabel"), { target: { value: "8" } });
@@ -236,13 +254,35 @@ describe("RefundModal", () => {
     expect(onRefunded).toHaveBeenCalled();
   });
 
-  it("does not show the cash-given input for a non-cash, non-BTC order", () => {
+  it("shows the card refund notice and disables confirm until acknowledged for a non-cash, non-BTC order", () => {
     const order = { id: "order-card", total: 10, paymentMethod: "Credit Card" };
 
     render(<RefundModal order={order} isOpen onClose={jest.fn()} onRefunded={jest.fn()} />);
 
     expect(screen.queryByLabelText("details.cashGivenLabel")).not.toBeInTheDocument();
+    expect(screen.getByText("details.refundCardNotice")).toBeInTheDocument();
+    expect(screen.getByText("details.refundConfirm")).toBeDisabled();
+
+    fireEvent.click(screen.getByLabelText("details.refundCardAcknowledge"));
+
     expect(screen.getByText("details.refundConfirm")).not.toBeDisabled();
+  });
+
+  it("refunds a card order once the refund is acknowledged", async () => {
+    httpClient.mockResolvedValue({ ok: true });
+    const onRefunded = jest.fn();
+    const order = { id: "order-card", total: 10, paymentMethod: "Credit Card" };
+
+    render(<RefundModal order={order} isOpen onClose={jest.fn()} onRefunded={onRefunded} />);
+
+    acknowledgeCardRefundAndConfirm();
+
+    await waitFor(() => expect(httpClient).toHaveBeenCalledWith("/store/orders/order-card/refund", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ invoice: "" }),
+    }));
+    expect(onRefunded).toHaveBeenCalled();
   });
 
   it("resets the invoice and calls onClose when cancelled", () => {

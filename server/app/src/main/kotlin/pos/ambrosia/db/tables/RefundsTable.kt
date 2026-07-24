@@ -11,6 +11,7 @@ object RefundsTable : SQLiteUUIDTable("refunds") {
     val refundInvoice = text("refund_invoice")
     val satoshiAmount = long("satoshi_amount").default(0L)
     val refundedAt = varchar("refunded_at", 50)
+    val paymentHash = text("payment_hash").nullable()
 }
 
 class RefundEntity(
@@ -22,4 +23,5 @@ class RefundEntity(
     var refundInvoice by RefundsTable.refundInvoice
     var satoshiAmount by RefundsTable.satoshiAmount
     var refundedAt by RefundsTable.refundedAt
+    var paymentHash by RefundsTable.paymentHash
 }

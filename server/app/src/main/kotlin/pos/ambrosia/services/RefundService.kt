@@ -21,9 +21,12 @@ import pos.ambrosia.db.tables.ProductVariantsTable
 import pos.ambrosia.db.tables.RefundEntity
 import pos.ambrosia.db.tables.TicketPaymentsTable
 import pos.ambrosia.db.tables.TicketsTable
+import pos.ambrosia.logger
 import pos.ambrosia.models.RefundRequest
 import pos.ambrosia.models.StoreRefund
+import pos.ambrosia.models.phoenix.OutgoingPayment
 import pos.ambrosia.models.phoenix.PayInvoiceRequest
+import pos.ambrosia.utils.Bolt11Decoder
 import pos.ambrosia.utils.OrderAlreadyRefundedException
 import pos.ambrosia.utils.OrderNotRefundableException
 import pos.ambrosia.utils.ResourceNotFoundException
@@ -133,14 +136,12 @@ class RefundService(
                 throw OrderNotRefundableException("This order has no Bitcoin payment to refund via Lightning")
             }
 
-            var satoshiAmount = 0L
-            if (request.invoice.isNotBlank()) {
-                val paymentResponse =
-                    phoenixService.payInvoice(
-                        PayInvoiceRequest(invoice = request.invoice, amountSat = originalSatoshiAmount),
-                    )
-                satoshiAmount = paymentResponse.recipientAmountSat
-            }
+            val (satoshiAmount, paymentHash) =
+                if (request.invoice.isNotBlank()) {
+                    payRefundInvoice(orderId, request.invoice, originalSatoshiAmount)
+                } else {
+                    0L to null
+                }
 
             transaction {
                 items.forEach { restoreOrderLineStock(it) }
@@ -154,7 +155,10 @@ class RefundService(
                         this.refundInvoice = request.invoice
                         this.satoshiAmount = satoshiAmount
                         this.refundedAt = refundedAt
+                        this.paymentHash = paymentHash
                     }
+
+                logger.info("Refund persisted for order $orderId (refundId=${refundEntity.id.value})")
 
                 StoreRefund(
                     id = refundEntity.id.value.toString(),
@@ -165,6 +169,37 @@ class RefundService(
                 )
             }
         }
+
+    private suspend fun payRefundInvoice(
+        orderId: String,
+        invoice: String,
+        originalSatoshiAmount: Long?,
+    ): Pair<Long, String?> {
+        val paymentHash = Bolt11Decoder.decodeInvoice(invoice)?.paymentHash
+        val alreadyPaidPayment = findAlreadyPaidOutgoingPayment(paymentHash)
+
+        val satoshiAmount =
+            if (alreadyPaidPayment != null) {
+                logger.info("Refund invoice for order $orderId was already paid (hash=$paymentHash), skipping payInvoice")
+                alreadyPaidPayment.sent
+            } else {
+                val paymentResponse =
+                    phoenixService.payInvoice(
+                        PayInvoiceRequest(invoice = invoice, amountSat = originalSatoshiAmount),
+                    )
+                logger.info("Refund payment sent for order $orderId (hash=$paymentHash)")
+                paymentResponse.recipientAmountSat
+            }
+
+        return satoshiAmount to paymentHash
+    }
+
+    private suspend fun findAlreadyPaidOutgoingPayment(paymentHash: String?): OutgoingPayment? {
+        if (paymentHash == null) return null
+        return runCatching { phoenixService.getOutgoingPaymentByHash(paymentHash) }
+            .getOrNull()
+            ?.takeIf { it.isPaid }
+    }
 
     fun getRefundedOrderPaymentHashes(hashes: List<String>): Set<String> =
         transaction {

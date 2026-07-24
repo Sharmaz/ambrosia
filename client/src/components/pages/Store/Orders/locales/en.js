@@ -79,6 +79,8 @@ const ordersEn = {
       refundAmountLabel: "Amount to refund",
       cashGivenLabel: "Cash given to customer",
       differenceLabel: "Difference",
+      refundCardNotice: "This will only mark the order as refunded in Ambrosia. Process the actual refund on your card payment platform.",
+      refundCardAcknowledge: "I already processed this refund on my card payment platform",
       sats: "sats",
       refundInvoice: "Refund invoice",
       refundedAt: "Refunded at",

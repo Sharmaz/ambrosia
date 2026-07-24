@@ -79,4 +79,12 @@ class Bolt11DecoderTest {
         assertEquals(2000000L, result!!.amountSat)
         assertNull(result.description)
     }
+
+    @Test
+    fun `decodeInvoice extracts a 64-character hex payment hash`() {
+        val result = Bolt11Decoder.decodeInvoice(invoiceWithDescription)
+        assert(result != null)
+        assertEquals(64, result!!.paymentHash?.length)
+        assert(result.paymentHash!!.matches(Regex("^[0-9a-fA-F]{64}$")))
+    }
 }

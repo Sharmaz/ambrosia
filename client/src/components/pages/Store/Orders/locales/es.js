@@ -79,6 +79,8 @@ const ordersEs = {
       refundAmountLabel: "Monto a reembolsar",
       cashGivenLabel: "Efectivo entregado al cliente",
       differenceLabel: "Diferencia",
+      refundCardNotice: "Esto solo marcará la orden como reembolsada en Ambrosia. El reembolso real se hace en tu plataforma de pagos de tarjeta.",
+      refundCardAcknowledge: "Ya procesé este reembolso en mi plataforma de pagos de tarjeta",
       sats: "sats",
       refundInvoice: "Invoice de reembolso",
       refundedAt: "Reembolsada el",
