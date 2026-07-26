@@ -58,7 +58,7 @@ const cartEn = {
         btcComplete: "Error completing the BTC payment",
         cashComplete: "Error completing the cash payment",
         cardComplete: "Error completing the card payment",
-        printCustomer: "Ticket printed failed. Check printer settings.",
+        printCustomer: "Could not print the receipt. Check printer settings.",
       },
       success: {
         paid: "Payment registered successfully",
