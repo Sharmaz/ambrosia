@@ -15,18 +15,11 @@ import {
 } from "@heroui/react";
 import { useTranslations } from "next-intl";
 
-import { httpClient, parseJsonResponse } from "@/lib/http";
+import { buildParsedHttpError } from "@/components/pages/Store/utils/buildHttpError";
+import { httpClient } from "@/lib/http";
 import { getBolt11ValidationErrorCode } from "@/utils/validateBolt11Invoice";
 
 import { CashRefundFields } from "./CashRefundFields";
-
-async function buildHttpRequestError(response, fallbackMessage) {
-  const responsePayload = await parseJsonResponse(response, null);
-  const requestError = new Error(fallbackMessage);
-  requestError.status = response.status;
-  requestError.responseMessage = responsePayload?.message;
-  return requestError;
-}
 
 function getInvoiceErrorMessage(invoiceValue, translate) {
   const hasFormatError = getBolt11ValidationErrorCode(invoiceValue) !== "";
@@ -81,7 +74,7 @@ export function RefundModal({ order, isOpen, onClose, onRefunded, formatAmount }
       });
 
       if (refundResponse.ok === false) {
-        throw await buildHttpRequestError(refundResponse, ordersTranslations("details.refundError"));
+        throw await buildParsedHttpError(refundResponse, ordersTranslations("details.refundError"));
       }
 
       addToast({
@@ -90,10 +83,10 @@ export function RefundModal({ order, isOpen, onClose, onRefunded, formatAmount }
       });
       setInvoice("");
       onRefunded();
-    } catch (error) {
+    } catch (refundError) {
       addToast({
         color: "danger",
-        description: error?.responseMessage || error?.message || ordersTranslations("details.refundError"),
+        description: refundError?.responseMessage || refundError?.message || ordersTranslations("details.refundError"),
       });
     } finally {
       setLoading(false);
