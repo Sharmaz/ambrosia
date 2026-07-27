@@ -14,16 +14,23 @@ import { useNavigation } from "@hooks/useNavigation";
 import { useConfigurations } from "@providers/configurations/configurationsProvider";
 
 import { BottomNav } from "./BottomNav";
+import { useAdminNotificationSignals } from "./hooks/useAdminNotificationSignals";
 import { MobileDrawer } from "./MobileDrawer";
 import { SidebarContent } from "./Sidebar";
 
 export function StoreLayout({ children }) {
   const pathname = usePathname();
   const t = useTranslations("navbar");
+  const notificationsTranslations = useTranslations("notifications");
   const { config } = useConfigurations();
-  const { availableNavigation, isAuth, logout } = useNavigation();
+  const { availableNavigation, isAuth, isAdmin, logout } = useNavigation();
   const logoSrc = storedAssetUrl(config?.businessLogoUrl);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const { notificationUnreadCount } = useAdminNotificationSignals({
+    enabled: isAuth && isAdmin,
+    pathname,
+    notificationsTranslations,
+  });
 
   useSeedTour(isAuth);
   useWalletTour(isAuth);
@@ -40,6 +47,7 @@ export function StoreLayout({ children }) {
     logout,
     config,
     logoSrc,
+    notificationUnreadCount,
   };
 
   return (
@@ -67,6 +75,7 @@ export function StoreLayout({ children }) {
         items={bottomNavItems}
         pathname={pathname}
         t={t}
+        notificationUnreadCount={notificationUnreadCount}
         onMenuClick={() => setDrawerOpen(true)}
       />
 

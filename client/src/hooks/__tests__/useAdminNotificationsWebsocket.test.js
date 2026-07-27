@@ -1,5 +1,11 @@
 import { act, renderHook } from "@testing-library/react";
 
+import {
+  ADMIN_ACTIVITY_ELECTRON_IPC,
+  ADMIN_NOTIFICATION_CATEGORY_WALLET,
+  getAdminActivityNotificationCopy,
+} from "@/lib/adminNotifications";
+
 import { useAdminNotificationsWebsocket } from "../useAdminNotificationsWebsocket";
 
 class MockEventSource {
@@ -35,6 +41,10 @@ describe("useAdminNotificationsWebsocket", () => {
     global.fetch = jest.fn().mockResolvedValue({ ok: true });
     window.dispatchEvent = jest.fn();
     window.electron = undefined;
+    Object.defineProperty(navigator, "language", {
+      configurable: true,
+      value: "en-US",
+    });
   });
 
   afterEach(() => {
@@ -66,7 +76,7 @@ describe("useAdminNotificationsWebsocket", () => {
     const listener = jest.fn();
     const notification = {
       id: "notification-1",
-      category: "wallet",
+      category: ADMIN_NOTIFICATION_CATEGORY_WALLET,
       type: "wallet.payment.sent",
       title: "Wallet payment sent",
     };
@@ -83,11 +93,53 @@ describe("useAdminNotificationsWebsocket", () => {
     expect(window.dispatchEvent).toHaveBeenCalledWith(expect.any(CustomEvent));
   });
 
-  it("sends a generic native notification IPC event in Electron", () => {
+  it("accepts backend live notifications when serializer omits default event type", () => {
+    const listener = jest.fn();
+    const notification = {
+      id: "3078ceec-f696-43f2-9c41-407323ad1688",
+      category: ADMIN_NOTIFICATION_CATEGORY_WALLET,
+      type: "wallet.payment.received",
+      title: "Wallet payment received",
+      body: "Wallet received 90 sats",
+      actorUserName: "Phoenix webhook",
+      actorRole: "system",
+      status: "success",
+    };
+    const { result } = renderHook(() => useAdminNotificationsWebsocket());
+
+    act(() => {
+      result.current.onNotification(listener);
+      MockEventSource.latest().onmessage?.({
+        data: JSON.stringify({ notification }),
+      });
+    });
+
+    expect(listener).toHaveBeenCalledWith(notification);
+    expect(window.dispatchEvent).toHaveBeenCalledWith(expect.any(CustomEvent));
+  });
+
+  it("ignores non-admin notification typed messages", () => {
+    const listener = jest.fn();
+    const { result } = renderHook(() => useAdminNotificationsWebsocket());
+
+    act(() => {
+      result.current.onNotification(listener);
+      MockEventSource.latest().onmessage?.({
+        data: JSON.stringify({
+          type: "connected",
+          notification: { id: "notification-1" },
+        }),
+      });
+    });
+
+    expect(listener).not.toHaveBeenCalled();
+  });
+
+  it("sends a localized native notification IPC event in Electron", () => {
     window.electron = { ipc: { send: jest.fn() } };
     const notification = {
       id: "notification-1",
-      category: "wallet",
+      category: ADMIN_NOTIFICATION_CATEGORY_WALLET,
       type: "wallet.payment.sent",
       title: "Wallet payment sent",
     };
@@ -99,7 +151,15 @@ describe("useAdminNotificationsWebsocket", () => {
       });
     });
 
-    expect(window.electron.ipc.send).toHaveBeenCalledWith("notifications:admin-activity");
+    expect(window.electron.ipc.send).toHaveBeenCalledWith(
+      ADMIN_ACTIVITY_ELECTRON_IPC,
+      expect.objectContaining({
+        systemTitle: getAdminActivityNotificationCopy("en-US").title,
+        systemBody: getAdminActivityNotificationCopy("en-US").body,
+        title: "Wallet payment sent",
+        category: ADMIN_NOTIFICATION_CATEGORY_WALLET,
+      }),
+    );
   });
 
   it("ignores connection message events", () => {

@@ -6,7 +6,17 @@ import { Menu } from "lucide-react";
 
 import { NavIcon } from "./NavIcon";
 
-export function BottomNav({ isAuth, items, pathname, t, onMenuClick }) {
+function NotificationBadge({ count }) {
+  if (!count) return null;
+
+  return (
+    <span className="absolute right-4 top-1 min-w-4 rounded-full bg-red-500 px-1 text-center text-[10px] font-semibold text-white">
+      {count > 99 ? "99+" : count}
+    </span>
+  );
+}
+
+export function BottomNav({ isAuth, items, pathname, t, notificationUnreadCount, onMenuClick }) {
   return (
     <nav
       data-testid="bottom-nav"
@@ -27,13 +37,14 @@ export function BottomNav({ isAuth, items, pathname, t, onMenuClick }) {
           <Link
             key={`${item.path}-${index}`}
             href={item.path}
-            className={`flex flex-col items-center justify-center gap-1 flex-1 py-1.5 rounded-xl transition-all ${
+            className={`relative flex flex-col items-center justify-center gap-1 flex-1 py-1.5 rounded-xl transition-all ${
               isActive
                 ? "bg-green-300 text-green-800"
                 : "text-slate-100 hover:bg-green-300 hover:text-green-800"
             }`}
           >
             <NavIcon name={item.icon} className="w-5 h-5" />
+            <NotificationBadge count={item.path === "/store/notifications" ? notificationUnreadCount : 0} />
             <span className={`text-[10px] leading-none ${isActive ? "font-semibold" : ""}`}>
               {t(item.label)}
             </span>
