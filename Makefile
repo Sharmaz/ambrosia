@@ -19,7 +19,7 @@ CLIENT_INSTALL_DIR   := $(AMBROSIA_INSTALL_DIR)/client
 CLIENT_DIST_DIR      := /tmp/ambrosia-client-dist
 
 # --- External dependency versions ---
-PHOENIXD_TAG         := 0.7.2
+PHOENIXD_TAG         := 0.9.0
 PHOENIXD_INSTALL_DIR := /usr/local/bin
 JDK_VERSION          := 21.0.8-tem
 
