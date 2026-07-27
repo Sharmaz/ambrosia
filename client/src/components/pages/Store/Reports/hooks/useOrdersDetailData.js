@@ -11,6 +11,7 @@ const DEFAULT_ROWS_PER_PAGE = 10;
 
 export function useOrdersDetailData(orders, formatCurrency) {
   const reportsTranslations = useTranslations("reports");
+  const statusTranslations = useTranslations();
   const [page, setPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(DEFAULT_ROWS_PER_PAGE);
   const [prevOrders, setPrevOrders] = useState(orders);
@@ -46,7 +47,7 @@ export function useOrdersDetailData(orders, formatCurrency) {
       order.itemCount,
       formatCurrency(order.total),
       order.paymentMethod ?? "",
-      reportsTranslations(`status.${refundedToStatus(order.refunded)}`),
+      statusTranslations(`status.${refundedToStatus(order.refunded)}`),
     ]);
 
     const totalRevenue = orders.reduce((sum, order) => sum + order.total, 0);
@@ -67,7 +68,7 @@ export function useOrdersDetailData(orders, formatCurrency) {
     link.download = `orders-report-${new Date().toISOString().slice(0, 10)}.csv`;
     link.click();
     URL.revokeObjectURL(url);
-  }, [orders, formatCurrency, reportsTranslations]);
+  }, [orders, formatCurrency, reportsTranslations, statusTranslations]);
 
   return { paginatedOrders, totalPages, page, setPage, rowsPerPage, handleRowsPerPageChange, exportToCsv };
 }

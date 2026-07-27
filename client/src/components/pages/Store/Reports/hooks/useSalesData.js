@@ -11,6 +11,7 @@ const DEFAULT_ROWS_PER_PAGE = 10;
 
 export function useSalesData(sales, formatCurrency) {
   const reportsTranslations = useTranslations("reports");
+  const statusTranslations = useTranslations();
   const [page, setPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(DEFAULT_ROWS_PER_PAGE);
   const [prevSales, setPrevSales] = useState(sales);
@@ -46,7 +47,7 @@ export function useSalesData(sales, formatCurrency) {
       formatCurrency(sale.priceAtOrder * sale.quantity),
       sale.paymentMethod ?? "",
       sale.saleDate ? formatDate(sale.saleDate) : "",
-      reportsTranslations(`status.${refundedToStatus(sale.refunded)}`),
+      statusTranslations(`status.${refundedToStatus(sale.refunded)}`),
     ]);
 
     const totalRevenue = sales.reduce((sum, sale) => sum + sale.priceAtOrder * sale.quantity, 0);
@@ -69,7 +70,7 @@ export function useSalesData(sales, formatCurrency) {
     link.download = `sales-report-${new Date().toISOString().slice(0, 10)}.csv`;
     link.click();
     URL.revokeObjectURL(url);
-  }, [sales, formatCurrency, reportsTranslations]);
+  }, [sales, formatCurrency, reportsTranslations, statusTranslations]);
 
   return { paginatedSales, totalPages, page, setPage, rowsPerPage, handleRowsPerPageChange, exportToCsv };
 }
