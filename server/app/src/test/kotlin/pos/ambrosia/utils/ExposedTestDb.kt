@@ -7,6 +7,9 @@ import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.SchemaUtils
 import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
+import pos.ambrosia.db.tables.AdminNotificationPreferencesTable
+import pos.ambrosia.db.tables.AdminNotificationReceiptsTable
+import pos.ambrosia.db.tables.AdminNotificationsTable
 import pos.ambrosia.db.tables.BaseCurrencyTable
 import pos.ambrosia.db.tables.CategoriesTable
 import pos.ambrosia.db.tables.CategoryEntity
@@ -42,6 +45,7 @@ import pos.ambrosia.db.tables.ProductOptionValuesTable
 import pos.ambrosia.db.tables.ProductVariantEntity
 import pos.ambrosia.db.tables.ProductVariantsTable
 import pos.ambrosia.db.tables.ProductsTable
+import pos.ambrosia.db.tables.PushSubscriptionsTable
 import pos.ambrosia.db.tables.RefundEntity
 import pos.ambrosia.db.tables.RefundsTable
 import pos.ambrosia.db.tables.RoleEntity
@@ -111,6 +115,10 @@ object ExposedTestDb {
                 TicketTemplateElementsTable,
                 OrderProductsTable,
                 RefundsTable,
+                AdminNotificationsTable,
+                AdminNotificationReceiptsTable,
+                AdminNotificationPreferencesTable,
+                PushSubscriptionsTable,
             )
         }
         return file
@@ -124,6 +132,10 @@ object ExposedTestDb {
                 TicketTemplateElementsTable,
                 TicketTemplatesTable,
                 PrinterConfigsTable,
+                PushSubscriptionsTable,
+                AdminNotificationPreferencesTable,
+                AdminNotificationReceiptsTable,
+                AdminNotificationsTable,
                 ShiftsTable,
                 DishesIngredientsTable,
                 VariantOptionValuesTable,
