@@ -26,6 +26,23 @@ const settingsEs = {
       disableAnimations: "Desactivar animaciones",
       disableAnimationsHint: "Recomendado para dispositivos de bajos recursos para mejorar el rendimiento",
     },
+    cardNotifications: {
+      title: "Notificaciones",
+      subtitle: "Elige como los admins reciben alertas de actividad importante.",
+      walletTitle: "Actividad Wallet",
+      inApp: "En app",
+      push: "Web Push",
+      testPush: "Probar push",
+      error: "No se pudieron cargar las preferencias de notificaciones.",
+      pushErrorTitle: "No se pudo activar Web Push",
+      pushErrors: {
+        denied: "El permiso del navegador esta denegado. Activa las notificaciones para este sitio en la configuracion del navegador.",
+        default: "Se requiere permiso del navegador antes de activar Web Push.",
+        failed: "El navegador no pudo crear la suscripcion push. Intenta de nuevo despues de actualizar la app.",
+        unsupported: "Este navegador o app shell no soporta Web Push.",
+        vapidUnavailable: "Al servidor le falta configuracion VAPID o Web Push esta desactivado.",
+      },
+    },
     cardInstall: {
       title: "Instalar App",
       subtitle: "Instala Ambrosia POS en tu dispositivo para acceso rápido.",

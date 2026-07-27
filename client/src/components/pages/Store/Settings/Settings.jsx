@@ -3,6 +3,7 @@
 import { useTranslations } from "next-intl";
 
 import { PageHeader } from "@/components/shared/PageHeader";
+import { useNavigation } from "@hooks/useNavigation";
 import { isElectron } from "@lib/isElectron";
 
 import { Currency } from "./Currency";
@@ -10,6 +11,7 @@ import { Display } from "./Display";
 import { InstallPWA } from "./InstallPWA";
 import { Language } from "./Language";
 import { LightningCard } from "./Lightning/LightningCard";
+import { NotificationPreferencesCard } from "./Notifications";
 import { Printers } from "./Printers";
 import { Seed } from "./Seed";
 import { StoreInfo } from "./StoreInfo";
@@ -18,6 +20,7 @@ import { Tutorials } from "./Tutorials";
 
 export function Settings() {
   const t = useTranslations("settings");
+  const { isAdmin } = useNavigation();
 
   return (
     <>
@@ -36,6 +39,7 @@ export function Settings() {
         <div className="flex flex-col gap-6">
           <Printers />
           <TicketTemplates />
+          {isAdmin && <NotificationPreferencesCard />}
 
           {isElectron && <LightningCard />}
           {!isElectron && <InstallPWA />}
