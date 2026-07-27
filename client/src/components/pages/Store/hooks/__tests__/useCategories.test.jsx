@@ -135,6 +135,24 @@ describe("useCategories", () => {
     }));
   });
 
+  it("rejects when category creation returns a failed response", async () => {
+    httpClient.mockResolvedValueOnce({ ok: true });
+    parseJsonResponse.mockResolvedValueOnce([]);
+    httpClient.mockResolvedValueOnce({ ok: false, status: 409 });
+    parseJsonResponse.mockResolvedValueOnce({ message: "Category already exists" });
+
+    render(<TestComponent />);
+    await waitFor(() => expect(screen.getByTestId("count")).toHaveTextContent("0"));
+
+    await expect(handlers.createCategory("Electronics")).rejects.toMatchObject({
+      message: "Error creating category",
+      status: 409,
+      responseMessage: "Category already exists",
+    });
+
+    expect(httpClient).toHaveBeenCalledTimes(2);
+  });
+
   it("updates a category and refetches", async () => {
     httpClient.mockResolvedValue({ ok: true });
     parseJsonResponse.mockResolvedValueOnce([{ id: "cat-1", name: "Hardware" }]);

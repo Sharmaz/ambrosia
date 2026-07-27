@@ -8,13 +8,7 @@ import { toArray } from "@/components/utils/array";
 import { httpClient, parseJsonResponse } from "@/lib/http";
 import { useFetchList } from "@/lib/http/useFetchList";
 
-async function buildHttpRequestError(httpResponse, fallbackMessage) {
-  const responsePayload = await parseJsonResponse(httpResponse, null);
-  const requestError = new Error(fallbackMessage);
-  requestError.status = httpResponse.status;
-  requestError.responseMessage = responsePayload?.message;
-  return requestError;
-}
+import { buildParsedHttpError } from "../utils/buildHttpError";
 
 function isLastAdminConflict(requestError) {
   return requestError?.status === 409 && requestError?.responseMessage?.includes("last admin");
@@ -83,7 +77,7 @@ export function useUsers() {
       });
 
       if (updateUserResponse.ok === false) {
-        throw await buildHttpRequestError(updateUserResponse, "Error updating user");
+        throw await buildParsedHttpError(updateUserResponse, "Error updating user");
       }
 
       await fetchUsers();
@@ -123,7 +117,7 @@ export function useUsers() {
       });
 
       if (createUserResponse.ok === false) {
-        throw await buildHttpRequestError(createUserResponse, "Error adding user");
+        throw await buildParsedHttpError(createUserResponse, "Error adding user");
       }
 
       await fetchUsers();
@@ -150,7 +144,7 @@ export function useUsers() {
       });
 
       if (deleteUserResponse.ok === false) {
-        throw await buildHttpRequestError(deleteUserResponse, "Error deleting user");
+        throw await buildParsedHttpError(deleteUserResponse, "Error deleting user");
       }
 
       await fetchUsers();

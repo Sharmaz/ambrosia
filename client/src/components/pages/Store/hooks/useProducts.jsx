@@ -49,10 +49,12 @@ export function useProducts() {
     });
   };
 
-  const ensureSuccess = async (response) => {
-    const responseBody = await parseJsonResponse(response, null);
-    if (!response.ok) throw buildHttpError(response, responseBody);
-    return responseBody;
+  const ensureSuccess = async (productMutationResponse) => {
+    const parsedProductMutationBody = await parseJsonResponse(productMutationResponse, null);
+    if (!productMutationResponse.ok) {
+      throw buildHttpError(productMutationResponse, "Request failed", parsedProductMutationBody);
+    }
+    return parsedProductMutationBody;
   };
 
   const buildDefaultVariantPayload = (productForm) => {
