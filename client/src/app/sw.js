@@ -64,6 +64,39 @@ self.addEventListener("sync", (event) => {
   }
 });
 
+self.addEventListener("push", (event) => {
+  console.warn("[sw] admin push received");
+  event.waitUntil(
+    self.registration
+      .showNotification("Nueva actividad administrativa", {
+        body: "Abre Ambrosia para ver detalles",
+        tag: "admin-activity",
+        renotify: true,
+        data: {
+          url: "/store/notifications",
+        },
+      })
+      .then(() => console.warn("[sw] admin push notification shown"))
+      .catch((error) => console.error("[sw] admin push notification failed", error)),
+  );
+});
+
+self.addEventListener("notificationclick", (event) => {
+  console.warn("[sw] admin notification clicked");
+  event.notification.close();
+  const targetUrl = event.notification.data?.url || "/store/notifications";
+
+  event.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
+      const existingClient = clientList.find((client) => client.url.includes(targetUrl));
+      if (existingClient) {
+        return existingClient.focus();
+      }
+      return self.clients.openWindow(targetUrl);
+    }),
+  );
+});
+
 async function recoverPendingCheckouts() {
   let pending;
   try {
