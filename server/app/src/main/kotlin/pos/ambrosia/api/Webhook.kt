@@ -11,6 +11,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import pos.ambrosia.config.AppConfig
 import pos.ambrosia.logger
+import pos.ambrosia.services.WalletAdminNotificationService
 import pos.ambrosia.utils.PhoenixServiceException
 import java.security.MessageDigest
 import javax.crypto.Mac
@@ -31,10 +32,12 @@ data class PhoenixWebhookPayload(
 )
 
 fun Application.configurePhoenixWebhook() {
-    routing { phoenixWebhook() }
+    val walletAdminNotificationService =
+        WalletAdminNotificationService(createConfiguredAdminNotificationService(environment))
+    routing { phoenixWebhook(walletAdminNotificationService) }
 }
 
-fun Route.phoenixWebhook() {
+fun Route.phoenixWebhook(walletAdminNotificationService: WalletAdminNotificationService = WalletAdminNotificationService()) {
     post("/webhook/phoenixd") {
         val secret = call.application.getPhoenixWebhookSecret()
         if (secret.isNullOrBlank()) {
@@ -69,6 +72,7 @@ fun Route.phoenixWebhook() {
         )
 
         PhoenixWebhookNotifier.broadcast(payload)
+        walletAdminNotificationService.notifyIncomingPaymentReceived(payload)
 
         call.respond(HttpStatusCode.OK, "Ok")
     }

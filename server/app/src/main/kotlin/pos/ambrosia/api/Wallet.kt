@@ -5,6 +5,8 @@ import io.ktor.http.Cookie
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.Application
 import io.ktor.server.auth.authenticate
+import io.ktor.server.auth.jwt.JWTPrincipal
+import io.ktor.server.auth.principal
 import io.ktor.server.plugins.origin
 import io.ktor.server.request.header
 import io.ktor.server.request.receive
@@ -31,9 +33,11 @@ import pos.ambrosia.services.PaymentService
 import pos.ambrosia.services.PhoenixService
 import pos.ambrosia.services.RefundService
 import pos.ambrosia.services.TokenService
+import pos.ambrosia.services.WalletAdminNotificationService
 import pos.ambrosia.services.WalletRateService
 import pos.ambrosia.utils.Bolt11Decoder
 import pos.ambrosia.utils.InvalidCredentialsException
+import pos.ambrosia.utils.PhoenixServiceException
 import pos.ambrosia.utils.authenticateAdmin
 import pos.ambrosia.utils.getCurrentUser
 
@@ -44,10 +48,20 @@ fun Application.configureWallet() {
     val walletRateService = WalletRateService()
     val paymentService = PaymentService()
     val refundService = RefundService(phoenixService)
+    val walletAdminNotificationService =
+        WalletAdminNotificationService(createConfiguredAdminNotificationService(environment))
 
     routing {
         route("/wallet") {
-            wallet(phoenixService, tokenService, authService, paymentService, walletRateService, refundService)
+            wallet(
+                phoenixService,
+                tokenService,
+                authService,
+                paymentService,
+                walletRateService,
+                refundService,
+                walletAdminNotificationService,
+            )
         }
     }
 }
@@ -59,6 +73,7 @@ fun Route.wallet(
     paymentService: PaymentService,
     walletRateService: WalletRateService,
     refundService: RefundService,
+    walletAdminNotificationService: WalletAdminNotificationService,
 ) {
     authenticate("auth-jwt") {
         post("/invoice") {
@@ -134,7 +149,14 @@ fun Route.wallet(
         }
         post("/payinvoice") {
             val request = call.receive<PayInvoiceRequest>()
-            val result = phoenixService.payInvoice(request)
+            val actorUserId = call.walletActorUserId()
+            val result =
+                try {
+                    phoenixService.payInvoice(request)
+                } catch (error: PhoenixServiceException) {
+                    walletAdminNotificationService.notifyPaymentFailed(actorUserId, "lightning_invoice", request.amountSat, error)
+                    throw error
+                }
             if (request.exchangeRate != null && request.exchangeRateCurrency != null) {
                 val fiatAmount = (result.recipientAmountSat.toDouble() / 100_000_000) * request.exchangeRate
                 walletRateService.saveInvoiceRate(
@@ -147,21 +169,40 @@ fun Route.wallet(
                     ),
                 )
             }
+            walletAdminNotificationService.notifyInvoicePaymentSent(actorUserId, request, result)
             call.respond(HttpStatusCode.OK, result)
         }
         post("/payoffer") {
             val request = call.receive<PayOfferRequest>()
-            val result = phoenixService.payOffer(request)
+            val actorUserId = call.walletActorUserId()
+            val result =
+                try {
+                    phoenixService.payOffer(request)
+                } catch (error: PhoenixServiceException) {
+                    walletAdminNotificationService.notifyPaymentFailed(actorUserId, "bolt12_offer", request.amountSat, error)
+                    throw error
+                }
+            walletAdminNotificationService.notifyOfferPaymentSent(actorUserId, request, result)
             call.respond(HttpStatusCode.OK, result)
         }
         post("/payonchain") {
             val request = call.receive<PayOnchainRequest>()
-            val result = phoenixService.payOnchain(request)
+            val actorUserId = call.walletActorUserId()
+            val result =
+                try {
+                    phoenixService.payOnchain(request)
+                } catch (error: PhoenixServiceException) {
+                    walletAdminNotificationService.notifyPaymentFailed(actorUserId, "onchain", request.amountSat, error)
+                    throw error
+                }
+            walletAdminNotificationService.notifyOnchainPaymentSent(actorUserId, request, result)
             call.respond(HttpStatusCode.OK, result)
         }
         post("/bumpfee") {
+            val actorUserId = call.walletActorUserId()
             val feerateSatByte = call.receive<Int>()
             val result = phoenixService.bumpOnchainFees(feerateSatByte)
+            walletAdminNotificationService.notifyFeesBumped(actorUserId, feerateSatByte.toLong(), result)
             call.respond(HttpStatusCode.OK, result)
         }
         post("/export") {
@@ -179,7 +220,9 @@ fun Route.wallet(
         }
         post("/closechannel") {
             val request = call.receive<CloseChannelRequest>()
+            val actorUserId = call.walletActorUserId()
             val result = phoenixService.closeChannel(request)
+            walletAdminNotificationService.notifyChannelClosed(actorUserId, request, result)
             call.respond(HttpStatusCode.OK, result)
         }
         get("/seed") {
@@ -293,3 +336,6 @@ fun Route.wallet(
         }
     }
 }
+
+private fun io.ktor.server.application.ApplicationCall.walletActorUserId(): String? =
+    principal<JWTPrincipal>()?.getClaim("userId", String::class)
