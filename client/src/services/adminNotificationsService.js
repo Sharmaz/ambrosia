@@ -49,6 +49,9 @@ export async function updateAdminNotificationPreference(preference) {
 
 export async function getAdminPushVapidPublicKey() {
   const response = await httpClient("/admin/push/vapid-public-key");
+  if (!response?.ok) {
+    throw new Error("admin-web-push-unavailable");
+  }
   return await parseJsonResponse(response, null);
 }
 

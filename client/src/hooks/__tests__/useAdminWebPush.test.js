@@ -3,6 +3,10 @@ import { TextEncoder } from "node:util";
 import { act, renderHook, waitFor } from "@testing-library/react";
 
 import {
+  ADMIN_ACTIVITY_TEST_NOTIFICATION_TAG,
+  getAdminActivityNotificationCopy,
+} from "@/lib/adminNotifications";
+import {
   deleteAdminPushSubscription,
   getAdminPushVapidPublicKey,
   registerAdminPushSubscription,
@@ -47,6 +51,10 @@ function installWebPushGlobals({ permission = "granted", subscription = null } =
   Object.defineProperty(navigator, "userAgent", {
     configurable: true,
     value: "jest-agent",
+  });
+  Object.defineProperty(navigator, "language", {
+    configurable: true,
+    value: "en-US",
   });
   const cryptoMock = {
     subtle: {
@@ -142,6 +150,34 @@ describe("useAdminWebPush", () => {
     expect(registerAdminPushSubscription).not.toHaveBeenCalled();
   });
 
+  it("returns a VAPID unavailable reason when public key cannot be loaded", async () => {
+    const { pushManager } = installWebPushGlobals();
+    getAdminPushVapidPublicKey.mockRejectedValueOnce(new Error("admin-web-push-unavailable"));
+    const { result } = renderHook(() => useAdminWebPush());
+
+    await act(async () => {
+      const subscribeResult = await result.current.subscribe();
+      expect(subscribeResult).toEqual({ ok: false, reason: "vapidUnavailable" });
+    });
+
+    expect(pushManager.subscribe).not.toHaveBeenCalled();
+    expect(registerAdminPushSubscription).not.toHaveBeenCalled();
+  });
+
+  it("does not subscribe when VAPID public key response is empty", async () => {
+    const { pushManager } = installWebPushGlobals();
+    getAdminPushVapidPublicKey.mockResolvedValueOnce(null);
+    const { result } = renderHook(() => useAdminWebPush());
+
+    await act(async () => {
+      const subscribeResult = await result.current.subscribe();
+      expect(subscribeResult).toEqual({ ok: false, reason: "vapidUnavailable" });
+    });
+
+    expect(pushManager.subscribe).not.toHaveBeenCalled();
+    expect(registerAdminPushSubscription).not.toHaveBeenCalled();
+  });
+
   it("removes existing subscription from backend and browser", async () => {
     const existingSubscription = makeSubscription("https://push.example/existing");
     installWebPushGlobals({ subscription: existingSubscription });
@@ -179,10 +215,10 @@ describe("useAdminWebPush", () => {
     });
 
     expect(showNotification).toHaveBeenCalledWith(
-      "Nueva actividad administrativa",
+      getAdminActivityNotificationCopy("en-US").title,
       expect.objectContaining({
-        body: "Abre Ambrosia para ver detalles",
-        tag: "admin-activity-test",
+        body: getAdminActivityNotificationCopy("en-US").body,
+        tag: ADMIN_ACTIVITY_TEST_NOTIFICATION_TAG,
       }),
     );
   });

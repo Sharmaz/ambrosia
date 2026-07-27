@@ -2,6 +2,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import {
+  ADMIN_ACTIVITY_TEST_NOTIFICATION_TAG,
+  ADMIN_NOTIFICATIONS_ROUTE,
+  getAdminActivityNotificationCopy,
+} from "@/lib/adminNotifications";
+import {
   deleteAdminPushSubscription,
   getAdminPushVapidPublicKey,
   registerAdminPushSubscription,
@@ -99,11 +104,17 @@ export function useAdminWebPush() {
 
       const registration = await navigator.serviceWorker.ready;
       const existingSubscription = await registration.pushManager.getSubscription();
+      const vapidPublicKeyResponse = await getAdminPushVapidPublicKey();
+      const vapidPublicKey = vapidPublicKeyResponse?.publicKey;
+      if (!vapidPublicKey) {
+        return { ok: false, reason: "vapidUnavailable" };
+      }
+
       const subscription =
         existingSubscription ||
         await registration.pushManager.subscribe({
           userVisibleOnly: true,
-          applicationServerKey: urlBase64ToUint8Array((await getAdminPushVapidPublicKey())?.publicKey || ""),
+          applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
         });
 
       await registerAdminPushSubscription(getSerializedSubscription(subscription));
@@ -112,7 +123,10 @@ export function useAdminWebPush() {
       return { ok: true, subscription };
     } catch (subscribeError) {
       setError(subscribeError);
-      return { ok: false, reason: "failed" };
+      return {
+        ok: false,
+        reason: subscribeError?.message === "admin-web-push-unavailable" ? "vapidUnavailable" : "failed",
+      };
     } finally {
       setLoading(false);
     }
@@ -158,11 +172,12 @@ export function useAdminWebPush() {
     setError(null);
     try {
       const registration = await navigator.serviceWorker.ready;
-      await registration.showNotification("Nueva actividad administrativa", {
-        body: "Abre Ambrosia para ver detalles",
-        tag: "admin-activity-test",
+      const notificationCopy = getAdminActivityNotificationCopy(navigator.language);
+      await registration.showNotification(notificationCopy.title, {
+        body: notificationCopy.body,
+        tag: ADMIN_ACTIVITY_TEST_NOTIFICATION_TAG,
         data: {
-          url: "/store/notifications",
+          url: ADMIN_NOTIFICATIONS_ROUTE,
         },
       });
       return { ok: true };
