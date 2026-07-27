@@ -1,15 +1,20 @@
 import { defaultCache } from "@serwist/next/worker";
 import { CacheFirst, ExpirationPlugin, NetworkFirst, Serwist } from "serwist";
 
-const ASSET_CACHE_MAX_AGE_SECONDS = 30 * 24 * 60 * 60;
-const API_CACHE_MAX_AGE_SECONDS = 5 * 60;
-const NETWORK_TIMEOUT_SECONDS = 5;
-
+import {
+  ADMIN_ACTIVITY_NOTIFICATION_TAG,
+  ADMIN_NOTIFICATIONS_ROUTE,
+  getAdminActivityNotificationCopy,
+} from "@/lib/adminNotifications";
 import {
   getPendingCheckouts,
   markCheckoutCompleted,
 } from "@/lib/btcCheckoutStore";
 import { httpClient, parseJsonResponse } from "@/lib/http";
+
+const ASSET_CACHE_MAX_AGE_SECONDS = 30 * 24 * 60 * 60;
+const API_CACHE_MAX_AGE_SECONDS = 5 * 60;
+const NETWORK_TIMEOUT_SECONDS = 5;
 
 const serwist = new Serwist({
   precacheEntries: self.__SW_MANIFEST,
@@ -58,6 +63,24 @@ const serwist = new Serwist({
 
 serwist.addEventListeners();
 
+function readPushPayload(event) {
+  try {
+    return event.data?.json?.() || {};
+  } catch {
+    return {};
+  }
+}
+
+function resolveAdminPushNotificationCopy(event) {
+  const fallbackCopy = getAdminActivityNotificationCopy(self.navigator?.language);
+  const payload = readPushPayload(event);
+
+  return {
+    title: typeof payload.title === "string" && payload.title.trim() ? payload.title : fallbackCopy.title,
+    body: typeof payload.body === "string" && payload.body.trim() ? payload.body : fallbackCopy.body,
+  };
+}
+
 self.addEventListener("sync", (event) => {
   if (event.tag === "btc-checkout") {
     event.waitUntil(recoverPendingCheckouts());
@@ -65,26 +88,22 @@ self.addEventListener("sync", (event) => {
 });
 
 self.addEventListener("push", (event) => {
-  console.warn("[sw] admin push received");
+  const notificationCopy = resolveAdminPushNotificationCopy(event);
   event.waitUntil(
-    self.registration
-      .showNotification("Nueva actividad administrativa", {
-        body: "Abre Ambrosia para ver detalles",
-        tag: "admin-activity",
-        renotify: true,
-        data: {
-          url: "/store/notifications",
-        },
-      })
-      .then(() => console.warn("[sw] admin push notification shown"))
-      .catch((error) => console.error("[sw] admin push notification failed", error)),
+    self.registration.showNotification(notificationCopy.title, {
+      body: notificationCopy.body,
+      tag: ADMIN_ACTIVITY_NOTIFICATION_TAG,
+      renotify: true,
+      data: {
+        url: ADMIN_NOTIFICATIONS_ROUTE,
+      },
+    }),
   );
 });
 
 self.addEventListener("notificationclick", (event) => {
-  console.warn("[sw] admin notification clicked");
   event.notification.close();
-  const targetUrl = event.notification.data?.url || "/store/notifications";
+  const targetUrl = event.notification.data?.url || ADMIN_NOTIFICATIONS_ROUTE;
 
   event.waitUntil(
     self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
