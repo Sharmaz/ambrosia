@@ -2,23 +2,34 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import {
-  getAdminNotificationPreferences,
+  ADMIN_NOTIFICATION_CATEGORY_WALLET,
+  ADMIN_NOTIFICATIONS_CONNECTION_CHANGED_EVENT,
+  ADMIN_NOTIFICATIONS_LIVE_CONNECTED_STATE_KEY,
+  ADMIN_NOTIFICATIONS_NEW_EVENT,
+  ADMIN_NOTIFICATIONS_REFRESH_UNREAD_COUNT_EVENT,
+} from "@/lib/adminNotifications";
+import {
   getAdminNotifications,
   markAdminNotificationRead,
   markAllAdminNotificationsRead,
-  updateAdminNotificationPreference,
 } from "@/services/adminNotificationsService";
-import { useAdminNotificationsWebsocket } from "@hooks/useAdminNotificationsWebsocket";
 
 const DEFAULT_FILTERS = {
-  category: "wallet",
+  category: ADMIN_NOTIFICATION_CATEGORY_WALLET,
   unreadOnly: false,
 };
 
+function requestUnreadCountRefresh() {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(new CustomEvent(ADMIN_NOTIFICATIONS_REFRESH_UNREAD_COUNT_EVENT));
+}
+
 function mergeIncomingNotification(notifications, incomingNotification) {
   if (!incomingNotification?.id) return notifications;
-  const exists = notifications.some((notification) => notification.id === incomingNotification.id);
-  if (exists) {
+  const incomingNotificationAlreadyExists = notifications.some(
+    (notification) => notification.id === incomingNotification.id,
+  );
+  if (incomingNotificationAlreadyExists) {
     return notifications.map((notification) => (
       notification.id === incomingNotification.id ? { ...notification, ...incomingNotification } : notification
     ));
@@ -28,12 +39,10 @@ function mergeIncomingNotification(notifications, incomingNotification) {
 
 export function useAdminNotifications() {
   const [notifications, setNotifications] = useState([]);
-  const [preferences, setPreferences] = useState([]);
   const [filters, setFilters] = useState(DEFAULT_FILTERS);
   const [loading, setLoading] = useState(true);
-  const [savingPreference, setSavingPreference] = useState(false);
   const [error, setError] = useState(null);
-  const { connected, onNotification } = useAdminNotificationsWebsocket();
+  const [liveConnected, setLiveConnected] = useState(false);
 
   const unreadCount = useMemo(
     () => notifications.filter((notification) => !notification.readAt).length,
@@ -44,11 +53,11 @@ export function useAdminNotifications() {
     setLoading(true);
     setError(null);
     try {
-      const response = await getAdminNotifications({
+      const fetchedNotifications = await getAdminNotifications({
         ...nextFilters,
         limit: 100,
       });
-      setNotifications(Array.isArray(response) ? response : []);
+      setNotifications(Array.isArray(fetchedNotifications) ? fetchedNotifications : []);
     } catch (fetchError) {
       setError(fetchError);
       setNotifications([]);
@@ -56,16 +65,6 @@ export function useAdminNotifications() {
       setLoading(false);
     }
   }, [filters]);
-
-  const fetchPreferences = useCallback(async () => {
-    try {
-      const response = await getAdminNotificationPreferences();
-      setPreferences(Array.isArray(response) ? response : []);
-    } catch (fetchError) {
-      setError(fetchError);
-      setPreferences([]);
-    }
-  }, []);
 
   const updateFilters = useCallback((nextFilters) => {
     setFilters((currentFilters) => ({ ...currentFilters, ...nextFilters }));
@@ -80,66 +79,58 @@ export function useAdminNotifications() {
           : notification
       ))
     ));
+    requestUnreadCountRefresh();
   }, []);
 
   const markAllRead = useCallback(async () => {
     await markAllAdminNotificationsRead(filters.category);
-    const readAt = new Date().toISOString();
+    const notificationReadAt = new Date().toISOString();
     setNotifications((currentNotifications) => (
       currentNotifications.map((notification) => (
         filters.category && notification.category !== filters.category
           ? notification
-          : { ...notification, readAt: notification.readAt || readAt }
+          : { ...notification, readAt: notification.readAt || notificationReadAt }
       ))
     ));
+    requestUnreadCountRefresh();
   }, [filters.category]);
-
-  const updatePreference = useCallback(async (preferenceUpdate) => {
-    setSavingPreference(true);
-    setError(null);
-    try {
-      const updatedPreference = await updateAdminNotificationPreference(preferenceUpdate);
-      if (updatedPreference) {
-        setPreferences((currentPreferences) => {
-          const exists = currentPreferences.some((preference) => preference.category === updatedPreference.category);
-          if (!exists) return [...currentPreferences, updatedPreference];
-          return currentPreferences.map((preference) => (
-            preference.category === updatedPreference.category ? updatedPreference : preference
-          ));
-        });
-      }
-    } catch (updateError) {
-      setError(updateError);
-    } finally {
-      setSavingPreference(false);
-    }
-  }, []);
 
   useEffect(() => {
     fetchNotifications();
   }, [fetchNotifications]);
 
   useEffect(() => {
-    fetchPreferences();
-  }, [fetchPreferences]);
+    if (typeof window === "undefined") return undefined;
+    setLiveConnected(Boolean(window[ADMIN_NOTIFICATIONS_LIVE_CONNECTED_STATE_KEY]));
 
-  useEffect(() => onNotification((notification) => {
-    setNotifications((currentNotifications) => mergeIncomingNotification(currentNotifications, notification));
-  }), [onNotification]);
+    const handleLiveNotification = (liveNotificationEvent) => {
+      setNotifications((currentNotifications) => mergeIncomingNotification(
+        currentNotifications,
+        liveNotificationEvent.detail?.notification,
+      ));
+    };
+    const handleConnectionChanged = (connectionChangedEvent) => {
+      setLiveConnected(Boolean(connectionChangedEvent.detail?.connected));
+    };
+
+    window.addEventListener(ADMIN_NOTIFICATIONS_NEW_EVENT, handleLiveNotification);
+    window.addEventListener(ADMIN_NOTIFICATIONS_CONNECTION_CHANGED_EVENT, handleConnectionChanged);
+    return () => {
+      window.removeEventListener(ADMIN_NOTIFICATIONS_NEW_EVENT, handleLiveNotification);
+      window.removeEventListener(ADMIN_NOTIFICATIONS_CONNECTION_CHANGED_EVENT, handleConnectionChanged);
+    };
+  }, []);
 
   return {
     notifications,
-    preferences,
     filters,
     loading,
-    savingPreference,
     error,
     unreadCount,
-    liveConnected: connected,
+    liveConnected,
     updateFilters,
     markRead,
     markAllRead,
-    updatePreference,
     refetch: fetchNotifications,
   };
 }

@@ -1,74 +1,51 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 
+import { ADMIN_NOTIFICATION_CATEGORY_WALLET } from "@/lib/adminNotifications";
 import {
-  getAdminNotificationPreferences,
   getAdminNotifications,
   markAdminNotificationRead,
   markAllAdminNotificationsRead,
-  updateAdminNotificationPreference,
 } from "@/services/adminNotificationsService";
-import { useAdminNotificationsWebsocket } from "@hooks/useAdminNotificationsWebsocket";
 
 import { useAdminNotifications } from "../useAdminNotifications";
 
 jest.mock("@/services/adminNotificationsService", () => ({
-  getAdminNotificationPreferences: jest.fn(),
   getAdminNotifications: jest.fn(),
   markAdminNotificationRead: jest.fn(),
   markAllAdminNotificationsRead: jest.fn(),
-  updateAdminNotificationPreference: jest.fn(),
-}));
-
-jest.mock("@hooks/useAdminNotificationsWebsocket", () => ({
-  useAdminNotificationsWebsocket: jest.fn(),
 }));
 
 describe("useAdminNotifications", () => {
-  let liveListener;
-
   beforeEach(() => {
     jest.clearAllMocks();
-    liveListener = null;
+    window.__adminNotificationsLiveConnected = true;
     getAdminNotifications.mockResolvedValue([
       {
         id: "notification-1",
-        category: "wallet",
+        category: ADMIN_NOTIFICATION_CATEGORY_WALLET,
         title: "Wallet payment sent",
         readAt: null,
       },
     ]);
-    getAdminNotificationPreferences.mockResolvedValue([
-      {
-        category: "wallet",
-        inAppEnabled: true,
-        pushEnabled: true,
-      },
-    ]);
     markAdminNotificationRead.mockResolvedValue({ read: true });
     markAllAdminNotificationsRead.mockResolvedValue({ updated: 1 });
-    updateAdminNotificationPreference.mockResolvedValue({
-      category: "wallet",
-      inAppEnabled: false,
-      pushEnabled: true,
-    });
-    useAdminNotificationsWebsocket.mockReturnValue({
-      connected: true,
-      onNotification: (listener) => {
-        liveListener = listener;
-        return jest.fn();
-      },
-    });
   });
 
-  it("loads notifications and preferences", async () => {
+  afterEach(() => {
+    delete window.__adminNotificationsLiveConnected;
+  });
+
+  it("loads notifications", async () => {
     const { result } = renderHook(() => useAdminNotifications());
 
     await waitFor(() => expect(result.current.loading).toBe(false));
 
-    expect(getAdminNotifications).toHaveBeenCalledWith({ category: "wallet", unreadOnly: false, limit: 100 });
-    expect(getAdminNotificationPreferences).toHaveBeenCalled();
+    expect(getAdminNotifications).toHaveBeenCalledWith({
+      category: ADMIN_NOTIFICATION_CATEGORY_WALLET,
+      unreadOnly: false,
+      limit: 100,
+    });
     expect(result.current.notifications).toHaveLength(1);
-    expect(result.current.preferences).toHaveLength(1);
     expect(result.current.unreadCount).toBe(1);
   });
 
@@ -92,7 +69,7 @@ describe("useAdminNotifications", () => {
       await result.current.markAllRead();
     });
 
-    expect(markAllAdminNotificationsRead).toHaveBeenCalledWith("wallet");
+    expect(markAllAdminNotificationsRead).toHaveBeenCalledWith(ADMIN_NOTIFICATION_CATEGORY_WALLET);
     expect(result.current.unreadCount).toBe(0);
   });
 
@@ -101,12 +78,18 @@ describe("useAdminNotifications", () => {
     await waitFor(() => expect(result.current.loading).toBe(false));
 
     act(() => {
-      liveListener({
-        id: "notification-2",
-        category: "wallet",
-        title: "Wallet payment received",
-        readAt: null,
-      });
+      window.dispatchEvent(
+        new CustomEvent("adminNotifications:new", {
+          detail: {
+            notification: {
+              id: "notification-2",
+              category: ADMIN_NOTIFICATION_CATEGORY_WALLET,
+              title: "Wallet payment received",
+              readAt: null,
+            },
+          },
+        }),
+      );
     });
 
     expect(result.current.notifications.map((notification) => notification.id)).toEqual([
@@ -115,19 +98,21 @@ describe("useAdminNotifications", () => {
     ]);
   });
 
-  it("updates preferences in local state", async () => {
+  it("tracks global live connection state changes", async () => {
+    window.__adminNotificationsLiveConnected = false;
     const { result } = renderHook(() => useAdminNotifications());
     await waitFor(() => expect(result.current.loading).toBe(false));
 
-    await act(async () => {
-      await result.current.updatePreference({ category: "wallet", inAppEnabled: false, pushEnabled: true });
+    expect(result.current.liveConnected).toBe(false);
+
+    act(() => {
+      window.dispatchEvent(
+        new CustomEvent("adminNotifications:connectionChanged", {
+          detail: { connected: true },
+        }),
+      );
     });
 
-    expect(updateAdminNotificationPreference).toHaveBeenCalledWith({
-      category: "wallet",
-      inAppEnabled: false,
-      pushEnabled: true,
-    });
-    expect(result.current.preferences[0].inAppEnabled).toBe(false);
+    expect(result.current.liveConnected).toBe(true);
   });
 });
