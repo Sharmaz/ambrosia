@@ -46,6 +46,13 @@ const componentsEs = {
     delete: "Eliminar",
     view: "Ver",
   },
+  status: {
+    open: "Abierta",
+    closed: "Cerrada",
+    paid: "Pagada",
+    refunded: "Reembolsada",
+    refund: "Reembolso",
+  },
   imageUploader: {
     removeImage: "Eliminar imagen",
     takePhoto: "Tomar una foto",

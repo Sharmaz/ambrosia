@@ -27,6 +27,8 @@ class PermissionsService {
             enabled = entity.enabled,
         )
 
+    private fun enabledPermissionIds() = PermissionEntity.find { PermissionsTable.enabled eq true }.map { it.id }
+
     fun getAll(): List<Permission> =
         transaction {
             PermissionEntity
@@ -77,16 +79,20 @@ class PermissionsService {
                     return@transaction 0
                 }
             val roleEntityId = EntityID(roleUUID, RolesTable)
-            if (RoleEntity.findById(roleUUID)?.takeIf { !it.isDeleted } == null) return@transaction 0
+            val role = RoleEntity.findById(roleUUID)?.takeIf { !it.isDeleted } ?: return@transaction 0
 
             RolePermissionsTable.deleteWhere { RolePermissionsTable.roleId eq roleEntityId }
 
-            if (permissionKeys.isEmpty()) return@transaction 0
+            if (!role.isAdmin && permissionKeys.isEmpty()) return@transaction 0
 
             val permissionIds =
-                PermissionEntity
-                    .find { (PermissionsTable.name inList permissionKeys) and (PermissionsTable.enabled eq true) }
-                    .map { it.id }
+                if (role.isAdmin) {
+                    enabledPermissionIds()
+                } else {
+                    PermissionEntity
+                        .find { (PermissionsTable.name inList permissionKeys) and (PermissionsTable.enabled eq true) }
+                        .map { it.id }
+                }
 
             permissionIds.sumOf { permissionId ->
                 RolePermissionsTable
@@ -108,9 +114,7 @@ class PermissionsService {
             val roleEntityId = EntityID(roleUUID, RolesTable)
             if (RoleEntity.findById(roleUUID)?.takeIf { !it.isDeleted } == null) return@transaction 0
 
-            val permissionIds = PermissionEntity.find { PermissionsTable.enabled eq true }.map { it.id }
-
-            permissionIds.sumOf { permissionId ->
+            enabledPermissionIds().sumOf { permissionId ->
                 RolePermissionsTable
                     .insertIgnore {
                         it[RolePermissionsTable.roleId] = roleEntityId

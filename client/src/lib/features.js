@@ -26,7 +26,7 @@ export const features = {
       { path: "/store/cart", requiresAuth: true, requiresAdmin: false, types: ["store"], permissions: ["orders_create"] },
       { path: "/store/orders", requiresAuth: true, requiresAdmin: false, types: ["store"], permissions: ["orders_read"] },
       { path: "/store/wallet", requiresAuth: true, requiresAdmin: false, types: ["store"], permissions: ["wallet_read"] },
-      { path: "/store/reports", requiresAuth: true, requiresAdmin: true, types: ["store"], permissions: ["wallet_read"] },
+      { path: "/store/reports", requiresAuth: true, requiresAdmin: false, types: ["store"], permissions: ["reports_read"] },
       { path: "/store/settings", requiresAuth: true, requiresAdmin: false, types: ["store"], permissions: ["settings_update"] },
     ],
     navItems: [

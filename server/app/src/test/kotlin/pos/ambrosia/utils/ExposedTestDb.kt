@@ -42,6 +42,8 @@ import pos.ambrosia.db.tables.ProductOptionValuesTable
 import pos.ambrosia.db.tables.ProductVariantEntity
 import pos.ambrosia.db.tables.ProductVariantsTable
 import pos.ambrosia.db.tables.ProductsTable
+import pos.ambrosia.db.tables.RefundEntity
+import pos.ambrosia.db.tables.RefundsTable
 import pos.ambrosia.db.tables.RoleEntity
 import pos.ambrosia.db.tables.RolePermissionsTable
 import pos.ambrosia.db.tables.RolesTable
@@ -108,6 +110,7 @@ object ExposedTestDb {
                 TicketTemplatesTable,
                 TicketTemplateElementsTable,
                 OrderProductsTable,
+                RefundsTable,
             )
         }
         return file
@@ -116,6 +119,7 @@ object ExposedTestDb {
     fun cleanup(file: File) {
         transaction {
             SchemaUtils.drop(
+                RefundsTable,
                 OrderProductsTable,
                 TicketTemplateElementsTable,
                 TicketTemplatesTable,
@@ -518,6 +522,25 @@ object ExposedTestDb {
             }
         }
     }
+
+    fun seedRefund(
+        orderId: String,
+        refundInvoice: String = "",
+        satoshiAmount: Long = 0L,
+        refundedAt: String = "2024-01-01T00:00:00",
+        paymentHash: String? = null,
+    ): String =
+        transaction {
+            RefundEntity
+                .new(UUID.randomUUID()) {
+                    this.orderId = EntityID(UUID.fromString(orderId), OrdersTable)
+                    this.refundInvoice = refundInvoice
+                    this.satoshiAmount = satoshiAmount
+                    this.refundedAt = refundedAt
+                    this.paymentHash = paymentHash
+                }.id.value
+                .toString()
+        }
 
     fun seedProductCategory(
         productId: String,

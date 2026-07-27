@@ -175,6 +175,7 @@ data class OrderWithPayment(
     val fiatAmountAtPayment: Double? = null,
     val paymentHash: String? = null,
     val items: List<OrderItem> = emptyList(),
+    val refund: StoreRefund? = null,
 )
 
 data class OrderWithPaymentFilters(
@@ -450,6 +451,20 @@ data class ProductStockAdjustment(
     val quantity: Int,
 )
 
+@Serializable
+data class StoreRefund(
+    val id: String,
+    val orderId: String,
+    val refundInvoice: String,
+    val satoshiAmount: Long,
+    val refundedAt: String,
+)
+
+@Serializable
+data class RefundRequest(
+    val invoice: String = "",
+)
+
 @Serializable data class CategoryItem(
     val id: String? = null,
     val name: String,
@@ -501,25 +516,6 @@ data class CreateStoreOrderRequest(
 )
 
 @Serializable
-data class StoreOrderItem(
-    val productId: String,
-    val variantId: String? = null,
-    val quantity: Int,
-    val priceAtOrder: Int,
-)
-
-@Serializable
-data class StoreOrder(
-    val id: String,
-    val userId: String,
-    val userName: String? = null,
-    val status: String,
-    val total: Int,
-    val createdAt: String,
-    val items: List<StoreOrderItem>,
-)
-
-@Serializable
 data class StoreCheckoutItem(
     val productId: String,
     val variantId: String? = null,
@@ -567,6 +563,7 @@ data class ProductSaleItem(
     val fiatAmountAtPayment: Double? = null,
     val paymentId: String? = null,
     val discountAmount: Double = 0.0,
+    val refunded: Boolean = false,
 )
 
 @Serializable
@@ -575,6 +572,9 @@ data class ProductSalesReport(
     val totalItemsSold: Int,
     val sales: List<ProductSaleItem>,
     val totalBtcSatoshis: Long = 0L,
+    val totalRefundedCents: Long = 0L,
+    val totalRefundedSatoshis: Long = 0L,
+    val refundCount: Int = 0,
 )
 
 @Serializable
@@ -595,6 +595,7 @@ data class OutgoingPaymentWithRate(
     val exchangeRateAtPayment: Double? = null,
     val exchangeRateCurrency: String? = null,
     val fiatAmountAtPayment: Double? = null,
+    val refunded: Boolean,
 )
 
 data class WalletInvoiceRate(
@@ -632,4 +633,5 @@ data class IncomingPaymentWithRate(
     val exchangeRateAtPayment: Double? = null,
     val exchangeRateCurrency: String? = null,
     val fiatAmountAtPayment: Double? = null,
+    val refunded: Boolean,
 )
