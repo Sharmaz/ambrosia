@@ -83,6 +83,7 @@ const componentsEs = {
     printCorteZError: "Error al imprimir el Corte Z",
     shiftPeriod: "Período del turno",
     totalSales: "Total de ventas",
+    cashSales: "Ventas en efectivo",
     totalTickets: "Total de tickets",
     byPaymentMethod: "Por método de pago",
     expectedTotal: "Total esperado",

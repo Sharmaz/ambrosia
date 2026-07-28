@@ -31,13 +31,15 @@ const SHIFT_DATA = {
 
 function setupMocks({
   totalBalance = 250,
+  cashTotal = totalBalance,
   totalTickets = 5,
   byPaymentMethod = [],
   ticketsLoading = false,
+  breakdownLoading = false,
   printerConfigs = [],
   loadingConfigs = false,
 } = {}) {
-  useTurn.mockReturnValue({ totalBalance, totalTickets, byPaymentMethod, ticketsLoading, breakdownLoading: false });
+  useTurn.mockReturnValue({ totalBalance, cashTotal, totalTickets, byPaymentMethod, ticketsLoading, breakdownLoading });
   usePrinters.mockReturnValue({ printTicket: jest.fn(), printerConfigs, loadingConfigs });
 }
 
@@ -118,10 +120,24 @@ describe("CloseTurnModal", () => {
       expect(screen.getByText("$100.00")).toBeInTheDocument();
     });
 
-    it("shows expectedTotal = initialAmount + totalBalance", () => {
-      setupMocks({ totalBalance: 250, ticketsLoading: false });
+    it("shows expectedTotal = initialAmount + cashTotal, not totalBalance", () => {
+      setupMocks({ totalBalance: 250, cashTotal: 180, ticketsLoading: false });
       renderModal();
-      expect(screen.getByText("$350.00")).toBeInTheDocument();
+      expect(screen.getByText("$280.00")).toBeInTheDocument();
+      expect(screen.queryByText("$350.00")).not.toBeInTheDocument();
+    });
+
+    it("shows cashSales line with the cashTotal value", () => {
+      setupMocks({ totalBalance: 250, cashTotal: 180, ticketsLoading: false });
+      renderModal();
+      expect(screen.getByText("cashSales")).toBeInTheDocument();
+      expect(screen.getByText("+ $180.00")).toBeInTheDocument();
+    });
+
+    it("hides summary card while breakdown is loading even if tickets finished loading", () => {
+      setupMocks({ ticketsLoading: false, breakdownLoading: true });
+      renderModal();
+      expect(screen.queryByText("expectedTotal")).not.toBeInTheDocument();
     });
 
     it("shows payment method breakdown when available", () => {
@@ -157,10 +173,10 @@ describe("CloseTurnModal", () => {
     it("calls onConfirm with finalAmount=0 and computed difference", async () => {
       const user = userEvent.setup();
       const onConfirm = jest.fn();
-      setupMocks({ totalBalance: 250, ticketsLoading: false });
+      setupMocks({ totalBalance: 250, cashTotal: 180, ticketsLoading: false });
       renderModal({ onConfirm });
       await user.click(screen.getByText("close.confirm"));
-      expect(onConfirm).toHaveBeenCalledWith(0, -350);
+      expect(onConfirm).toHaveBeenCalledWith(0, -280);
     });
 
     it("disables confirm button while confirmLoading=true", () => {
