@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import { useTranslations } from "next-intl";
 
+import { classifyPaymentMethod, PAYMENT_METHODS } from "@/components/pages/Store/Cart/utils/paymentMethods";
 import {
   getTickets,
   getPayments,
@@ -14,6 +15,7 @@ export function useShiftTicketMetrics(openShiftData) {
   const shiftTranslations = useTranslations("shifts");
 
   const [totalBalance, setTotalBalance] = useState(0);
+  const [cashTotal, setCashTotal] = useState(0);
   const [totalTickets, setTotalTickets] = useState(0);
   const [byPaymentMethod, setByPaymentMethod] = useState([]);
   const [ticketsLoading, setTicketsLoading] = useState(false);
@@ -28,6 +30,7 @@ export function useShiftTicketMetrics(openShiftData) {
       ]);
 
       const methodTotals = {};
+      let cashRunningTotal = 0;
       for (const ticket of shiftTickets) {
         const ticketPayments = await getPaymentByTicketId(ticket.id);
         if (!ticketPayments?.length) continue;
@@ -39,11 +42,16 @@ export function useShiftTicketMetrics(openShiftData) {
         const methodName = method?.name ?? shiftTranslations("other");
 
         methodTotals[methodName] = (methodTotals[methodName] ?? 0) + ticket.totalAmount;
+
+        if (classifyPaymentMethod(method?.name) === PAYMENT_METHODS.CASH) {
+          cashRunningTotal += ticket.totalAmount;
+        }
       }
 
       setByPaymentMethod(
         Object.entries(methodTotals).map(([name, total]) => ({ name, total })),
       );
+      setCashTotal(cashRunningTotal);
     } finally {
       setBreakdownLoading(false);
     }
@@ -79,6 +87,7 @@ export function useShiftTicketMetrics(openShiftData) {
 
   const reset = useCallback(() => {
     setTotalBalance(0);
+    setCashTotal(0);
     setTotalTickets(0);
     setByPaymentMethod([]);
     setTicketsLoading(false);
@@ -87,6 +96,7 @@ export function useShiftTicketMetrics(openShiftData) {
 
   return {
     totalBalance,
+    cashTotal,
     totalTickets,
     byPaymentMethod,
     ticketsLoading,

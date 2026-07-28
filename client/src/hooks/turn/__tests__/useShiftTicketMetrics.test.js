@@ -40,6 +40,7 @@ describe("useShiftTicketMetrics", () => {
     it("returns initial state without fetching", () => {
       const { result } = renderHook(() => useShiftTicketMetrics(null));
       expect(result.current.totalBalance).toBe(0);
+      expect(result.current.cashTotal).toBe(0);
       expect(result.current.totalTickets).toBe(0);
       expect(result.current.byPaymentMethod).toEqual([]);
       expect(result.current.ticketsLoading).toBe(false);
@@ -139,6 +140,38 @@ describe("useShiftTicketMetrics", () => {
       );
     });
 
+    it("computes cashTotal summing only tickets paid in cash", async () => {
+      getTickets.mockResolvedValue([ticketAfter1, ticketAfter2]);
+      getPayments.mockResolvedValue([
+        { id: 10, methodId: 20 },
+        { id: 11, methodId: 21 },
+      ]);
+      getPaymentMethods.mockResolvedValue([
+        { id: 20, name: "Cash" },
+        { id: 21, name: "Card" },
+      ]);
+      getPaymentByTicketId
+        .mockResolvedValueOnce([{ paymentId: 10 }])
+        .mockResolvedValueOnce([{ paymentId: 11 }]);
+
+      const { result } = renderHook(() => useShiftTicketMetrics(SHIFT_DATA));
+      await waitFor(() => expect(result.current.byPaymentMethod).toHaveLength(2));
+
+      expect(result.current.cashTotal).toBe(5.0);
+    });
+
+    it("cashTotal is 0 when no tickets were paid in cash", async () => {
+      getTickets.mockResolvedValue([ticketAfter1]);
+      getPayments.mockResolvedValue([{ id: 10, methodId: 21 }]);
+      getPaymentMethods.mockResolvedValue([{ id: 21, name: "Card" }]);
+      getPaymentByTicketId.mockResolvedValueOnce([{ paymentId: 10 }]);
+
+      const { result } = renderHook(() => useShiftTicketMetrics(SHIFT_DATA));
+      await waitFor(() => expect(result.current.byPaymentMethod).toHaveLength(1));
+
+      expect(result.current.cashTotal).toBe(0);
+    });
+
     it("uses 'other' translation key for unknown payment method", async () => {
       getTickets.mockResolvedValue([ticketAfter1]);
       getPayments.mockResolvedValue([{ id: 10, methodId: 99 }]);
@@ -194,13 +227,17 @@ describe("useShiftTicketMetrics", () => {
 
       expect(result.current.totalBalance).toBe(5.0);
       expect(result.current.totalTickets).toBe(1);
+      expect(result.current.cashTotal).toBe(0);
     });
 
     it("reset clears all metrics to initial state", async () => {
       getTickets.mockResolvedValue([ticketAfter1, ticketAfter2]);
+      getPayments.mockResolvedValue([{ id: 10, methodId: 20 }]);
+      getPaymentMethods.mockResolvedValue([{ id: 20, name: "Cash" }]);
+      getPaymentByTicketId.mockResolvedValueOnce([{ paymentId: 10 }]);
 
       const { result } = renderHook(() => useShiftTicketMetrics(SHIFT_DATA));
-      await waitFor(() => expect(result.current.totalTickets).toBe(2));
+      await waitFor(() => expect(result.current.cashTotal).toBe(5.0));
 
       act(() => {
         result.current.reset();
@@ -208,6 +245,7 @@ describe("useShiftTicketMetrics", () => {
 
       await waitFor(() => {
         expect(result.current.totalBalance).toBe(0);
+        expect(result.current.cashTotal).toBe(0);
         expect(result.current.totalTickets).toBe(0);
         expect(result.current.byPaymentMethod).toEqual([]);
       });
