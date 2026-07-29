@@ -9,6 +9,7 @@ import {
   getPayments,
   getPaymentMethods,
   getPaymentByTicketId,
+  getOrdersWithPayments,
 } from "@/services/ticketsService";
 
 export function useShiftTicketMetrics(openShiftData) {
@@ -16,17 +17,19 @@ export function useShiftTicketMetrics(openShiftData) {
 
   const [totalBalance, setTotalBalance] = useState(0);
   const [cashTotal, setCashTotal] = useState(0);
+  const [refundedCashTotal, setRefundedCashTotal] = useState(0);
   const [totalTickets, setTotalTickets] = useState(0);
   const [byPaymentMethod, setByPaymentMethod] = useState([]);
   const [ticketsLoading, setTicketsLoading] = useState(false);
   const [breakdownLoading, setBreakdownLoading] = useState(false);
 
-  const fetchTicketBreakdown = useCallback(async (shiftTickets) => {
+  const fetchTicketBreakdown = useCallback(async (shiftTickets, shiftStartMilliseconds) => {
     setBreakdownLoading(true);
     try {
-      const [payments, methods] = await Promise.all([
+      const [payments, methods, orders] = await Promise.all([
         getPayments(),
         getPaymentMethods(),
+        getOrdersWithPayments(),
       ]);
 
       const methodTotals = {};
@@ -48,10 +51,17 @@ export function useShiftTicketMetrics(openShiftData) {
         }
       }
 
+      const refundedCashRunningTotal = orders
+        .filter((order) => order.refund?.refundedAt)
+        .filter((order) => new Date(`${order.refund.refundedAt.replace(" ", "T")}Z`).getTime() >= shiftStartMilliseconds)
+        .filter((order) => classifyPaymentMethod(order.paymentMethod) === PAYMENT_METHODS.CASH)
+        .reduce((runningTotal, order) => runningTotal + (order.total - order.discountAmount), 0);
+
       setByPaymentMethod(
         Object.entries(methodTotals).map(([name, total]) => ({ name, total })),
       );
       setCashTotal(cashRunningTotal);
+      setRefundedCashTotal(refundedCashRunningTotal);
     } finally {
       setBreakdownLoading(false);
     }
@@ -62,19 +72,19 @@ export function useShiftTicketMetrics(openShiftData) {
 
     setTicketsLoading(true);
     try {
-      const shiftStartMs = new Date(
+      const shiftStartMilliseconds = new Date(
         `${openShiftData.shiftDate}T${openShiftData.startTime}`,
       ).getTime();
 
       const tickets = await getTickets();
       const shiftTickets = tickets.filter(
-        (ticket) => new Date(`${ticket.ticketDate.replace(" ", "T")}Z`).getTime() >= shiftStartMs,
+        (ticket) => new Date(`${ticket.ticketDate.replace(" ", "T")}Z`).getTime() >= shiftStartMilliseconds,
       );
 
       setTotalBalance(shiftTickets.reduce((runningTotal, ticket) => runningTotal + ticket.totalAmount, 0));
       setTotalTickets(shiftTickets.length);
 
-      fetchTicketBreakdown(shiftTickets).catch(() => {});
+      fetchTicketBreakdown(shiftTickets, shiftStartMilliseconds).catch(() => {});
     } catch {
     } finally {
       setTicketsLoading(false);
@@ -88,6 +98,7 @@ export function useShiftTicketMetrics(openShiftData) {
   const reset = useCallback(() => {
     setTotalBalance(0);
     setCashTotal(0);
+    setRefundedCashTotal(0);
     setTotalTickets(0);
     setByPaymentMethod([]);
     setTicketsLoading(false);
@@ -97,6 +108,7 @@ export function useShiftTicketMetrics(openShiftData) {
   return {
     totalBalance,
     cashTotal,
+    refundedCashTotal,
     totalTickets,
     byPaymentMethod,
     ticketsLoading,
