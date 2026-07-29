@@ -612,22 +612,25 @@ class ReportServiceTest {
     }
 
     @Test
-    fun `productName filter does not affect refund totals`() {
-        val sale = seedSale(orderStatus = "refunded", total = 15.0, createdAt = "2024-06-10T12:00:00")
-        addOrderProduct(sale.orderId, productName = "Widget")
-        ExposedTestDb.seedRefund(sale.orderId, refundedAt = "2024-06-11T09:00:00")
+    fun `refund totals include refunds of orders with the matching product name`() {
+        val widget = seedSale(orderStatus = "refunded", total = 15.0, createdAt = "2024-06-10T12:00:00")
+        addOrderProduct(widget.orderId, productName = "Widget")
+        ExposedTestDb.seedRefund(widget.orderId, refundedAt = "2024-06-11T09:00:00")
+
+        val gadget = seedSale(orderStatus = "refunded", total = 25.0, createdAt = "2024-06-10T12:00:00")
+        addOrderProduct(gadget.orderId, productName = "Gadget")
+        ExposedTestDb.seedRefund(gadget.orderId, refundedAt = "2024-06-11T09:00:00")
 
         val report =
             service.getProductSalesReport(
                 period = null,
                 startDate = "2024-06-01",
                 endDate = "2024-06-30",
-                productName = "NonMatchingProduct",
+                productName = "Widget",
                 userId = null,
                 paymentMethod = null,
             )
 
-        assertTrue(report.sales.isEmpty())
         assertEquals(1, report.refundCount)
         assertEquals(1500L, report.totalRefundedCents)
     }

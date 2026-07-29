@@ -18,9 +18,15 @@ const makeSales = (count) => (
 const formatCurrency = (cents) => `$${cents}`;
 
 describe("useSalesData", () => {
+  const OriginalBlob = global.Blob;
+
   beforeEach(() => {
     global.URL.createObjectURL = jest.fn(() => "blob:mock-url");
     global.URL.revokeObjectURL = jest.fn();
+  });
+
+  afterEach(() => {
+    global.Blob = OriginalBlob;
   });
 
   it("starts at page 1 with rowsPerPage 10", () => {
@@ -86,5 +92,43 @@ describe("useSalesData", () => {
     const { result } = renderHook(() => useSalesData(makeSales(1), formatCurrency));
     act(() => result.current.exportToCsv());
     expect(global.URL.revokeObjectURL).toHaveBeenCalledWith("blob:mock-url");
+  });
+
+  it("exportToCsv includes a status column with the row's status", () => {
+    let capturedCsv;
+    global.Blob = jest.fn((parts) => {
+      capturedCsv = parts[0];
+      return {};
+    });
+    const sales = [
+      { productName: "Widget", userName: "alice", quantity: 1, priceAtOrder: 1000, paymentMethod: "Cash", saleDate: "2024-01-01", refunded: true },
+      { productName: "Gadget", userName: "alice", quantity: 1, priceAtOrder: 2000, paymentMethod: "Cash", saleDate: "2024-01-01", refunded: false },
+    ];
+    const { result } = renderHook(() => useSalesData(sales, formatCurrency));
+    act(() => result.current.exportToCsv());
+
+    expect(capturedCsv).toContain("status.refunded");
+    expect(capturedCsv).toContain("status.paid");
+  });
+
+  it("exportToCsv appends a summary section with revenue and refund totals", () => {
+    let capturedCsv;
+    global.Blob = jest.fn((parts) => {
+      capturedCsv = parts[0];
+      return {};
+    });
+    const sales = [
+      { productName: "Widget", userName: "alice", quantity: 1, priceAtOrder: 1000, paymentMethod: "Cash", saleDate: "2024-01-01", refunded: true },
+      { productName: "Gadget", userName: "alice", quantity: 1, priceAtOrder: 2000, paymentMethod: "Cash", saleDate: "2024-01-01", refunded: false },
+    ];
+    const { result } = renderHook(() => useSalesData(sales, formatCurrency));
+    act(() => result.current.exportToCsv());
+
+    expect(capturedCsv).toContain("summary.revenue");
+    expect(capturedCsv).toContain("$3000");
+    expect(capturedCsv).toContain("summary.netRevenue");
+    expect(capturedCsv).toContain("$2000");
+    expect(capturedCsv).toContain("summary.totalRefunded");
+    expect(capturedCsv).toContain("$1000");
   });
 });

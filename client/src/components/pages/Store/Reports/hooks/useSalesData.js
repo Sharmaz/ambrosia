@@ -5,10 +5,13 @@ import { useTranslations } from "next-intl";
 
 import formatDate from "@lib/formatDate";
 
+import { refundedToStatus } from "../utils/refundedToStatus";
+
 const DEFAULT_ROWS_PER_PAGE = 10;
 
 export function useSalesData(sales, formatCurrency) {
   const reportsTranslations = useTranslations("reports");
+  const statusTranslations = useTranslations();
   const [page, setPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(DEFAULT_ROWS_PER_PAGE);
   const [prevSales, setPrevSales] = useState(sales);
@@ -34,6 +37,7 @@ export function useSalesData(sales, formatCurrency) {
     const headers = [
       reportsTranslations("sales.product"), reportsTranslations("sales.user"), reportsTranslations("sales.quantity"),
       reportsTranslations("sales.price"), reportsTranslations("sales.total"), reportsTranslations("sales.paymentMethod"), reportsTranslations("sales.date"),
+      reportsTranslations("orders.statusLabel"),
     ];
     const rows = sales.map((sale) => [
       sale.productName,
@@ -43,8 +47,21 @@ export function useSalesData(sales, formatCurrency) {
       formatCurrency(sale.priceAtOrder * sale.quantity),
       sale.paymentMethod ?? "",
       sale.saleDate ? formatDate(sale.saleDate) : "",
+      statusTranslations(`status.${refundedToStatus(sale.refunded)}`),
     ]);
-    const csv = [headers, ...rows]
+
+    const totalRevenue = sales.reduce((sum, sale) => sum + sale.priceAtOrder * sale.quantity, 0);
+    const totalRefunded = sales
+      .filter((sale) => sale.refunded)
+      .reduce((sum, sale) => sum + sale.priceAtOrder * sale.quantity, 0);
+    const summaryRows = [
+      [],
+      [reportsTranslations("summary.revenue"), formatCurrency(totalRevenue)],
+      [reportsTranslations("summary.netRevenue"), formatCurrency(totalRevenue - totalRefunded)],
+      [reportsTranslations("summary.totalRefunded"), formatCurrency(totalRefunded)],
+    ];
+
+    const csv = [headers, ...rows, ...summaryRows]
       .map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(","))
       .join("\n");
     const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8;" }));
@@ -53,7 +70,7 @@ export function useSalesData(sales, formatCurrency) {
     link.download = `sales-report-${new Date().toISOString().slice(0, 10)}.csv`;
     link.click();
     URL.revokeObjectURL(url);
-  }, [sales, formatCurrency, reportsTranslations]);
+  }, [sales, formatCurrency, reportsTranslations, statusTranslations]);
 
   return { paginatedSales, totalPages, page, setPage, rowsPerPage, handleRowsPerPageChange, exportToCsv };
 }
