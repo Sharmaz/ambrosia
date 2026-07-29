@@ -121,7 +121,7 @@ async function fetchAdoptiumChecksum(assetsApiUrl) {
  * the hash for a specific filename.
  * Format per line: "<hash> *<filename>"
  * @param {string} sha256sumsUrl - URL of the SHA256SUMS.asc file
- * @param {string} filename - The filename to look up (e.g. "phoenixd-0.7.2-macos-arm64.zip")
+ * @param {string} filename - The filename to look up (e.g. "phoenixd-0.9.0-macos-arm64.zip")
  * @returns {Promise<string>} - The SHA256 hex hash
  */
 async function fetchSha256SumsChecksum(sha256sumsUrl, filename) {
