@@ -146,6 +146,14 @@ describe("CloseTurnModal", () => {
       expect(screen.queryByText("$280.00")).not.toBeInTheDocument();
     });
 
+    it("rounds the difference to the nearest cent so floating-point residue doesn't show as a discrepancy", () => {
+      setupMocks({ cashTotal: 0.001, refundedCashTotal: 0, ticketsLoading: false });
+      renderModal({ shiftData: { ...SHIFT_DATA, initialAmount: 0 } });
+      const differenceRow = screen.getByText("difference").closest("div");
+      expect(differenceRow.className).toContain("text-green-600");
+      expect(differenceRow.className).not.toContain("text-red-600");
+    });
+
     it("hides summary card while breakdown is loading even if tickets finished loading", () => {
       setupMocks({ ticketsLoading: false, breakdownLoading: true });
       renderModal();

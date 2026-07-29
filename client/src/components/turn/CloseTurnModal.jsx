@@ -81,7 +81,7 @@ export function CloseTurnModal({
 
   const initialAmount = shiftData?.initialAmount ?? 0;
   const expectedTotal = initialAmount + cashTotal - refundedCashTotal;
-  const difference = finalAmount - expectedTotal;
+  const difference = Math.round((finalAmount - expectedTotal) * 100) / 100;
 
   return (
     <Modal
