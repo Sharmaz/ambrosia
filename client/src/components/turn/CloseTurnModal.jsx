@@ -32,7 +32,9 @@ export function CloseTurnModal({
   const reportsTranslations = useTranslations("reports");
   const shiftTranslations = useTranslations("shifts");
 
-  const { totalBalance, totalTickets, byPaymentMethod, ticketsLoading, breakdownLoading } = useTurn();
+  const {
+    totalBalance, cashTotal, refundedCashTotal, totalTickets, byPaymentMethod, ticketsLoading, breakdownLoading,
+  } = useTurn();
 
   const { printTicket, printerConfigs, loadingConfigs } = usePrinters();
 
@@ -78,8 +80,8 @@ export function CloseTurnModal({
     : "—";
 
   const initialAmount = shiftData?.initialAmount ?? 0;
-  const expectedTotal = initialAmount + totalBalance;
-  const difference = finalAmount - expectedTotal;
+  const expectedTotal = initialAmount + cashTotal - refundedCashTotal;
+  const difference = Math.round((finalAmount - expectedTotal) * 100) / 100;
 
   return (
     <Modal
@@ -121,7 +123,7 @@ export function CloseTurnModal({
               classNames={{ inputWrapper: "shadow-none" }}
             />
 
-            {!ticketsLoading && (
+            {!ticketsLoading && !breakdownLoading && (
               <Card className="border">
                 <CardBody className="p-3 space-y-1">
                   <div className="flex justify-between text-sm">
@@ -131,6 +133,14 @@ export function CloseTurnModal({
                   <div className="flex justify-between text-sm">
                     <span className="text-default-500">{shiftTranslations("totalSales")}</span>
                     <span>+ {formatCurrency(totalBalance)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-default-500">{shiftTranslations("cashSales")}</span>
+                    <span>+ {formatCurrency(cashTotal)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-default-500">{shiftTranslations("cashRefunds")}</span>
+                    <span>- {formatCurrency(refundedCashTotal)}</span>
                   </div>
                   <div className="flex justify-between text-sm font-semibold border-t border-default-200 pt-1 mt-1">
                     <span>{shiftTranslations("expectedTotal")}</span>
