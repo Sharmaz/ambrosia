@@ -4,6 +4,7 @@ import com.auth0.jwt.JWT
 import io.ktor.http.Cookie
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.Application
+import io.ktor.server.application.ApplicationStopping
 import io.ktor.server.auth.authenticate
 import io.ktor.server.plugins.origin
 import io.ktor.server.request.header
@@ -14,6 +15,7 @@ import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 import io.ktor.server.routing.route
 import io.ktor.server.routing.routing
+import pos.ambrosia.logger
 import pos.ambrosia.models.IncomingPaymentWithRate
 import pos.ambrosia.models.OutgoingPaymentWithRate
 import pos.ambrosia.models.RolePassword
@@ -27,6 +29,8 @@ import pos.ambrosia.models.phoenix.PayInvoiceRequest
 import pos.ambrosia.models.phoenix.PayOfferRequest
 import pos.ambrosia.models.phoenix.PayOnchainRequest
 import pos.ambrosia.services.AuthService
+import pos.ambrosia.services.LightningBackend
+import pos.ambrosia.services.NwcService
 import pos.ambrosia.services.PaymentService
 import pos.ambrosia.services.PhoenixService
 import pos.ambrosia.services.RefundService
@@ -36,9 +40,29 @@ import pos.ambrosia.utils.Bolt11Decoder
 import pos.ambrosia.utils.InvalidCredentialsException
 import pos.ambrosia.utils.authenticateAdmin
 import pos.ambrosia.utils.getCurrentUser
+import java.util.concurrent.atomic.AtomicReference
+
+private val walletBackendReference = AtomicReference<LightningBackend?>(null)
+
+private fun getBackend(): LightningBackend = walletBackendReference.get() ?: error("Lightning backend not initialized")
 
 fun Application.configureWallet() {
     val phoenixService = PhoenixService(environment)
+    val nwcUri = environment.config.propertyOrNull("nwc-uri")?.getString()
+    val backend: LightningBackend =
+        if (nwcUri != null) {
+            NwcService.create(nwcUri, this)
+        } else {
+            phoenixService
+        }
+    walletBackendReference.set(backend)
+    monitor.subscribe(ApplicationStopping) {
+        walletBackendReference
+            .getAndSet(null)
+            ?.runCatching { close() }
+            ?.onFailure { logger.warn("Error closing Lightning backend on shutdown: {}", it.message) }
+    }
+
     val authService = AuthService(environment)
     val tokenService = TokenService(environment)
     val walletRateService = WalletRateService()
@@ -47,13 +71,24 @@ fun Application.configureWallet() {
 
     routing {
         route("/wallet") {
-            wallet(phoenixService, tokenService, authService, paymentService, walletRateService, refundService)
+            wallet(tokenService, authService, paymentService, walletRateService, refundService)
         }
     }
 }
 
+internal fun reinitializeNwcBackend(
+    nwcUri: String,
+    application: Application,
+) {
+    val newBackend = NwcService.create(nwcUri, application)
+    val previous = walletBackendReference.getAndSet(newBackend)
+    previous
+        ?.runCatching { close() }
+        ?.onFailure { logger.warn("Error closing previous Lightning backend: {}", it.message) }
+    logger.info("NWC backend hot-reloaded — no restart required")
+}
+
 fun Route.wallet(
-    phoenixService: PhoenixService,
     tokenService: TokenService,
     authService: AuthService,
     paymentService: PaymentService,
@@ -62,8 +97,8 @@ fun Route.wallet(
 ) {
     authenticate("auth-jwt") {
         post("/invoice") {
-            val request = call.receive<CreateInvoiceRequest>()
-            val invoice = phoenixService.createInvoice(request)
+            val createInvoiceRequest = call.receive<CreateInvoiceRequest>()
+            val invoice = getBackend().createInvoice(createInvoiceRequest)
             call.respond(HttpStatusCode.OK, invoice)
         }
     }
@@ -74,8 +109,8 @@ fun Route.wallet(
                     call.request.header("X-Forwarded-Proto") == "https"
             val rolePassword = call.receive<RolePassword>()
             val userInfo = call.getCurrentUser() ?: throw InvalidCredentialsException()
-            val result = authService.authenticateByRole(userInfo.userId, rolePassword.password.toCharArray())
-            if (result == true) {
+            val isAuthenticated = authService.authenticateByRole(userInfo.userId, rolePassword.password.toCharArray())
+            if (isAuthenticated == true) {
                 val token = tokenService.generateWalletAccessToken(userInfo.userId)
                 val decoded = JWT.decode(token)
                 val expiresAt = decoded.expiresAt?.time ?: System.currentTimeMillis()
@@ -102,16 +137,16 @@ fun Route.wallet(
     }
     authenticate("auth-jwt-wallet") {
         post("/createinvoice") {
-            val request = call.receive<CreateInvoiceRequest>()
-            val invoice = phoenixService.createInvoice(request)
-            if (request.exchangeRate != null && request.exchangeRateCurrency != null) {
+            val createInvoiceRequest = call.receive<CreateInvoiceRequest>()
+            val invoice = getBackend().createInvoice(createInvoiceRequest)
+            if (createInvoiceRequest.exchangeRate != null && createInvoiceRequest.exchangeRateCurrency != null) {
                 walletRateService.saveInvoiceRate(
                     WalletInvoiceRate(
                         paymentHash = invoice.paymentHash,
-                        satoshiAmount = request.amountSat,
-                        exchangeRate = request.exchangeRate,
-                        exchangeRateCurrency = request.exchangeRateCurrency,
-                        fiatAmount = request.fiatAmount,
+                        satoshiAmount = createInvoiceRequest.amountSat,
+                        exchangeRate = createInvoiceRequest.exchangeRate,
+                        exchangeRateCurrency = createInvoiceRequest.exchangeRateCurrency,
+                        fiatAmount = createInvoiceRequest.fiatAmount,
                     ),
                 )
             }
@@ -133,57 +168,58 @@ fun Route.wallet(
             }
         }
         post("/payinvoice") {
-            val request = call.receive<PayInvoiceRequest>()
-            val result = phoenixService.payInvoice(request)
-            if (request.exchangeRate != null && request.exchangeRateCurrency != null) {
-                val fiatAmount = (result.recipientAmountSat.toDouble() / 100_000_000) * request.exchangeRate
+            val payInvoiceRequest = call.receive<PayInvoiceRequest>()
+            val payInvoiceResult = getBackend().payInvoice(payInvoiceRequest)
+            if (payInvoiceRequest.exchangeRate != null && payInvoiceRequest.exchangeRateCurrency != null) {
+                val fiatAmount =
+                    (payInvoiceResult.recipientAmountSat.toDouble() / 100_000_000) * payInvoiceRequest.exchangeRate
                 walletRateService.saveInvoiceRate(
                     WalletInvoiceRate(
-                        paymentHash = result.paymentHash,
-                        satoshiAmount = result.recipientAmountSat,
-                        exchangeRate = request.exchangeRate,
-                        exchangeRateCurrency = request.exchangeRateCurrency,
+                        paymentHash = payInvoiceResult.paymentHash,
+                        satoshiAmount = payInvoiceResult.recipientAmountSat,
+                        exchangeRate = payInvoiceRequest.exchangeRate,
+                        exchangeRateCurrency = payInvoiceRequest.exchangeRateCurrency,
                         fiatAmount = fiatAmount,
                     ),
                 )
             }
-            call.respond(HttpStatusCode.OK, result)
+            call.respond(HttpStatusCode.OK, payInvoiceResult)
         }
         post("/payoffer") {
-            val request = call.receive<PayOfferRequest>()
-            val result = phoenixService.payOffer(request)
-            call.respond(HttpStatusCode.OK, result)
+            val payOfferRequest = call.receive<PayOfferRequest>()
+            val payOfferResult = getBackend().payOffer(payOfferRequest)
+            call.respond(HttpStatusCode.OK, payOfferResult)
         }
         post("/payonchain") {
-            val request = call.receive<PayOnchainRequest>()
-            val result = phoenixService.payOnchain(request)
-            call.respond(HttpStatusCode.OK, result)
+            val payOnchainRequest = call.receive<PayOnchainRequest>()
+            val payOnchainResult = getBackend().payOnchain(payOnchainRequest)
+            call.respond(HttpStatusCode.OK, payOnchainResult)
         }
         post("/bumpfee") {
             val feerateSatByte = call.receive<Int>()
-            val result = phoenixService.bumpOnchainFees(feerateSatByte)
-            call.respond(HttpStatusCode.OK, result)
+            val bumpOnchainFeesResult = getBackend().bumpOnchainFees(feerateSatByte)
+            call.respond(HttpStatusCode.OK, bumpOnchainFeesResult)
         }
         post("/export") {
-            val request = call.receive<CsvExport>()
-            val result = phoenixService.csvExport(request)
-            call.respond(HttpStatusCode.OK, result)
+            val csvExportRequest = call.receive<CsvExport>()
+            val csvExportResult = getBackend().csvExport(csvExportRequest)
+            call.respond(HttpStatusCode.OK, csvExportResult)
         }
         get("/getinfo") {
-            val nodeInfo = phoenixService.getNodeInfo()
+            val nodeInfo = getBackend().getNodeInfo()
             call.respond(HttpStatusCode.OK, nodeInfo)
         }
         get("/getbalance") {
-            val balance = phoenixService.getBalance()
+            val balance = getBackend().getBalance()
             call.respond(HttpStatusCode.OK, balance)
         }
         post("/closechannel") {
-            val request = call.receive<CloseChannelRequest>()
-            val result = phoenixService.closeChannel(request)
-            call.respond(HttpStatusCode.OK, result)
+            val closeChannelRequest = call.receive<CloseChannelRequest>()
+            val closeChannelResult = getBackend().closeChannel(closeChannelRequest)
+            call.respond(HttpStatusCode.OK, closeChannelResult)
         }
         get("/seed") {
-            val seed = phoenixService.getSeed()
+            val seed = getBackend().getSeed()
             call.respond(HttpStatusCode.OK, seed)
         }
 
@@ -196,7 +232,7 @@ fun Route.wallet(
                 val all = call.request.queryParameters["all"]?.toBoolean() ?: false
                 val externalId = call.request.queryParameters["externalId"]
 
-                val payments = phoenixService.listIncomingPayments(from, to, limit, offset, all, externalId)
+                val payments = getBackend().listIncomingPayments(from, to, limit, offset, all, externalId)
                 val hashes = payments.map { it.paymentHash }
                 val salesPaymentRates = paymentService.getExchangeRatesByPaymentHashes(hashes)
                 val walletInvoiceRates = walletRateService.getRatesByPaymentHashes(hashes.filter { it !in salesPaymentRates })
@@ -234,7 +270,7 @@ fun Route.wallet(
             get("/incoming/{paymentHash}") {
                 val paymentHash =
                     call.parameters["paymentHash"] ?: return@get call.respond(HttpStatusCode.BadRequest, "Missing paymentHash")
-                val payment = phoenixService.getIncomingPayment(paymentHash)
+                val payment = getBackend().getIncomingPayment(paymentHash)
                 call.respond(HttpStatusCode.OK, payment)
             }
 
@@ -245,7 +281,7 @@ fun Route.wallet(
                 val offset = call.request.queryParameters["offset"]?.toIntOrNull() ?: 0
                 val all = call.request.queryParameters["all"]?.toBoolean() ?: false
 
-                val payments = phoenixService.listOutgoingPayments(from, to, limit, offset, all)
+                val payments = getBackend().listOutgoingPayments(from, to, limit, offset, all)
                 val hashes = payments.mapNotNull { it.paymentHash }
                 val salesPaymentRates = paymentService.getExchangeRatesByPaymentHashes(hashes)
                 val walletInvoiceRates = walletRateService.getRatesByPaymentHashes(hashes.filter { it !in salesPaymentRates })
@@ -280,14 +316,14 @@ fun Route.wallet(
             get("/outgoing/{paymentId}") {
                 val paymentId =
                     call.parameters["paymentId"] ?: return@get call.respond(HttpStatusCode.BadRequest, "Missing paymentId")
-                val payment = phoenixService.getOutgoingPayment(paymentId)
+                val payment = getBackend().getOutgoingPayment(paymentId)
                 call.respond(HttpStatusCode.OK, payment)
             }
 
             get("/outgoingbyhash/{paymentHash}") {
                 val paymentHash =
                     call.parameters["paymentHash"] ?: return@get call.respond(HttpStatusCode.BadRequest, "Missing paymentHash")
-                val payment = phoenixService.getOutgoingPaymentByHash(paymentHash)
+                val payment = getBackend().getOutgoingPaymentByHash(paymentHash)
                 call.respond(HttpStatusCode.OK, payment)
             }
         }
