@@ -171,7 +171,9 @@ class Api {
         configureCategories()
         configureCurrency()
         configureInitialSetup()
-        configurePhoenixWebhook()
+        if (environment.config.propertyOrNull("nwc-uri") == null) {
+            configurePhoenixWebhook()
+        }
         configurePaymentWebsocket()
         configureHealth()
     }
