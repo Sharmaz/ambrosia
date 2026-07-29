@@ -410,8 +410,9 @@ client_setup_systemd() {
 
     if [[ ! $reply =~ ^[Yy]$ ]]; then return 0; fi
 
-    local npm_path=$(which npm)
-    local node_path=$(which node)
+    local npm_path node_path
+    npm_path=$(which npm)
+    node_path=$(which node)
 
     if [ -z "$npm_path" ]; then
         log_error "Could not find npm executable."
