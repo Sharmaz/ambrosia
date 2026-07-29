@@ -29,6 +29,7 @@ import pos.ambrosia.logger
 import pos.ambrosia.models.StoreCheckoutRequest
 import pos.ambrosia.models.StoreCheckoutResponse
 import java.time.LocalDateTime
+import java.time.ZoneOffset
 import java.util.UUID
 
 private class InsufficientStockException : Exception()
@@ -187,7 +188,7 @@ class CheckoutService(
 
         return try {
             transaction {
-                val now = LocalDateTime.now().toString()
+                val now = LocalDateTime.now(ZoneOffset.UTC).toString()
                 val order =
                     OrderEntity.new(UUID.randomUUID()) {
                         this.userId = EntityID(UUID.fromString(request.userId), UsersTable)
