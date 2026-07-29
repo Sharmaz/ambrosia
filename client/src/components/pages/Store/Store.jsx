@@ -4,6 +4,8 @@ import { Card, CardHeader, CardBody } from "@heroui/card";
 import { Users, Package, ShoppingCart } from "lucide-react";
 import { useTranslations } from "next-intl";
 
+import { useCurrency } from "@/components/hooks/useCurrency";
+import { usePermission } from "@/hooks/usePermission";
 import { PageHeader } from "@components/shared/PageHeader";
 
 import { useOrders } from "./hooks/useOrders";
@@ -15,8 +17,17 @@ export function Store() {
   const { users } = useUsers();
   const { products } = useProducts();
   const { orders } = useOrders();
+  const { formatAmount } = useCurrency();
+  const canSeeRevenue = usePermission({ allOf: ["reports_read"] });
 
-  const paidOrdersCount = orders?.filter((order) => order.status === "paid")?.length || 0;
+  const formatCurrency = (amount) => formatAmount(Math.round(amount * 100));
+
+  const paidOrders = orders?.filter((order) => order.status === "paid") ?? [];
+  const netRevenue = paidOrders.reduce((sum, order) => sum + (order.total ?? 0), 0);
+
+  const salesStat = canSeeRevenue
+    ? { name: t("stats.revenue"), quantity: formatCurrency(netRevenue) }
+    : { name: t("stats.sales"), quantity: paidOrders.length };
 
   const STATS = [
     {
@@ -33,8 +44,7 @@ export function Store() {
     },
     {
       id: 3,
-      name: t("stats.sales"),
-      quantity: paidOrdersCount,
+      ...salesStat,
       icon: ShoppingCart,
     },
   ];
