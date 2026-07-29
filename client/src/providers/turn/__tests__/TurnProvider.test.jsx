@@ -59,6 +59,7 @@ describe("TurnProvider", () => {
     useShiftTicketMetrics.mockReturnValue({
       totalBalance: 130,
       cashTotal: 60,
+      refundedCashTotal: 0,
       totalTickets: 11,
       byPaymentMethod: [{ name: "Cash", total: 60 }],
       ticketsLoading: false,
@@ -79,6 +80,7 @@ describe("TurnProvider", () => {
     useShiftTicketMetrics.mockReturnValue({
       totalBalance: 130,
       cashTotal: 60,
+      refundedCashTotal: 0,
       totalTickets: 11,
       byPaymentMethod: [],
       ticketsLoading: false,
@@ -91,5 +93,25 @@ describe("TurnProvider", () => {
 
     await waitFor(() => expect(screen.getByText("+ $60.00")).toBeInTheDocument());
     expect(screen.queryByText("$230.00")).not.toBeInTheDocument();
+  });
+
+  it("forwards refundedCashTotal from useShiftTicketMetrics and subtracts it from expectedTotal", async () => {
+    useShiftTicketMetrics.mockReturnValue({
+      totalBalance: 130,
+      cashTotal: 60,
+      refundedCashTotal: 20,
+      totalTickets: 11,
+      byPaymentMethod: [],
+      ticketsLoading: false,
+      breakdownLoading: false,
+      refresh: jest.fn(),
+      reset: jest.fn(),
+    });
+
+    renderCloseTurnModal();
+
+    await waitFor(() => expect(screen.getByText("- $20.00")).toBeInTheDocument());
+    expect(screen.getByText("$140.00")).toBeInTheDocument();
+    expect(screen.queryByText("$160.00")).not.toBeInTheDocument();
   });
 });
