@@ -32,7 +32,9 @@ export function CloseTurnModal({
   const reportsTranslations = useTranslations("reports");
   const shiftTranslations = useTranslations("shifts");
 
-  const { totalBalance, cashTotal, totalTickets, byPaymentMethod, ticketsLoading, breakdownLoading } = useTurn();
+  const {
+    totalBalance, cashTotal, refundedCashTotal, totalTickets, byPaymentMethod, ticketsLoading, breakdownLoading,
+  } = useTurn();
 
   const { printTicket, printerConfigs, loadingConfigs } = usePrinters();
 
@@ -78,7 +80,7 @@ export function CloseTurnModal({
     : "—";
 
   const initialAmount = shiftData?.initialAmount ?? 0;
-  const expectedTotal = initialAmount + cashTotal;
+  const expectedTotal = initialAmount + cashTotal - refundedCashTotal;
   const difference = finalAmount - expectedTotal;
 
   return (
@@ -135,6 +137,10 @@ export function CloseTurnModal({
                   <div className="flex justify-between text-sm">
                     <span className="text-default-500">{shiftTranslations("cashSales")}</span>
                     <span>+ {formatCurrency(cashTotal)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-default-500">{shiftTranslations("cashRefunds")}</span>
+                    <span>- {formatCurrency(refundedCashTotal)}</span>
                   </div>
                   <div className="flex justify-between text-sm font-semibold border-t border-default-200 pt-1 mt-1">
                     <span>{shiftTranslations("expectedTotal")}</span>

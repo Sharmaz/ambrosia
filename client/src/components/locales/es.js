@@ -84,6 +84,7 @@ const componentsEs = {
     shiftPeriod: "Período del turno",
     totalSales: "Total de ventas",
     cashSales: "Ventas en efectivo",
+    cashRefunds: "Reembolsos en efectivo",
     totalTickets: "Total de tickets",
     byPaymentMethod: "Por método de pago",
     expectedTotal: "Total esperado",

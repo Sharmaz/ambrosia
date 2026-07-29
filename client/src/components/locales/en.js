@@ -84,6 +84,7 @@ const componentsEn = {
     shiftPeriod: "Shift period",
     totalSales: "Total sales",
     cashSales: "Cash sales",
+    cashRefunds: "Cash refunds",
     totalTickets: "Total tickets",
     byPaymentMethod: "By payment method",
     expectedTotal: "Expected total",

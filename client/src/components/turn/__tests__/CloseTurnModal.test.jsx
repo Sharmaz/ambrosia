@@ -32,6 +32,7 @@ const SHIFT_DATA = {
 function setupMocks({
   totalBalance = 250,
   cashTotal = totalBalance,
+  refundedCashTotal = 0,
   totalTickets = 5,
   byPaymentMethod = [],
   ticketsLoading = false,
@@ -39,7 +40,9 @@ function setupMocks({
   printerConfigs = [],
   loadingConfigs = false,
 } = {}) {
-  useTurn.mockReturnValue({ totalBalance, cashTotal, totalTickets, byPaymentMethod, ticketsLoading, breakdownLoading });
+  useTurn.mockReturnValue({
+    totalBalance, cashTotal, refundedCashTotal, totalTickets, byPaymentMethod, ticketsLoading, breakdownLoading,
+  });
   usePrinters.mockReturnValue({ printTicket: jest.fn(), printerConfigs, loadingConfigs });
 }
 
@@ -132,6 +135,15 @@ describe("CloseTurnModal", () => {
       renderModal();
       expect(screen.getByText("cashSales")).toBeInTheDocument();
       expect(screen.getByText("+ $180.00")).toBeInTheDocument();
+    });
+
+    it("shows cashRefunds line and subtracts it from expectedTotal", () => {
+      setupMocks({ totalBalance: 300, cashTotal: 180, refundedCashTotal: 30, ticketsLoading: false });
+      renderModal();
+      expect(screen.getByText("cashRefunds")).toBeInTheDocument();
+      expect(screen.getByText("- $30.00")).toBeInTheDocument();
+      expect(screen.getByText("$250.00")).toBeInTheDocument();
+      expect(screen.queryByText("$280.00")).not.toBeInTheDocument();
     });
 
     it("hides summary card while breakdown is loading even if tickets finished loading", () => {
