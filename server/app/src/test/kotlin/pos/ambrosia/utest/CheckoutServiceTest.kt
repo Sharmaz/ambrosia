@@ -180,6 +180,49 @@ class CheckoutServiceTest {
     }
 
     @Test
+    fun `checkout succeeds without stock for a product that does not track stock`() {
+        runBlocking {
+            val userId = seedUser()
+            val productId = ExposedTestDb.seedProduct(name = "Consulting", quantity = 0, trackStock = false)
+            val items = listOf(StoreCheckoutItem(productId = productId, quantity = 3, priceAtOrder = 500))
+            val result = service.checkout(validStoreRequest(userId, items = items))
+
+            assertTrue(result is CheckoutResult.Success)
+            assertEquals(0, productQuantity(productId))
+            assertEquals(1, transaction { OrderEntity.all().toList() }.size)
+        }
+    }
+
+    @Test
+    fun `checkout leaves stock untouched for a product that does not track stock`() {
+        runBlocking {
+            val userId = seedUser()
+            val productId = ExposedTestDb.seedProduct(name = "Consulting", quantity = 7, trackStock = false)
+            val items = listOf(StoreCheckoutItem(productId = productId, quantity = 2, priceAtOrder = 500))
+            val result = service.checkout(validStoreRequest(userId, items = items))
+
+            assertTrue(result is CheckoutResult.Success)
+            assertEquals(7, productQuantity(productId))
+        }
+    }
+
+    @Test
+    fun `checkout skips component deduction for an untracked bundle`() {
+        runBlocking {
+            val userId = seedUser()
+            val componentId = ExposedTestDb.seedProduct(name = "Part", quantity = 0)
+            val bundleId = ExposedTestDb.seedProduct(name = "Kit", isBundle = true, trackStock = false)
+            ExposedTestDb.seedBundleComponent(bundleId, componentId, quantity = 2)
+
+            val checkoutItems = listOf(StoreCheckoutItem(productId = bundleId, quantity = 1, priceAtOrder = 500))
+            val result = service.checkout(validStoreRequest(userId, items = checkoutItems))
+
+            assertTrue(result is CheckoutResult.Success)
+            assertEquals(0, productQuantity(componentId))
+        }
+    }
+
+    @Test
     fun `checkout uses empty string when transactionId is null`() {
         runBlocking {
             val userId = seedUser()

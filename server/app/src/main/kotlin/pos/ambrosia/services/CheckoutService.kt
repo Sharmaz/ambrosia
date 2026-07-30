@@ -206,31 +206,33 @@ class CheckoutService(
 
                     if (orderVariantId == null) throw InsufficientStockException()
 
-                    if (productEntity.isBundle) {
-                        val componentRows =
-                            ProductBundleComponentsTable
-                                .selectAll()
-                                .where { ProductBundleComponentsTable.bundleId eq productEntityId }
-                                .toList()
-                        if (componentRows.isEmpty()) throw InsufficientStockException()
-                        for (componentRow in componentRows) {
-                            val componentProductId = componentRow[ProductBundleComponentsTable.componentId]
-                            val componentVariantId = componentRow[ProductBundleComponentsTable.componentVariantId]?.value
-                            val componentQuantity = componentRow[ProductBundleComponentsTable.quantity] * item.quantity
-                            val componentStockWasDeducted =
-                                componentVariantId
-                                    ?.let { decrementVariantStock(componentProductId, it, componentQuantity) }
-                                    ?: decrementProductStock(componentProductId, componentQuantity)
-                            if (!componentStockWasDeducted) {
-                                throw InsufficientStockException()
+                    if (productEntity.trackStock) {
+                        if (productEntity.isBundle) {
+                            val componentRows =
+                                ProductBundleComponentsTable
+                                    .selectAll()
+                                    .where { ProductBundleComponentsTable.bundleId eq productEntityId }
+                                    .toList()
+                            if (componentRows.isEmpty()) throw InsufficientStockException()
+                            for (componentRow in componentRows) {
+                                val componentProductId = componentRow[ProductBundleComponentsTable.componentId]
+                                val componentVariantId = componentRow[ProductBundleComponentsTable.componentVariantId]?.value
+                                val componentQuantity = componentRow[ProductBundleComponentsTable.quantity] * item.quantity
+                                val componentStockWasDeducted =
+                                    componentVariantId
+                                        ?.let { decrementVariantStock(componentProductId, it, componentQuantity) }
+                                        ?: decrementProductStock(componentProductId, componentQuantity)
+                                if (!componentStockWasDeducted) {
+                                    throw InsufficientStockException()
+                                }
                             }
+                        } else {
+                            val stockWasDeducted =
+                                item.variantId
+                                    ?.let { decrementVariantStock(productEntityId, UUID.fromString(it), item.quantity) }
+                                    ?: decrementProductStock(productEntityId, item.quantity)
+                            if (!stockWasDeducted) throw InsufficientStockException()
                         }
-                    } else {
-                        val stockWasDeducted =
-                            item.variantId
-                                ?.let { decrementVariantStock(productEntityId, UUID.fromString(it), item.quantity) }
-                                ?: decrementProductStock(productEntityId, item.quantity)
-                        if (!stockWasDeducted) throw InsufficientStockException()
                     }
 
                     OrderProductsTable.insert {

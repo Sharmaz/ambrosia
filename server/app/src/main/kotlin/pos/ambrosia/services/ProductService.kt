@@ -209,6 +209,7 @@ class ProductService {
             isBundle = entity.isBundle,
             bundleComponents = bundleComponents,
             bundleCostCents = bundleCostCents,
+            trackStock = entity.trackStock,
         )
     }
 
@@ -319,17 +320,18 @@ class ProductService {
                         this.name = product.name
                         this.description = product.description
                         this.imageUrl = product.imageUrl
-                        this.minStockThreshold = product.minStockThreshold
-                        this.maxStockThreshold = product.maxStockThreshold
+                        this.minStockThreshold = if (product.trackStock) product.minStockThreshold else 0
+                        this.maxStockThreshold = if (product.trackStock) product.maxStockThreshold else 0
                         this.hasVariants = if (product.isBundle) false else product.hasVariants
                         this.isBundle = product.isBundle
+                        this.trackStock = product.trackStock
                     }.id.value
 
             ProductVariantEntity.new(UUID.randomUUID()) {
                 this.productId = EntityID(productId, ProductsTable)
                 this.priceCents = product.priceCents
                 this.costCents = product.costCents.takeIf { it > 0 }
-                this.quantity = if (product.isBundle) 0 else product.quantity
+                this.quantity = if (product.isBundle || !product.trackStock) 0 else product.quantity
                 this.isActive = true
             }
             replaceCategories(productId, product.categoryIds)
@@ -404,10 +406,11 @@ class ProductService {
             productEntity.name = product.name
             productEntity.description = product.description
             productEntity.imageUrl = product.imageUrl
-            productEntity.minStockThreshold = product.minStockThreshold
-            productEntity.maxStockThreshold = product.maxStockThreshold
+            productEntity.minStockThreshold = if (product.trackStock) product.minStockThreshold else 0
+            productEntity.maxStockThreshold = if (product.trackStock) product.maxStockThreshold else 0
             productEntity.hasVariants = if (product.isBundle) false else product.hasVariants
             productEntity.isBundle = product.isBundle
+            productEntity.trackStock = product.trackStock
             productEntity.flush()
 
             replaceCategories(productId, product.categoryIds)

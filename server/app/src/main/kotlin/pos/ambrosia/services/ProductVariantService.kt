@@ -11,6 +11,7 @@ import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.jetbrains.exposed.v1.jdbc.update
+import pos.ambrosia.db.tables.ProductEntity
 import pos.ambrosia.db.tables.ProductOptionTypeEntity
 import pos.ambrosia.db.tables.ProductOptionTypesTable
 import pos.ambrosia.db.tables.ProductOptionValueEntity
@@ -359,6 +360,34 @@ open class ProductVariantService {
             true
         }
 
+    /**
+     * Resolves the product owning the adjustment and reports whether it tracks stock.
+     * Unresolvable ids fall through as `true` so the caller keeps raising the same errors as before.
+     */
+    private fun productTracksStock(adjustment: ProductStockAdjustment): Boolean {
+        val productId =
+            if (adjustment.variantId != null) {
+                val variantId = adjustment.variantId.toUuidOrNull() ?: return true
+                ProductVariantsTable
+                    .selectAll()
+                    .where { ProductVariantsTable.id eq EntityID(variantId, ProductVariantsTable) }
+                    .firstOrNull()
+                    ?.get(ProductVariantsTable.productId)
+                    ?.value ?: return true
+            } else {
+                adjustment.productId.toUuidOrNull() ?: return true
+            }
+
+        return ProductEntity.findById(productId)?.trackStock ?: true
+    }
+
+    private fun String.toUuidOrNull(): UUID? =
+        try {
+            UUID.fromString(this)
+        } catch (_: IllegalArgumentException) {
+            null
+        }
+
     fun adjustStock(adjustments: List<ProductStockAdjustment>): Boolean {
         if (adjustments.isEmpty()) return true
         if (adjustments.any { it.quantity < 0 }) return false
@@ -366,6 +395,7 @@ open class ProductVariantService {
             transaction {
                 for (adjustment in adjustments) {
                     if (adjustment.quantity == 0) continue
+                    if (!productTracksStock(adjustment)) continue
 
                     val stockRowsUpdated =
                         if (adjustment.variantId != null) {

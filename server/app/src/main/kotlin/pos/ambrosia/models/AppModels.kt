@@ -442,6 +442,7 @@ data class Product(
     val isBundle: Boolean = false,
     val bundleComponents: List<BundleComponent> = emptyList(),
     val bundleCostCents: Int = 0,
+    val trackStock: Boolean = true,
 )
 
 @Serializable

@@ -90,6 +90,8 @@ class RefundService(
         val orderedQuantity = row[OrderProductsTable.quantity]
         val productEntity = ProductEntity.findById(productEntityId) ?: return
 
+        if (!productEntity.trackStock) return
+
         if (productEntity.isBundle) {
             restoreBundleStock(productEntityId, orderedQuantity)
             return
