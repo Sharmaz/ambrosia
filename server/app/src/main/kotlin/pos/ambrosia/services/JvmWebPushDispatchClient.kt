@@ -1,5 +1,7 @@
 package pos.ambrosia.services
 
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 import nl.martijndwars.webpush.Notification
 import nl.martijndwars.webpush.PushAsyncService
 import org.bouncycastle.jce.provider.BouncyCastleProvider
@@ -12,14 +14,17 @@ class JvmWebPushDispatchClient(
     vapidKeys: VapidKeys,
     private val webPushSender: JvmWebPushSender = LibraryJvmWebPushSender(vapidKeys),
 ) : WebPushDispatchClient {
-    override fun send(subscription: WebPushDispatchSubscription): WebPushDispatchResult {
+    override fun send(
+        subscription: WebPushDispatchSubscription,
+        payload: WebPushDispatchPayload,
+    ): WebPushDispatchResult {
         val webPushNotification =
             Notification
                 .builder()
                 .endpoint(subscription.endpoint)
                 .userPublicKey(subscription.p256dh)
                 .userAuth(subscription.auth)
-                .payload(WebPushPayloads.ADMIN_ACTIVITY)
+                .payload(payload.toJson())
                 .ttl(WEB_PUSH_TTL_SECONDS)
                 .build()
 
@@ -46,6 +51,13 @@ class JvmWebPushDispatchClient(
 
     private fun safeEndpointLabel(endpoint: String): String =
         runCatching { URI.create(endpoint).host ?: "unknown-host" }.getOrDefault("invalid-endpoint")
+
+    private fun WebPushDispatchPayload.toJson(): String =
+        buildJsonObject {
+            put("type", WebPushPayloadTypes.ADMIN_ACTIVITY)
+            put("title", title)
+            put("body", body)
+        }.toString()
 
     private companion object {
         const val WEB_PUSH_TTL_SECONDS = 60

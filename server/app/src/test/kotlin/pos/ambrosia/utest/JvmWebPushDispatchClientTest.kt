@@ -9,6 +9,7 @@ import pos.ambrosia.services.JvmWebPushSender
 import pos.ambrosia.services.NoopWebPushDispatchClient
 import pos.ambrosia.services.VapidKeys
 import pos.ambrosia.services.WebPushDispatchClients
+import pos.ambrosia.services.WebPushDispatchPayload
 import pos.ambrosia.services.WebPushDispatchSubscription
 import java.math.BigInteger
 import java.security.KeyPairGenerator
@@ -87,7 +88,7 @@ class JvmWebPushDispatchClientTest {
     fun `send returns status from JVM sender`() {
         val client = jvmClient(statusCode = 201)
 
-        val result = client.send(validSubscription())
+        val result = client.send(validSubscription(), validPayload())
 
         assertEquals(201, result.statusCode)
         assertFalse(result.shouldRevokeSubscription)
@@ -97,7 +98,7 @@ class JvmWebPushDispatchClientTest {
     fun `send marks expired subscriptions for revocation`() {
         val client = jvmClient(statusCode = 410)
 
-        val result = client.send(validSubscription())
+        val result = client.send(validSubscription(), validPayload())
 
         assertEquals(410, result.statusCode)
         assertTrue(result.shouldRevokeSubscription)
@@ -114,7 +115,7 @@ class JvmWebPushDispatchClientTest {
                     },
             )
 
-        val result = client.send(validSubscription())
+        val result = client.send(validSubscription(), validPayload())
 
         assertEquals(null, result.statusCode)
         assertFalse(result.shouldRevokeSubscription)
@@ -127,9 +128,19 @@ class JvmWebPushDispatchClientTest {
                 JvmWebPushSender { notification ->
                     assertEquals("https://updates.push.example.test/subscription-id", notification.endpoint)
                     assertTrue(notification.hasPayload())
+                    assertEquals(
+                        """{"type":"admin_activity","title":"Ambrosia","body":"Ada sent a wallet payment"}""",
+                        notification.payload.decodeToString(),
+                    )
                     assertEquals(60, notification.ttl)
                     statusCode
                 },
+        )
+
+    private fun validPayload(): WebPushDispatchPayload =
+        WebPushDispatchPayload(
+            title = "Ambrosia",
+            body = "Ada sent a wallet payment",
         )
 
     private fun validSubscription(): WebPushDispatchSubscription =

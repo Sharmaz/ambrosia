@@ -73,6 +73,7 @@ class AdminNotificationService(
                                     created = false,
                                 ),
                             pushSubscriptions = emptyList(),
+                            pushPayload = null,
                         )
                     }
                 }
@@ -133,11 +134,15 @@ class AdminNotificationService(
                             created = true,
                         ),
                     pushSubscriptions = pushSubscriptions,
+                    pushPayload = event.toWebPushPayload(),
                     liveDeliveries = liveDeliveries,
                 )
             }
 
-        dispatchPushNotifications(notificationCreation.pushSubscriptions)
+        dispatchPushNotifications(
+            pushSubscriptions = notificationCreation.pushSubscriptions,
+            pushPayload = notificationCreation.pushPayload,
+        )
         publishLiveNotifications(notificationCreation.liveDeliveries)
         return notificationCreation.result
     }
@@ -441,14 +446,50 @@ class AdminNotificationService(
                 )
             }
 
-    private fun dispatchPushNotifications(pushSubscriptions: List<WebPushDispatchSubscription>) {
+    private fun dispatchPushNotifications(
+        pushSubscriptions: List<WebPushDispatchSubscription>,
+        pushPayload: WebPushDispatchPayload?,
+    ) {
+        if (pushPayload == null) return
+
         pushSubscriptions.forEach { subscription ->
-            val dispatchResult = webPushDispatchClient.send(subscription)
+            val dispatchResult = webPushDispatchClient.send(subscription, pushPayload)
             if (dispatchResult.shouldRevokeSubscription) {
                 transaction { revokePushSubscriptionByEndpoint(subscription.endpoint) }
             }
         }
     }
+
+    private fun AdminNotificationEvent.toWebPushPayload(): WebPushDispatchPayload {
+        val actorLabel = webPushActorLabel()
+        return WebPushDispatchPayload(
+            title = WEB_PUSH_NOTIFICATION_TITLE,
+            body = webPushBody(actorLabel),
+        )
+    }
+
+    private fun AdminNotificationEvent.webPushBody(actorLabel: String): String {
+        val eventBody = body.takeIf { it.isNotBlank() } ?: type
+        return if (eventBody.startsWith(actorLabel, ignoreCase = true)) {
+            eventBody
+        } else {
+            "$actorLabel: $eventBody"
+        }
+    }
+
+    private fun AdminNotificationEvent.webPushActorLabel(): String =
+        when {
+            actorUserName.isTechnicalActorName() -> "Wallet"
+            !actorUserName.isNullOrBlank() -> actorUserName
+            !actorRole.isNullOrBlank() -> actorRole
+            !actorUserId.isNullOrBlank() -> actorUserId
+            else -> "System"
+        }
+
+    private fun String?.isTechnicalActorName(): Boolean =
+        this
+            ?.trim()
+            ?.lowercase() == PHOENIX_WEBHOOK_ACTOR_NAME
 
     private fun publishLiveNotifications(liveDeliveries: List<AdminNotificationLiveDelivery>) {
         liveDeliveries.forEach { delivery ->
@@ -506,6 +547,7 @@ class AdminNotificationService(
     private data class AdminNotificationCreation(
         val result: AdminNotificationCreateResult,
         val pushSubscriptions: List<WebPushDispatchSubscription>,
+        val pushPayload: WebPushDispatchPayload?,
         val liveDeliveries: List<AdminNotificationLiveDelivery> = emptyList(),
     )
 
@@ -513,4 +555,9 @@ class AdminNotificationService(
         val adminUserId: String,
         val notification: AdminNotification,
     )
+
+    private companion object {
+        const val PHOENIX_WEBHOOK_ACTOR_NAME = "phoenix webhook"
+        const val WEB_PUSH_NOTIFICATION_TITLE = "Ambrosia"
+    }
 }

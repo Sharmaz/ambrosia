@@ -17,8 +17,8 @@ object WalletAdminNotificationTypes {
     const val FEE_BUMPED = "wallet.fee.bumped"
 }
 
-object WebPushPayloads {
-    const val ADMIN_ACTIVITY = """{"type":"admin_activity"}"""
+object WebPushPayloadTypes {
+    const val ADMIN_ACTIVITY = "admin_activity"
 }
 
 object WebPushStatusCodes {

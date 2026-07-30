@@ -8,13 +8,21 @@ data class WebPushDispatchSubscription(
     val auth: String,
 )
 
+data class WebPushDispatchPayload(
+    val title: String,
+    val body: String,
+)
+
 data class WebPushDispatchResult(
     val statusCode: Int?,
     val shouldRevokeSubscription: Boolean = false,
 )
 
 interface WebPushDispatchClient {
-    fun send(subscription: WebPushDispatchSubscription): WebPushDispatchResult
+    fun send(
+        subscription: WebPushDispatchSubscription,
+        payload: WebPushDispatchPayload,
+    ): WebPushDispatchResult
 }
 
 object WebPushDispatchClients {
@@ -30,5 +38,8 @@ object WebPushDispatchClients {
 }
 
 object NoopWebPushDispatchClient : WebPushDispatchClient {
-    override fun send(subscription: WebPushDispatchSubscription): WebPushDispatchResult = WebPushDispatchResult(statusCode = null)
+    override fun send(
+        subscription: WebPushDispatchSubscription,
+        payload: WebPushDispatchPayload,
+    ): WebPushDispatchResult = WebPushDispatchResult(statusCode = null)
 }

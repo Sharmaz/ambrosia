@@ -20,6 +20,7 @@ import pos.ambrosia.models.WebPushSubscriptionRequest
 import pos.ambrosia.services.AdminNotificationLivePublisher
 import pos.ambrosia.services.AdminNotificationService
 import pos.ambrosia.services.WebPushDispatchClient
+import pos.ambrosia.services.WebPushDispatchPayload
 import pos.ambrosia.services.WebPushDispatchResult
 import pos.ambrosia.services.WebPushDispatchSubscription
 import pos.ambrosia.utils.ExposedTestDb
@@ -283,6 +284,34 @@ class AdminNotificationServiceTest {
         serviceWithPush.createNotification(walletEvent(dedupeKey = "wallet:push"))
 
         assertEquals(listOf("https://push.example/ada"), dispatchClient.sentEndpoints)
+        assertEquals(
+            listOf(WebPushDispatchPayload(title = "Ambrosia", body = "Ada sent 1200 sats")),
+            dispatchClient.sentPayloads,
+        )
+    }
+
+    @Test
+    fun `createNotification sends safe Web Push copy for technical wallet actors`() {
+        val adminRoleId = ExposedTestDb.seedRole("admin", isAdmin = true)
+        val adminUserId = ExposedTestDb.seedUser("Ada", roleId = adminRoleId)
+        service.registerPushSubscription(adminUserId, pushSubscriptionRequest(endpoint = "https://push.example/ada"))
+        val dispatchClient = RecordingWebPushDispatchClient()
+        val serviceWithPush = AdminNotificationService(dispatchClient)
+
+        serviceWithPush.createNotification(
+            walletEvent(
+                dedupeKey = "wallet:incoming-push",
+                title = "Wallet payment received",
+                body = "Wallet received 90 sats",
+                actorUserName = "Phoenix webhook",
+                actorRole = "system",
+            ),
+        )
+
+        assertEquals(
+            listOf(WebPushDispatchPayload(title = "Ambrosia", body = "Wallet received 90 sats")),
+            dispatchClient.sentPayloads,
+        )
     }
 
     @Test
@@ -308,14 +337,18 @@ class AdminNotificationServiceTest {
     private fun walletEvent(
         category: String = "wallet",
         dedupeKey: String = "wallet.payment.sent:hash",
+        title: String = "Wallet payment sent",
+        body: String = "Ada sent 1200 sats",
+        actorUserName: String = "Ada",
+        actorRole: String = "admin",
     ): AdminNotificationEvent =
         AdminNotificationEvent(
             category = category,
             type = "wallet.payment.sent",
-            title = "Wallet payment sent",
-            body = "Ada sent 1200 sats",
-            actorUserName = "Ada",
-            actorRole = "admin",
+            title = title,
+            body = body,
+            actorUserName = actorUserName,
+            actorRole = actorRole,
             status = "success",
             occurredAt = "2026-07-13T12:00:00Z",
             dedupeKey = dedupeKey,
@@ -333,9 +366,14 @@ class AdminNotificationServiceTest {
         private val result: WebPushDispatchResult = WebPushDispatchResult(statusCode = 201),
     ) : WebPushDispatchClient {
         val sentEndpoints = mutableListOf<String>()
+        val sentPayloads = mutableListOf<WebPushDispatchPayload>()
 
-        override fun send(subscription: WebPushDispatchSubscription): WebPushDispatchResult {
+        override fun send(
+            subscription: WebPushDispatchSubscription,
+            payload: WebPushDispatchPayload,
+        ): WebPushDispatchResult {
             sentEndpoints += subscription.endpoint
+            sentPayloads += payload
             return result
         }
     }
