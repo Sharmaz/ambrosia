@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 import { useAdminNotificationPreferences } from "@/hooks/useAdminNotificationPreferences";
 import { useAdminWebPush } from "@/hooks/useAdminWebPush";
 import {
+  ADMIN_NOTIFICATION_PREFERENCES_CHANGED_EVENT,
   getWebPushStatusKey,
   isWebPushActiveOnDevice,
 } from "@/lib/adminNotifications";
@@ -35,6 +36,10 @@ function showWebPushToggleErrorToast(t, reason) {
   });
 }
 
+function notifyAdminNotificationPreferencesChanged() {
+  window.dispatchEvent(new Event(ADMIN_NOTIFICATION_PREFERENCES_CHANGED_EVENT));
+}
+
 export function NotificationPreferencesCard() {
   const t = useTranslations("settings");
   const tNotifications = useTranslations("notifications");
@@ -62,12 +67,14 @@ export function NotificationPreferencesCard() {
       return;
     }
 
-    await updatePreference({ ...walletPreference, pushEnabled });
+    const updatedPreference = await updatePreference({ ...walletPreference, pushEnabled });
+    if (updatedPreference) notifyAdminNotificationPreferencesChanged();
   };
 
   const handleInAppPreferenceChange = async (inAppEnabled) => {
     if (!walletPreference) return;
-    await updatePreference({ ...walletPreference, inAppEnabled });
+    const updatedPreference = await updatePreference({ ...walletPreference, inAppEnabled });
+    if (updatedPreference) notifyAdminNotificationPreferencesChanged();
   };
 
   return (

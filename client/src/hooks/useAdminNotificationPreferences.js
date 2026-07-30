@@ -48,8 +48,10 @@ export function useAdminNotificationPreferences() {
           ));
         });
       }
+      return updatedPreference;
     } catch (updateError) {
       setError(updateError);
+      return null;
     } finally {
       setSavingPreference(false);
     }

@@ -7,6 +7,7 @@ export const ADMIN_ACTIVITY_NOTIFICATION_BADGE = "/icons/icon-maskable-192.png";
 export const ADMIN_ACTIVITY_ELECTRON_IPC = "notifications:admin-activity";
 export const ADMIN_NOTIFICATIONS_NEW_EVENT = "adminNotifications:new";
 export const ADMIN_NOTIFICATIONS_REFRESH_UNREAD_COUNT_EVENT = "adminNotifications:refreshUnreadCount";
+export const ADMIN_NOTIFICATION_PREFERENCES_CHANGED_EVENT = "adminNotifications:preferencesChanged";
 export const ADMIN_NOTIFICATIONS_CONNECTION_CHANGED_EVENT = "adminNotifications:connectionChanged";
 export const ADMIN_NOTIFICATION_LIVE_EVENT_TYPE = "admin_notification";
 export const ADMIN_NOTIFICATIONS_LIVE_CONNECTED_STATE_KEY = "__adminNotificationsLiveConnected";

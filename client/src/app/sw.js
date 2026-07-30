@@ -5,6 +5,7 @@ import {
   ADMIN_ACTIVITY_NOTIFICATION_BADGE,
   ADMIN_ACTIVITY_NOTIFICATION_ICON,
   ADMIN_ACTIVITY_NOTIFICATION_TAG,
+  ADMIN_NOTIFICATIONS_REFRESH_UNREAD_COUNT_EVENT,
   ADMIN_NOTIFICATIONS_ROUTE,
   getAdminActivityNotificationCopy,
 } from "@/lib/adminNotifications";
@@ -83,6 +84,14 @@ function resolveAdminPushNotificationCopy(event) {
   };
 }
 
+function notifyOpenClientsOfAdminPush() {
+  return self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
+    clientList.forEach((client) => {
+      client.postMessage({ type: ADMIN_NOTIFICATIONS_REFRESH_UNREAD_COUNT_EVENT });
+    });
+  });
+}
+
 self.addEventListener("sync", (event) => {
   if (event.tag === "btc-checkout") {
     event.waitUntil(recoverPendingCheckouts());
@@ -92,16 +101,19 @@ self.addEventListener("sync", (event) => {
 self.addEventListener("push", (event) => {
   const notificationCopy = resolveAdminPushNotificationCopy(event);
   event.waitUntil(
-    self.registration.showNotification(notificationCopy.title, {
-      body: notificationCopy.body,
-      icon: ADMIN_ACTIVITY_NOTIFICATION_ICON,
-      badge: ADMIN_ACTIVITY_NOTIFICATION_BADGE,
-      tag: ADMIN_ACTIVITY_NOTIFICATION_TAG,
-      renotify: true,
-      data: {
-        url: ADMIN_NOTIFICATIONS_ROUTE,
-      },
-    }),
+    Promise.all([
+      self.registration.showNotification(notificationCopy.title, {
+        body: notificationCopy.body,
+        icon: ADMIN_ACTIVITY_NOTIFICATION_ICON,
+        badge: ADMIN_ACTIVITY_NOTIFICATION_BADGE,
+        tag: ADMIN_ACTIVITY_NOTIFICATION_TAG,
+        renotify: true,
+        data: {
+          url: ADMIN_NOTIFICATIONS_ROUTE,
+        },
+      }),
+      notifyOpenClientsOfAdminPush(),
+    ]),
   );
 });
 

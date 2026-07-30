@@ -3,6 +3,7 @@ import { act, renderHook } from "@testing-library/react";
 import {
   ADMIN_ACTIVITY_ELECTRON_IPC,
   ADMIN_NOTIFICATION_CATEGORY_WALLET,
+  ADMIN_NOTIFICATIONS_REFRESH_UNREAD_COUNT_EVENT,
   getAdminActivityNotificationCopy,
 } from "@/lib/adminNotifications";
 
@@ -61,7 +62,7 @@ describe("useAdminNotificationsWebsocket", () => {
     expect(MockEventSource.latest().url).toBe("/api/ws-admin-notifications");
   });
 
-  it("sets connected when EventSource opens", () => {
+  it("sets connected when backend confirms live connection", () => {
     const { result } = renderHook(() => useAdminNotificationsWebsocket());
 
     act(() => {
@@ -69,7 +70,14 @@ describe("useAdminNotificationsWebsocket", () => {
       MockEventSource.latest().onopen?.();
     });
 
+    expect(result.current.connected).toBe(false);
+
+    act(() => {
+      MockEventSource.latest().onmessage?.({ data: JSON.stringify({ type: "connected" }) });
+    });
+
     expect(result.current.connected).toBe(true);
+    expect(window.dispatchEvent).toHaveBeenCalledWith(new Event(ADMIN_NOTIFICATIONS_REFRESH_UNREAD_COUNT_EVENT));
   });
 
   it("notifies listeners and dispatches browser event for admin notifications", () => {

@@ -1,7 +1,10 @@
 import { render, screen, fireEvent, within, act, waitFor } from "@testing-library/react";
 
 import { useAdminNotificationsWebsocket } from "@/hooks/useAdminNotificationsWebsocket";
-import { getAdminNotifications } from "@/services/adminNotificationsService";
+import {
+  getAdminNotificationPreferences,
+  getAdminNotifications,
+} from "@/services/adminNotificationsService";
 import * as useNavigationHook from "@hooks/useNavigation";
 import { I18nProvider } from "@i18n/I18nProvider";
 import * as configurationsProvider from "@providers/configurations/configurationsProvider";
@@ -29,6 +32,7 @@ jest.mock("@/lib/http", () => ({
 }));
 
 jest.mock("@/services/adminNotificationsService", () => ({
+  getAdminNotificationPreferences: jest.fn(),
   getAdminNotifications: jest.fn(),
 }));
 
@@ -51,6 +55,7 @@ global.localStorage = localStorageMock;
 describe("StoreLayout", () => {
   const mockLogout = jest.fn();
   let liveNotificationListener;
+  let serviceWorkerMessageListener;
   const mockConfig = {
     businessName: "Mi Tienda Test",
     businessType: "store",
@@ -90,7 +95,20 @@ describe("StoreLayout", () => {
     jest.clearAllMocks();
     usePathname.mockReturnValue("/store");
     liveNotificationListener = null;
+    serviceWorkerMessageListener = null;
     getAdminNotifications.mockResolvedValue([]);
+    getAdminNotificationPreferences.mockResolvedValue([
+      { category: "wallet", inAppEnabled: true, pushEnabled: true },
+    ]);
+    Object.defineProperty(navigator, "serviceWorker", {
+      configurable: true,
+      value: {
+        addEventListener: jest.fn((eventName, listener) => {
+          if (eventName === "message") serviceWorkerMessageListener = listener;
+        }),
+        removeEventListener: jest.fn(),
+      },
+    });
     useAdminNotificationsWebsocket.mockReturnValue({
       connected: true,
       onNotification: (listener) => {
@@ -293,6 +311,7 @@ describe("StoreLayout", () => {
 
       renderStoreLayout();
       await waitFor(() => expect(liveNotificationListener).toBeTruthy());
+      await waitFor(() => expect(getAdminNotificationPreferences).toHaveBeenCalled());
 
       act(() => {
         liveNotificationListener({
@@ -310,6 +329,91 @@ describe("StoreLayout", () => {
         title: "Wallet payment sent",
       }));
       expect(within(getDesktopSidebar()).getByText("1")).toBeInTheDocument();
+    });
+
+    it("increments unread count without showing a toast when in-app notifications are disabled", async () => {
+      const { addToast } = require("@heroui/react");
+      const notificationsNavigation = [
+        ...defaultNavigation,
+        {
+          path: "/store/notifications",
+          label: "notifications",
+          icon: "bell",
+          showInNavbar: true,
+        },
+      ];
+      getAdminNotificationPreferences.mockResolvedValueOnce([
+        { category: "wallet", inAppEnabled: false, pushEnabled: true },
+      ]);
+      getAdminNotifications.mockResolvedValueOnce([]);
+      jest.spyOn(useNavigationHook, "useNavigation").mockReturnValue({
+        availableFeatures: {},
+        availableNavigation: notificationsNavigation,
+        isAuth: true,
+        isAdmin: true,
+        isLoading: false,
+        user: { userName: "admin", isAdmin: true },
+        logout: mockLogout,
+      });
+
+      renderStoreLayout();
+      await waitFor(() => expect(liveNotificationListener).toBeTruthy());
+      await waitFor(() => expect(getAdminNotificationPreferences).toHaveBeenCalled());
+
+      act(() => {
+        liveNotificationListener({
+          id: "notification-1",
+          category: "wallet",
+          type: "wallet.payment.sent",
+          title: "Wallet payment sent",
+          actorUserName: "Seller",
+          metadataJson: JSON.stringify({ recipientAmountSats: 10 }),
+        });
+      });
+
+      expect(addToast).not.toHaveBeenCalled();
+      expect(within(getDesktopSidebar()).getByText("1")).toBeInTheDocument();
+    });
+
+    it("refreshes unread count from service worker push messages without showing a toast", async () => {
+      const { addToast } = require("@heroui/react");
+      const notificationsNavigation = [
+        ...defaultNavigation,
+        {
+          path: "/store/notifications",
+          label: "notifications",
+          icon: "bell",
+          showInNavbar: true,
+        },
+      ];
+      getAdminNotificationPreferences.mockResolvedValueOnce([
+        { category: "wallet", inAppEnabled: false, pushEnabled: true },
+      ]);
+      getAdminNotifications
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([{ id: "notification-1", category: "wallet" }]);
+      jest.spyOn(useNavigationHook, "useNavigation").mockReturnValue({
+        availableFeatures: {},
+        availableNavigation: notificationsNavigation,
+        isAuth: true,
+        isAdmin: true,
+        isLoading: false,
+        user: { userName: "admin", isAdmin: true },
+        logout: mockLogout,
+      });
+
+      renderStoreLayout();
+      await waitFor(() => expect(serviceWorkerMessageListener).toBeTruthy());
+      await waitFor(() => expect(getAdminNotifications).toHaveBeenCalledTimes(1));
+
+      act(() => {
+        serviceWorkerMessageListener({
+          data: { type: "adminNotifications:refreshUnreadCount" },
+        });
+      });
+
+      await waitFor(() => expect(within(getDesktopSidebar()).getByText("1")).toBeInTheDocument());
+      expect(addToast).not.toHaveBeenCalled();
     });
 
     it("polls unread notifications and shows a toast when live channel is disconnected", async () => {
@@ -354,6 +458,10 @@ describe("StoreLayout", () => {
 
       renderStoreLayout();
       await waitFor(() => expect(getAdminNotifications).toHaveBeenCalledTimes(1));
+      await waitFor(() => expect(getAdminNotificationPreferences).toHaveBeenCalled());
+      await act(async () => {
+        await Promise.resolve();
+      });
 
       await act(async () => {
         jest.advanceTimersByTime(10000);
@@ -386,6 +494,7 @@ describe("StoreLayout", () => {
 
       renderStoreLayout();
       await waitFor(() => expect(liveNotificationListener).toBeTruthy());
+      await waitFor(() => expect(getAdminNotificationPreferences).toHaveBeenCalled());
 
       act(() => {
         liveNotificationListener({

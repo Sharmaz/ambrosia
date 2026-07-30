@@ -4,16 +4,25 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { useAdminNotificationsWebsocket } from "@/hooks/useAdminNotificationsWebsocket";
 import {
+  ADMIN_NOTIFICATION_CATEGORY_WALLET,
+  ADMIN_NOTIFICATION_PREFERENCES_CHANGED_EVENT,
   ADMIN_NOTIFICATIONS_NEW_EVENT,
   ADMIN_NOTIFICATIONS_REFRESH_UNREAD_COUNT_EVENT,
   ADMIN_NOTIFICATIONS_ROUTE,
   getNotificationIdSet,
 } from "@/lib/adminNotifications";
-import { getAdminNotifications } from "@/services/adminNotificationsService";
+import {
+  getAdminNotificationPreferences,
+  getAdminNotifications,
+} from "@/services/adminNotificationsService";
 
 import { showAdminNotificationToast } from "../adminNotificationToast";
 
 const UNREAD_NOTIFICATION_POLL_INTERVAL_MS = 10000;
+
+function findNotificationPreference(preferences, category) {
+  return preferences.find((preference) => preference.category === category);
+}
 
 function findNewUnreadNotifications(unreadNotifications, knownUnreadNotificationIds) {
   return unreadNotifications.filter(
@@ -28,6 +37,8 @@ export function useAdminNotificationSignals({
 }) {
   const [notificationUnreadCount, setNotificationUnreadCount] = useState(0);
   const knownUnreadNotificationIdsRef = useRef(new Set());
+  const inAppToastPreferencesRef = useRef({});
+  const inAppToastPreferencesLoadedRef = useRef(false);
   const { connected: areLiveNotificationsConnected, onNotification } = useAdminNotificationsWebsocket({
     enabled,
   });
@@ -41,9 +52,37 @@ export function useAdminNotificationSignals({
     return Array.isArray(unreadNotifications) ? unreadNotifications : [];
   }, [enabled]);
 
+  const loadInAppToastPreferences = useCallback(async () => {
+    if (!enabled) return {};
+
+    try {
+      const preferences = await getAdminNotificationPreferences();
+      const walletPreference = findNotificationPreference(
+        Array.isArray(preferences) ? preferences : [],
+        ADMIN_NOTIFICATION_CATEGORY_WALLET,
+      );
+      return {
+        [ADMIN_NOTIFICATION_CATEGORY_WALLET]: walletPreference?.inAppEnabled !== false,
+      };
+    } catch {
+      return {};
+    }
+  }, [enabled]);
+
   const applyUnreadNotifications = useCallback((unreadNotifications) => {
     knownUnreadNotificationIdsRef.current = getNotificationIdSet(unreadNotifications);
     setNotificationUnreadCount(unreadNotifications.length);
+  }, []);
+
+  const applyInAppToastPreferences = useCallback((loadedInAppToastPreferences) => {
+    inAppToastPreferencesRef.current = loadedInAppToastPreferences;
+    inAppToastPreferencesLoadedRef.current = true;
+  }, []);
+
+  const shouldShowNotificationToast = useCallback((notification) => {
+    if (!inAppToastPreferencesLoadedRef.current) return false;
+    const notificationCategory = notification?.category || ADMIN_NOTIFICATION_CATEGORY_WALLET;
+    return inAppToastPreferencesRef.current[notificationCategory] !== false;
   }, []);
 
   const refreshNotificationUnreadCount = useCallback(() => {
@@ -68,6 +107,22 @@ export function useAdminNotificationSignals({
   }, [applyUnreadNotifications, fetchUnreadNotifications]);
 
   useEffect(() => {
+    if (!enabled) {
+      inAppToastPreferencesLoadedRef.current = false;
+      return undefined;
+    }
+
+    let isSubscribed = true;
+    loadInAppToastPreferences().then((loadedInAppToastPreferences) => {
+      if (!isSubscribed) return;
+      applyInAppToastPreferences(loadedInAppToastPreferences);
+    });
+    return () => {
+      isSubscribed = false;
+    };
+  }, [applyInAppToastPreferences, enabled, loadInAppToastPreferences]);
+
+  useEffect(() => {
     if (!enabled) return undefined;
     const handleRefreshUnreadCount = () => {
       refreshNotificationUnreadCount();
@@ -76,15 +131,41 @@ export function useAdminNotificationSignals({
     return () => window.removeEventListener(ADMIN_NOTIFICATIONS_REFRESH_UNREAD_COUNT_EVENT, handleRefreshUnreadCount);
   }, [enabled, refreshNotificationUnreadCount]);
 
+  useEffect(() => {
+    if (!enabled || typeof navigator === "undefined" || !navigator.serviceWorker) return undefined;
+    const handleServiceWorkerMessage = (event) => {
+      if (event.data?.type === ADMIN_NOTIFICATIONS_REFRESH_UNREAD_COUNT_EVENT) {
+        refreshNotificationUnreadCount();
+      }
+    };
+    navigator.serviceWorker.addEventListener("message", handleServiceWorkerMessage);
+    return () => {
+      navigator.serviceWorker.removeEventListener("message", handleServiceWorkerMessage);
+    };
+  }, [enabled, refreshNotificationUnreadCount]);
+
+  useEffect(() => {
+    if (!enabled) return undefined;
+    const handleNotificationPreferencesChanged = () => {
+      loadInAppToastPreferences().then((loadedInAppToastPreferences) => {
+        applyInAppToastPreferences(loadedInAppToastPreferences);
+      });
+    };
+    window.addEventListener(ADMIN_NOTIFICATION_PREFERENCES_CHANGED_EVENT, handleNotificationPreferencesChanged);
+    return () => {
+      window.removeEventListener(ADMIN_NOTIFICATION_PREFERENCES_CHANGED_EVENT, handleNotificationPreferencesChanged);
+    };
+  }, [applyInAppToastPreferences, enabled, loadInAppToastPreferences]);
+
   useEffect(() => onNotification((notification) => {
     if (notification?.id) {
       knownUnreadNotificationIdsRef.current.add(notification.id);
     }
     setNotificationUnreadCount((currentCount) => currentCount + 1);
-    if (pathname !== ADMIN_NOTIFICATIONS_ROUTE) {
+    if (pathname !== ADMIN_NOTIFICATIONS_ROUTE && shouldShowNotificationToast(notification)) {
       showAdminNotificationToast(notification, notificationsTranslations);
     }
-  }), [onNotification, pathname, notificationsTranslations]);
+  }), [onNotification, pathname, notificationsTranslations, shouldShowNotificationToast]);
 
   useEffect(() => {
     if (!enabled || areLiveNotificationsConnected) return undefined;
@@ -101,13 +182,20 @@ export function useAdminNotificationSignals({
           knownUnreadNotificationIdsRef.current = currentUnreadNotificationIds;
           setNotificationUnreadCount(unreadNotifications.length);
 
-          if (newUnreadNotifications.length > 0 && pathname !== ADMIN_NOTIFICATIONS_ROUTE) {
-            showAdminNotificationToast(newUnreadNotifications[0], notificationsTranslations);
+          const newestUnreadNotification = newUnreadNotifications[0];
+          if (newestUnreadNotification) {
             window.dispatchEvent(
               new CustomEvent(ADMIN_NOTIFICATIONS_NEW_EVENT, {
-                detail: { notification: newUnreadNotifications[0] },
+                detail: { notification: newestUnreadNotification },
               }),
             );
+
+            if (
+              pathname !== ADMIN_NOTIFICATIONS_ROUTE &&
+              shouldShowNotificationToast(newestUnreadNotification)
+            ) {
+              showAdminNotificationToast(newestUnreadNotification, notificationsTranslations);
+            }
           }
         })
         .catch(() => undefined);
@@ -121,6 +209,7 @@ export function useAdminNotificationSignals({
     fetchUnreadNotifications,
     pathname,
     notificationsTranslations,
+    shouldShowNotificationToast,
   ]);
 
   return { notificationUnreadCount };
