@@ -28,6 +28,7 @@ import pos.ambrosia.models.phoenix.DecodeInvoiceRequest
 import pos.ambrosia.models.phoenix.PayInvoiceRequest
 import pos.ambrosia.models.phoenix.PayOfferRequest
 import pos.ambrosia.models.phoenix.PayOnchainRequest
+import pos.ambrosia.services.ActiveLightningBackend
 import pos.ambrosia.services.AuthService
 import pos.ambrosia.services.LightningBackend
 import pos.ambrosia.services.NwcService
@@ -40,11 +41,6 @@ import pos.ambrosia.utils.Bolt11Decoder
 import pos.ambrosia.utils.InvalidCredentialsException
 import pos.ambrosia.utils.authenticateAdmin
 import pos.ambrosia.utils.getCurrentUser
-import java.util.concurrent.atomic.AtomicReference
-
-private val walletBackendReference = AtomicReference<LightningBackend?>(null)
-
-private fun getBackend(): LightningBackend = walletBackendReference.get() ?: error("Lightning backend not initialized")
 
 fun Application.configureWallet() {
     val phoenixService = PhoenixService(environment)
@@ -55,13 +51,8 @@ fun Application.configureWallet() {
         } else {
             phoenixService
         }
-    walletBackendReference.set(backend)
-    monitor.subscribe(ApplicationStopping) {
-        walletBackendReference
-            .getAndSet(null)
-            ?.runCatching { close() }
-            ?.onFailure { logger.warn("Error closing Lightning backend on shutdown: {}", it.message) }
-    }
+    ActiveLightningBackend.set(backend)
+    monitor.subscribe(ApplicationStopping) { ActiveLightningBackend.closeActive() }
 
     val authService = AuthService(environment)
     val tokenService = TokenService(environment)
@@ -76,18 +67,6 @@ fun Application.configureWallet() {
     }
 }
 
-internal fun reinitializeNwcBackend(
-    nwcUri: String,
-    application: Application,
-) {
-    val newBackend = NwcService.create(nwcUri, application)
-    val previous = walletBackendReference.getAndSet(newBackend)
-    previous
-        ?.runCatching { close() }
-        ?.onFailure { logger.warn("Error closing previous Lightning backend: {}", it.message) }
-    logger.info("NWC backend hot-reloaded — no restart required")
-}
-
 fun Route.wallet(
     tokenService: TokenService,
     authService: AuthService,
@@ -98,7 +77,7 @@ fun Route.wallet(
     authenticate("auth-jwt") {
         post("/invoice") {
             val createInvoiceRequest = call.receive<CreateInvoiceRequest>()
-            val invoice = getBackend().createInvoice(createInvoiceRequest)
+            val invoice = ActiveLightningBackend.createInvoice(createInvoiceRequest)
             call.respond(HttpStatusCode.OK, invoice)
         }
     }
@@ -138,7 +117,7 @@ fun Route.wallet(
     authenticate("auth-jwt-wallet") {
         post("/createinvoice") {
             val createInvoiceRequest = call.receive<CreateInvoiceRequest>()
-            val invoice = getBackend().createInvoice(createInvoiceRequest)
+            val invoice = ActiveLightningBackend.createInvoice(createInvoiceRequest)
             if (createInvoiceRequest.exchangeRate != null && createInvoiceRequest.exchangeRateCurrency != null) {
                 walletRateService.saveInvoiceRate(
                     WalletInvoiceRate(
@@ -169,7 +148,7 @@ fun Route.wallet(
         }
         post("/payinvoice") {
             val payInvoiceRequest = call.receive<PayInvoiceRequest>()
-            val payInvoiceResult = getBackend().payInvoice(payInvoiceRequest)
+            val payInvoiceResult = ActiveLightningBackend.payInvoice(payInvoiceRequest)
             if (payInvoiceRequest.exchangeRate != null && payInvoiceRequest.exchangeRateCurrency != null) {
                 val fiatAmount =
                     (payInvoiceResult.recipientAmountSat.toDouble() / 100_000_000) * payInvoiceRequest.exchangeRate
@@ -187,39 +166,39 @@ fun Route.wallet(
         }
         post("/payoffer") {
             val payOfferRequest = call.receive<PayOfferRequest>()
-            val payOfferResult = getBackend().payOffer(payOfferRequest)
+            val payOfferResult = ActiveLightningBackend.payOffer(payOfferRequest)
             call.respond(HttpStatusCode.OK, payOfferResult)
         }
         post("/payonchain") {
             val payOnchainRequest = call.receive<PayOnchainRequest>()
-            val payOnchainResult = getBackend().payOnchain(payOnchainRequest)
+            val payOnchainResult = ActiveLightningBackend.payOnchain(payOnchainRequest)
             call.respond(HttpStatusCode.OK, payOnchainResult)
         }
         post("/bumpfee") {
             val feerateSatByte = call.receive<Int>()
-            val bumpOnchainFeesResult = getBackend().bumpOnchainFees(feerateSatByte)
+            val bumpOnchainFeesResult = ActiveLightningBackend.bumpOnchainFees(feerateSatByte)
             call.respond(HttpStatusCode.OK, bumpOnchainFeesResult)
         }
         post("/export") {
             val csvExportRequest = call.receive<CsvExport>()
-            val csvExportResult = getBackend().csvExport(csvExportRequest)
+            val csvExportResult = ActiveLightningBackend.csvExport(csvExportRequest)
             call.respond(HttpStatusCode.OK, csvExportResult)
         }
         get("/getinfo") {
-            val nodeInfo = getBackend().getNodeInfo()
+            val nodeInfo = ActiveLightningBackend.getNodeInfo()
             call.respond(HttpStatusCode.OK, nodeInfo)
         }
         get("/getbalance") {
-            val balance = getBackend().getBalance()
+            val balance = ActiveLightningBackend.getBalance()
             call.respond(HttpStatusCode.OK, balance)
         }
         post("/closechannel") {
             val closeChannelRequest = call.receive<CloseChannelRequest>()
-            val closeChannelResult = getBackend().closeChannel(closeChannelRequest)
+            val closeChannelResult = ActiveLightningBackend.closeChannel(closeChannelRequest)
             call.respond(HttpStatusCode.OK, closeChannelResult)
         }
         get("/seed") {
-            val seed = getBackend().getSeed()
+            val seed = ActiveLightningBackend.getSeed()
             call.respond(HttpStatusCode.OK, seed)
         }
 
@@ -232,7 +211,7 @@ fun Route.wallet(
                 val all = call.request.queryParameters["all"]?.toBoolean() ?: false
                 val externalId = call.request.queryParameters["externalId"]
 
-                val payments = getBackend().listIncomingPayments(from, to, limit, offset, all, externalId)
+                val payments = ActiveLightningBackend.listIncomingPayments(from, to, limit, offset, all, externalId)
                 val hashes = payments.map { it.paymentHash }
                 val salesPaymentRates = paymentService.getExchangeRatesByPaymentHashes(hashes)
                 val walletInvoiceRates = walletRateService.getRatesByPaymentHashes(hashes.filter { it !in salesPaymentRates })
@@ -270,7 +249,7 @@ fun Route.wallet(
             get("/incoming/{paymentHash}") {
                 val paymentHash =
                     call.parameters["paymentHash"] ?: return@get call.respond(HttpStatusCode.BadRequest, "Missing paymentHash")
-                val payment = getBackend().getIncomingPayment(paymentHash)
+                val payment = ActiveLightningBackend.getIncomingPayment(paymentHash)
                 call.respond(HttpStatusCode.OK, payment)
             }
 
@@ -281,7 +260,7 @@ fun Route.wallet(
                 val offset = call.request.queryParameters["offset"]?.toIntOrNull() ?: 0
                 val all = call.request.queryParameters["all"]?.toBoolean() ?: false
 
-                val payments = getBackend().listOutgoingPayments(from, to, limit, offset, all)
+                val payments = ActiveLightningBackend.listOutgoingPayments(from, to, limit, offset, all)
                 val hashes = payments.mapNotNull { it.paymentHash }
                 val salesPaymentRates = paymentService.getExchangeRatesByPaymentHashes(hashes)
                 val walletInvoiceRates = walletRateService.getRatesByPaymentHashes(hashes.filter { it !in salesPaymentRates })
@@ -316,14 +295,14 @@ fun Route.wallet(
             get("/outgoing/{paymentId}") {
                 val paymentId =
                     call.parameters["paymentId"] ?: return@get call.respond(HttpStatusCode.BadRequest, "Missing paymentId")
-                val payment = getBackend().getOutgoingPayment(paymentId)
+                val payment = ActiveLightningBackend.getOutgoingPayment(paymentId)
                 call.respond(HttpStatusCode.OK, payment)
             }
 
             get("/outgoingbyhash/{paymentHash}") {
                 val paymentHash =
                     call.parameters["paymentHash"] ?: return@get call.respond(HttpStatusCode.BadRequest, "Missing paymentHash")
-                val payment = getBackend().getOutgoingPaymentByHash(paymentHash)
+                val payment = ActiveLightningBackend.getOutgoingPaymentByHash(paymentHash)
                 call.respond(HttpStatusCode.OK, payment)
             }
         }
