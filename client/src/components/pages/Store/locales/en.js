@@ -31,6 +31,7 @@ const storeEn = {
       users: "Users",
       products: "Products",
       sales: "Sales",
+      revenue: "Revenue",
     },
   },
   ...usersEn,
