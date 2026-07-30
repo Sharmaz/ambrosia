@@ -2,6 +2,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import {
+  ADMIN_ACTIVITY_NOTIFICATION_BADGE,
+  ADMIN_ACTIVITY_NOTIFICATION_ICON,
   ADMIN_ACTIVITY_TEST_NOTIFICATION_TAG,
   ADMIN_NOTIFICATIONS_ROUTE,
   getAdminActivityNotificationCopy,
@@ -175,6 +177,8 @@ export function useAdminWebPush() {
       const notificationCopy = getAdminActivityNotificationCopy(navigator.language);
       await registration.showNotification(notificationCopy.title, {
         body: notificationCopy.body,
+        icon: ADMIN_ACTIVITY_NOTIFICATION_ICON,
+        badge: ADMIN_ACTIVITY_NOTIFICATION_BADGE,
         tag: ADMIN_ACTIVITY_TEST_NOTIFICATION_TAG,
         data: {
           url: ADMIN_NOTIFICATIONS_ROUTE,

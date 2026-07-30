@@ -3,6 +3,8 @@ import { TextEncoder } from "node:util";
 import { act, renderHook, waitFor } from "@testing-library/react";
 
 import {
+  ADMIN_ACTIVITY_NOTIFICATION_BADGE,
+  ADMIN_ACTIVITY_NOTIFICATION_ICON,
   ADMIN_ACTIVITY_TEST_NOTIFICATION_TAG,
   getAdminActivityNotificationCopy,
 } from "@/lib/adminNotifications";
@@ -218,6 +220,8 @@ describe("useAdminWebPush", () => {
       getAdminActivityNotificationCopy("en-US").title,
       expect.objectContaining({
         body: getAdminActivityNotificationCopy("en-US").body,
+        icon: ADMIN_ACTIVITY_NOTIFICATION_ICON,
+        badge: ADMIN_ACTIVITY_NOTIFICATION_BADGE,
         tag: ADMIN_ACTIVITY_TEST_NOTIFICATION_TAG,
       }),
     );
