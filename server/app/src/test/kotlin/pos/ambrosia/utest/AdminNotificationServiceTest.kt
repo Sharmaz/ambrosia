@@ -101,7 +101,7 @@ class AdminNotificationServiceTest {
     }
 
     @Test
-    fun `createNotification does not create receipt when category in-app preference is disabled`() {
+    fun `createNotification creates receipt when category in-app preference is disabled`() {
         val adminRoleId = ExposedTestDb.seedRole("admin", isAdmin = true)
         val adminUserId = ExposedTestDb.seedUser("Ada", roleId = adminRoleId)
         val now = "2026-07-13T12:00:00Z"
@@ -120,9 +120,9 @@ class AdminNotificationServiceTest {
 
         val result = service.createNotification(walletEvent())
 
-        assertEquals(0, result.recipientCount)
+        assertEquals(1, result.recipientCount)
         transaction {
-            assertEquals(0, AdminNotificationReceiptsTable.selectAll().count())
+            assertEquals(1, AdminNotificationReceiptsTable.selectAll().count())
             assertEquals(1, AdminNotificationsTable.selectAll().count())
         }
     }
@@ -146,7 +146,7 @@ class AdminNotificationServiceTest {
     }
 
     @Test
-    fun `createNotification publishes live notification only to in-app recipients`() {
+    fun `createNotification publishes live notification when category in-app preference is disabled`() {
         val adminRoleId = ExposedTestDb.seedRole("admin", isAdmin = true)
         val firstAdminId = ExposedTestDb.seedUser("Ada", roleId = adminRoleId)
         val secondAdminId = ExposedTestDb.seedUser("Grace", roleId = adminRoleId)
@@ -160,9 +160,12 @@ class AdminNotificationServiceTest {
         val result = serviceWithLivePublisher.createNotification(walletEvent(dedupeKey = "wallet:live"))
 
         assertTrue(result.created)
-        assertEquals(listOf(firstAdminId), livePublisher.publishedAdminUserIds)
-        assertEquals(result.notificationId, livePublisher.publishedNotifications.single().id)
-        assertEquals("wallet", livePublisher.publishedNotifications.single().category)
+        assertEquals(listOf(firstAdminId, secondAdminId), livePublisher.publishedAdminUserIds)
+        assertEquals(
+            listOf(result.notificationId, result.notificationId),
+            livePublisher.publishedNotifications.map { it.id },
+        )
+        assertEquals(listOf("wallet", "wallet"), livePublisher.publishedNotifications.map { it.category })
     }
 
     @Test

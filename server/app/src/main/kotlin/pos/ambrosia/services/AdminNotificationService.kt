@@ -95,11 +95,12 @@ class AdminNotificationService(
                         metadataJson = event.metadataJson
                     }
 
-                val activeAdminUserIds = activeAdminUserIds()
+                val activeAdminUserIds =
+                    activeAdminUserIds()
+                        .onEach { adminUserId -> ensurePreference(adminUserId, event.category, now) }
                 val liveDeliveries = mutableListOf<AdminNotificationLiveDelivery>()
                 val recipientCount =
                     activeAdminUserIds
-                        .filter { adminUserId -> isInAppEnabled(adminUserId, event.category, now) }
                         .onEach { adminUserId ->
                             AdminNotificationReceiptsTable.insert {
                                 it[notificationId] = notification.id
@@ -348,21 +349,6 @@ class AdminNotificationService(
                     (RolesTable.isDeleted eq false) and
                     (RolesTable.isAdmin eq true)
             }.map { it[UsersTable.id] }
-
-    private fun isInAppEnabled(
-        adminUserId: EntityID<UUID>,
-        category: String,
-        now: String,
-    ): Boolean {
-        val existingPreference = findPreference(adminUserId, category)
-
-        if (existingPreference == null) {
-            insertDefaultPreference(adminUserId, category, now)
-            return true
-        }
-
-        return existingPreference[AdminNotificationPreferencesTable.inAppEnabled]
-    }
 
     private fun isPushEnabled(
         adminUserId: EntityID<UUID>,
