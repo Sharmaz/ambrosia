@@ -48,6 +48,7 @@ function installWebPushGlobals({ permission = "granted", subscription = null } =
     configurable: true,
     value: {
       ready: Promise.resolve({ pushManager, showNotification }),
+      getRegistration: jest.fn(async () => ({ active: true })),
     },
   });
   Object.defineProperty(navigator, "userAgent", {
@@ -94,6 +95,11 @@ function makeSubscription(endpoint) {
   };
 }
 
+async function flushPromises() {
+  await Promise.resolve();
+  await Promise.resolve();
+}
+
 describe("useAdminWebPush", () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -103,6 +109,7 @@ describe("useAdminWebPush", () => {
   });
 
   afterEach(() => {
+    jest.useRealTimers();
     delete window.PushManager;
     delete window.Notification;
     delete globalThis.crypto;
@@ -180,6 +187,65 @@ describe("useAdminWebPush", () => {
     expect(registerAdminPushSubscription).not.toHaveBeenCalled();
   });
 
+  it("returns service worker unavailable when readiness hangs without registration during subscribe", async () => {
+    jest.useFakeTimers();
+    installWebPushGlobals();
+    Object.defineProperty(navigator, "serviceWorker", {
+      configurable: true,
+      value: {
+        ready: new Promise(() => {}),
+        getRegistration: jest.fn(async () => null),
+      },
+    });
+    const { result } = renderHook(() => useAdminWebPush());
+
+    let subscribePromise;
+    act(() => {
+      subscribePromise = result.current.subscribe();
+    });
+
+    expect(result.current.loading).toBe(true);
+
+    await act(async () => {
+      await flushPromises();
+      jest.advanceTimersByTime(10000);
+      await flushPromises();
+    });
+    await expect(subscribePromise).resolves.toEqual({ ok: false, reason: "serviceWorkerUnavailable" });
+
+    expect(result.current.loading).toBe(false);
+    expect(registerAdminPushSubscription).not.toHaveBeenCalled();
+    jest.useRealTimers();
+  });
+
+  it("returns timeout when service worker readiness hangs with an existing registration during subscribe", async () => {
+    jest.useFakeTimers();
+    installWebPushGlobals();
+    Object.defineProperty(navigator, "serviceWorker", {
+      configurable: true,
+      value: {
+        ready: new Promise(() => {}),
+        getRegistration: jest.fn(async () => ({ installing: true })),
+      },
+    });
+    const { result } = renderHook(() => useAdminWebPush());
+
+    let subscribePromise;
+    act(() => {
+      subscribePromise = result.current.subscribe();
+    });
+
+    await act(async () => {
+      await flushPromises();
+      jest.advanceTimersByTime(10000);
+      await flushPromises();
+    });
+    await expect(subscribePromise).resolves.toEqual({ ok: false, reason: "timeout" });
+
+    expect(result.current.loading).toBe(false);
+    jest.useRealTimers();
+  });
+
   it("removes existing subscription from backend and browser", async () => {
     const existingSubscription = makeSubscription("https://push.example/existing");
     installWebPushGlobals({ subscription: existingSubscription });
@@ -194,6 +260,38 @@ describe("useAdminWebPush", () => {
     expect(deleteAdminPushSubscription).toHaveBeenCalledWith("https://push.example/existing");
     expect(existingSubscription.unsubscribe).toHaveBeenCalled();
     expect(result.current.subscriptionEndpoint).toBe(null);
+  });
+
+  it("returns timeout and clears loading when browser unsubscribe hangs", async () => {
+    const existingSubscription = makeSubscription("https://push.example/existing");
+    existingSubscription.unsubscribe = jest.fn(() => new Promise(() => {}));
+    installWebPushGlobals({ subscription: existingSubscription });
+    const { result } = renderHook(() => useAdminWebPush());
+
+    await waitFor(() => expect(result.current.subscriptionEndpoint).toBe("https://push.example/existing"));
+
+    jest.useFakeTimers();
+    let unsubscribePromise;
+    act(() => {
+      unsubscribePromise = result.current.unsubscribe();
+    });
+
+    expect(result.current.loading).toBe(true);
+
+    await act(async () => {
+      await flushPromises();
+    });
+    expect(existingSubscription.unsubscribe).toHaveBeenCalled();
+
+    await act(async () => {
+      jest.advanceTimersByTime(10000);
+      await flushPromises();
+    });
+    await expect(unsubscribePromise).resolves.toEqual({ ok: false, reason: "timeout" });
+
+    expect(deleteAdminPushSubscription).toHaveBeenCalledWith("https://push.example/existing");
+    expect(result.current.loading).toBe(false);
+    jest.useRealTimers();
   });
 
   it("summarizes the current subscription endpoint without exposing the full URL", async () => {

@@ -41,6 +41,8 @@ const settingsEn = {
         failed: "The browser could not create the push subscription. Try again after refreshing the app.",
         unsupported: "This browser or app shell does not support Web Push.",
         vapidUnavailable: "The server is missing VAPID configuration or Web Push is disabled.",
+        serviceWorkerUnavailable: "The browser service worker is not active. Run the production client or refresh after the app updates.",
+        timeout: "The browser did not finish the Web Push operation. Refresh the app and try again.",
       },
     },
     cardInstall: {

@@ -14,6 +14,10 @@ import {
   registerAdminPushSubscription,
 } from "@/services/adminNotificationsService";
 
+const WEB_PUSH_OPERATION_TIMEOUT_MS = 10000;
+const WEB_PUSH_TIMEOUT_ERROR = "admin-web-push-timeout";
+const WEB_PUSH_SERVICE_WORKER_UNAVAILABLE_ERROR = "admin-web-push-service-worker-unavailable";
+
 function urlBase64ToUint8Array(base64String) {
   const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
   const base64 = `${base64String}${padding}`.replace(/-/g, "+").replace(/_/g, "/");
@@ -63,6 +67,34 @@ function hasWebPushSupport() {
   );
 }
 
+function withWebPushTimeout(promise) {
+  let timeoutId;
+  const timeoutPromise = new Promise((_, reject) => {
+    timeoutId = setTimeout(() => reject(new Error(WEB_PUSH_TIMEOUT_ERROR)), WEB_PUSH_OPERATION_TIMEOUT_MS);
+  });
+
+  return Promise.race([promise, timeoutPromise]).finally(() => clearTimeout(timeoutId));
+}
+
+function getWebPushFailureReason(error) {
+  if (error?.message === "admin-web-push-unavailable") return "vapidUnavailable";
+  if (error?.message === WEB_PUSH_SERVICE_WORKER_UNAVAILABLE_ERROR) return "serviceWorkerUnavailable";
+  if (error?.message === WEB_PUSH_TIMEOUT_ERROR) return "timeout";
+  return "failed";
+}
+
+async function getReadyServiceWorkerRegistration() {
+  try {
+    return await withWebPushTimeout(navigator.serviceWorker.ready);
+  } catch (error) {
+    const existingRegistration = await navigator.serviceWorker.getRegistration?.();
+    if (!existingRegistration) {
+      throw new Error(WEB_PUSH_SERVICE_WORKER_UNAVAILABLE_ERROR);
+    }
+    throw error;
+  }
+}
+
 export function useAdminWebPush() {
   const isSupported = useMemo(() => hasWebPushSupport(), []);
   const [permission, setPermission] = useState(() => (
@@ -75,8 +107,8 @@ export function useAdminWebPush() {
 
   const refreshSubscription = useCallback(async () => {
     if (!isSupported) return null;
-    const registration = await navigator.serviceWorker.ready;
-    const subscription = await registration.pushManager.getSubscription();
+    const registration = await getReadyServiceWorkerRegistration();
+    const subscription = await withWebPushTimeout(registration.pushManager.getSubscription());
     setSubscriptionEndpoint(subscription?.endpoint ?? null);
     setSubscriptionSummary(await summarizeEndpoint(subscription?.endpoint));
     return subscription;
@@ -96,7 +128,7 @@ export function useAdminWebPush() {
     try {
       let nextPermission = Notification.permission;
       if (nextPermission === "default") {
-        nextPermission = await Notification.requestPermission();
+        nextPermission = await withWebPushTimeout(Notification.requestPermission());
       }
       setPermission(nextPermission);
 
@@ -104,9 +136,9 @@ export function useAdminWebPush() {
         return { ok: false, reason: nextPermission };
       }
 
-      const registration = await navigator.serviceWorker.ready;
-      const existingSubscription = await registration.pushManager.getSubscription();
-      const vapidPublicKeyResponse = await getAdminPushVapidPublicKey();
+      const registration = await getReadyServiceWorkerRegistration();
+      const existingSubscription = await withWebPushTimeout(registration.pushManager.getSubscription());
+      const vapidPublicKeyResponse = await withWebPushTimeout(getAdminPushVapidPublicKey());
       const vapidPublicKey = vapidPublicKeyResponse?.publicKey;
       if (!vapidPublicKey) {
         return { ok: false, reason: "vapidUnavailable" };
@@ -114,12 +146,14 @@ export function useAdminWebPush() {
 
       const subscription =
         existingSubscription ||
-        await registration.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
-        });
+        await withWebPushTimeout(
+          registration.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
+          }),
+        );
 
-      await registerAdminPushSubscription(getSerializedSubscription(subscription));
+      await withWebPushTimeout(registerAdminPushSubscription(getSerializedSubscription(subscription)));
       setSubscriptionEndpoint(subscription.endpoint);
       setSubscriptionSummary(await summarizeEndpoint(subscription.endpoint));
       return { ok: true, subscription };
@@ -127,7 +161,7 @@ export function useAdminWebPush() {
       setError(subscribeError);
       return {
         ok: false,
-        reason: subscribeError?.message === "admin-web-push-unavailable" ? "vapidUnavailable" : "failed",
+        reason: getWebPushFailureReason(subscribeError),
       };
     } finally {
       setLoading(false);
@@ -142,21 +176,22 @@ export function useAdminWebPush() {
     setLoading(true);
     setError(null);
     try {
-      const registration = await navigator.serviceWorker.ready;
-      const subscription = await registration.pushManager.getSubscription();
+      const registration = await getReadyServiceWorkerRegistration();
+      const subscription = await withWebPushTimeout(registration.pushManager.getSubscription());
       if (!subscription) {
         setSubscriptionEndpoint(null);
+        setSubscriptionSummary(null);
         return { ok: true };
       }
 
-      await deleteAdminPushSubscription(subscription.endpoint);
-      await subscription.unsubscribe();
+      await withWebPushTimeout(deleteAdminPushSubscription(subscription.endpoint));
+      await withWebPushTimeout(subscription.unsubscribe());
       setSubscriptionEndpoint(null);
       setSubscriptionSummary(null);
       return { ok: true };
     } catch (unsubscribeError) {
       setError(unsubscribeError);
-      return { ok: false, reason: "failed" };
+      return { ok: false, reason: getWebPushFailureReason(unsubscribeError) };
     } finally {
       setLoading(false);
     }
@@ -173,21 +208,23 @@ export function useAdminWebPush() {
     setLoading(true);
     setError(null);
     try {
-      const registration = await navigator.serviceWorker.ready;
+      const registration = await getReadyServiceWorkerRegistration();
       const notificationCopy = getAdminActivityNotificationCopy(navigator.language);
-      await registration.showNotification(notificationCopy.title, {
-        body: notificationCopy.body,
-        icon: ADMIN_ACTIVITY_NOTIFICATION_ICON,
-        badge: ADMIN_ACTIVITY_NOTIFICATION_BADGE,
-        tag: ADMIN_ACTIVITY_TEST_NOTIFICATION_TAG,
-        data: {
-          url: ADMIN_NOTIFICATIONS_ROUTE,
-        },
-      });
+      await withWebPushTimeout(
+        registration.showNotification(notificationCopy.title, {
+          body: notificationCopy.body,
+          icon: ADMIN_ACTIVITY_NOTIFICATION_ICON,
+          badge: ADMIN_ACTIVITY_NOTIFICATION_BADGE,
+          tag: ADMIN_ACTIVITY_TEST_NOTIFICATION_TAG,
+          data: {
+            url: ADMIN_NOTIFICATIONS_ROUTE,
+          },
+        }),
+      );
       return { ok: true };
     } catch (notificationError) {
       setError(notificationError);
-      return { ok: false, reason: "failed" };
+      return { ok: false, reason: getWebPushFailureReason(notificationError) };
     } finally {
       setLoading(false);
     }

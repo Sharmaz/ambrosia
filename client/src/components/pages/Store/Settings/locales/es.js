@@ -41,6 +41,8 @@ const settingsEs = {
         failed: "El navegador no pudo crear la suscripcion push. Intenta de nuevo despues de actualizar la app.",
         unsupported: "Este navegador o app shell no soporta Web Push.",
         vapidUnavailable: "Al servidor le falta configuracion VAPID o Web Push esta desactivado.",
+        serviceWorkerUnavailable: "El service worker del navegador no esta activo. Corre el cliente en produccion o actualiza despues de que la app termine de cargar.",
+        timeout: "El navegador no termino la operacion Web Push. Actualiza la app e intenta de nuevo.",
       },
     },
     cardInstall: {
