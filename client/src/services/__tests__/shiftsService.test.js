@@ -49,7 +49,10 @@ describe("shiftsService", () => {
     it("throws when response is not ok", async () => {
       httpClient.mockResolvedValue({ status: 500, ok: false });
 
-      await expect(getTurnOpen()).rejects.toThrow("Failed to get open shift: 500");
+      await expect(getTurnOpen()).rejects.toMatchObject({
+        message: "Failed to get open shift",
+        status: 500,
+      });
     });
   });
 
@@ -146,7 +149,10 @@ describe("shiftsService", () => {
     it("throws when response is not ok", async () => {
       httpClient.mockResolvedValue({ status: 404, ok: false });
 
-      await expect(closeTurn(99, null, null)).rejects.toThrow("Close failed: 404");
+      await expect(closeTurn(99, null, null)).rejects.toMatchObject({
+        message: "Failed to close shift",
+        status: 404,
+      });
     });
 
     it("returns the parsed response on success", async () => {
