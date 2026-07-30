@@ -18,6 +18,7 @@ import pos.ambrosia.models.InitialSetupResponse
 import pos.ambrosia.models.InitialSetupStatus
 import pos.ambrosia.models.Role
 import pos.ambrosia.models.User
+import pos.ambrosia.services.ActiveLightningBackend
 import pos.ambrosia.services.ConfigService
 import pos.ambrosia.services.CurrencyService
 import pos.ambrosia.services.PermissionsService
@@ -151,7 +152,7 @@ private fun Route.initialSetupRoutes() {
                 try {
                     File(datadir.toString(), "ambrosia.conf").appendText("\nnwc-uri=$uri\n")
                     logger.info("NWC URI saved to ambrosia.conf — hot-reloading backend")
-                    reinitializeNwcBackend(uri, call.application)
+                    ActiveLightningBackend.reinitializeNwcBackend(uri, call.application)
                     true
                 } catch (exception: Exception) {
                     logger.error("Failed to save or activate NWC URI: ${exception.message}")
