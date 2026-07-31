@@ -12,6 +12,8 @@ import io.ktor.server.routing.post
 import io.ktor.server.routing.put
 import io.ktor.server.routing.route
 import io.ktor.server.routing.routing
+import pos.ambrosia.models.AdminNotificationCountResponse
+import pos.ambrosia.models.AdminNotificationMutationResponse
 import pos.ambrosia.models.AdminNotificationPreferenceUpdateRequest
 import pos.ambrosia.models.AdminNotificationPreferences
 import pos.ambrosia.models.VapidPublicKeyResponse
@@ -76,7 +78,17 @@ fun Route.adminNotifications(
                         ?: return@post call.respond(HttpStatusCode.Unauthorized)
                 val requestedCategory = call.request.queryParameters["category"]
                 val markedNotificationsCount = adminNotificationService.markAllRead(currentUser.userId, requestedCategory)
-                call.respond(HttpStatusCode.OK, mapOf("updated" to markedNotificationsCount))
+                call.respond(HttpStatusCode.OK, AdminNotificationCountResponse(updated = markedNotificationsCount))
+            }
+
+            delete("") {
+                val currentUser =
+                    call.getCurrentUser()
+                        ?: return@delete call.respond(HttpStatusCode.Unauthorized)
+                val requestedCategory = call.request.queryParameters["category"]
+                val deletedNotificationsCount =
+                    adminNotificationService.deleteAllNotifications(currentUser.userId, requestedCategory)
+                call.respond(HttpStatusCode.OK, AdminNotificationCountResponse(deleted = deletedNotificationsCount))
             }
 
             post("/{id}/read") {
@@ -98,7 +110,29 @@ fun Route.adminNotifications(
                     return@post
                 }
 
-                call.respond(HttpStatusCode.OK, mapOf("id" to notificationId, "read" to true))
+                call.respond(HttpStatusCode.OK, AdminNotificationMutationResponse(id = notificationId, read = true))
+            }
+
+            delete("/{id}") {
+                val currentUser =
+                    call.getCurrentUser()
+                        ?: return@delete call.respond(HttpStatusCode.Unauthorized)
+                val notificationId =
+                    call.parameters["id"]
+                        ?: return@delete call.respond(HttpStatusCode.BadRequest, "Missing notification ID")
+                val wasNotificationDeleted =
+                    try {
+                        adminNotificationService.deleteNotification(currentUser.userId, notificationId)
+                    } catch (_: IllegalArgumentException) {
+                        return@delete call.respond(HttpStatusCode.BadRequest, "Malformed notification ID")
+                    }
+
+                if (!wasNotificationDeleted) {
+                    call.respond(HttpStatusCode.NotFound, "Notification not found")
+                    return@delete
+                }
+
+                call.respond(HttpStatusCode.OK, AdminNotificationMutationResponse(id = notificationId, deleted = true))
             }
         }
 

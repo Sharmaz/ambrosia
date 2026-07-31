@@ -219,6 +219,40 @@ class AdminNotificationServiceTest {
     }
 
     @Test
+    fun `deleteNotification hides notification only for matching admin receipt`() {
+        val adminRoleId = ExposedTestDb.seedRole("admin", isAdmin = true)
+        val firstAdminId = ExposedTestDb.seedUser("Ada", roleId = adminRoleId)
+        val secondAdminId = ExposedTestDb.seedUser("Grace", roleId = adminRoleId)
+        val notification = service.createNotification(walletEvent(dedupeKey = "wallet:delete-one"))
+
+        val deleted = service.deleteNotification(firstAdminId, notification.notificationId)
+
+        assertTrue(deleted)
+        assertEquals(0, service.getNotifications(firstAdminId).size)
+        assertEquals(1, service.getNotifications(secondAdminId).size)
+        assertFalse(service.markRead(firstAdminId, notification.notificationId))
+        transaction {
+            assertEquals(1, AdminNotificationsTable.selectAll().count())
+            assertEquals(2, AdminNotificationReceiptsTable.selectAll().count())
+        }
+    }
+
+    @Test
+    fun `deleteAllNotifications hides only matching admin and category receipts`() {
+        val adminRoleId = ExposedTestDb.seedRole("admin", isAdmin = true)
+        val firstAdminId = ExposedTestDb.seedUser("Ada", roleId = adminRoleId)
+        val secondAdminId = ExposedTestDb.seedUser("Grace", roleId = adminRoleId)
+        service.createNotification(walletEvent(dedupeKey = "wallet:delete-all"))
+        service.createNotification(walletEvent(category = "orders", dedupeKey = "orders:delete-all"))
+
+        val deleted = service.deleteAllNotifications(firstAdminId, category = "wallet")
+
+        assertEquals(1, deleted)
+        assertEquals(listOf("orders"), service.getNotifications(firstAdminId).map { it.category })
+        assertEquals(2, service.getNotifications(secondAdminId).size)
+    }
+
+    @Test
     fun `getPreferences creates wallet default and updatePreference upserts category settings`() {
         val adminRoleId = ExposedTestDb.seedRole("admin", isAdmin = true)
         val adminUserId = ExposedTestDb.seedUser("Ada", roleId = adminRoleId)

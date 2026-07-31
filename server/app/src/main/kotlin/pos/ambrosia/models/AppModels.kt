@@ -328,6 +328,19 @@ data class AdminNotificationLiveEvent(
     val notification: AdminNotification,
 )
 
+@Serializable
+data class AdminNotificationCountResponse(
+    val updated: Int? = null,
+    val deleted: Int? = null,
+)
+
+@Serializable
+data class AdminNotificationMutationResponse(
+    val id: String,
+    val read: Boolean? = null,
+    val deleted: Boolean? = null,
+)
+
 data class AdminNotificationEvent(
     val category: String,
     val type: String,

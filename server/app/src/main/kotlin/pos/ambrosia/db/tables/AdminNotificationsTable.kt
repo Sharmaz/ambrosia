@@ -45,6 +45,7 @@ object AdminNotificationReceiptsTable : Table("admin_notification_receipts") {
     val notificationId = reference("notification_id", AdminNotificationsTable)
     val adminUserId = reference("admin_user_id", UsersTable)
     val readAt = varchar("read_at", 50).nullable()
+    val deletedAt = varchar("deleted_at", 50).nullable()
     val createdAt = varchar("created_at", 50)
     override val primaryKey = PrimaryKey(notificationId, adminUserId)
 }

@@ -106,6 +106,7 @@ class AdminNotificationService(
                                 it[notificationId] = notification.id
                                 it[AdminNotificationReceiptsTable.adminUserId] = adminUserId
                                 it[readAt] = null
+                                it[deletedAt] = null
                                 it[createdAt] = now
                             }
                             liveDeliveries.add(
@@ -162,9 +163,11 @@ class AdminNotificationService(
             val baseCondition =
                 if (unreadOnly) {
                     (AdminNotificationReceiptsTable.adminUserId eq adminEntityId) and
+                        AdminNotificationReceiptsTable.deletedAt.isNull() and
                         AdminNotificationReceiptsTable.readAt.isNull()
                 } else {
-                    AdminNotificationReceiptsTable.adminUserId eq adminEntityId
+                    (AdminNotificationReceiptsTable.adminUserId eq adminEntityId) and
+                        AdminNotificationReceiptsTable.deletedAt.isNull()
                 }
             val condition =
                 category
@@ -196,6 +199,46 @@ class AdminNotificationService(
                 .take(boundedLimit)
         }
 
+    fun deleteNotification(
+        adminUserId: String,
+        notificationId: String,
+    ): Boolean =
+        transaction {
+            val now = Instant.now().toString()
+            val adminEntityId = EntityID(UUID.fromString(adminUserId), UsersTable)
+            val notificationEntityId = EntityID(UUID.fromString(notificationId), AdminNotificationsTable)
+            val deletedCount =
+                AdminNotificationReceiptsTable.update({
+                    (AdminNotificationReceiptsTable.adminUserId eq adminEntityId) and
+                        (AdminNotificationReceiptsTable.notificationId eq notificationEntityId) and
+                        AdminNotificationReceiptsTable.deletedAt.isNull()
+                }) {
+                    it[deletedAt] = now
+                }
+            deletedCount > 0
+        }
+
+    fun deleteAllNotifications(
+        adminUserId: String,
+        category: String? = null,
+    ): Int =
+        transaction {
+            val adminEntityId = EntityID(UUID.fromString(adminUserId), UsersTable)
+            val visibleNotificationIds =
+                visibleReceiptQuery(adminEntityId, category)
+                    .map { it[AdminNotificationReceiptsTable.notificationId] }
+
+            visibleNotificationIds.sumOf { notificationId ->
+                AdminNotificationReceiptsTable.update({
+                    (AdminNotificationReceiptsTable.adminUserId eq adminEntityId) and
+                        (AdminNotificationReceiptsTable.notificationId eq notificationId) and
+                        AdminNotificationReceiptsTable.deletedAt.isNull()
+                }) {
+                    it[deletedAt] = Instant.now().toString()
+                }
+            }
+        }
+
     fun markRead(
         adminUserId: String,
         notificationId: String,
@@ -208,6 +251,7 @@ class AdminNotificationService(
                 AdminNotificationReceiptsTable.update({
                     (AdminNotificationReceiptsTable.adminUserId eq adminEntityId) and
                         (AdminNotificationReceiptsTable.notificationId eq notificationEntityId) and
+                        AdminNotificationReceiptsTable.deletedAt.isNull() and
                         AdminNotificationReceiptsTable.readAt.isNull()
                 }) {
                     it[readAt] = now
@@ -406,7 +450,26 @@ class AdminNotificationService(
     ): Query {
         val baseCondition =
             (AdminNotificationReceiptsTable.adminUserId eq adminUserId) and
+                AdminNotificationReceiptsTable.deletedAt.isNull() and
                 AdminNotificationReceiptsTable.readAt.isNull()
+        val condition =
+            category
+                ?.takeIf { it.isNotBlank() }
+                ?.let { baseCondition and (AdminNotificationsTable.category eq it) }
+                ?: baseCondition
+
+        return (AdminNotificationReceiptsTable innerJoin AdminNotificationsTable)
+            .selectAll()
+            .where { condition }
+    }
+
+    private fun visibleReceiptQuery(
+        adminUserId: EntityID<UUID>,
+        category: String?,
+    ): Query {
+        val baseCondition =
+            (AdminNotificationReceiptsTable.adminUserId eq adminUserId) and
+                AdminNotificationReceiptsTable.deletedAt.isNull()
         val condition =
             category
                 ?.takeIf { it.isNotBlank() }
