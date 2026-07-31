@@ -1,6 +1,7 @@
 package pos.ambrosia.services
 
 import io.ktor.server.application.Application
+import kotlinx.coroutines.withTimeout
 import pos.ambrosia.logger
 import pos.ambrosia.models.phoenix.CloseChannelRequest
 import pos.ambrosia.models.phoenix.CloseChannelResponse
@@ -18,6 +19,8 @@ import pos.ambrosia.models.phoenix.PaymentResponse
 import pos.ambrosia.models.phoenix.PhoenixBalance
 import java.util.concurrent.atomic.AtomicReference
 
+private const val NWC_CONNECTION_TIMEOUT_MS = 15_000L
+
 object ActiveLightningBackend : LightningBackend, PaymentVerifier {
     private val backendReference = AtomicReference<LightningBackend?>(null)
 
@@ -32,11 +35,17 @@ object ActiveLightningBackend : LightningBackend, PaymentVerifier {
             ?.onFailure { logger.warn("Error closing Lightning backend on shutdown: {}", it.message) }
     }
 
-    fun reinitializeNwcBackend(
+    suspend fun reinitializeNwcBackend(
         nwcUri: String,
         application: Application,
     ) {
         val newBackend = NwcService.create(nwcUri, application)
+        try {
+            withTimeout(NWC_CONNECTION_TIMEOUT_MS) { newBackend.awaitReady() }
+        } catch (exception: Exception) {
+            newBackend.close()
+            throw exception
+        }
         val previous = backendReference.getAndSet(newBackend)
         previous
             ?.runCatching { close() }

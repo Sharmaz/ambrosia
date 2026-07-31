@@ -64,7 +64,7 @@ class NwcService(
         ready.completeExceptionally(cause)
     }
 
-    private suspend fun awaitReady() = ready.await()
+    internal suspend fun awaitReady() = ready.await()
 
     fun startPolling() {
         pollingJob =
