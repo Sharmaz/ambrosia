@@ -2,6 +2,8 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 
 import { ADMIN_NOTIFICATION_CATEGORY_WALLET } from "@/lib/adminNotifications";
 import {
+  deleteAdminNotification,
+  deleteAllAdminNotifications,
   getAdminNotifications,
   markAdminNotificationRead,
   markAllAdminNotificationsRead,
@@ -10,6 +12,8 @@ import {
 import { useAdminNotifications } from "../useAdminNotifications";
 
 jest.mock("@/services/adminNotificationsService", () => ({
+  deleteAdminNotification: jest.fn(),
+  deleteAllAdminNotifications: jest.fn(),
   getAdminNotifications: jest.fn(),
   markAdminNotificationRead: jest.fn(),
   markAllAdminNotificationsRead: jest.fn(),
@@ -27,6 +31,8 @@ describe("useAdminNotifications", () => {
         readAt: null,
       },
     ]);
+    deleteAdminNotification.mockResolvedValue({ deleted: true });
+    deleteAllAdminNotifications.mockResolvedValue({ deleted: 1 });
     markAdminNotificationRead.mockResolvedValue({ read: true });
     markAllAdminNotificationsRead.mockResolvedValue({ updated: 1 });
   });
@@ -70,6 +76,32 @@ describe("useAdminNotifications", () => {
     });
 
     expect(markAllAdminNotificationsRead).toHaveBeenCalledWith(ADMIN_NOTIFICATION_CATEGORY_WALLET);
+    expect(result.current.unreadCount).toBe(0);
+  });
+
+  it("deletes one notification locally after backend success", async () => {
+    const { result } = renderHook(() => useAdminNotifications());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    await act(async () => {
+      await result.current.deleteNotification("notification-1");
+    });
+
+    expect(deleteAdminNotification).toHaveBeenCalledWith("notification-1");
+    expect(result.current.notifications).toHaveLength(0);
+    expect(result.current.unreadCount).toBe(0);
+  });
+
+  it("deletes all filtered notifications locally after backend success", async () => {
+    const { result } = renderHook(() => useAdminNotifications());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    await act(async () => {
+      await result.current.deleteAllNotifications();
+    });
+
+    expect(deleteAllAdminNotifications).toHaveBeenCalledWith(ADMIN_NOTIFICATION_CATEGORY_WALLET);
+    expect(result.current.notifications).toHaveLength(0);
     expect(result.current.unreadCount).toBe(0);
   });
 

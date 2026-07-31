@@ -1,6 +1,7 @@
 "use client";
 
-import { Button } from "@heroui/react";
+import { DeleteButton } from "@/components/shared/DeleteButton";
+import { MarkReadButton } from "@/components/shared/MarkReadButton";
 
 import { formatTimestamp } from "./utils/formatTimestamp";
 import { getAdminNotificationDisplay } from "./utils/notificationDisplay";
@@ -37,21 +38,58 @@ function NotificationMeta({ notification, notificationDisplay, notificationsTran
   );
 }
 
-function MarkReadButton({ notification, onMarkRead, notificationsTranslations }) {
+function NotificationMarkReadButton({ notification, onMarkRead, notificationsTranslations }) {
   if (notification.readAt) return null;
 
   return (
-    <Button
-      color="primary"
-      className="h-8 min-w-16 px-3 rounded-small bg-green-800 sm:h-10 sm:min-w-20 sm:px-4 sm:rounded-medium"
+    <MarkReadButton
       onPress={() => onMarkRead(notification.id)}
+      aria-label={notificationsTranslations("actions.markRead")}
     >
       {notificationsTranslations("actions.markRead")}
-    </Button>
+    </MarkReadButton>
   );
 }
 
-function NotificationMobileCard({ notification, onMarkRead, notificationsTranslations }) {
+function DeleteNotificationButton({ notification, onDeleteNotification, notificationsTranslations }) {
+  return (
+    <DeleteButton
+      onPress={() => onDeleteNotification(notification.id)}
+      aria-label={notificationsTranslations("actions.delete")}
+    >
+      {notificationsTranslations("actions.delete")}
+    </DeleteButton>
+  );
+}
+
+function NotificationActions({
+  notification,
+  onDeleteNotification,
+  onMarkRead,
+  notificationsTranslations,
+}) {
+  return (
+    <div className="flex flex-wrap justify-end gap-2">
+      <NotificationMarkReadButton
+        notification={notification}
+        onMarkRead={onMarkRead}
+        notificationsTranslations={notificationsTranslations}
+      />
+      <DeleteNotificationButton
+        notification={notification}
+        onDeleteNotification={onDeleteNotification}
+        notificationsTranslations={notificationsTranslations}
+      />
+    </div>
+  );
+}
+
+function NotificationMobileCard({
+  notification,
+  onDeleteNotification,
+  onMarkRead,
+  notificationsTranslations,
+}) {
   const isUnread = !notification.readAt;
   const notificationDisplay = getAdminNotificationDisplay(notification, notificationsTranslations);
 
@@ -81,20 +119,24 @@ function NotificationMobileCard({ notification, onMarkRead, notificationsTransla
         notificationsTranslations={notificationsTranslations}
       />
 
-      {isUnread && (
-        <div className="mt-4">
-          <MarkReadButton
-            notification={notification}
-            onMarkRead={onMarkRead}
-            notificationsTranslations={notificationsTranslations}
-          />
-        </div>
-      )}
+      <div className="mt-4">
+        <NotificationActions
+          notification={notification}
+          onDeleteNotification={onDeleteNotification}
+          onMarkRead={onMarkRead}
+          notificationsTranslations={notificationsTranslations}
+        />
+      </div>
     </article>
   );
 }
 
-function NotificationTableRow({ notification, onMarkRead, notificationsTranslations }) {
+function NotificationTableRow({
+  notification,
+  onDeleteNotification,
+  onMarkRead,
+  notificationsTranslations,
+}) {
   const isUnread = !notification.readAt;
   const notificationDisplay = getAdminNotificationDisplay(notification, notificationsTranslations);
 
@@ -128,8 +170,9 @@ function NotificationTableRow({ notification, onMarkRead, notificationsTranslati
         {formatTimestamp(notification.occurredAt || notification.createdAt)}
       </td>
       <td className="px-4 py-4 align-top text-right">
-        <MarkReadButton
+        <NotificationActions
           notification={notification}
+          onDeleteNotification={onDeleteNotification}
           onMarkRead={onMarkRead}
           notificationsTranslations={notificationsTranslations}
         />
@@ -138,7 +181,12 @@ function NotificationTableRow({ notification, onMarkRead, notificationsTranslati
   );
 }
 
-function NotificationsTable({ notifications, onMarkRead, notificationsTranslations }) {
+function NotificationsTable({
+  notifications,
+  onDeleteNotification,
+  onMarkRead,
+  notificationsTranslations,
+}) {
   return (
     <div className="hidden overflow-x-auto md:block">
       <table className="w-full min-w-[760px] border-separate border-spacing-0">
@@ -156,6 +204,7 @@ function NotificationsTable({ notifications, onMarkRead, notificationsTranslatio
             <NotificationTableRow
               key={notification.id}
               notification={notification}
+              onDeleteNotification={onDeleteNotification}
               onMarkRead={onMarkRead}
               notificationsTranslations={notificationsTranslations}
             />
@@ -166,13 +215,19 @@ function NotificationsTable({ notifications, onMarkRead, notificationsTranslatio
   );
 }
 
-function NotificationsMobileList({ notifications, onMarkRead, notificationsTranslations }) {
+function NotificationsMobileList({
+  notifications,
+  onDeleteNotification,
+  onMarkRead,
+  notificationsTranslations,
+}) {
   return (
     <div className="space-y-3 md:hidden">
       {notifications.map((notification) => (
         <NotificationMobileCard
           key={notification.id}
           notification={notification}
+          onDeleteNotification={onDeleteNotification}
           onMarkRead={onMarkRead}
           notificationsTranslations={notificationsTranslations}
         />
@@ -185,6 +240,7 @@ export function NotificationFeed({
   notifications,
   loading,
   error,
+  onDeleteNotification,
   onMarkRead,
   notificationsTranslations,
 }) {
@@ -209,11 +265,13 @@ export function NotificationFeed({
     <>
       <NotificationsMobileList
         notifications={notifications}
+        onDeleteNotification={onDeleteNotification}
         onMarkRead={onMarkRead}
         notificationsTranslations={notificationsTranslations}
       />
       <NotificationsTable
         notifications={notifications}
+        onDeleteNotification={onDeleteNotification}
         onMarkRead={onMarkRead}
         notificationsTranslations={notificationsTranslations}
       />

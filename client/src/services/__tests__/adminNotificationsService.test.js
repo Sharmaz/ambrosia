@@ -6,11 +6,13 @@ jest.mock("@/lib/http", () => ({
 import { httpClient, parseJsonResponse } from "@/lib/http";
 
 import {
+  deleteAdminNotification,
+  deleteAdminPushSubscription,
+  deleteAllAdminNotifications,
   getAdminNotificationPreferences,
   getAdminNotifications,
   getAdminPushVapidPublicKey,
   registerAdminPushSubscription,
-  deleteAdminPushSubscription,
   markAdminNotificationRead,
   markAllAdminNotificationsRead,
   updateAdminNotificationPreference,
@@ -45,6 +47,23 @@ describe("adminNotificationsService", () => {
 
     expect(httpClient).toHaveBeenCalledWith("/admin/notifications/read-all?category=wallet", { method: "POST" });
     expect(parseJsonResponse).toHaveBeenCalledWith({ ok: true }, { updated: 0 });
+  });
+
+  it("deletes one notification for the current admin", async () => {
+    parseJsonResponse.mockResolvedValueOnce({ deleted: true });
+
+    await deleteAdminNotification("notification-1");
+
+    expect(httpClient).toHaveBeenCalledWith("/admin/notifications/notification-1", { method: "DELETE" });
+  });
+
+  it("deletes all notifications by category for the current admin", async () => {
+    parseJsonResponse.mockResolvedValueOnce({ deleted: 2 });
+
+    await deleteAllAdminNotifications("wallet");
+
+    expect(httpClient).toHaveBeenCalledWith("/admin/notifications?category=wallet", { method: "DELETE" });
+    expect(parseJsonResponse).toHaveBeenCalledWith({ ok: true }, { deleted: 0 });
   });
 
   it("loads and updates preferences", async () => {

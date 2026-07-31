@@ -1,10 +1,10 @@
 "use client";
 
 import { Button } from "@heroui/react";
-import { Trash } from "lucide-react";
+import { CheckCheck } from "lucide-react";
 import { useTranslations } from "next-intl";
 
-export function DeleteButton({
+export function MarkReadButton({
   onPress,
   children,
   size = "sm",
@@ -22,14 +22,14 @@ export function DeleteButton({
 
   return (
     <Button
-      className={`border border-red-600 text-red-600 ${buttonClassName}`}
+      className={`border border-green-800 text-green-800 ${buttonClassName}`}
       onPress={onPress}
       size={size}
       variant="outline"
-      aria-label={ariaLabel ?? t("delete")}
+      aria-label={ariaLabel ?? t("markRead")}
       {...props}
     >
-      <Trash className="w-4 h-4" />
+      <CheckCheck className="w-4 h-4" />
       {hasLabel && (
         <span className={showLabelOnMobile ? "" : "hidden sm:inline"}>
           {children}

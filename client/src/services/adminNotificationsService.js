@@ -28,6 +28,21 @@ export async function markAllAdminNotificationsRead(category) {
   return await parseJsonResponse(response, { updated: 0 });
 }
 
+export async function deleteAdminNotification(notificationId) {
+  const response = await httpClient(`/admin/notifications/${notificationId}`, {
+    method: "DELETE",
+  });
+  return await parseJsonResponse(response, null);
+}
+
+export async function deleteAllAdminNotifications(category) {
+  const queryString = category ? `?category=${encodeURIComponent(category)}` : "";
+  const response = await httpClient(`/admin/notifications${queryString}`, {
+    method: "DELETE",
+  });
+  return await parseJsonResponse(response, { deleted: 0 });
+}
+
 export async function getAdminNotificationPreferences() {
   const response = await httpClient("/admin/notification-preferences");
   return await parseJsonResponse(response, []);

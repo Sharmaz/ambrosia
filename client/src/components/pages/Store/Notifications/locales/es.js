@@ -22,6 +22,8 @@ const notificationsEs = {
       description: "Abre el feed de notificaciones para revisar detalles.",
     },
     actions: {
+      delete: "Eliminar",
+      deleteAll: "Eliminar todas",
       markAllRead: "Marcar todas",
       markRead: "Marcar leida",
       refresh: "Actualizar",

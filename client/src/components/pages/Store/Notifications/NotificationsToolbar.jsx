@@ -1,20 +1,25 @@
 "use client";
 
-import { Button, Switch, Tab, Tabs } from "@heroui/react";
+import { Switch, Tab, Tabs } from "@heroui/react";
 
+import { DeleteButton } from "@/components/shared/DeleteButton";
+import { MarkReadButton } from "@/components/shared/MarkReadButton";
+import { RefreshButton } from "@/components/shared/RefreshButton";
 import { ADMIN_NOTIFICATION_CATEGORY_WALLET } from "@/lib/adminNotifications";
 
 export function NotificationsToolbar({
   filters,
   liveConnected,
   unreadCount,
+  notificationCount,
   onFiltersChange,
+  onDeleteAllNotifications,
   onMarkAllRead,
   onRefresh,
   notificationsTranslations,
 }) {
   return (
-    <div className="flex flex-col gap-4 border-b border-gray-100 pb-5 lg:flex-row lg:items-center lg:justify-between">
+    <div className="flex w-full flex-col gap-4 border-b border-gray-100 pb-5 lg:flex-row lg:items-center lg:justify-between">
       <div className="flex flex-col gap-2">
         <Tabs
           selectedKey={filters.category || "all"}
@@ -38,7 +43,7 @@ export function NotificationsToolbar({
         </span>
       </div>
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+      <div className="flex flex-col items-end gap-3 sm:flex-row sm:items-center sm:justify-end lg:ml-auto">
         <Switch
           size="sm"
           isSelected={filters.unreadOnly}
@@ -46,21 +51,29 @@ export function NotificationsToolbar({
         >
           <span className="text-sm font-medium">{notificationsTranslations("filters.unreadOnly")}</span>
         </Switch>
-        <Button
-          variant="bordered"
-          className="h-8 min-w-16 px-3 rounded-small border-green-800 text-green-800 sm:h-10 sm:min-w-20 sm:px-4 sm:rounded-medium"
+        <RefreshButton
           onPress={() => onRefresh()}
+          showLabelOnMobile
+          aria-label={notificationsTranslations("actions.refresh")}
         >
           {notificationsTranslations("actions.refresh")}
-        </Button>
-        <Button
-          color="primary"
-          className="h-8 min-w-16 px-3 rounded-small bg-green-800 sm:h-10 sm:min-w-20 sm:px-4 sm:rounded-medium"
+        </RefreshButton>
+        <MarkReadButton
           isDisabled={unreadCount === 0}
           onPress={onMarkAllRead}
+          showLabelOnMobile
+          aria-label={notificationsTranslations("actions.markAllRead")}
         >
           {notificationsTranslations("actions.markAllRead")}
-        </Button>
+        </MarkReadButton>
+        <DeleteButton
+          isDisabled={notificationCount === 0}
+          onPress={onDeleteAllNotifications}
+          showLabelOnMobile
+          aria-label={notificationsTranslations("actions.deleteAll")}
+        >
+          {notificationsTranslations("actions.deleteAll")}
+        </DeleteButton>
       </div>
     </div>
   );

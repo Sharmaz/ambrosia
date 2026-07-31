@@ -164,12 +164,14 @@ describe("Admin notification display", () => {
         ]}
         loading={false}
         error={false}
+        onDeleteNotification={jest.fn()}
         onMarkRead={jest.fn()}
         notificationsTranslations={notificationsTranslations}
       />,
     );
 
     expect(screen.getAllByText("A payment of 90 sats was received in the wallet.")).toHaveLength(2);
+    expect(screen.getAllByText("Delete")).toHaveLength(2);
     expect(screen.getAllByText("External payment")).toHaveLength(2);
     expect(screen.getAllByText("Wallet")).toHaveLength(2);
     expect(screen.queryByText("Phoenix webhook")).not.toBeInTheDocument();

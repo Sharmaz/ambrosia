@@ -9,6 +9,8 @@ import {
   ADMIN_NOTIFICATIONS_REFRESH_UNREAD_COUNT_EVENT,
 } from "@/lib/adminNotifications";
 import {
+  deleteAdminNotification,
+  deleteAllAdminNotifications,
   getAdminNotifications,
   markAdminNotificationRead,
   markAllAdminNotificationsRead,
@@ -95,6 +97,24 @@ export function useAdminNotifications() {
     requestUnreadCountRefresh();
   }, [filters.category]);
 
+  const deleteNotification = useCallback(async (notificationId) => {
+    await deleteAdminNotification(notificationId);
+    setNotifications((currentNotifications) => (
+      currentNotifications.filter((notification) => notification.id !== notificationId)
+    ));
+    requestUnreadCountRefresh();
+  }, []);
+
+  const deleteAllNotifications = useCallback(async () => {
+    await deleteAllAdminNotifications(filters.category);
+    setNotifications((currentNotifications) => (
+      filters.category
+        ? currentNotifications.filter((notification) => notification.category !== filters.category)
+        : []
+    ));
+    requestUnreadCountRefresh();
+  }, [filters.category]);
+
   useEffect(() => {
     fetchNotifications();
   }, [fetchNotifications]);
@@ -131,6 +151,8 @@ export function useAdminNotifications() {
     updateFilters,
     markRead,
     markAllRead,
+    deleteNotification,
+    deleteAllNotifications,
     refetch: fetchNotifications,
   };
 }

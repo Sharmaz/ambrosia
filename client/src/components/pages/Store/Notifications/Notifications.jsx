@@ -21,6 +21,8 @@ export function Notifications() {
     updateFilters,
     markRead,
     markAllRead,
+    deleteNotification,
+    deleteAllNotifications,
     refetch,
   } = useAdminNotifications();
 
@@ -39,8 +41,10 @@ export function Notifications() {
           <NotificationsToolbar
             filters={filters}
             liveConnected={liveConnected}
+            notificationCount={notifications.length}
             unreadCount={unreadCount}
             onFiltersChange={updateFilters}
+            onDeleteAllNotifications={deleteAllNotifications}
             onMarkAllRead={markAllRead}
             onRefresh={refetch}
             notificationsTranslations={notificationsTranslations}
@@ -52,6 +56,7 @@ export function Notifications() {
             notifications={notifications}
             loading={loading}
             error={error}
+            onDeleteNotification={deleteNotification}
             onMarkRead={markRead}
             notificationsTranslations={notificationsTranslations}
           />
