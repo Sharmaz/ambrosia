@@ -11,14 +11,14 @@ import io.ktor.server.routing.route
 import io.ktor.server.routing.routing
 import pos.ambrosia.models.Message
 import pos.ambrosia.models.RefundRequest
+import pos.ambrosia.services.ActiveLightningBackend
 import pos.ambrosia.services.CheckoutService
-import pos.ambrosia.services.PhoenixService
 import pos.ambrosia.services.RefundService
 import pos.ambrosia.utils.authorizePermission
 
 fun Application.configureStoreOrders() {
     val checkoutService = CheckoutService()
-    val refundService = RefundService(PhoenixService(environment))
+    val refundService = RefundService(ActiveLightningBackend)
     routing { route("/store/orders") { storeOrders(checkoutService, refundService) } }
 }
 

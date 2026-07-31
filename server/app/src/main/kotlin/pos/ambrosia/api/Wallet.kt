@@ -58,7 +58,7 @@ fun Application.configureWallet() {
     val tokenService = TokenService(environment)
     val walletRateService = WalletRateService()
     val paymentService = PaymentService()
-    val refundService = RefundService(phoenixService)
+    val refundService = RefundService(ActiveLightningBackend)
 
     routing {
         route("/wallet") {

@@ -36,7 +36,7 @@ import java.time.ZoneOffset
 import java.util.UUID
 
 class RefundService(
-    private val phoenixService: PhoenixService,
+    private val lightningBackend: LightningBackend,
 ) {
     companion object {
         private val refundMutex = Mutex()
@@ -177,7 +177,15 @@ class RefundService(
         invoice: String,
         originalSatoshiAmount: Long?,
     ): Pair<Long, String?> {
-        val paymentHash = Bolt11Decoder.decodeInvoice(invoice)?.paymentHash
+        val decodedInvoice = Bolt11Decoder.decodeInvoice(invoice)
+        val paymentHash = decodedInvoice?.paymentHash
+        val invoiceAmountSat =
+            decodedInvoice?.amountSat
+                ?: throw OrderNotRefundableException("The refund invoice must specify an amount")
+        if (invoiceAmountSat != originalSatoshiAmount) {
+            throw OrderNotRefundableException("The refund invoice amount does not match the amount owed")
+        }
+
         val alreadyPaidPayment = findAlreadyPaidOutgoingPayment(paymentHash)
 
         val satoshiAmount =
@@ -185,10 +193,7 @@ class RefundService(
                 logger.info("Refund invoice for order $orderId was already paid (hash=$paymentHash), skipping payInvoice")
                 alreadyPaidPayment.sent
             } else {
-                val paymentResponse =
-                    phoenixService.payInvoice(
-                        PayInvoiceRequest(invoice = invoice, amountSat = originalSatoshiAmount),
-                    )
+                val paymentResponse = lightningBackend.payInvoice(PayInvoiceRequest(invoice = invoice))
                 logger.info("Refund payment sent for order $orderId (hash=$paymentHash)")
                 paymentResponse.recipientAmountSat
             }
@@ -198,7 +203,7 @@ class RefundService(
 
     private suspend fun findAlreadyPaidOutgoingPayment(paymentHash: String?): OutgoingPayment? {
         if (paymentHash == null) return null
-        return runCatching { phoenixService.getOutgoingPaymentByHash(paymentHash) }
+        return runCatching { lightningBackend.getOutgoingPaymentByHash(paymentHash) }
             .getOrNull()
             ?.takeIf { it.isPaid }
     }
