@@ -34,6 +34,8 @@ const mockNodeInfo = {
   ],
 };
 
+const mockWalletBalance = { balanceSat: 80000, feeCreditSat: 0 };
+
 const mockNodeInfoSingleChannel = {
   nodeId: "test-node-id-2",
   chain: "testnet",
@@ -99,7 +101,7 @@ describe("NodeInfo Component", () => {
 
   describe("Summary Cards", () => {
     it("displays total balance correctly", () => {
-      renderNodeInfo(mockNodeInfo);
+      renderNodeInfo(mockNodeInfo, { balance: mockWalletBalance });
 
       expect(screen.getByText("80,000 sats")).toBeInTheDocument();
     });
@@ -120,6 +122,36 @@ describe("NodeInfo Component", () => {
       renderNodeInfo(mockNodeInfo);
 
       expect(screen.getByText("800000")).toBeInTheDocument();
+    });
+  });
+
+  describe("NWC Backend", () => {
+    const mockNwcNodeInfo = { ...mockNodeInfo, version: "NWC" };
+
+    it("hides the channels card", () => {
+      renderNodeInfo(mockNwcNodeInfo);
+
+      expect(screen.queryByText("nodeInfo.channels")).not.toBeInTheDocument();
+    });
+
+    it("hides the block height card", () => {
+      renderNodeInfo(mockNwcNodeInfo);
+
+      expect(screen.queryByText("nodeInfo.block")).not.toBeInTheDocument();
+    });
+
+    it("still shows total balance and network cards", () => {
+      renderNodeInfo(mockNwcNodeInfo, { balance: mockWalletBalance });
+
+      expect(screen.getByText("nodeInfo.totalBalance")).toBeInTheDocument();
+      expect(screen.getByText("nodeInfo.network")).toBeInTheDocument();
+    });
+
+    it("shows the channels and block cards for non-NWC backends", () => {
+      renderNodeInfo(mockNodeInfo);
+
+      expect(screen.getByText("nodeInfo.channels")).toBeInTheDocument();
+      expect(screen.getByText("nodeInfo.block")).toBeInTheDocument();
     });
   });
 
@@ -250,12 +282,6 @@ describe("NodeInfo Component", () => {
       expect(balances.length).toBeGreaterThan(0);
     });
 
-    it("calculates total balance with single channel in non-Normal state as 0", () => {
-      renderNodeInfo(mockNodeInfoSingleChannel);
-
-      expect(screen.getByText("0 sats")).toBeInTheDocument();
-    });
-
     it("handles empty channels array", () => {
       const emptyInfo = {
         nodeId: "test-node-id",
@@ -294,6 +320,7 @@ describe("NodeInfo Component", () => {
 
     it("shows the total balance converted to the configured local currency", () => {
       renderNodeInfo(mockNodeInfo, {
+        balance: mockWalletBalance,
         currentRate: 45000,
         currencyAcronym: "USD",
         locale: "en-US",
@@ -304,6 +331,7 @@ describe("NodeInfo Component", () => {
 
     it("reflects a different configured currency", () => {
       renderNodeInfo(mockNodeInfo, {
+        balance: mockWalletBalance,
         currentRate: 900000,
         currencyAcronym: "MXN",
         locale: "es-MX",
@@ -313,31 +341,17 @@ describe("NodeInfo Component", () => {
     });
   });
 
-  describe("Balance and Channel Count Filtering", () => {
-    it("excludes closing channels from total balance", () => {
+  describe("Channel Count Filtering", () => {
+    it("uses the balance prop regardless of what the channels sum to", () => {
       const info = {
         ...mockNodeInfo,
         channels: [
-          { channelId: "ch-1", balanceSat: 50000, capacitySat: 100000, inboundLiquiditySat: 50000, state: "NORMAL" },
-          { channelId: "ch-2", balanceSat: 30000, capacitySat: 80000, inboundLiquiditySat: 50000, state: "Closing" },
+          { channelId: "ch-1", balanceSat: 999999, capacitySat: 999999, inboundLiquiditySat: 999999, state: "NORMAL" },
         ],
       };
-      renderNodeInfo(info);
+      renderNodeInfo(info, { balance: { balanceSat: 12345, feeCreditSat: 0 } });
 
-      expect(screen.getByText("50,000 sats")).toBeInTheDocument();
-    });
-
-    it("shows 0 balance when all channels are closing", () => {
-      const info = {
-        ...mockNodeInfo,
-        channels: [
-          { channelId: "ch-1", balanceSat: 20000, capacitySat: 50000, inboundLiquiditySat: 30000, state: "Negotiating" },
-          { channelId: "ch-2", balanceSat: 10000, capacitySat: 30000, inboundLiquiditySat: 20000, state: "ShuttingDown" },
-        ],
-      };
-      renderNodeInfo(info);
-
-      expect(screen.getByText("0 sats")).toBeInTheDocument();
+      expect(screen.getByText("12,345 sats")).toBeInTheDocument();
     });
 
     it("excludes closing channels from channel count", () => {

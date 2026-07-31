@@ -59,6 +59,15 @@ export async function getInfo() {
   );
 }
 
+export async function getBalance() {
+  const walletBalanceResponse = await httpClient("/wallet/getbalance");
+  return await parseWalletResponseOrThrow(
+    walletBalanceResponse,
+    null,
+    "Could not load wallet balance",
+  );
+}
+
 export async function createInvoiceForCart(invoiceAmount, invoiceDesc) {
   const response = await httpClient("/wallet/invoice", {
     method: "POST",
