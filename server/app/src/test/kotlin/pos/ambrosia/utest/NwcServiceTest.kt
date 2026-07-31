@@ -227,6 +227,50 @@ class NwcServiceTest {
 
     // endregion
 
+    @Test
+    fun `listIncomingPayments converts NIP-47 timestamps from seconds to milliseconds`() =
+        runBlocking {
+            whenever(mockClient.listTransactions(anyOrNull(), anyOrNull(), anyOrNull(), anyOrNull(), anyOrNull(), anyOrNull())).thenReturn(
+                listOf(
+                    Nip47Transaction(
+                        type = "incoming",
+                        paymentHash = "hash3",
+                        amount = 10_000_000L,
+                        settledAt = 1700000000L,
+                        createdAt = 1699999000L,
+                        expiresAt = 1700003600L,
+                    ),
+                ),
+            )
+
+            val payments = service.listIncomingPayments(from = 0, to = null, limit = 20, offset = 0, all = false, externalId = null)
+
+            assertEquals(1700000000000L, payments[0].completedAt)
+            assertEquals(1699999000000L, payments[0].createdAt)
+            assertEquals(1700003600000L, payments[0].expiresAt)
+        }
+
+    @Test
+    fun `listOutgoingPayments converts NIP-47 timestamps from seconds to milliseconds`() =
+        runBlocking {
+            whenever(mockClient.listTransactions(anyOrNull(), anyOrNull(), anyOrNull(), anyOrNull(), anyOrNull(), anyOrNull())).thenReturn(
+                listOf(
+                    Nip47Transaction(
+                        type = "outgoing",
+                        paymentHash = "hash4",
+                        amount = 5_000_000L,
+                        settledAt = 1700000001L,
+                        createdAt = 1699999001L,
+                    ),
+                ),
+            )
+
+            val payments = service.listOutgoingPayments(from = 0, to = null, limit = 20, offset = 0, all = false)
+
+            assertEquals(1700000001000L, payments[0].completedAt)
+            assertEquals(1699999001000L, payments[0].createdAt)
+        }
+
     // region invoice polling — batched via list_transactions (I6 regression)
 
     @Test

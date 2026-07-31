@@ -328,9 +328,9 @@ private fun Nip47Transaction.toIncomingPayment(): IncomingPayment {
         receivedSat = if (isPaid) amountMsat / 1000 else 0,
         fees = (feesPaid ?: 0) / 1000,
         payerKey = null,
-        expiresAt = expiresAt,
-        completedAt = settledAt,
-        createdAt = createdAt ?: (System.currentTimeMillis() / 1000),
+        expiresAt = expiresAt?.times(1000),
+        completedAt = settledAt?.times(1000),
+        createdAt = createdAt?.times(1000) ?: System.currentTimeMillis(),
     )
 }
 
@@ -348,7 +348,7 @@ private fun Nip47Transaction.toOutgoingPayment(): OutgoingPayment {
         sent = amountMsat / 1000,
         fees = (feesPaid ?: 0) / 1000,
         invoice = invoice,
-        completedAt = settledAt,
-        createdAt = createdAt ?: (System.currentTimeMillis() / 1000),
+        completedAt = settledAt?.times(1000),
+        createdAt = createdAt?.times(1000) ?: System.currentTimeMillis(),
     )
 }
