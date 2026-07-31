@@ -295,6 +295,14 @@ class ProductService {
                 }.count() == 1L
         }
 
+    /** A product that does not track stock carries no quantities: zero them once instead of at every write site. */
+    private fun normalizeStockFields(product: Product): Product =
+        if (product.trackStock) {
+            product
+        } else {
+            product.copy(quantity = 0, minStockThreshold = 0, maxStockThreshold = 0)
+        }
+
     private fun valid(product: Product): Boolean {
         if (product.name.isBlank()) return false
         if (product.priceCents < 0) return false
@@ -308,9 +316,10 @@ class ProductService {
         return true
     }
 
-    fun addProduct(product: Product): String? =
+    fun addProduct(requested: Product): String? =
         transaction {
-            if (!valid(product)) return@transaction null
+            if (!valid(requested)) return@transaction null
+            val product = normalizeStockFields(requested)
             val normalizedSku = normalizeSku(product.SKU)
 
             val productId =
@@ -320,8 +329,8 @@ class ProductService {
                         this.name = product.name
                         this.description = product.description
                         this.imageUrl = product.imageUrl
-                        this.minStockThreshold = if (product.trackStock) product.minStockThreshold else 0
-                        this.maxStockThreshold = if (product.trackStock) product.maxStockThreshold else 0
+                        this.minStockThreshold = product.minStockThreshold
+                        this.maxStockThreshold = product.maxStockThreshold
                         this.hasVariants = if (product.isBundle) false else product.hasVariants
                         this.isBundle = product.isBundle
                         this.trackStock = product.trackStock
@@ -331,7 +340,7 @@ class ProductService {
                 this.productId = EntityID(productId, ProductsTable)
                 this.priceCents = product.priceCents
                 this.costCents = product.costCents.takeIf { it > 0 }
-                this.quantity = if (product.isBundle || !product.trackStock) 0 else product.quantity
+                this.quantity = if (product.isBundle) 0 else product.quantity
                 this.isActive = true
             }
             replaceCategories(productId, product.categoryIds)
@@ -391,23 +400,24 @@ class ProductService {
                 .map { toModel(it) }
         }
 
-    fun updateProduct(product: Product): Boolean =
+    fun updateProduct(requested: Product): Boolean =
         transaction {
             val productId =
                 try {
-                    product.id?.let { UUID.fromString(it) } ?: return@transaction false
+                    requested.id?.let { UUID.fromString(it) } ?: return@transaction false
                 } catch (_: IllegalArgumentException) {
                     return@transaction false
                 }
-            if (!valid(product)) return@transaction false
+            if (!valid(requested)) return@transaction false
+            val product = normalizeStockFields(requested)
             val productEntity = ProductEntity.findById(productId) ?: return@transaction false
 
             productEntity.sku = normalizeSku(product.SKU)
             productEntity.name = product.name
             productEntity.description = product.description
             productEntity.imageUrl = product.imageUrl
-            productEntity.minStockThreshold = if (product.trackStock) product.minStockThreshold else 0
-            productEntity.maxStockThreshold = if (product.trackStock) product.maxStockThreshold else 0
+            productEntity.minStockThreshold = product.minStockThreshold
+            productEntity.maxStockThreshold = product.maxStockThreshold
             productEntity.hasVariants = if (product.isBundle) false else product.hasVariants
             productEntity.isBundle = product.isBundle
             productEntity.trackStock = product.trackStock

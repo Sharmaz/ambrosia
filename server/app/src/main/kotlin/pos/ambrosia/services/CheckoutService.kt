@@ -26,13 +26,14 @@ import pos.ambrosia.db.tables.TicketEntity
 import pos.ambrosia.db.tables.TicketPaymentsTable
 import pos.ambrosia.db.tables.UsersTable
 import pos.ambrosia.logger
+import pos.ambrosia.models.StoreCheckoutItem
 import pos.ambrosia.models.StoreCheckoutRequest
 import pos.ambrosia.models.StoreCheckoutResponse
 import java.time.LocalDateTime
 import java.time.ZoneOffset
 import java.util.UUID
 
-private class InsufficientStockException : Exception()
+private class CheckoutRejectedException : Exception()
 
 sealed interface CheckoutResult {
     data class Success(
@@ -111,6 +112,40 @@ class CheckoutService(
         return remainingQuantity == 0
     }
 
+    private fun decrementBundleStock(
+        bundleEntityId: EntityID<UUID>,
+        orderedQuantity: Int,
+    ): Boolean {
+        val bundleComponents =
+            ProductBundleComponentsTable
+                .selectAll()
+                .where { ProductBundleComponentsTable.bundleId eq bundleEntityId }
+                .toList()
+        if (bundleComponents.isEmpty()) return false
+
+        return bundleComponents.all { component ->
+            val componentProductId = component[ProductBundleComponentsTable.componentId]
+            val componentVariantId = component[ProductBundleComponentsTable.componentVariantId]?.value
+            val deductQuantity = component[ProductBundleComponentsTable.quantity] * orderedQuantity
+            if (componentVariantId != null) {
+                decrementVariantStock(componentProductId, componentVariantId, deductQuantity)
+            } else {
+                decrementProductStock(componentProductId, deductQuantity)
+            }
+        }
+    }
+
+    private fun deductOrderLineStock(
+        productEntity: ProductEntity,
+        variantId: UUID?,
+        quantity: Int,
+    ): Boolean {
+        if (!productEntity.trackStock) return true
+        if (productEntity.isBundle) return decrementBundleStock(productEntity.id, quantity)
+        if (variantId != null) return decrementVariantStock(productEntity.id, variantId, quantity)
+        return decrementProductStock(productEntity.id, quantity)
+    }
+
     fun cancelStoreOrder(id: String): Boolean =
         transaction {
             val orderUuid =
@@ -175,23 +210,87 @@ class CheckoutService(
         }
     }
 
-    private fun performCheckout(request: StoreCheckoutRequest): StoreCheckoutResponse? {
+    private fun hasValidIds(request: StoreCheckoutRequest): Boolean =
         try {
             UUID.fromString(request.userId)
             UUID.fromString(request.paymentMethodId)
             UUID.fromString(request.currencyId)
             request.items.forEach { UUID.fromString(it.productId) }
             request.items.mapNotNull { it.variantId }.forEach { UUID.fromString(it) }
+            true
         } catch (_: IllegalArgumentException) {
-            return null
+            false
         }
+
+    private fun insertOrderLines(
+        order: OrderEntity,
+        items: List<StoreCheckoutItem>,
+    ) {
+        for (item in items) {
+            val productEntityId = EntityID(UUID.fromString(item.productId), ProductsTable)
+            val productEntity = ProductEntity.findById(productEntityId) ?: throw CheckoutRejectedException()
+            val itemVariantId = item.variantId?.let { UUID.fromString(it) }
+            val orderVariantId = itemVariantId ?: firstActiveVariantId(productEntityId) ?: throw CheckoutRejectedException()
+
+            if (!deductOrderLineStock(productEntity, itemVariantId, item.quantity)) throw CheckoutRejectedException()
+
+            OrderProductsTable.insert {
+                it[orderId] = order.id
+                it[OrderProductsTable.productId] = productEntityId
+                it[variantId] = orderVariantId.toString()
+                it[quantity] = item.quantity
+                it[priceAtOrder] = item.priceAtOrder
+            }
+        }
+    }
+
+    private fun createTicketAndPayment(
+        order: OrderEntity,
+        userEntityId: EntityID<UUID>,
+        request: StoreCheckoutRequest,
+        now: String,
+    ): Pair<TicketEntity, PaymentEntity> {
+        val ticket =
+            TicketEntity.new(UUID.randomUUID()) {
+                this.orderId = order.id
+                this.userId = userEntityId
+                this.ticketDate = now
+                this.totalAmount = request.amount
+                this.notes = request.ticketNotes
+            }
+
+        val payment =
+            PaymentEntity.new(UUID.randomUUID()) {
+                this.methodId = EntityID(UUID.fromString(request.paymentMethodId), PaymentMethodsTable)
+                this.currencyId = EntityID(UUID.fromString(request.currencyId), CurrencyTable)
+                this.transactionId = request.transactionId ?: ""
+                this.amount = request.amount
+                this.date = now
+                this.satoshiAmount = request.satoshiAmount
+                this.exchangeRateAtPayment = request.exchangeRateAtPayment
+                this.paymentHash = request.paymentHash
+                this.exchangeRateCurrency = request.exchangeRateCurrency
+                this.fiatAmountAtPayment = request.fiatAmountAtPayment
+            }
+
+        TicketPaymentsTable.insert {
+            it[paymentId] = payment.id
+            it[ticketId] = ticket.id
+        }
+
+        return ticket to payment
+    }
+
+    private fun performCheckout(request: StoreCheckoutRequest): StoreCheckoutResponse? {
+        if (!hasValidIds(request)) return null
 
         return try {
             transaction {
                 val now = LocalDateTime.now(ZoneOffset.UTC).toString()
+                val userEntityId = EntityID(UUID.fromString(request.userId), UsersTable)
                 val order =
                     OrderEntity.new(UUID.randomUUID()) {
-                        this.userId = EntityID(UUID.fromString(request.userId), UsersTable)
+                        this.userId = userEntityId
                         this.tableId = null
                         this.status = "paid"
                         this.total = request.amount
@@ -199,83 +298,13 @@ class CheckoutService(
                         this.createdAt = now
                     }
 
-                for (item in request.items) {
-                    val productEntityId = EntityID(UUID.fromString(item.productId), ProductsTable)
-                    val productEntity = ProductEntity.findById(productEntityId) ?: throw InsufficientStockException()
-                    val orderVariantId = item.variantId?.let { UUID.fromString(it) } ?: firstActiveVariantId(productEntityId)
-
-                    if (orderVariantId == null) throw InsufficientStockException()
-
-                    if (productEntity.trackStock) {
-                        if (productEntity.isBundle) {
-                            val componentRows =
-                                ProductBundleComponentsTable
-                                    .selectAll()
-                                    .where { ProductBundleComponentsTable.bundleId eq productEntityId }
-                                    .toList()
-                            if (componentRows.isEmpty()) throw InsufficientStockException()
-                            for (componentRow in componentRows) {
-                                val componentProductId = componentRow[ProductBundleComponentsTable.componentId]
-                                val componentVariantId = componentRow[ProductBundleComponentsTable.componentVariantId]?.value
-                                val componentQuantity = componentRow[ProductBundleComponentsTable.quantity] * item.quantity
-                                val componentStockWasDeducted =
-                                    componentVariantId
-                                        ?.let { decrementVariantStock(componentProductId, it, componentQuantity) }
-                                        ?: decrementProductStock(componentProductId, componentQuantity)
-                                if (!componentStockWasDeducted) {
-                                    throw InsufficientStockException()
-                                }
-                            }
-                        } else {
-                            val stockWasDeducted =
-                                item.variantId
-                                    ?.let { decrementVariantStock(productEntityId, UUID.fromString(it), item.quantity) }
-                                    ?: decrementProductStock(productEntityId, item.quantity)
-                            if (!stockWasDeducted) throw InsufficientStockException()
-                        }
-                    }
-
-                    OrderProductsTable.insert {
-                        it[orderId] = order.id
-                        it[OrderProductsTable.productId] = productEntityId
-                        it[variantId] = orderVariantId.toString()
-                        it[quantity] = item.quantity
-                        it[priceAtOrder] = item.priceAtOrder
-                    }
-                }
-
-                val ticket =
-                    TicketEntity.new(UUID.randomUUID()) {
-                        this.orderId = order.id
-                        this.userId = EntityID(UUID.fromString(request.userId), UsersTable)
-                        this.ticketDate = now
-                        this.totalAmount = request.amount
-                        this.notes = request.ticketNotes
-                    }
-
-                val payment =
-                    PaymentEntity.new(UUID.randomUUID()) {
-                        this.methodId = EntityID(UUID.fromString(request.paymentMethodId), PaymentMethodsTable)
-                        this.currencyId = EntityID(UUID.fromString(request.currencyId), CurrencyTable)
-                        this.transactionId = request.transactionId ?: ""
-                        this.amount = request.amount
-                        this.date = now
-                        this.satoshiAmount = request.satoshiAmount
-                        this.exchangeRateAtPayment = request.exchangeRateAtPayment
-                        this.paymentHash = request.paymentHash
-                        this.exchangeRateCurrency = request.exchangeRateCurrency
-                        this.fiatAmountAtPayment = request.fiatAmountAtPayment
-                    }
-
-                TicketPaymentsTable.insert {
-                    it[paymentId] = payment.id
-                    it[ticketId] = ticket.id
-                }
+                insertOrderLines(order, request.items)
+                val (ticket, payment) = createTicketAndPayment(order, userEntityId, request, now)
 
                 logger.info("Store checkout: order=${order.id.value} ticket=${ticket.id.value} payment=${payment.id.value}")
                 StoreCheckoutResponse(order.id.value.toString(), ticket.id.value.toString(), payment.id.value.toString())
             }
-        } catch (_: InsufficientStockException) {
+        } catch (_: CheckoutRejectedException) {
             null
         }
     }
