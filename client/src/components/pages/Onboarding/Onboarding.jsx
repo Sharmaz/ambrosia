@@ -16,8 +16,18 @@ import { BusinessTypeStep } from "./SelectBusiness";
 import { WizardSummary } from "./StepsSummary";
 import { WalletBackendStep } from "./WalletBackendStep";
 
+const TOAST_REDIRECT_TIMEOUT_MS = 3000;
+
+function addRedirectToast(toastProps) {
+  addToast({
+    ...toastProps,
+    timeout: TOAST_REDIRECT_TIMEOUT_MS,
+    shouldShowTimeoutProgress: true,
+  });
+}
+
 export function Onboarding() {
-  const t = useTranslations();
+  const onboardingTranslations = useTranslations();
   const [step, setStep] = useState(1);
   const [setupStatus, setSetupStatus] = useState(null);
   const [data, setData] = useState({
@@ -94,12 +104,12 @@ export function Onboarding() {
         await submitInitialSetup({
           businessType: data.businessType,
         });
-        addToast({
-          title: t("submitOnboardingToast.title"),
-          description: t("submitOnboardingToast.description"),
+        addRedirectToast({
+          title: onboardingTranslations("submitOnboardingToast.title"),
+          description: onboardingTranslations("submitOnboardingToast.description"),
           color: "success",
+          onClose: () => window.location.reload(),
         });
-        window.location.reload();
         return;
       }
 
@@ -117,24 +127,36 @@ export function Onboarding() {
         walletBackend: undefined,
         nwcUri: data.walletBackend === "nwc" && data.nwcUri ? data.nwcUri : undefined,
       });
-      addToast({
-        title: t("submitOnboardingToast.title"),
-        description: t("submitOnboardingToast.description"),
-        color: "success",
-      });
+
+      const isNwcAttempt = data.walletBackend === "nwc";
+      let nwcSaved = false;
       try {
         const body = await setupResponse.json();
-        if (body?.nwcSaved) {
-          addToast({
-            title: t("submitOnboardingToast.nwcSavedTitle"),
-            description: t("submitOnboardingToast.nwcSavedDescription"),
-            color: "primary",
-          });
-        }
-      } catch {
-        // ignore parse errors
+        nwcSaved = Boolean(body?.nwcSaved);
+      } catch {}
+
+      addRedirectToast({
+        title: onboardingTranslations("submitOnboardingToast.title"),
+        description: onboardingTranslations("submitOnboardingToast.description"),
+        color: "success",
+        onClose: isNwcAttempt ? undefined : () => window.location.reload(),
+      });
+
+      if (nwcSaved) {
+        addRedirectToast({
+          title: onboardingTranslations("submitOnboardingToast.nwcSavedTitle"),
+          description: onboardingTranslations("submitOnboardingToast.nwcSavedDescription"),
+          color: "primary",
+          onClose: () => window.location.reload(),
+        });
+      } else if (isNwcAttempt) {
+        addRedirectToast({
+          title: onboardingTranslations("submitOnboardingToast.nwcErrorTitle"),
+          description: onboardingTranslations("submitOnboardingToast.nwcErrorDescription"),
+          color: "danger",
+          onClose: () => window.location.reload(),
+        });
       }
-      window.location.reload();
     } catch (error) {
       addToast({
         title: "Error",
@@ -229,7 +251,7 @@ export function Onboarding() {
                 onPress={handlePrevious}
                 className="px-6 py-2 border border-border text-foreground hover:bg-muted transition-colors"
               >
-                {t("buttons.back")}
+                {onboardingTranslations("buttons.back")}
               </Button>
             )}
 
@@ -241,7 +263,7 @@ export function Onboarding() {
                   isDisabled={!data.businessType}
                   className="bg-green-800"
                 >
-                  {t("buttons.finish")}
+                  {onboardingTranslations("buttons.finish")}
                 </Button>
               ) : step < 5 ? (
                 <Button
@@ -262,7 +284,7 @@ export function Onboarding() {
                   }
                   className="bg-green-800"
                 >
-                  {t("buttons.next")}
+                  {onboardingTranslations("buttons.next")}
                 </Button>
               ) : (
                 <Button
@@ -270,7 +292,7 @@ export function Onboarding() {
                   onPress={handleComplete}
                   className="bg-green-800"
                 >
-                  {t("buttons.finish")}
+                  {onboardingTranslations("buttons.finish")}
                 </Button>
               )}
             </div>

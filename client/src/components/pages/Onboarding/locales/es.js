@@ -4,6 +4,8 @@ const onboardingEs = {
     description: "La información se almaceno correctamente",
     nwcSavedTitle: "Backend NWC activado",
     nwcSavedDescription: "El backend NWC está listo para usarse.",
+    nwcErrorTitle: "No se pudo conectar la wallet NWC",
+    nwcErrorDescription: "Revisá la URI de conexión — vas a tener que rehacer la configuración inicial para volver a intentarlo.",
   },
   buttons: {
     next: "Siguiente",
