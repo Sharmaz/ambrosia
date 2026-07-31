@@ -17,7 +17,7 @@ export function generateStaticParams() {
 }
 
 export async function GET(request, context) {
-  const response = await serwistRoute.GET(request, context);
-  response.headers.set("Service-Worker-Allowed", "/");
-  return response;
+  const serviceWorkerResponse = await serwistRoute.GET(request, context);
+  serviceWorkerResponse.headers.set("Service-Worker-Allowed", "/");
+  return serviceWorkerResponse;
 }
