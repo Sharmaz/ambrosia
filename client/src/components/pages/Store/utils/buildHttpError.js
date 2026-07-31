@@ -4,6 +4,8 @@ export function buildHttpError(httpResponse, fallbackMessage = "Request failed",
   const requestError = new Error(fallbackMessage);
   requestError.status = httpResponse?.status;
   requestError.responseMessage = parsedResponseBody?.message;
+  requestError.code = parsedResponseBody?.code;
+  requestError.source = parsedResponseBody?.source;
   return requestError;
 }
 

@@ -87,6 +87,14 @@ const ordersEs = {
       refundConfirm: "Procesar reembolso",
       refundSuccess: "Orden reembolsada exitosamente",
       refundError: "Error al procesar el reembolso",
+      refundErrors: {
+        orderNotPaid: "Solo se pueden reembolsar órdenes pagadas",
+        noBitcoinPayment: "Esta orden no tiene un pago en Bitcoin para reembolsar vía Lightning",
+        refundInvoiceMissingAmount: "La invoice de reembolso debe especificar un monto",
+        refundInvoiceAmountMismatch: "El monto de la invoice de reembolso no coincide con el monto adeudado",
+        alreadyRefunded: "La orden ya fue reembolsada",
+        unknown: "Error al procesar el reembolso",
+      },
     },
   },
 };

@@ -87,6 +87,14 @@ const ordersEn = {
       refundConfirm: "Process refund",
       refundSuccess: "Order refunded successfully",
       refundError: "Failed to process refund",
+      refundErrors: {
+        orderNotPaid: "Only paid orders can be refunded",
+        noBitcoinPayment: "This order has no Bitcoin payment to refund via Lightning",
+        refundInvoiceMissingAmount: "The refund invoice must specify an amount",
+        refundInvoiceAmountMismatch: "The refund invoice amount does not match the amount owed",
+        alreadyRefunded: "Order has already been refunded",
+        unknown: "Failed to process refund",
+      },
     },
   },
 };
