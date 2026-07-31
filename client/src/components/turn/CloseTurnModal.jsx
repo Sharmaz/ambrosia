@@ -46,9 +46,10 @@ export function CloseTurnModal({
   }, [printerConfigs]);
 
   const handlePrintCorteZ = async () => {
+    if (printing) return;
     setPrinting(true);
     try {
-      const res = await printTicket({
+      const printCorteZResponse = await printTicket({
         templateName: null,
         printerType: "CUSTOMER",
         broadcast: false,
@@ -67,7 +68,8 @@ export function CloseTurnModal({
           invoice: null,
         },
       });
-      if (!res?.ok) throw new Error("print failed");
+      if (!printCorteZResponse?.ok) throw new Error("print failed");
+      addToast({ color: "success", description: shiftTranslations("printCorteZSuccess") });
     } catch {
       addToast({ color: "danger", description: shiftTranslations("printCorteZError") });
     } finally {
@@ -116,8 +118,8 @@ export function CloseTurnModal({
               minValue={0}
               value={finalAmount}
               onValueChange={(value) => setFinalAmount(value ?? 0)}
-              onChange={(e) => {
-                if (e?.target) setFinalAmount(parseFloat(e.target.value) || 0);
+              onChange={(changeEvent) => {
+                if (changeEvent?.target) setFinalAmount(parseFloat(changeEvent.target.value) || 0);
               }}
               step={0.10}
               classNames={{ inputWrapper: "shadow-none" }}
