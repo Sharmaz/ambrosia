@@ -59,6 +59,9 @@ class HandlerNwcExceptionTest {
         val response = responseForThrowing(UnsupportedBackendOperationException("Seed export is not available with NWC backend"))
 
         assertEquals(HttpStatusCode.NotImplemented, response.status)
-        assertEquals("""{"message":"Seed export is not available with NWC backend"}""", response.body)
+        assertEquals(
+            """{"message":"Seed export is not available with NWC backend","code":"unsupported_operation","source":"ambrosia"}""",
+            response.body,
+        )
     }
 }

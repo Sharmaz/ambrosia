@@ -179,6 +179,32 @@ class NwcServiceTest {
             assertEquals(42L, response.recipientAmountSat)
         }
 
+    @Test
+    fun `payInvoice wraps a service error as UnsupportedBackendOperationException when an amount override was requested`() {
+        runBlocking {
+            whenever(mockClient.payInvoice(any(), any())).thenThrow(
+                NwcServiceException("NWC pay_invoice failed: [INTERNAL] 0-amount invoices not supported"),
+            )
+
+            assertFailsWith<UnsupportedBackendOperationException> {
+                service.payInvoice(PayInvoiceRequest(invoice = "lnbc...", amountSat = 42L))
+            }
+        }
+    }
+
+    @Test
+    fun `payInvoice propagates the original service error when no amount override was requested`() {
+        runBlocking {
+            whenever(mockClient.payInvoice(any(), isNull())).thenThrow(
+                NwcServiceException("NWC pay_invoice failed: [PAYMENT_FAILED] no route"),
+            )
+
+            assertFailsWith<NwcServiceException> {
+                service.payInvoice(PayInvoiceRequest(invoice = "lnbc...", amountSat = null))
+            }
+        }
+    }
+
     // endregion
 
     // region listIncomingPayments / listOutgoingPayments — regression for I1 (feesPaid was 1000x too large)

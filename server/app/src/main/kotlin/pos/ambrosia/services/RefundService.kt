@@ -119,7 +119,12 @@ class RefundService(
                 transaction {
                     val entity = OrderEntity.findById(orderUuid) ?: throw ResourceNotFoundException("Order not found")
                     if (entity.status == "refunded") throw OrderAlreadyRefundedException()
-                    if (entity.status != "paid") throw OrderNotRefundableException("Only paid orders can be refunded")
+                    if (entity.status != "paid") {
+                        throw OrderNotRefundableException(
+                            message = "Only paid orders can be refunded",
+                            code = "order_not_paid",
+                        )
+                    }
                     val orderItems =
                         OrderProductsTable
                             .selectAll()
@@ -135,7 +140,10 @@ class RefundService(
                 }
 
             if (request.invoice.isNotBlank() && originalSatoshiAmount == null) {
-                throw OrderNotRefundableException("This order has no Bitcoin payment to refund via Lightning")
+                throw OrderNotRefundableException(
+                    message = "This order has no Bitcoin payment to refund via Lightning",
+                    code = "no_bitcoin_payment",
+                )
             }
 
             val (satoshiAmount, paymentHash) =
@@ -181,9 +189,15 @@ class RefundService(
         val paymentHash = decodedInvoice?.paymentHash
         val invoiceAmountSat =
             decodedInvoice?.amountSat
-                ?: throw OrderNotRefundableException("The refund invoice must specify an amount")
+                ?: throw OrderNotRefundableException(
+                    message = "The refund invoice must specify an amount",
+                    code = "refund_invoice_missing_amount",
+                )
         if (invoiceAmountSat != originalSatoshiAmount) {
-            throw OrderNotRefundableException("The refund invoice amount does not match the amount owed")
+            throw OrderNotRefundableException(
+                message = "The refund invoice amount does not match the amount owed",
+                code = "refund_invoice_amount_mismatch",
+            )
         }
 
         val alreadyPaidPayment = findAlreadyPaidOutgoingPayment(paymentHash)

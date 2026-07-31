@@ -59,6 +59,8 @@ class NwcServiceException(
 
 class UnsupportedBackendOperationException(
     message: String = "Operation not supported by current Lightning backend",
+    val code: String = "unsupported_operation",
+    val source: String = "ambrosia",
 ) : RuntimeException(message)
 
 class DuplicateUserNameException(
@@ -99,8 +101,12 @@ class ProductIsBundleComponentException(
 
 class OrderAlreadyRefundedException(
     message: String = "Order has already been refunded",
+    val code: String = "already_refunded",
+    val source: String = "ambrosia",
 ) : IllegalStateException(message)
 
 class OrderNotRefundableException(
     message: String = "Order cannot be refunded",
+    val code: String = "not_refundable",
+    val source: String = "ambrosia",
 ) : IllegalStateException(message)

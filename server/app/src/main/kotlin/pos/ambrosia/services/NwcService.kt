@@ -171,7 +171,20 @@ class NwcService(
     override suspend fun payInvoice(request: PayInvoiceRequest): PaymentResponse {
         awaitReady()
         val amountMsat = request.amountSat?.let { it * 1000 }
-        val result = nwcClient.payInvoice(request.invoice, amountMsat)
+        val result =
+            try {
+                nwcClient.payInvoice(request.invoice, amountMsat)
+            } catch (exception: NwcServiceException) {
+                if (amountMsat != null) {
+                    throw UnsupportedBackendOperationException(
+                        message =
+                            "This NWC wallet could not process a payment with a specified amount for this invoice — " +
+                                "ask for one that already includes the amount",
+                        code = "amount_override_not_supported",
+                    )
+                }
+                throw exception
+            }
         val paidAmountSat =
             request.amountSat
                 ?: Bolt11Decoder.extractAmountSat(request.invoice)

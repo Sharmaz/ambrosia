@@ -2,6 +2,7 @@ package pos.ambrosia.api
 
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.Application
+import io.ktor.server.application.ApplicationCall
 import io.ktor.server.application.install
 import io.ktor.server.engine.defaultExceptionStatusCode
 import io.ktor.server.plugins.statuspages.StatusPages
@@ -37,6 +38,13 @@ import pos.ambrosia.utils.UnauthorizedApiException
 import pos.ambrosia.utils.UnsupportedBackendOperationException
 import pos.ambrosia.utils.WalletOnlyException
 import java.sql.SQLException
+
+private suspend fun ApplicationCall.respondWalletError(
+    status: HttpStatusCode,
+    message: String,
+    code: String,
+    source: String,
+) = respond(status, WalletErrorResponse(message = message, code = code, source = source))
 
 fun Application.handler() {
     install(StatusPages) {
@@ -117,14 +125,7 @@ fun Application.handler() {
         exception<PhoenixServiceException> { call, cause ->
             logger.error("Phoenix service error: ${cause.message}")
             val statusCode = cause.statusCode?.let(HttpStatusCode::fromValue) ?: HttpStatusCode.ServiceUnavailable
-            call.respond(
-                statusCode,
-                WalletErrorResponse(
-                    message = cause.message ?: "Lightning node service error",
-                    code = cause.code,
-                    source = cause.source,
-                ),
-            )
+            call.respondWalletError(statusCode, cause.message ?: "Lightning node service error", cause.code, cause.source)
         }
         exception<NwcConnectionException> { call, cause ->
             logger.error("NWC relay connection error: ${cause.message}")
@@ -136,9 +137,11 @@ fun Application.handler() {
         }
         exception<UnsupportedBackendOperationException> { call, cause ->
             logger.warn("Unsupported backend operation: ${cause.message}")
-            call.respond(
+            call.respondWalletError(
                 HttpStatusCode.NotImplemented,
-                Message(cause.message ?: "Operation not supported by current Lightning backend"),
+                cause.message ?: "Operation not supported by current Lightning backend",
+                cause.code,
+                cause.source,
             )
         }
         exception<PaymentNotConfirmedException> { call, cause ->
@@ -151,11 +154,11 @@ fun Application.handler() {
         }
         exception<OrderAlreadyRefundedException> { call, cause ->
             logger.warn("Refund attempt on already-refunded order: ${cause.message}")
-            call.respond(HttpStatusCode.Conflict, Message(cause.message ?: "Order has already been refunded"))
+            call.respondWalletError(HttpStatusCode.Conflict, cause.message ?: "Order has already been refunded", cause.code, cause.source)
         }
         exception<OrderNotRefundableException> { call, cause ->
             logger.warn("Refund rejected: ${cause.message}")
-            call.respond(HttpStatusCode.Conflict, Message(cause.message ?: "Order cannot be refunded"))
+            call.respondWalletError(HttpStatusCode.Conflict, cause.message ?: "Order cannot be refunded", cause.code, cause.source)
         }
         exception<DatabaseException> { call, cause ->
             logger.error("Database operation failed: ${cause.message}")
