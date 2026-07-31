@@ -31,6 +31,7 @@ const storeEs = {
       users: "Usuarios",
       products: "Productos",
       sales: "Ventas",
+      revenue: "Ingresos",
     },
   },
   ...usersEs,
