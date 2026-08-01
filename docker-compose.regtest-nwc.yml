@@ -1,43 +1,4 @@
-# Regtest stack for reviewing the NWC backend end-to-end without depending on
-# phoenixd (which has no regtest LSP). Topology:
-#
-#   bitcoind (regtest) ── lightningd (CLN + cln_nwc plugin) ── nostr-relay ── ambrosia-dev
-#                                                                                  │
-#                                                                              client-dev
-#
-# Quickstart:
-#
-#   1. Build and start the stack:
-#        docker compose -f docker-compose.regtest-nwc.yml up -d --build
-#
-#   2. Wait ~15s for bitcoind + lightningd to settle, then mine a few blocks so
-#      CLN can finish syncing:
-#        docker compose -f docker-compose.regtest-nwc.yml exec bitcoind \
-#          bitcoin-cli -regtest -rpcuser=ambrosia -rpcpassword=ambrosia \
-#          createwallet test 2>/dev/null || true
-#        docker compose -f docker-compose.regtest-nwc.yml exec bitcoind \
-#          bitcoin-cli -regtest -rpcuser=ambrosia -rpcpassword=ambrosia \
-#          -rpcwallet=test -generate 101
-#
-#   3. Mint a NWC connection from CLN:
-#        docker compose -f docker-compose.regtest-nwc.yml exec lightningd \
-#          lightning-cli --regtest nwc-create 1000000000 0
-#      Copy the `nostr+walletconnect://...` URI from the response.
-#
-#   4. Restart Ambrosia with the URI baked in (skips onboarding):
-#        NWC_URI="nostr+walletconnect://..." \
-#          docker compose -f docker-compose.regtest-nwc.yml up -d ambrosia-dev
-#      Or paste the URI into the onboarding wallet-backend step on
-#      http://localhost:3001 — the server hot-reloads (B3).
-#
-#   5. Exercise: open http://localhost:3001, create a cart, accept Lightning
-#      payment. The invoice round-trips CLN → cln_nwc → relay → NwcService.
-#
-# Teardown (drops the regtest blockchain too):
-#   docker compose -f docker-compose.regtest-nwc.yml down -v
-#
-# Nothing here touches your production volumes — distinct names and a separate
-# datadir for the dev DB.
+# See docker/cln-regtest-nwc/README.md for topology, quickstart, and teardown.
 
 services:
   bitcoind:
@@ -79,9 +40,6 @@ services:
       - --bitcoin-rpcpassword=ambrosia
       - --bind-addr=0.0.0.0:9735
       - --log-level=info
-      # cln_nwc has no CLI flag for the relay URL — the upstream default of
-      # wss://relay.getalby.com/v1 is rewritten to ws://nostr-relay:8080 at
-      # image-build time (see docker/cln-regtest-nwc/Dockerfile).
       - --plugin=/opt/cln_nwc/src/nwc.py
     ports:
       - "127.0.0.1:9735:9735"
