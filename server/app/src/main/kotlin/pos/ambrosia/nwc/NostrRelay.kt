@@ -42,16 +42,18 @@ class NostrRelay(
             var delayMs = 1_000L
             while (isActive) {
                 val wasConnected = connected.isCompleted
+                var connectionEstablishedThisAttempt = false
                 try {
                     httpClient.webSocket(urlString = url) {
                         session = this
+                        connectionEstablishedThisAttempt = true
                         logger.info("Connected to Nostr relay: {}", url)
                         if (!connected.isCompleted) connected.complete(Unit)
                         delayMs = 1_000L
                         try {
                             onConnected?.invoke()
-                        } catch (e: Exception) {
-                            logger.warn("onConnected callback failed: {}", e.message)
+                        } catch (exception: Exception) {
+                            logger.warn("onConnected callback failed: {}", exception.message)
                         }
                         for (frame in incoming) {
                             if (frame is Frame.Text) {
@@ -59,23 +61,21 @@ class NostrRelay(
                             }
                         }
                     }
-                } catch (e: Exception) {
+                } catch (exception: Exception) {
                     if (!connected.isCompleted) {
                         connected.completeExceptionally(
-                            NwcConnectionException("Failed to connect to relay $url: ${e.message}"),
+                            NwcConnectionException("Failed to connect to relay $url: ${exception.message}"),
                         )
                         return@launch
                     }
-                    logger.warn("Relay disconnected, retrying in {}ms: {}", delayMs, e.message)
+                    logger.warn("Relay disconnected, retrying in {}ms: {}", delayMs, exception.message)
                 } finally {
                     session = null
-                    // Only fire onDisconnect after the initial connect succeeded — failures
-                    // of the first attempt are already surfaced via connected.completeExceptionally.
-                    if (wasConnected || connected.isCompleted) {
+                    if (wasConnected || connectionEstablishedThisAttempt) {
                         try {
                             onDisconnect?.invoke()
-                        } catch (e: Exception) {
-                            logger.warn("onDisconnect callback failed: {}", e.message)
+                        } catch (exception: Exception) {
+                            logger.warn("onDisconnect callback failed: {}", exception.message)
                         }
                     }
                 }
@@ -109,8 +109,8 @@ class NostrRelay(
     }
 
     private suspend fun send(text: String) {
-        val s = session ?: throw NwcConnectionException("Not connected to relay")
-        s.send(Frame.Text(text))
+        val activeSession = session ?: throw NwcConnectionException("Not connected to relay")
+        activeSession.send(Frame.Text(text))
     }
 
     fun close() {
