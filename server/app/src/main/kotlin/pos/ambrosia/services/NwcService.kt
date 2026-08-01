@@ -40,7 +40,7 @@ import pos.ambrosia.utils.UnsupportedBackendOperationException
 import java.util.concurrent.ConcurrentHashMap
 
 private const val POLL_INTERVAL_MS = 3000L
-private const val INVOICE_TTL_MS = 3_600_000L // 1 hour
+private const val INVOICE_TTL_MS = 60 * 60 * 1000L
 
 class NwcService(
     private val nwcClient: NwcClientPort,
@@ -79,31 +79,29 @@ class NwcService(
 
     internal suspend fun pollPendingInvoices() {
         val now = System.currentTimeMillis()
-        pendingInvoices.entries.removeIf { (_, v) -> now - v.createdAt > INVOICE_TTL_MS }
+        pendingInvoices.entries.removeIf { (_, pendingInvoice) -> now - pendingInvoice.createdAt > INVOICE_TTL_MS }
 
         val entries = pendingInvoices.entries.toList()
         if (entries.isEmpty()) return
 
-        // Single round-trip for the whole batch: list settled incoming txs since the
-        // oldest still-pending invoice and reconcile against pendingInvoices.
-        val fromSec = entries.minOf { it.value.createdAt } / 1000
+        val oldestPendingInvoiceSec = entries.minOf { it.value.createdAt } / 1000
         val transactions =
             try {
                 nwcClient.listTransactions(
-                    from = fromSec,
+                    from = oldestPendingInvoiceSec,
                     type = "incoming",
                     unpaid = false,
                 )
-            } catch (e: Exception) {
-                logger.debug("Error batch-polling NWC list_transactions: {}", e.message)
+            } catch (exception: Exception) {
+                logger.debug("Error batch-polling NWC list_transactions: {}", exception.message)
                 return
             }
 
-        for (tx in transactions) {
-            val paymentHash = tx.paymentHash ?: continue
-            val settledAt = tx.settledAt ?: continue
+        for (transaction in transactions) {
+            val paymentHash = transaction.paymentHash ?: continue
+            val settledAt = transaction.settledAt ?: continue
             if (pendingInvoices.remove(paymentHash) != null) {
-                val amountSat = (tx.amount ?: 0L) / 1000
+                val amountSat = (transaction.amount ?: 0L) / 1000
                 logger.info("NWC payment detected: hash={}, amount={}sat", paymentHash, amountSat)
                 PaymentNotifier.broadcast(
                     PaymentNotification(
@@ -121,17 +119,17 @@ class NwcService(
         awaitReady()
         val amountMsat = (request.amountSat ?: 0L) * 1000
         val expiry = request.expirySeconds
-        val tx =
+        val transaction =
             nwcClient.makeInvoice(
                 amountMsat = amountMsat,
                 description = request.description,
                 expiry = expiry,
             )
         val paymentHash =
-            tx.paymentHash
+            transaction.paymentHash
                 ?: throw NwcServiceException("NWC make_invoice did not return payment_hash")
         val bolt11 =
-            tx.invoice
+            transaction.invoice
                 ?: throw NwcServiceException("NWC make_invoice did not return invoice")
 
         pendingInvoices[paymentHash] = PendingInvoice(bolt11)
@@ -146,7 +144,7 @@ class NwcService(
     override suspend fun getBalance(): PhoenixBalance {
         awaitReady()
         val balance = nwcClient.getBalance()
-        val balanceSat = balance.balance / 1000
+        val balanceSat = balance.balanceMsat / 1000
         return PhoenixBalance(balanceSat = balanceSat, feeCreditSat = 0)
     }
 
@@ -171,7 +169,7 @@ class NwcService(
     override suspend fun payInvoice(request: PayInvoiceRequest): PaymentResponse {
         awaitReady()
         val amountMsat = request.amountSat?.let { it * 1000 }
-        val result =
+        val payResult =
             try {
                 nwcClient.payInvoice(request.invoice, amountMsat)
             } catch (exception: NwcServiceException) {
@@ -192,10 +190,10 @@ class NwcService(
         val paymentHash = Bolt11Decoder.extractPaymentHash(request.invoice) ?: ""
         return PaymentResponse(
             recipientAmountSat = paidAmountSat,
-            routingFeeSat = (result.feesPaid ?: 0) / 1000,
-            paymentId = result.preimage ?: "",
+            routingFeeSat = (payResult.feesPaid ?: 0) / 1000,
+            paymentId = payResult.preimage ?: "",
             paymentHash = paymentHash,
-            paymentPreimage = result.preimage ?: "",
+            paymentPreimage = payResult.preimage ?: "",
         )
     }
 
@@ -217,16 +215,14 @@ class NwcService(
                 unpaid = if (all) true else null,
                 type = "incoming",
             )
-        return transactions.map { tx -> tx.toIncomingPayment() }
+        return transactions.map { transaction -> transaction.toIncomingPayment() }
     }
 
     override suspend fun getIncomingPayment(paymentHash: String): IncomingPayment {
         awaitReady()
-        val tx = nwcClient.lookupInvoice(paymentHash = paymentHash)
-        return tx.toIncomingPayment()
+        val transaction = nwcClient.lookupInvoice(paymentHash = paymentHash)
+        return transaction.toIncomingPayment()
     }
-
-    // --- Unsupported operations ---
 
     override suspend fun getSeed(): String = throw UnsupportedBackendOperationException("Seed export is not available with NWC backend")
 
@@ -259,7 +255,7 @@ class NwcService(
                 unpaid = if (all) true else null,
                 type = "outgoing",
             )
-        return transactions.map { tx -> tx.toOutgoingPayment() }
+        return transactions.map { transaction -> transaction.toOutgoingPayment() }
     }
 
     override suspend fun getOutgoingPayment(paymentId: String): OutgoingPayment =
@@ -299,26 +295,30 @@ class NwcService(
 
             val service = NwcService(nwcClient, connectionInfo.walletPubkeyHex, scope)
 
-            // Connect and start polling in background. Wallet routes block on
-            // service.ready until the relay handshake + subscription complete.
             scope.launch {
-                try {
-                    nwcClient.connect(scope)
-                    service.startPolling()
-                    service.markReady()
-                    logger.info("NWC backend ready")
-                } catch (e: Exception) {
-                    logger.error("Failed to initialize NWC backend: {}", e.message)
-                    service.markFailed(e)
-                }
+                connectAndMarkReady(nwcClient, service)
             }
 
             return service
         }
+
+        private suspend fun connectAndMarkReady(
+            nwcClient: NwcClientPort,
+            service: NwcService,
+        ) {
+            try {
+                nwcClient.connect(service.scope)
+                service.startPolling()
+                service.markReady()
+                logger.info("NWC backend ready")
+            } catch (exception: Exception) {
+                logger.error("Failed to initialize NWC backend: {}", exception.message)
+                service.markFailed(exception)
+            }
+        }
     }
 }
 
-// Extension functions to map NIP-47 transactions to Phoenix model types
 private fun Nip47Transaction.toIncomingPayment(): IncomingPayment {
     val amountMsat = amount ?: 0L
     val isPaid = settledAt != null

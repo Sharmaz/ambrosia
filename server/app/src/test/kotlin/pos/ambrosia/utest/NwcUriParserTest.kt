@@ -70,8 +70,6 @@ class NwcUriParserTest {
 
     @Test
     fun `when multiple relay params appear last one wins`() {
-        // Current implementation uses associate() which keeps the last duplicate key.
-        // Known limitation: NWC spec supports multiple relay fallbacks but only one is used.
         val uri =
             "nostr+walletconnect://$pubkey64" +
                 "?relay=wss%3A%2F%2Frelay1.example.com" +

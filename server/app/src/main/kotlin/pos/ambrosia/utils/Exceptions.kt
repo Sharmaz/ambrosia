@@ -48,7 +48,6 @@ class PrintTicketException(
     message: String = "Error processing print job",
 ) : RuntimeException(message)
 
-// NWC (Nostr Wallet Connect) exceptions
 class NwcConnectionException(
     message: String = "Unable to connect to NWC relay",
 ) : RuntimeException(message)

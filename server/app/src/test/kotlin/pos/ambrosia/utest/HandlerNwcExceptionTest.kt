@@ -22,7 +22,7 @@ private data class HandlerResponse(
 )
 
 private fun responseForThrowing(exception: Throwable): HandlerResponse {
-    lateinit var result: HandlerResponse
+    lateinit var capturedResponse: HandlerResponse
     testApplication {
         application {
             this@application.install(ContentNegotiation) { json() }
@@ -32,9 +32,9 @@ private fun responseForThrowing(exception: Throwable): HandlerResponse {
             }
         }
         val response = client.get("/throws")
-        result = HandlerResponse(response.status, response.bodyAsText())
+        capturedResponse = HandlerResponse(response.status, response.bodyAsText())
     }
-    return result
+    return capturedResponse
 }
 
 class HandlerNwcExceptionTest {

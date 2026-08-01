@@ -13,18 +13,18 @@ data class NwcConnectionInfo(
 fun parseNwcUri(uri: String): NwcConnectionInfo {
     require(uri.startsWith("nostr+walletconnect://")) { "Invalid NWC URI: must start with nostr+walletconnect://" }
 
-    val asHttps = uri.replaceFirst("nostr+walletconnect://", "https://")
-    val parsed = URI(asHttps)
-    val pubkey = parsed.host
+    val uriWithHttpsScheme = uri.replaceFirst("nostr+walletconnect://", "https://")
+    val parsedNwcUri = URI(uriWithHttpsScheme)
+    val pubkey = parsedNwcUri.host
     require(pubkey.length == 64) { "Invalid NWC URI: wallet pubkey must be 64 hex characters" }
 
     val params =
-        (parsed.rawQuery ?: "")
+        (parsedNwcUri.rawQuery ?: "")
             .split("&")
             .filter { it.contains("=") }
             .associate {
-                val (k, v) = it.split("=", limit = 2)
-                k to URLDecoder.decode(v, "UTF-8")
+                val (key, value) = it.split("=", limit = 2)
+                key to URLDecoder.decode(value, "UTF-8")
             }
 
     return NwcConnectionInfo(

@@ -40,24 +40,7 @@ fun createSignedEvent(
 ): NostrEvent {
     val pubkeyHex = secKey.pubKey.key.hex()
 
-    // NIP-01: event ID = SHA-256 of serialized [0, pubkey, created_at, kind, tags, content]
-    val preimage =
-        Json.encodeToString(
-            buildJsonArray {
-                add(0)
-                add(pubkeyHex)
-                add(createdAt)
-                add(kind)
-                add(
-                    buildJsonArray {
-                        tags.forEach { tag ->
-                            add(buildJsonArray { tag.forEach { add(it) } })
-                        }
-                    },
-                )
-                add(content)
-            },
-        )
+    val preimage = serializeEventForNip01Id(pubkeyHex, createdAt, kind, tags, content)
 
     val idBytes =
         MessageDigest
@@ -77,3 +60,27 @@ fun createSignedEvent(
         sig = sig.hex(),
     )
 }
+
+private fun serializeEventForNip01Id(
+    pubkeyHex: String,
+    createdAt: Long,
+    kind: Int,
+    tags: List<List<String>>,
+    content: String,
+): String =
+    Json.encodeToString(
+        buildJsonArray {
+            add(0)
+            add(pubkeyHex)
+            add(createdAt)
+            add(kind)
+            add(
+                buildJsonArray {
+                    tags.forEach { tag ->
+                        add(buildJsonArray { tag.forEach { add(it) } })
+                    }
+                },
+            )
+            add(content)
+        },
+    )

@@ -52,20 +52,17 @@ class NwcClient(
                 put("#p", buildJsonArray { add(clientPubkeyHex) })
             }
 
+        val reissueSubscriptionOnReconnect: suspend () -> Unit = {
+            relay.subscribe(subId, filter)
+            logger.info("NWC subscription (re)issued: sub={}", subId)
+        }
+
         relay.connect(
             scope,
-            // Re-emit the NIP-47 response subscription on every (re)connection — the relay
-            // forgets filters after disconnect, so without this, responses are lost on reconnect.
-            onConnected = {
-                relay.subscribe(subId, filter)
-                logger.info("NWC subscription (re)issued: sub={}", subId)
-            },
-            // Fail in-flight requests immediately instead of letting them sit in the map
-            // until their 30s timeout — the relay drop means none of them can complete.
-            onDisconnect = { cancelPendingRequests() },
+            onConnected = reissueSubscriptionOnReconnect,
+            onDisconnect = ::cancelPendingRequests,
         )
 
-        // Process incoming relay messages
         scope.launch {
             relay.messages.collect { message -> handleRelayMessage(message) }
         }
@@ -105,19 +102,16 @@ class NwcClient(
 
     private fun handleResponseEvent(event: NostrEvent) {
         try {
-            // Find the 'e' tag that references the request event ID
             val requestId = event.tags.find { it.firstOrNull() == "e" }?.getOrNull(1)
             if (requestId == null) {
                 logger.debug("NWC response event missing 'e' tag, ignoring")
                 return
             }
 
-            // Decrypt the NIP-04 encrypted content
             val cipherText = CipherText.parse(event.content)
-            val plaintext = cipherText.decipher(walletPubKey, clientSecKey)
-            val response = Json.decodeFromString<Nip47Response>(plaintext)
+            val nip04Plaintext = cipherText.decipher(walletPubKey, clientSecKey)
+            val response = Json.decodeFromString<Nip47Response>(nip04Plaintext)
 
-            // Route to pending request
             val deferred = pendingRequests.remove(requestId)
             if (deferred != null) {
                 deferred.complete(response)
@@ -135,15 +129,13 @@ class NwcClient(
     ): Nip47Response {
         val requestJson = Json.encodeToString(Nip47Request.serializer(), Nip47Request(method, params))
 
-        // NIP-04 encrypt the request
-        val encrypted = clientSecKey.encrypt(walletPubKey, requestJson)
+        val nip04Encrypted = clientSecKey.encrypt(walletPubKey, requestJson)
 
-        // Create and sign the NWC request event (kind 23194)
         val event =
             createSignedEvent(
                 secKey = clientSecKey,
                 kind = NWC_REQUEST_KIND,
-                content = encrypted.toString(),
+                content = nip04Encrypted.toString(),
                 tags = listOf(listOf("p", connectionInfo.walletPubkeyHex)),
             )
 

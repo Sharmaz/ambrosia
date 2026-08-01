@@ -14,7 +14,7 @@ object Bolt11Decoder {
         return try {
             val parsedInvoice = Bolt11Invoice.read(invoice).get()
             parsedInvoice.description
-        } catch (e: Exception) {
+        } catch (exception: Exception) {
             null
         }
     }
@@ -28,7 +28,7 @@ object Bolt11Decoder {
                 description = parsedInvoice.description,
                 paymentHash = parsedInvoice.paymentHash.toString(),
             )
-        } catch (e: Exception) {
+        } catch (exception: Exception) {
             null
         }
     }
@@ -36,9 +36,9 @@ object Bolt11Decoder {
     fun extractAmountSat(invoice: String?): Long? {
         if (invoice.isNullOrBlank()) return null
         return try {
-            val parsed = Bolt11Invoice.read(invoice).get()
-            parsed.amount?.msat?.div(1000)
-        } catch (e: Exception) {
+            val parsedInvoice = Bolt11Invoice.read(invoice).get()
+            parsedInvoice.amount?.msat?.div(1000)
+        } catch (exception: Exception) {
             null
         }
     }
@@ -46,9 +46,9 @@ object Bolt11Decoder {
     fun extractPaymentHash(invoice: String?): String? {
         if (invoice.isNullOrBlank()) return null
         return try {
-            val parsed = Bolt11Invoice.read(invoice).get()
-            parsed.paymentHash.toHex()
-        } catch (e: Exception) {
+            val parsedInvoice = Bolt11Invoice.read(invoice).get()
+            parsedInvoice.paymentHash.toHex()
+        } catch (exception: Exception) {
             null
         }
     }

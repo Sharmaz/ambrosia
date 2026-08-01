@@ -33,8 +33,6 @@ class NwcServiceTest {
     private val walletPubkey = "b889ff5b1513b641e2a139f661a661364979c5beee91842f8f0ef42ab558e9d4"
     private val service = NwcService(mockClient, walletPubkey, CoroutineScope(SupervisorJob())).also { it.markReady() }
 
-    // region createInvoice
-
     @Test
     fun `createInvoice returns paymentHash and bolt11 from NWC client`() =
         runBlocking {
@@ -86,24 +84,16 @@ class NwcServiceTest {
             }
         }
 
-    // endregion
-
-    // region getBalance
-
     @Test
     fun `getBalance converts millisats to sats`() =
         runBlocking {
-            whenever(mockClient.getBalance()).thenReturn(Nip47Balance(balance = 42_340_000L))
+            whenever(mockClient.getBalance()).thenReturn(Nip47Balance(balanceMsat = 42_340_000L))
 
             val balance = service.getBalance()
 
             assertEquals(42_340L, balance.balanceSat)
             assertEquals(0L, balance.feeCreditSat)
         }
-
-    // endregion
-
-    // region getNodeInfo
 
     @Test
     fun `getNodeInfo uses wallet pubkey as fallback when NWC omits it`() =
@@ -149,10 +139,6 @@ class NwcServiceTest {
                 .verify(mockClient, org.mockito.kotlin.never())
                 .getBalance()
         }
-
-    // endregion
-
-    // region payInvoice
 
     @Test
     fun `payInvoice converts fee from millisats to sats`() =
@@ -205,10 +191,6 @@ class NwcServiceTest {
         }
     }
 
-    // endregion
-
-    // region listIncomingPayments / listOutgoingPayments — regression for I1 (feesPaid was 1000x too large)
-
     @Test
     fun `listIncomingPayments converts feesPaid from millisats to sats`() =
         runBlocking {
@@ -217,8 +199,8 @@ class NwcServiceTest {
                     Nip47Transaction(
                         type = "incoming",
                         paymentHash = "hash1",
-                        amount = 10_000_000L, // 10 000 sat in msat
-                        feesPaid = 1_000L, // 1 sat in msat — must not appear as 1000
+                        amount = 10_000L * 1000,
+                        feesPaid = 1L * 1000,
                         settledAt = 1700000000L,
                     ),
                 ),
@@ -227,7 +209,7 @@ class NwcServiceTest {
             val payments = service.listIncomingPayments(from = 0, to = null, limit = 20, offset = 0, all = false, externalId = null)
 
             assertEquals(1, payments.size)
-            assertEquals(1L, payments[0].fees) // 1 000 msat → 1 sat
+            assertEquals(1L, payments[0].fees)
         }
 
     @Test
@@ -238,8 +220,8 @@ class NwcServiceTest {
                     Nip47Transaction(
                         type = "outgoing",
                         paymentHash = "hash2",
-                        amount = 5_000_000L, // 5 000 sat in msat
-                        feesPaid = 3_000L, // 3 sat in msat
+                        amount = 5_000L * 1000,
+                        feesPaid = 3L * 1000,
                         settledAt = 1700000001L,
                     ),
                 ),
@@ -248,10 +230,8 @@ class NwcServiceTest {
             val payments = service.listOutgoingPayments(from = 0, to = null, limit = 20, offset = 0, all = false)
 
             assertEquals(1, payments.size)
-            assertEquals(3L, payments[0].fees) // 3 000 msat → 3 sat
+            assertEquals(3L, payments[0].fees)
         }
-
-    // endregion
 
     @Test
     fun `listIncomingPayments converts NIP-47 timestamps from seconds to milliseconds`() =
@@ -297,8 +277,6 @@ class NwcServiceTest {
             assertEquals(1699999001000L, payments[0].createdAt)
         }
 
-    // region invoice polling — batched via list_transactions (I6 regression)
-
     @Test
     fun `pollPendingInvoices removes settled invoices found in batch list_transactions`() {
         runBlocking {
@@ -311,9 +289,6 @@ class NwcServiceTest {
 
             service.createInvoice(CreateInvoiceRequest(amountSat = 10, description = ""))
             service.pollPendingInvoices()
-
-            // After settlement the entry is gone, so next poll has no pending entries
-            // and must short-circuit before calling list_transactions again.
             service.pollPendingInvoices()
             verify(mockClient, org.mockito.kotlin.times(1)).listTransactions(
                 anyOrNull(),
@@ -332,7 +307,6 @@ class NwcServiceTest {
             whenever(mockClient.makeInvoice(any(), any(), anyOrNull())).thenReturn(
                 Nip47Transaction(paymentHash = "pending_hash", invoice = "lnbc..."),
             )
-            // list_transactions returns no settled tx for our pending invoice
             whenever(mockClient.listTransactions(anyOrNull(), anyOrNull(), anyOrNull(), anyOrNull(), anyOrNull(), anyOrNull())).thenReturn(
                 emptyList(),
             )
@@ -341,7 +315,6 @@ class NwcServiceTest {
             service.pollPendingInvoices()
             service.pollPendingInvoices()
 
-            // Both polls hit list_transactions — exactly one round-trip per cycle, not N.
             verify(mockClient, org.mockito.kotlin.times(2)).listTransactions(
                 anyOrNull(),
                 anyOrNull(),
@@ -367,7 +340,6 @@ class NwcServiceTest {
             repeat(3) { service.createInvoice(CreateInvoiceRequest(amountSat = 10, description = "")) }
             service.pollPendingInvoices()
 
-            // The whole point of I6: one round-trip even with 3 pending invoices.
             verify(mockClient, org.mockito.kotlin.times(1)).listTransactions(
                 anyOrNull(),
                 anyOrNull(),
@@ -378,10 +350,6 @@ class NwcServiceTest {
             )
         }
     }
-
-    // endregion
-
-    // region unsupported operations
 
     @Test
     fun `getSeed throws UnsupportedBackendOperationException`() {
@@ -423,10 +391,6 @@ class NwcServiceTest {
         }
     }
 
-    // endregion
-
-    // region readiness gate (I4)
-
     @Test
     fun `routes block until backend is ready and surface the failure when init fails`() =
         runBlocking<Unit> {
@@ -439,10 +403,6 @@ class NwcServiceTest {
             assertEquals("relay handshake failed", thrown.message)
         }
 
-    // endregion
-
-    // region resource cleanup (I2)
-
     @Test
     fun `close cancels coroutine scope and closes underlying NWC client`() {
         val client: NwcClientPort = mock()
@@ -454,6 +414,4 @@ class NwcServiceTest {
         verify(client).close()
         assertEquals(false, scope.isActive)
     }
-
-    // endregion
 }

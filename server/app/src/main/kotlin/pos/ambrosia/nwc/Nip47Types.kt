@@ -4,14 +4,12 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonObject
 
-// NIP-47 request sent from client to wallet service
 @Serializable
 data class Nip47Request(
     val method: String,
     val params: JsonObject,
 )
 
-// NIP-47 response from wallet service to client
 @Serializable
 data class Nip47Response(
     @SerialName("result_type")
@@ -26,7 +24,6 @@ data class Nip47Error(
     val message: String,
 )
 
-// NIP-47 make_invoice result
 @Serializable
 data class Nip47Transaction(
     val type: String? = null,
@@ -46,14 +43,12 @@ data class Nip47Transaction(
     val settledAt: Long? = null,
 )
 
-// NIP-47 get_balance result
 @Serializable
 data class Nip47Balance(
-    // in millisats
-    val balance: Long,
+    @SerialName("balance")
+    val balanceMsat: Long,
 )
 
-// NIP-47 get_info result
 @Serializable
 data class Nip47Info(
     val pubkey: String? = null,
@@ -62,7 +57,6 @@ data class Nip47Info(
     val blockHeight: Int? = null,
 )
 
-// NIP-47 pay_invoice result
 @Serializable
 data class Nip47PayResult(
     val preimage: String? = null,
