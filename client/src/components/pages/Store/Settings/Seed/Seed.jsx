@@ -98,7 +98,7 @@ export function Seed() {
     <SeedCardLocked
       onReveal={() => setShowAccess(true)}
       disabled={!seedSupported}
-      t={t}
+      seedCardTranslations={t}
     />
   );
 }
