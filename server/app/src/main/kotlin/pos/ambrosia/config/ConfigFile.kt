@@ -11,8 +11,8 @@ fun readConfFile(confFile: Path): List<Pair<String, String>> =
             SystemFileSystem.source(confFile).buffered().use {
                 while (true) {
                     val line = it.readLine() ?: break
-                    val idx = line.indexOf('=')
-                    if (idx > 0) add(line.substring(0, idx) to line.substring(idx + 1))
+                    val equalsIndex = line.indexOf('=')
+                    if (equalsIndex > 0) add(line.substring(0, equalsIndex) to line.substring(equalsIndex + 1))
                 }
             }
         }
