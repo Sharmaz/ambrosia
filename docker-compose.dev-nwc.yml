@@ -10,7 +10,6 @@
 #   docker compose -f docker-compose.dev-nwc.yml down -v
 #
 # Frontend: included as client-dev service with hot-reload via bind mount
-# Nuke: docker compose -f docker-compose.dev-nwc.yml down -v  (safe, no prod volumes)
 
 services:
   client-dev:
