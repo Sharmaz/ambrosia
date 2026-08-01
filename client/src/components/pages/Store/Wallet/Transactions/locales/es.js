@@ -56,7 +56,7 @@ const transactionsEs = {
         invalidInvoice: "La factura Lightning no es válida",
         insufficientFunds: "No hay fondos suficientes para realizar este pago",
         nodeUnavailable: "El nodo Lightning no está disponible en este momento",
-        amountOverrideNotSupported: "Esta wallet no puede procesar un pago con un monto específico para esta invoice — pedí una invoice que ya incluya el monto",
+        amountOverrideNotSupported: "Esta wallet no puede procesar un pago con un monto específico para esta factura — pedí una factura que ya incluya el monto",
         unknown: "No se pudo procesar el pago",
       },
       closeButton: "Cerrar",
