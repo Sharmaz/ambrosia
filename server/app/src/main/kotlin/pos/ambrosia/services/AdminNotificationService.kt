@@ -56,7 +56,7 @@ class AdminNotificationService(
     private val defaultNotificationCategories = listOf(AdminNotificationCategories.WALLET)
 
     fun createNotification(event: AdminNotificationEvent): AdminNotificationCreateResult {
-        val notificationCreation =
+        val notificationCreationContext =
             transaction {
                 event.dedupeKey?.let { dedupeKey ->
                     val existingNotification =
@@ -67,7 +67,7 @@ class AdminNotificationService(
                     if (existingNotification != null) {
                         logger.info("Skipping duplicate admin notification with dedupeKey=$dedupeKey")
                         return@transaction AdminNotificationCreation(
-                            result =
+                            createResult =
                                 AdminNotificationCreateResult(
                                     notificationId = existingNotification.id.value.toString(),
                                     recipientCount = 0,
@@ -79,8 +79,8 @@ class AdminNotificationService(
                     }
                 }
 
-                val now = Instant.now().toString()
-                val notification =
+                val currentTimestamp = Instant.now().toString()
+                val adminNotificationEntity =
                     AdminNotificationEntity.new(UUID.randomUUID()) {
                         category = event.category
                         type = event.type
@@ -91,63 +91,63 @@ class AdminNotificationService(
                         actorRole = event.actorRole
                         status = event.status
                         occurredAt = event.occurredAt
-                        createdAt = now
+                        createdAt = currentTimestamp
                         dedupeKey = event.dedupeKey
                         metadataJson = event.metadataJson
                     }
 
                 val activeAdminUserIds =
                     activeAdminUserIds()
-                        .onEach { adminUserId -> ensurePreference(adminUserId, event.category, now) }
-                val liveDeliveries = mutableListOf<AdminNotificationLiveDelivery>()
+                        .onEach { adminUserId -> ensurePreference(adminUserId, event.category, currentTimestamp) }
+                val liveNotificationDeliveries = mutableListOf<AdminNotificationLiveDelivery>()
                 val recipientCount =
                     activeAdminUserIds
                         .onEach { adminUserId ->
-                            AdminNotificationReceiptsTable.insert {
-                                it[notificationId] = notification.id
-                                it[AdminNotificationReceiptsTable.adminUserId] = adminUserId
-                                it[readAt] = null
-                                it[deletedAt] = null
-                                it[createdAt] = now
+                            AdminNotificationReceiptsTable.insert { receiptRow ->
+                                receiptRow[notificationId] = adminNotificationEntity.id
+                                receiptRow[AdminNotificationReceiptsTable.adminUserId] = adminUserId
+                                receiptRow[readAt] = null
+                                receiptRow[deletedAt] = null
+                                receiptRow[createdAt] = currentTimestamp
                             }
-                            liveDeliveries.add(
+                            liveNotificationDeliveries.add(
                                 AdminNotificationLiveDelivery(
                                     adminUserId = adminUserId.value.toString(),
                                     notification =
-                                        notification.toNotification(
+                                        adminNotificationEntity.toNotification(
                                             readAt = null,
                                         ),
                                 ),
                             )
                         }.size
-                val pushSubscriptions =
+                val enabledPushSubscriptions =
                     activeAdminUserIds
-                        .filter { adminUserId -> isPushEnabled(adminUserId, event.category, now) }
+                        .filter { adminUserId -> isPushEnabled(adminUserId, event.category, currentTimestamp) }
                         .flatMap { adminUserId -> activePushSubscriptions(adminUserId) }
 
                 logger.info(
-                    "Created admin notification id=${notification.id.value}, category=${event.category}, type=${event.type}, recipients=$recipientCount",
+                    "Created admin notification id=${adminNotificationEntity.id.value}, category=${event.category}, type=${event.type}, recipients=$recipientCount",
                 )
 
                 AdminNotificationCreation(
-                    result =
+                    createResult =
                         AdminNotificationCreateResult(
-                            notificationId = notification.id.value.toString(),
+                            notificationId = adminNotificationEntity.id.value.toString(),
                             recipientCount = recipientCount,
                             created = true,
                         ),
-                    pushSubscriptions = pushSubscriptions,
+                    pushSubscriptions = enabledPushSubscriptions,
                     pushPayload = event.toWebPushPayload(),
-                    liveDeliveries = liveDeliveries,
+                    liveDeliveries = liveNotificationDeliveries,
                 )
             }
 
         dispatchPushNotifications(
-            pushSubscriptions = notificationCreation.pushSubscriptions,
-            pushPayload = notificationCreation.pushPayload,
+            pushSubscriptions = notificationCreationContext.pushSubscriptions,
+            pushPayload = notificationCreationContext.pushPayload,
         )
-        publishLiveNotifications(notificationCreation.liveDeliveries)
-        return notificationCreation.result
+        publishLiveNotifications(notificationCreationContext.liveDeliveries)
+        return notificationCreationContext.createResult
     }
 
     fun getNotifications(
@@ -161,7 +161,7 @@ class AdminNotificationService(
             val adminEntityId = EntityID(UUID.fromString(adminUserId), UsersTable)
             val boundedLimit = limit.coerceIn(1, 100)
             val boundedOffset = offset.coerceIn(0, Int.MAX_VALUE.toLong()).toInt()
-            val baseCondition =
+            val baseReceiptVisibilityCondition =
                 if (unreadOnly) {
                     (AdminNotificationReceiptsTable.adminUserId eq adminEntityId) and
                         AdminNotificationReceiptsTable.deletedAt.isNull() and
@@ -170,15 +170,18 @@ class AdminNotificationService(
                     (AdminNotificationReceiptsTable.adminUserId eq adminEntityId) and
                         AdminNotificationReceiptsTable.deletedAt.isNull()
                 }
-            val condition =
+            val notificationVisibilityCondition =
                 category
                     ?.takeIf { it.isNotBlank() }
-                    ?.let { baseCondition and (AdminNotificationsTable.category eq it) }
-                    ?: baseCondition
+                    ?.let { requestedCategory ->
+                        baseReceiptVisibilityCondition and
+                            (AdminNotificationsTable.category eq requestedCategory)
+                    }
+                    ?: baseReceiptVisibilityCondition
 
             (AdminNotificationReceiptsTable innerJoin AdminNotificationsTable)
                 .selectAll()
-                .where { condition }
+                .where { notificationVisibilityCondition }
                 .orderBy(AdminNotificationsTable.createdAt, SortOrder.DESC)
                 .map { row ->
                     AdminNotification(
@@ -205,7 +208,7 @@ class AdminNotificationService(
         notificationId: String,
     ): Boolean =
         transaction {
-            val now = Instant.now().toString()
+            val deletedTimestamp = Instant.now().toString()
             val adminEntityId = EntityID(UUID.fromString(adminUserId), UsersTable)
             val notificationEntityId = EntityID(UUID.fromString(notificationId), AdminNotificationsTable)
             val deletedCount =
@@ -214,7 +217,7 @@ class AdminNotificationService(
                         (AdminNotificationReceiptsTable.notificationId eq notificationEntityId) and
                         AdminNotificationReceiptsTable.deletedAt.isNull()
                 }) {
-                    it[deletedAt] = now
+                    it[deletedAt] = deletedTimestamp
                 }
             deletedCount > 0
         }
@@ -245,19 +248,19 @@ class AdminNotificationService(
         notificationId: String,
     ): Boolean =
         transaction {
-            val now = Instant.now().toString()
+            val readTimestamp = Instant.now().toString()
             val adminEntityId = EntityID(UUID.fromString(adminUserId), UsersTable)
             val notificationEntityId = EntityID(UUID.fromString(notificationId), AdminNotificationsTable)
-            val updated =
+            val markedReadCount =
                 AdminNotificationReceiptsTable.update({
                     (AdminNotificationReceiptsTable.adminUserId eq adminEntityId) and
                         (AdminNotificationReceiptsTable.notificationId eq notificationEntityId) and
                         AdminNotificationReceiptsTable.deletedAt.isNull() and
                         AdminNotificationReceiptsTable.readAt.isNull()
                 }) {
-                    it[readAt] = now
+                    it[readAt] = readTimestamp
                 }
-            updated > 0
+            markedReadCount > 0
         }
 
     fun markAllRead(
@@ -266,6 +269,7 @@ class AdminNotificationService(
     ): Int =
         transaction {
             val adminEntityId = EntityID(UUID.fromString(adminUserId), UsersTable)
+            val readTimestamp = Instant.now().toString()
             val unreadNotificationIds =
                 unreadReceiptQuery(adminEntityId, category)
                     .map { it[AdminNotificationReceiptsTable.notificationId] }
@@ -276,7 +280,7 @@ class AdminNotificationService(
                         (AdminNotificationReceiptsTable.notificationId eq notificationId) and
                         AdminNotificationReceiptsTable.readAt.isNull()
                 }) {
-                    it[readAt] = Instant.now().toString()
+                    it[readAt] = readTimestamp
                 }
             }
         }
@@ -308,9 +312,9 @@ class AdminNotificationService(
         preference: AdminNotificationPreferences,
     ): AdminNotificationPreferencesResponse =
         transaction {
-            val now = Instant.now().toString()
+            val preferenceUpdatedTimestamp = Instant.now().toString()
             val adminEntityId = EntityID(UUID.fromString(adminUserId), UsersTable)
-            ensurePreference(adminEntityId, preference.category, now)
+            ensurePreference(adminEntityId, preference.category, preferenceUpdatedTimestamp)
 
             AdminNotificationPreferencesTable.update({
                 (AdminNotificationPreferencesTable.adminUserId eq adminEntityId) and
@@ -318,7 +322,7 @@ class AdminNotificationService(
             }) {
                 it[inAppEnabled] = preference.inAppEnabled
                 it[pushEnabled] = preference.pushEnabled
-                it[updatedAt] = now
+                it[updatedAt] = preferenceUpdatedTimestamp
             }
 
             AdminNotificationPreferencesTable
@@ -343,14 +347,14 @@ class AdminNotificationService(
         request: WebPushSubscriptionRequest,
     ): WebPushSubscriptionResponse =
         transaction {
-            val now = Instant.now().toString()
+            val subscriptionUpdatedTimestamp = Instant.now().toString()
             val adminEntityId = EntityID(UUID.fromString(adminUserId), UsersTable)
             val existingSubscription =
                 PushSubscriptionEntity
                     .find { PushSubscriptionsTable.endpoint eq request.endpoint }
                     .firstOrNull()
 
-            val subscription =
+            val pushSubscriptionEntity =
                 if (existingSubscription == null) {
                     PushSubscriptionEntity.new(UUID.randomUUID()) {
                         this.adminUserId = adminEntityId
@@ -358,8 +362,8 @@ class AdminNotificationService(
                         p256dh = request.keys.p256dh
                         auth = request.keys.auth
                         userAgent = request.userAgent
-                        createdAt = now
-                        updatedAt = now
+                        createdAt = subscriptionUpdatedTimestamp
+                        updatedAt = subscriptionUpdatedTimestamp
                         revokedAt = null
                     }
                 } else {
@@ -369,12 +373,12 @@ class AdminNotificationService(
                         p256dh = request.keys.p256dh
                         auth = request.keys.auth
                         userAgent = request.userAgent
-                        updatedAt = now
+                        updatedAt = subscriptionUpdatedTimestamp
                         revokedAt = null
                     }
                 }
 
-            subscription.toResponse()
+            pushSubscriptionEntity.toResponse()
         }
 
     fun revokePushSubscription(
@@ -400,14 +404,14 @@ class AdminNotificationService(
         category: String,
         now: String,
     ): Boolean {
-        val existingPreference = findPreference(adminUserId, category)
+        val existingNotificationPreference = findPreference(adminUserId, category)
 
-        if (existingPreference == null) {
+        if (existingNotificationPreference == null) {
             insertDefaultPreference(adminUserId, category, now)
             return true
         }
 
-        return existingPreference[AdminNotificationPreferencesTable.pushEnabled]
+        return existingNotificationPreference[AdminNotificationPreferencesTable.pushEnabled]
     }
 
     private fun ensurePreference(
@@ -435,13 +439,13 @@ class AdminNotificationService(
         category: String,
         now: String,
     ) {
-        AdminNotificationPreferencesTable.insert {
-            it[AdminNotificationPreferencesTable.adminUserId] = adminUserId
-            it[AdminNotificationPreferencesTable.category] = category
-            it[inAppEnabled] = true
-            it[pushEnabled] = true
-            it[createdAt] = now
-            it[updatedAt] = now
+        AdminNotificationPreferencesTable.insert { preferenceRow ->
+            preferenceRow[AdminNotificationPreferencesTable.adminUserId] = adminUserId
+            preferenceRow[AdminNotificationPreferencesTable.category] = category
+            preferenceRow[inAppEnabled] = true
+            preferenceRow[pushEnabled] = true
+            preferenceRow[createdAt] = now
+            preferenceRow[updatedAt] = now
         }
     }
 
@@ -449,37 +453,43 @@ class AdminNotificationService(
         adminUserId: EntityID<UUID>,
         category: String?,
     ): Query {
-        val baseCondition =
+        val baseUnreadReceiptCondition =
             (AdminNotificationReceiptsTable.adminUserId eq adminUserId) and
                 AdminNotificationReceiptsTable.deletedAt.isNull() and
                 AdminNotificationReceiptsTable.readAt.isNull()
-        val condition =
+        val unreadReceiptCondition =
             category
                 ?.takeIf { it.isNotBlank() }
-                ?.let { baseCondition and (AdminNotificationsTable.category eq it) }
-                ?: baseCondition
+                ?.let { requestedCategory ->
+                    baseUnreadReceiptCondition and
+                        (AdminNotificationsTable.category eq requestedCategory)
+                }
+                ?: baseUnreadReceiptCondition
 
         return (AdminNotificationReceiptsTable innerJoin AdminNotificationsTable)
             .selectAll()
-            .where { condition }
+            .where { unreadReceiptCondition }
     }
 
     private fun visibleReceiptQuery(
         adminUserId: EntityID<UUID>,
         category: String?,
     ): Query {
-        val baseCondition =
+        val baseVisibleReceiptCondition =
             (AdminNotificationReceiptsTable.adminUserId eq adminUserId) and
                 AdminNotificationReceiptsTable.deletedAt.isNull()
-        val condition =
+        val visibleReceiptCondition =
             category
                 ?.takeIf { it.isNotBlank() }
-                ?.let { baseCondition and (AdminNotificationsTable.category eq it) }
-                ?: baseCondition
+                ?.let { requestedCategory ->
+                    baseVisibleReceiptCondition and
+                        (AdminNotificationsTable.category eq requestedCategory)
+                }
+                ?: baseVisibleReceiptCondition
 
         return (AdminNotificationReceiptsTable innerJoin AdminNotificationsTable)
             .selectAll()
-            .where { condition }
+            .where { visibleReceiptCondition }
     }
 
     private fun activePushSubscriptions(adminUserId: EntityID<UUID>): List<WebPushDispatchSubscription> =
@@ -488,11 +498,11 @@ class AdminNotificationService(
             .where {
                 (PushSubscriptionsTable.adminUserId eq adminUserId) and
                     PushSubscriptionsTable.revokedAt.isNull()
-            }.map {
+            }.map { pushSubscriptionRow ->
                 WebPushDispatchSubscription(
-                    endpoint = it[PushSubscriptionsTable.endpoint],
-                    p256dh = it[PushSubscriptionsTable.p256dh],
-                    auth = it[PushSubscriptionsTable.auth],
+                    endpoint = pushSubscriptionRow[PushSubscriptionsTable.endpoint],
+                    p256dh = pushSubscriptionRow[PushSubscriptionsTable.p256dh],
+                    auth = pushSubscriptionRow[PushSubscriptionsTable.auth],
                 )
             }
 
@@ -519,11 +529,11 @@ class AdminNotificationService(
     }
 
     private fun AdminNotificationEvent.webPushBody(actorLabel: String): String {
-        val eventBody = body.takeIf { it.isNotBlank() } ?: type
-        return if (eventBody.startsWith(actorLabel, ignoreCase = true)) {
-            eventBody
+        val notificationBody = body.takeIf { it.isNotBlank() } ?: type
+        return if (notificationBody.startsWith(actorLabel, ignoreCase = true)) {
+            notificationBody
         } else {
-            "$actorLabel: $eventBody"
+            "$actorLabel: $notificationBody"
         }
     }
 
@@ -554,16 +564,18 @@ class AdminNotificationService(
         endpoint: String,
         adminUserId: EntityID<UUID>? = null,
     ): Boolean {
-        val now = Instant.now().toString()
-        val baseCondition =
+        val revokedTimestamp = Instant.now().toString()
+        val baseRevocableSubscriptionCondition =
             (PushSubscriptionsTable.endpoint eq endpoint) and
                 PushSubscriptionsTable.revokedAt.isNull()
-        val condition =
-            adminUserId?.let { baseCondition and (PushSubscriptionsTable.adminUserId eq it) } ?: baseCondition
+        val revocableSubscriptionCondition =
+            adminUserId?.let { adminEntityId ->
+                baseRevocableSubscriptionCondition and (PushSubscriptionsTable.adminUserId eq adminEntityId)
+            } ?: baseRevocableSubscriptionCondition
 
-        return PushSubscriptionsTable.update({ condition }) {
-            it[revokedAt] = now
-            it[updatedAt] = now
+        return PushSubscriptionsTable.update({ revocableSubscriptionCondition }) {
+            it[revokedAt] = revokedTimestamp
+            it[updatedAt] = revokedTimestamp
         } > 0
     }
 
@@ -595,7 +607,7 @@ class AdminNotificationService(
         )
 
     private data class AdminNotificationCreation(
-        val result: AdminNotificationCreateResult,
+        val createResult: AdminNotificationCreateResult,
         val pushSubscriptions: List<WebPushDispatchSubscription>,
         val pushPayload: WebPushDispatchPayload?,
         val liveDeliveries: List<AdminNotificationLiveDelivery> = emptyList(),
