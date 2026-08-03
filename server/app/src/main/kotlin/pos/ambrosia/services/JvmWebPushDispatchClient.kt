@@ -6,6 +6,8 @@ import nl.martijndwars.webpush.Notification
 import nl.martijndwars.webpush.PushAsyncService
 import org.bouncycastle.jce.provider.BouncyCastleProvider
 import pos.ambrosia.logger
+import pos.ambrosia.models.WebPushPayloadTypes
+import pos.ambrosia.models.WebPushStatusCodes
 import java.net.URI
 import java.security.Security
 import java.util.concurrent.TimeUnit

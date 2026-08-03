@@ -10,7 +10,10 @@ import pos.ambrosia.api.PaymentNotification
 import pos.ambrosia.db.tables.RolesTable
 import pos.ambrosia.db.tables.UsersTable
 import pos.ambrosia.logger
+import pos.ambrosia.models.AdminNotificationCategories
 import pos.ambrosia.models.AdminNotificationEvent
+import pos.ambrosia.models.AdminNotificationStatuses
+import pos.ambrosia.models.WalletAdminNotificationTypes
 import pos.ambrosia.models.phoenix.CloseChannelRequest
 import pos.ambrosia.models.phoenix.CloseChannelResponse
 import pos.ambrosia.models.phoenix.PayInvoiceRequest
