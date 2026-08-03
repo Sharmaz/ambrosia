@@ -30,7 +30,8 @@ import pos.ambrosia.config.EnvVars
 import pos.ambrosia.config.InjectLogs
 import pos.ambrosia.config.ListValueSource
 import pos.ambrosia.config.SeedGenerator
-import pos.ambrosia.config.readConfFile
+import pos.ambrosia.config.readConfValues
+import pos.ambrosia.config.writeConfValues
 import pos.ambrosia.db.DatabaseConnection
 import pos.ambrosia.services.VapidKeyService
 import pos.ambrosia.services.VapidKeys
@@ -50,7 +51,6 @@ val phoenixDatadir: Path =
 fun main(args: Array<String>) = Ambrosia().main(args)
 
 class Ambrosia : CliktCommand() {
-    // En algún archivo de configuración o en Application.kt
     val appVersion: String = Ambrosia::class.java.getPackage().implementationVersion ?: "-dev"
     private val confFile = Path(datadir, "ambrosia.conf")
     private val phoenixConfFile = Path(phoenixDatadir, "phoenix.conf")
@@ -291,7 +291,7 @@ class Ambrosia : CliktCommand() {
     }
 
     private fun ensureWebPushConfig() {
-        val existingValues = readConfValues()
+        val existingValues = readConfValues(confFile)
         val environmentVapidKeys = readEnvironmentVapidKeysOrNull()
         val missingVapidConfig =
             WEB_PUSH_VAPID_CONF_KEYS.any { existingValues[it].isNullOrBlank() }
@@ -317,19 +317,12 @@ class Ambrosia : CliktCommand() {
             )
 
         if (nextValues.any { (key, value) -> existingValues[key] != value }) {
-            writeConfValues(nextValues)
+            writeConfValues(confFile, nextValues)
             if (missingVapidConfig) {
-                echo(yellow("Generated Web Push VAPID keys in ambrosia.conf"))
+                println(yellow("Generated Web Push VAPID keys in ambrosia.conf"))
             }
         }
     }
-
-    private fun readConfValues(): Map<String, String> =
-        if (!SystemFileSystem.exists(confFile)) {
-            emptyMap()
-        } else {
-            readConfFile(confFile).toMap()
-        }
 
     private fun readEnvironmentVapidKeysOrNull(): VapidKeys? {
         val publicKey = System.getenv("WEB_PUSH_VAPID_PUBLIC_KEY")?.takeIf { it.isNotBlank() }
@@ -347,28 +340,8 @@ class Ambrosia : CliktCommand() {
         return VapidKeys(publicKey = publicKey, privateKey = privateKey, subject = subject)
     }
 
-    private fun writeConfValues(nextValues: Map<String, String>) {
-        val existingLines =
-            if (SystemFileSystem.exists(confFile)) {
-                File(confFile.toString()).readLines()
-            } else {
-                emptyList()
-            }
-        val keysToReplace = nextValues.keys
-        val preservedLines =
-            existingLines.filterNot { line ->
-                val key = line.substringBefore("=", missingDelimiterValue = "")
-                key in keysToReplace
-            }
-        File(confFile.toString()).writeText(
-            (preservedLines + nextValues.map { (key, value) -> "$key=$value" })
-                .joinToString("\n")
-                .trimEnd() + "\n",
-        )
-    }
-
     private fun readRequiredConfigValue(key: String): String =
-        readConfValues()[key] ?: throw IllegalStateException("$key not found in ambrosia.conf")
+        readConfValues(confFile)[key] ?: throw IllegalStateException("$key not found in ambrosia.conf")
 
     private fun ensurePhoenixWebhookConfigured(url: String) {
         val file = File(phoenixConfFile.toString())
