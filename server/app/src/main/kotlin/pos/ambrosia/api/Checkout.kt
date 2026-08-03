@@ -11,9 +11,9 @@ import io.ktor.server.routing.route
 import io.ktor.server.routing.routing
 import pos.ambrosia.models.Message
 import pos.ambrosia.models.StoreCheckoutRequest
+import pos.ambrosia.services.ActiveLightningBackend
 import pos.ambrosia.services.CheckoutResult
 import pos.ambrosia.services.CheckoutService
-import pos.ambrosia.services.PhoenixService
 import pos.ambrosia.utils.PaymentNotConfirmedException
 import pos.ambrosia.utils.authorizePermission
 import pos.ambrosia.utils.requirePermission
@@ -21,15 +21,11 @@ import pos.ambrosia.utils.requirePermission
 private const val CHECKOUT_FAILED_MSG = "Checkout failed: check items, stock levels, and payment details"
 
 fun Application.configureCheckout() {
-    val phoenixService = PhoenixService(environment)
-    val checkoutService = CheckoutService(phoenixService)
-    routing { route("/store/orders") { checkout(checkoutService, phoenixService) } }
+    val checkoutService = CheckoutService(ActiveLightningBackend)
+    routing { route("/store/orders") { checkout(checkoutService) } }
 }
 
-fun Route.checkout(
-    checkoutService: CheckoutService,
-    phoenixService: PhoenixService,
-) {
+fun Route.checkout(checkoutService: CheckoutService) {
     authorizePermission("orders_create") {
         post("/checkout") {
             val checkoutRequest = call.receive<StoreCheckoutRequest>()
@@ -64,7 +60,7 @@ fun Route.checkout(
                 return@get
             }
 
-            val incomingPayment = runCatching { phoenixService.getIncomingPayment(paymentHash) }.getOrNull()
+            val incomingPayment = runCatching { ActiveLightningBackend.getIncomingPayment(paymentHash) }.getOrNull()
             val status = if (incomingPayment?.isPaid == true) "paid" else "pending"
             call.respond(HttpStatusCode.OK, mapOf("status" to status))
         }

@@ -33,6 +33,17 @@ describe("buildHttpError", () => {
     expect(httpRequestError.responseMessage).toBeUndefined();
   });
 
+  it("creates an Error with the backend error code and source", () => {
+    const httpRequestError = buildHttpError(
+      { status: 409 },
+      "Error refunding order",
+      { message: "Order cannot be refunded", code: "order_not_paid", source: "ambrosia" },
+    );
+
+    expect(httpRequestError.code).toBe("order_not_paid");
+    expect(httpRequestError.source).toBe("ambrosia");
+  });
+
   it("parses the response body before creating an Error", async () => {
     const failedHttpResponse = { status: 422 };
     parseJsonResponse.mockResolvedValueOnce({ message: "Invalid refund invoice" });

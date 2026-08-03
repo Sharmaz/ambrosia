@@ -13,6 +13,7 @@ import { useTranslations } from "next-intl";
 import { useBitcoinPrice } from "@/components/hooks/useBitcoinPrice";
 import { useCurrency } from "@/components/hooks/useCurrency";
 import {
+  getBalance,
   getIncomingTransactions,
   getInfo,
   getOutgoingTransactions,
@@ -28,6 +29,7 @@ export function StoreWallet() {
   const { currency } = useCurrency();
   const { currentRate } = useBitcoinPrice({ currencyAcronym: currency.acronym });
   const [info, setInfo] = useState(null);
+  const [balance, setBalance] = useState(null);
   const [transactions, setTransactions] = useState([]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -39,8 +41,9 @@ export function StoreWallet() {
 
   const fetchInfo = useCallback(async () => {
     try {
-      const res = await getInfo();
-      setInfo(res);
+      const [infoResponse, balanceResponse] = await Promise.all([getInfo(), getBalance()]);
+      setInfo(infoResponse);
+      setBalance(balanceResponse);
       setError("");
     } catch (err) {
       console.error(err);
@@ -142,6 +145,7 @@ export function StoreWallet() {
           <div className="lg:grid lg:grid-cols-2 lg:gap-6">
             <NodeInfo
               info={info}
+              balance={balance}
               onRefresh={fetchInfo}
               currentRate={currentRate}
               currencyAcronym={currency.acronym}

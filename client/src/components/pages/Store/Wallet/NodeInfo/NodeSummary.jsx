@@ -22,6 +22,7 @@ function StatCard({ icon: Icon, label, value, secondaryValue }) {
 
 export function NodeSummary({ info, totalBalance, currentRate, currencyAcronym, locale }) {
   const walletTranslations = useTranslations("wallet");
+  const isNwcBackend = info.version === "NWC";
 
   const totalBalanceFiat = currentRate != null
     ? formatFiat({
@@ -44,16 +45,20 @@ export function NodeSummary({ info, totalBalance, currentRate, currencyAcronym, 
         label={walletTranslations("nodeInfo.network")}
         value={info.chain}
       />
-      <StatCard
-        icon={Zap}
-        label={walletTranslations("nodeInfo.channels")}
-        value={info.channels?.filter((channel) => channel.state === "Normal").length ?? 0}
-      />
-      <StatCard
-        icon={Layers}
-        label={walletTranslations("nodeInfo.block")}
-        value={info.blockHeight}
-      />
+      {!isNwcBackend && (
+        <>
+          <StatCard
+            icon={Zap}
+            label={walletTranslations("nodeInfo.channels")}
+            value={info.channels?.filter((channel) => channel.state?.toUpperCase() === "NORMAL").length ?? 0}
+          />
+          <StatCard
+            icon={Layers}
+            label={walletTranslations("nodeInfo.block")}
+            value={info.blockHeight}
+          />
+        </>
+      )}
     </div>
   );
 }

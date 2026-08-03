@@ -1,9 +1,16 @@
+import { addToast } from "@heroui/react";
 import { render, screen, fireEvent, act, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { I18nProvider } from "@/i18n/I18nProvider";
+import { submitInitialSetup } from "@services/initialSetupService";
 
 import { Onboarding } from "../Onboarding";
+
+jest.mock("@heroui/react", () => ({
+  ...jest.requireActual("@heroui/react"),
+  addToast: jest.fn(),
+}));
 
 jest.mock("@services/initialSetupService", () => ({
   getInitialSetupStatus: jest.fn(() => Promise.resolve({ initialized: false, needsBusinessType: false })),
@@ -16,6 +23,53 @@ function renderOnboarding() {
       <Onboarding />
     </I18nProvider>,
   );
+}
+
+async function navigateToStep(button, targetStep) {
+  for (let i = 1; i < targetStep; i++) {
+    await act(async () => {
+      fireEvent.click(button);
+    });
+  }
+}
+
+const validNwcUri = `nostr+walletconnect://${"a".repeat(64)}?relay=wss://relay.test&secret=${"b".repeat(64)}`;
+
+async function completeOnboardingWithNwcUri(user, nwcUri) {
+  await act(async () => {
+    fireEvent.click(screen.getByText("buttons.next"));
+  });
+
+  await user.click(screen.getByText("stepWallet.nwcName"));
+  await act(async () => {
+    fireEvent.change(screen.getByPlaceholderText("nostr+walletconnect://..."), {
+      target: { value: nwcUri },
+    });
+  });
+  await act(async () => {
+    fireEvent.click(screen.getByText("buttons.next"));
+  });
+
+  await act(async () => {
+    fireEvent.change(screen.getByPlaceholderText("step2.fields.userNamePlaceholder"), { target: { value: "testuser" } });
+    fireEvent.change(screen.getByPlaceholderText("step2.fields.userPinPlaceholder"), { target: { value: "0000" } });
+    fireEvent.change(screen.getByPlaceholderText("step2.fields.passwordPlaceholder"), { target: { value: "Abcd123$" } });
+    fireEvent.change(screen.getByPlaceholderText("step2.fields.confirmPasswordPlaceholder"), { target: { value: "Abcd123$" } });
+  });
+  await act(async () => {
+    fireEvent.click(screen.getByText("buttons.next"));
+  });
+
+  await act(async () => {
+    fireEvent.change(screen.getByPlaceholderText("step3.fields.businessNamePlaceholder"), { target: { value: "My Business" } });
+  });
+  await act(async () => {
+    fireEvent.click(screen.getByText("buttons.next"));
+  });
+
+  await act(async () => {
+    fireEvent.click(screen.getByText("buttons.finish"));
+  });
 }
 
 const originalError = console.error;
@@ -96,9 +150,7 @@ describe("Onboarding Wizard", () => {
     });
 
     const nextButton = screen.getByText("buttons.next");
-    await act(async () => {
-      fireEvent.click(nextButton);
-    });
+    await navigateToStep(nextButton, 3);
 
     const userNameInput = screen.getByPlaceholderText("step2.fields.userNamePlaceholder");
     await act(async () => {
@@ -133,9 +185,7 @@ describe("Onboarding Wizard", () => {
     });
 
     const nextButton = screen.getByText("buttons.next");
-    await act(async () => {
-      fireEvent.click(nextButton);
-    });
+    await navigateToStep(nextButton, 3);
 
     const userNameInput = screen.getByPlaceholderText("step2.fields.userNamePlaceholder");
     await act(async () => {
@@ -175,9 +225,7 @@ describe("Onboarding Wizard", () => {
     });
 
     const nextButton = screen.getByText("buttons.next");
-    await act(async () => {
-      fireEvent.click(nextButton);
-    });
+    await navigateToStep(nextButton, 3);
 
     const userNameInput = screen.getByPlaceholderText("step2.fields.userNamePlaceholder");
     const userPinInput = screen.getByPlaceholderText("step2.fields.userPinPlaceholder");
@@ -262,9 +310,7 @@ describe("Onboarding Wizard", () => {
     });
 
     const nextButton = screen.getByText("buttons.next");
-    await act(async () => {
-      fireEvent.click(nextButton);
-    });
+    await navigateToStep(nextButton, 3);
 
     await act(async () => {
       const userNameInput = screen.getByPlaceholderText("step2.fields.userNamePlaceholder");
@@ -305,5 +351,45 @@ describe("Onboarding Wizard", () => {
       fireEvent.change(rfcInput, { target: { value: "GODE561231GR8" } });
     });
     expect(nextButton).not.toBeDisabled();
+  });
+
+  describe("NWC onboarding result toast", () => {
+    it("shows the NWC activated toast when the backend connects successfully", async () => {
+      submitInitialSetup.mockResolvedValueOnce({
+        json: () => Promise.resolve({ nwcSaved: true }),
+      });
+      const user = userEvent.setup();
+
+      await act(async () => {
+        renderOnboarding();
+      });
+
+      await completeOnboardingWithNwcUri(user, validNwcUri);
+
+      await waitFor(() => {
+        expect(addToast).toHaveBeenCalledWith(
+          expect.objectContaining({ title: "submitOnboardingToast.nwcSavedTitle", color: "primary" }),
+        );
+      });
+    });
+
+    it("shows an error toast when the NWC backend could not be connected", async () => {
+      submitInitialSetup.mockResolvedValueOnce({
+        json: () => Promise.resolve({ nwcSaved: false }),
+      });
+      const user = userEvent.setup();
+
+      await act(async () => {
+        renderOnboarding();
+      });
+
+      await completeOnboardingWithNwcUri(user, validNwcUri);
+
+      await waitFor(() => {
+        expect(addToast).toHaveBeenCalledWith(
+          expect.objectContaining({ title: "submitOnboardingToast.nwcErrorTitle", color: "danger" }),
+        );
+      });
+    });
   });
 });

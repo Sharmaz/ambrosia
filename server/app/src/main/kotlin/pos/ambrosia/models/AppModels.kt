@@ -2,6 +2,12 @@ package pos.ambrosia.models
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import java.time.Instant
+
+object AdminNotificationLiveEventTypes {
+    const val ADMIN_NOTIFICATION = "admin_notification"
+    const val CONNECTED = "connected"
+}
 
 @Serializable data class AuthRequest(
     val name: String,
@@ -299,6 +305,113 @@ data class Permission(
     val enabled: Boolean = true,
 )
 
+@Serializable
+data class AdminNotification(
+    val id: String,
+    val category: String,
+    val type: String,
+    val title: String,
+    val body: String,
+    val actorUserId: String? = null,
+    val actorUserName: String? = null,
+    val actorRole: String? = null,
+    val status: String? = null,
+    val occurredAt: String,
+    val createdAt: String,
+    val readAt: String? = null,
+    val metadataJson: String? = null,
+)
+
+@Serializable
+data class AdminNotificationLiveEvent(
+    val type: String = AdminNotificationLiveEventTypes.ADMIN_NOTIFICATION,
+    val notification: AdminNotification,
+)
+
+@Serializable
+data class AdminNotificationCountResponse(
+    val updated: Int? = null,
+    val deleted: Int? = null,
+)
+
+@Serializable
+data class AdminNotificationMutationResponse(
+    val id: String,
+    val read: Boolean? = null,
+    val deleted: Boolean? = null,
+)
+
+data class AdminNotificationEvent(
+    val category: String,
+    val type: String,
+    val title: String,
+    val body: String,
+    val actorUserId: String? = null,
+    val actorUserName: String? = null,
+    val actorRole: String? = null,
+    val status: String? = null,
+    val occurredAt: String = Instant.now().toString(),
+    val dedupeKey: String? = null,
+    val metadataJson: String? = null,
+)
+
+@Serializable
+data class AdminNotificationPreferences(
+    val category: String,
+    val inAppEnabled: Boolean = true,
+    val pushEnabled: Boolean = true,
+)
+
+@Serializable
+data class AdminNotificationPreferenceUpdateRequest(
+    val category: String,
+    val inAppEnabled: Boolean = true,
+    val pushEnabled: Boolean = true,
+)
+
+@Serializable
+data class AdminNotificationPreferencesResponse(
+    val adminUserId: String,
+    val category: String,
+    val inAppEnabled: Boolean,
+    val pushEnabled: Boolean,
+    val createdAt: String,
+    val updatedAt: String,
+)
+
+@Serializable
+data class WebPushKeys(
+    val p256dh: String,
+    val auth: String,
+)
+
+@Serializable
+data class WebPushSubscriptionRequest(
+    val endpoint: String,
+    val keys: WebPushKeys,
+    val userAgent: String? = null,
+)
+
+@Serializable
+data class WebPushUnsubscribeRequest(
+    val endpoint: String,
+)
+
+@Serializable
+data class WebPushSubscriptionResponse(
+    val id: String,
+    val endpoint: String,
+    val userAgent: String? = null,
+    val createdAt: String,
+    val updatedAt: String,
+    val revokedAt: String? = null,
+)
+
+@Serializable
+data class VapidPublicKeyResponse(
+    val publicKey: String,
+)
+
 @Serializable data class RolePermissionsUpdateRequest(
     val permissions: List<String>,
 )
@@ -491,6 +604,15 @@ data class InitialSetupRequest(
     val businessCurrency: String? = null,
     val businessLogo: String? = null,
     val businessLogoUrl: String? = null,
+    val nwcUri: String? = null,
+)
+
+@Serializable
+data class InitialSetupResponse(
+    val message: String,
+    val userId: String,
+    val roleId: String,
+    val nwcSaved: Boolean = false,
 )
 
 @Serializable

@@ -26,6 +26,11 @@ const mockNodeInfo = {
   version: "1.0.0",
 };
 
+const mockWalletBalance = {
+  balanceSat: 50000,
+  feeCreditSat: 0,
+};
+
 const mockIncomingTransactions = [
   {
     paymentHash: "hash1",
@@ -155,6 +160,7 @@ beforeEach(() => {
   jest.spyOn(walletService, "loginWallet").mockResolvedValue({});
   jest.spyOn(walletService, "logoutWallet").mockResolvedValue({});
   jest.spyOn(walletService, "getInfo").mockResolvedValue(mockNodeInfo);
+  jest.spyOn(walletService, "getBalance").mockResolvedValue(mockWalletBalance);
   jest.spyOn(walletService, "getIncomingTransactions").mockResolvedValue(mockIncomingTransactions);
   jest.spyOn(walletService, "getOutgoingTransactions").mockResolvedValue(mockOutgoingTransactions);
   jest.spyOn(walletService, "createInvoice").mockResolvedValue({
@@ -270,6 +276,14 @@ describe("StoreWallet Component", () => {
 
       await waitFor(() => {
         expect(screen.getByText("nodeInfo.title")).toBeInTheDocument();
+      });
+    });
+
+    it("fetches wallet balance after authentication", async () => {
+      await authenticateAndWait();
+
+      await waitFor(() => {
+        expect(walletService.getBalance).toHaveBeenCalled();
       });
     });
 
