@@ -57,6 +57,8 @@ export function RefundModal({ order, isOpen, onClose, onRefunded, formatAmount }
   }
 
   async function handleRefund() {
+    if (loading) return;
+
     if (isBtcOrder) {
       const errorMessage = getInvoiceErrorMessage(invoice, ordersTranslations);
       if (errorMessage) {
@@ -94,6 +96,8 @@ export function RefundModal({ order, isOpen, onClose, onRefunded, formatAmount }
   }
 
   function handleClose() {
+    if (loading) return;
+
     setInvoice("");
     setInvoiceError("");
     setCashGiven(0);
