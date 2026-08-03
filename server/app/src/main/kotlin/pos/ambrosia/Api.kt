@@ -19,6 +19,8 @@ import io.ktor.server.websocket.pingPeriod
 import io.ktor.server.websocket.timeout
 import kotlinx.serialization.json.Json
 import org.slf4j.LoggerFactory
+import pos.ambrosia.api.configureAdminNotifications
+import pos.ambrosia.api.configureAdminNotificationsWebsocket
 import pos.ambrosia.api.configureAuth
 import pos.ambrosia.api.configureCategories
 import pos.ambrosia.api.configureCheckout
@@ -146,6 +148,8 @@ class Api {
         }
         configureRouting()
         configureAuth()
+        configureAdminNotifications()
+        configureAdminNotificationsWebsocket()
         configureUsers()
         configureRoles()
         configurePermissions()

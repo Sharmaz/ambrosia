@@ -2,6 +2,7 @@ package pos.ambrosia.services
 
 import io.ktor.server.application.Application
 import kotlinx.coroutines.withTimeout
+import pos.ambrosia.api.PaymentNotification
 import pos.ambrosia.logger
 import pos.ambrosia.models.phoenix.CloseChannelRequest
 import pos.ambrosia.models.phoenix.CloseChannelResponse
@@ -38,8 +39,9 @@ object ActiveLightningBackend : LightningBackend, PaymentVerifier {
     suspend fun reinitializeNwcBackend(
         nwcUri: String,
         application: Application,
+        onIncomingPaymentReceived: (PaymentNotification) -> Unit = {},
     ) {
-        val newBackend = NwcService.create(nwcUri, application)
+        val newBackend = NwcService.create(nwcUri, application, onIncomingPaymentReceived)
         try {
             withTimeout(NWC_CONNECTION_TIMEOUT_MS) { newBackend.awaitReady() }
         } catch (exception: Exception) {

@@ -6,6 +6,8 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.Application
 import io.ktor.server.application.ApplicationStopping
 import io.ktor.server.auth.authenticate
+import io.ktor.server.auth.jwt.JWTPrincipal
+import io.ktor.server.auth.principal
 import io.ktor.server.plugins.origin
 import io.ktor.server.request.header
 import io.ktor.server.request.receive
@@ -15,7 +17,6 @@ import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 import io.ktor.server.routing.route
 import io.ktor.server.routing.routing
-import pos.ambrosia.logger
 import pos.ambrosia.models.IncomingPaymentWithRate
 import pos.ambrosia.models.OutgoingPaymentWithRate
 import pos.ambrosia.models.RolePassword
@@ -36,6 +37,7 @@ import pos.ambrosia.services.PaymentService
 import pos.ambrosia.services.PhoenixService
 import pos.ambrosia.services.RefundService
 import pos.ambrosia.services.TokenService
+import pos.ambrosia.services.WalletAdminNotificationService
 import pos.ambrosia.services.WalletRateService
 import pos.ambrosia.utils.Bolt11Decoder
 import pos.ambrosia.utils.InvalidCredentialsException
@@ -44,10 +46,14 @@ import pos.ambrosia.utils.getCurrentUser
 
 fun Application.configureWallet() {
     val phoenixService = PhoenixService(environment)
+    val walletAdminNotificationService =
+        WalletAdminNotificationService(createConfiguredAdminNotificationService(environment))
     val nwcUri = environment.config.propertyOrNull("nwc-uri")?.getString()
     val backend: LightningBackend =
         if (nwcUri != null) {
-            NwcService.create(nwcUri, this)
+            NwcService.create(nwcUri, this) { paymentNotification ->
+                walletAdminNotificationService.notifyIncomingPaymentReceived(paymentNotification)
+            }
         } else {
             phoenixService
         }
@@ -62,7 +68,14 @@ fun Application.configureWallet() {
 
     routing {
         route("/wallet") {
-            wallet(tokenService, authService, paymentService, walletRateService, refundService)
+            wallet(
+                tokenService,
+                authService,
+                paymentService,
+                walletRateService,
+                refundService,
+                walletAdminNotificationService,
+            )
         }
     }
 }
@@ -73,6 +86,7 @@ fun Route.wallet(
     paymentService: PaymentService,
     walletRateService: WalletRateService,
     refundService: RefundService,
+    walletAdminNotificationService: WalletAdminNotificationService,
 ) {
     authenticate("auth-jwt") {
         post("/invoice") {
@@ -148,7 +162,19 @@ fun Route.wallet(
         }
         post("/payinvoice") {
             val payInvoiceRequest = call.receive<PayInvoiceRequest>()
-            val payInvoiceResult = ActiveLightningBackend.payInvoice(payInvoiceRequest)
+            val actorUserId = call.walletActorUserId()
+            val payInvoiceResult =
+                try {
+                    ActiveLightningBackend.payInvoice(payInvoiceRequest)
+                } catch (error: Exception) {
+                    walletAdminNotificationService.notifyPaymentFailed(
+                        actorUserId,
+                        "lightning_invoice",
+                        payInvoiceRequest.amountSat,
+                        error,
+                    )
+                    throw error
+                }
             if (payInvoiceRequest.exchangeRate != null && payInvoiceRequest.exchangeRateCurrency != null) {
                 val fiatAmount =
                     (payInvoiceResult.recipientAmountSat.toDouble() / 100_000_000) * payInvoiceRequest.exchangeRate
@@ -162,21 +188,50 @@ fun Route.wallet(
                     ),
                 )
             }
+            walletAdminNotificationService.notifyInvoicePaymentSent(actorUserId, payInvoiceRequest, payInvoiceResult)
             call.respond(HttpStatusCode.OK, payInvoiceResult)
         }
         post("/payoffer") {
             val payOfferRequest = call.receive<PayOfferRequest>()
-            val payOfferResult = ActiveLightningBackend.payOffer(payOfferRequest)
+            val actorUserId = call.walletActorUserId()
+            val payOfferResult =
+                try {
+                    ActiveLightningBackend.payOffer(payOfferRequest)
+                } catch (error: Exception) {
+                    walletAdminNotificationService.notifyPaymentFailed(
+                        actorUserId,
+                        "bolt12_offer",
+                        payOfferRequest.amountSat,
+                        error,
+                    )
+                    throw error
+                }
+            walletAdminNotificationService.notifyOfferPaymentSent(actorUserId, payOfferRequest, payOfferResult)
             call.respond(HttpStatusCode.OK, payOfferResult)
         }
         post("/payonchain") {
             val payOnchainRequest = call.receive<PayOnchainRequest>()
-            val payOnchainResult = ActiveLightningBackend.payOnchain(payOnchainRequest)
+            val actorUserId = call.walletActorUserId()
+            val payOnchainResult =
+                try {
+                    ActiveLightningBackend.payOnchain(payOnchainRequest)
+                } catch (error: Exception) {
+                    walletAdminNotificationService.notifyPaymentFailed(
+                        actorUserId,
+                        "onchain",
+                        payOnchainRequest.amountSat,
+                        error,
+                    )
+                    throw error
+                }
+            walletAdminNotificationService.notifyOnchainPaymentSent(actorUserId, payOnchainRequest, payOnchainResult)
             call.respond(HttpStatusCode.OK, payOnchainResult)
         }
         post("/bumpfee") {
+            val actorUserId = call.walletActorUserId()
             val feerateSatByte = call.receive<Int>()
             val bumpOnchainFeesResult = ActiveLightningBackend.bumpOnchainFees(feerateSatByte)
+            walletAdminNotificationService.notifyFeesBumped(actorUserId, feerateSatByte.toLong(), bumpOnchainFeesResult)
             call.respond(HttpStatusCode.OK, bumpOnchainFeesResult)
         }
         post("/export") {
@@ -194,7 +249,9 @@ fun Route.wallet(
         }
         post("/closechannel") {
             val closeChannelRequest = call.receive<CloseChannelRequest>()
+            val actorUserId = call.walletActorUserId()
             val closeChannelResult = ActiveLightningBackend.closeChannel(closeChannelRequest)
+            walletAdminNotificationService.notifyChannelClosed(actorUserId, closeChannelRequest, closeChannelResult)
             call.respond(HttpStatusCode.OK, closeChannelResult)
         }
         get("/seed") {
@@ -308,3 +365,6 @@ fun Route.wallet(
         }
     }
 }
+
+private fun io.ktor.server.application.ApplicationCall.walletActorUserId(): String? =
+    principal<JWTPrincipal>()?.getClaim("userId", String::class)

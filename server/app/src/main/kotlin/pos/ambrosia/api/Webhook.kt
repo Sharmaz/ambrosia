@@ -10,6 +10,7 @@ import io.ktor.server.routing.routing
 import kotlinx.serialization.json.Json
 import pos.ambrosia.config.AppConfig
 import pos.ambrosia.logger
+import pos.ambrosia.services.WalletAdminNotificationService
 import pos.ambrosia.utils.PhoenixServiceException
 import java.security.MessageDigest
 import javax.crypto.Mac
@@ -19,10 +20,12 @@ private const val SIGNATURE_HEADER = "X-Phoenix-Signature"
 private val json = Json { ignoreUnknownKeys = true }
 
 fun Application.configurePhoenixWebhook() {
-    routing { phoenixWebhook() }
+    val walletAdminNotificationService =
+        WalletAdminNotificationService(createConfiguredAdminNotificationService(environment))
+    routing { phoenixWebhook(walletAdminNotificationService) }
 }
 
-fun Route.phoenixWebhook() {
+fun Route.phoenixWebhook(walletAdminNotificationService: WalletAdminNotificationService = WalletAdminNotificationService()) {
     post("/webhook/phoenixd") {
         val secret = call.application.getPhoenixWebhookSecret()
         if (secret.isNullOrBlank()) {
@@ -57,6 +60,7 @@ fun Route.phoenixWebhook() {
         )
 
         PaymentNotifier.broadcast(payload)
+        walletAdminNotificationService.notifyIncomingPaymentReceived(payload)
 
         call.respond(HttpStatusCode.OK, "Ok")
     }

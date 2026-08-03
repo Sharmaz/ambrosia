@@ -24,6 +24,7 @@ import pos.ambrosia.services.CurrencyService
 import pos.ambrosia.services.PermissionsService
 import pos.ambrosia.services.RolesService
 import pos.ambrosia.services.UsersService
+import pos.ambrosia.services.WalletAdminNotificationService
 import pos.ambrosia.utils.InitialSetupException
 import java.io.File
 
@@ -152,7 +153,11 @@ private fun Route.initialSetupRoutes() {
                 try {
                     File(datadir.toString(), "ambrosia.conf").appendText("\nnwc-uri=$uri\n")
                     logger.info("NWC URI saved to ambrosia.conf — hot-reloading backend")
-                    ActiveLightningBackend.reinitializeNwcBackend(uri, call.application)
+                    val walletAdminNotificationService =
+                        WalletAdminNotificationService(createConfiguredAdminNotificationService(call.application.environment))
+                    ActiveLightningBackend.reinitializeNwcBackend(uri, call.application) { paymentNotification ->
+                        walletAdminNotificationService.notifyIncomingPaymentReceived(paymentNotification)
+                    }
                     true
                 } catch (exception: Exception) {
                     logger.error("Failed to save or activate NWC URI: ${exception.message}")
