@@ -1,5 +1,5 @@
 import { addToast } from "@heroui/react";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
 
 import { httpClient, parseJsonResponse } from "@/lib/http";
 
@@ -198,6 +198,70 @@ describe("RefundModal", () => {
       expect.objectContaining({ color: "danger", description: "Order has already been refunded" }),
     ));
     expect(onRefunded).not.toHaveBeenCalled();
+  });
+
+  it("shows the translated message for a known refund error code instead of the server's raw text", async () => {
+    httpClient.mockResolvedValue({ ok: false, status: 409 });
+    parseJsonResponse.mockResolvedValueOnce({
+      message: "Only paid orders can be refunded",
+      code: "order_not_paid",
+    });
+    const onRefunded = jest.fn();
+    const order = { id: "order-1", total: 10 };
+
+    render(<RefundModal order={order} isOpen onClose={jest.fn()} onRefunded={onRefunded} />);
+
+    acknowledgeCardRefundAndConfirm();
+
+    await waitFor(() => expect(addToast).toHaveBeenCalledWith(
+      expect.objectContaining({ color: "danger", description: "details.refundErrors.orderNotPaid" }),
+    ));
+    expect(onRefunded).not.toHaveBeenCalled();
+  });
+
+  it("does not submit a refund twice while the first request is pending", async () => {
+    let resolveRefundRequest;
+    httpClient.mockReturnValueOnce(new Promise((resolve) => {
+      resolveRefundRequest = resolve;
+    }));
+    const onRefunded = jest.fn();
+    const order = { id: "order-1", total: 10 };
+
+    render(<RefundModal order={order} isOpen onClose={jest.fn()} onRefunded={onRefunded} />);
+
+    acknowledgeCardRefundAndConfirm();
+    fireEvent.click(screen.getByText("details.refundConfirm"));
+
+    expect(httpClient).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      resolveRefundRequest({ ok: true });
+    });
+
+    await waitFor(() => expect(onRefunded).toHaveBeenCalledTimes(1));
+  });
+
+  it("does not close the modal while a refund request is pending", async () => {
+    let resolveRefundRequest;
+    httpClient.mockReturnValueOnce(new Promise((resolve) => {
+      resolveRefundRequest = resolve;
+    }));
+    const onClose = jest.fn();
+    const onRefunded = jest.fn();
+    const order = { id: "order-1", total: 10 };
+
+    render(<RefundModal order={order} isOpen onClose={onClose} onRefunded={onRefunded} />);
+
+    acknowledgeCardRefundAndConfirm();
+    fireEvent.click(screen.getByText("details.close"));
+
+    expect(onClose).not.toHaveBeenCalled();
+
+    await act(async () => {
+      resolveRefundRequest({ ok: true });
+    });
+
+    await waitFor(() => expect(onRefunded).toHaveBeenCalledTimes(1));
   });
 
   it("falls back to the translated error message when a failed response has no body", async () => {

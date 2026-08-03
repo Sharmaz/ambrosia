@@ -20,6 +20,7 @@ import { httpClient } from "@/lib/http";
 import { getBolt11ValidationErrorCode } from "@/utils/validateBolt11Invoice";
 
 import { CashRefundFields } from "./CashRefundFields";
+import { getRefundErrorDescription } from "./utils/refundErrors";
 
 function getInvoiceErrorMessage(invoiceValue, translate) {
   const hasFormatError = getBolt11ValidationErrorCode(invoiceValue) !== "";
@@ -57,6 +58,8 @@ export function RefundModal({ order, isOpen, onClose, onRefunded, formatAmount }
   }
 
   async function handleRefund() {
+    if (loading) return;
+
     if (isBtcOrder) {
       const errorMessage = getInvoiceErrorMessage(invoice, ordersTranslations);
       if (errorMessage) {
@@ -86,7 +89,7 @@ export function RefundModal({ order, isOpen, onClose, onRefunded, formatAmount }
     } catch (refundError) {
       addToast({
         color: "danger",
-        description: refundError?.responseMessage || refundError?.message || ordersTranslations("details.refundError"),
+        description: getRefundErrorDescription(ordersTranslations, refundError),
       });
     } finally {
       setLoading(false);
@@ -94,6 +97,8 @@ export function RefundModal({ order, isOpen, onClose, onRefunded, formatAmount }
   }
 
   function handleClose() {
+    if (loading) return;
+
     setInvoice("");
     setInvoiceError("");
     setCashGiven(0);

@@ -59,6 +59,15 @@ export async function getInfo() {
   );
 }
 
+export async function getBalance() {
+  const walletBalanceResponse = await httpClient("/wallet/getbalance");
+  return await parseWalletResponseOrThrow(
+    walletBalanceResponse,
+    null,
+    "Could not load wallet balance",
+  );
+}
+
 export async function createInvoiceForCart(invoiceAmount, invoiceDesc) {
   const response = await httpClient("/wallet/invoice", {
     method: "POST",
@@ -186,6 +195,10 @@ export async function getOutgoingTransactions() {
 
 export async function getSeed() {
   const response = await httpClient("/wallet/seed");
+  if (!response.ok) {
+    const body = await parseJsonResponse(response, {});
+    throw new Error(body?.message || "Seed not available");
+  }
   return await parseJsonResponse(response, null);
 }
 

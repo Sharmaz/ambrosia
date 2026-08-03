@@ -56,6 +56,7 @@ const transactionsEn = {
         invalidInvoice: "This Lightning invoice is invalid",
         insufficientFunds: "There are not enough funds to complete this payment",
         nodeUnavailable: "The Lightning node is not available right now",
+        amountOverrideNotSupported: "This wallet could not process a payment with a specified amount for this invoice — ask for one that already includes the amount",
         unknown: "Could not process the payment",
       },
       closeButton: "Close",

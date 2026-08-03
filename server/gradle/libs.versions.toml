@@ -10,6 +10,8 @@ sqlite-jdbc-version = "3.49.1.0"
 hikaricp = "7.0.2"
 clikt-version = "5.0.3"
 lightning-kmp-version = "1.8.4"
+nostrino-version = "0.0.6"
+okio-version = "3.9.0"
 zxing-version = "3.5.3"
 escpos-coffee-version = "4.1.0"
 ktlint-plugin-version = "14.0.1"
@@ -42,6 +44,8 @@ sqlite-jdbc = { module = "org.xerial:sqlite-jdbc", version.ref = "sqlite-jdbc-ve
 hikaricp = { module = "com.zaxxer:HikariCP", version.ref = "hikaricp" }
 clikt = { module = "com.github.ajalt.clikt:clikt", version.ref = "clikt-version" }
 lightning-kmp = { module = "fr.acinq.lightning:lightning-kmp-jvm", version.ref = "lightning-kmp-version" }
+nostrino = { module = "app.cash.nostrino:nostr-sdk", version.ref = "nostrino-version" }
+okio = { module = "com.squareup.okio:okio", version.ref = "okio-version" }
 escpos-coffee = { module = "com.github.anastaciocintra:escpos-coffee", version.ref = "escpos-coffee-version" }
 zxing-core = { module = "com.google.zxing:core", version.ref = "zxing-version" }
 web-push-java = { module = "nl.martijndwars:web-push", version.ref = "web-push-java-version" }

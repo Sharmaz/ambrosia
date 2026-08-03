@@ -6,7 +6,7 @@ import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
-import pos.ambrosia.api.PhoenixWebhookPayload
+import pos.ambrosia.api.PaymentNotification
 import pos.ambrosia.db.tables.RolesTable
 import pos.ambrosia.db.tables.UsersTable
 import pos.ambrosia.logger
@@ -17,7 +17,9 @@ import pos.ambrosia.models.phoenix.PayInvoiceRequest
 import pos.ambrosia.models.phoenix.PayOfferRequest
 import pos.ambrosia.models.phoenix.PayOnchainRequest
 import pos.ambrosia.models.phoenix.PaymentResponse
+import pos.ambrosia.utils.NwcServiceException
 import pos.ambrosia.utils.PhoenixServiceException
+import pos.ambrosia.utils.UnsupportedBackendOperationException
 import java.util.UUID
 
 class WalletAdminNotificationService(
@@ -111,7 +113,7 @@ class WalletAdminNotificationService(
         actorUserId: String?,
         actionType: String,
         requestedAmountSats: Long?,
-        error: PhoenixServiceException,
+        error: Throwable,
     ) {
         val actor = resolveActor(actorUserId)
         createWalletNotification(
@@ -128,9 +130,9 @@ class WalletAdminNotificationService(
                     buildJsonObject {
                         put("paymentKind", actionType)
                         putOptional("requestedAmountSats", requestedAmountSats)
-                        put("code", error.code)
-                        putOptional("statusCode", error.statusCode)
-                        put("source", error.source)
+                        put("code", error.walletNotificationCode())
+                        putOptional("statusCode", (error as? PhoenixServiceException)?.statusCode)
+                        put("source", error.walletNotificationSource())
                     }.toString(),
             ),
         )
@@ -188,7 +190,7 @@ class WalletAdminNotificationService(
         )
     }
 
-    fun notifyIncomingPaymentReceived(payload: PhoenixWebhookPayload) {
+    fun notifyIncomingPaymentReceived(payload: PaymentNotification) {
         if (payload.type != PHOENIX_PAYMENT_RECEIVED_TYPE) return
 
         createWalletNotification(
@@ -241,6 +243,22 @@ class WalletAdminNotificationService(
     }
 
     private fun walletActorLabel(actor: WalletNotificationActor?): String = actor?.userName ?: actor?.userId ?: "A wallet user"
+
+    private fun Throwable.walletNotificationCode(): String =
+        when (this) {
+            is PhoenixServiceException -> code
+            is UnsupportedBackendOperationException -> code
+            is NwcServiceException -> "nwc_service_error"
+            else -> "unknown"
+        }
+
+    private fun Throwable.walletNotificationSource(): String =
+        when (this) {
+            is PhoenixServiceException -> source
+            is UnsupportedBackendOperationException -> source
+            is NwcServiceException -> "nwc"
+            else -> "ambrosia"
+        }
 
     private fun JsonObjectBuilder.putPaymentResponse(response: PaymentResponse) {
         put("recipientAmountSats", response.recipientAmountSat)
