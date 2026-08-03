@@ -319,7 +319,7 @@ class Ambrosia : CliktCommand() {
         if (nextValues.any { (key, value) -> existingValues[key] != value }) {
             writeConfValues(confFile, nextValues)
             if (missingVapidConfig) {
-                echo(yellow("Generated Web Push VAPID keys in ambrosia.conf"))
+                println(yellow("Generated Web Push VAPID keys in ambrosia.conf"))
             }
         }
     }
