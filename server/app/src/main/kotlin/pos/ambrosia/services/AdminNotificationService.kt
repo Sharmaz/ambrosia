@@ -20,6 +20,7 @@ import pos.ambrosia.db.tables.RolesTable
 import pos.ambrosia.db.tables.UsersTable
 import pos.ambrosia.logger
 import pos.ambrosia.models.AdminNotification
+import pos.ambrosia.models.AdminNotificationCategories
 import pos.ambrosia.models.AdminNotificationEvent
 import pos.ambrosia.models.AdminNotificationPreferences
 import pos.ambrosia.models.AdminNotificationPreferencesResponse

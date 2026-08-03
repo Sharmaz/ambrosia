@@ -1,4 +1,4 @@
-package pos.ambrosia.services
+package pos.ambrosia.models
 
 object AdminNotificationCategories {
     const val WALLET = "wallet"
@@ -15,13 +15,4 @@ object WalletAdminNotificationTypes {
     const val PAYMENT_RECEIVED = "wallet.payment.received"
     const val CHANNEL_CLOSED = "wallet.channel.closed"
     const val FEE_BUMPED = "wallet.fee.bumped"
-}
-
-object WebPushPayloadTypes {
-    const val ADMIN_ACTIVITY = "admin_activity"
-}
-
-object WebPushStatusCodes {
-    const val NOT_FOUND = 404
-    const val GONE = 410
 }
