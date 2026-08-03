@@ -10,6 +10,7 @@ import org.mockito.kotlin.isNull
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
+import pos.ambrosia.api.PaymentNotification
 import pos.ambrosia.models.phoenix.CloseChannelRequest
 import pos.ambrosia.models.phoenix.CreateInvoiceRequest
 import pos.ambrosia.models.phoenix.CreateOffer
@@ -297,6 +298,41 @@ class NwcServiceTest {
                 anyOrNull(),
                 anyOrNull(),
                 anyOrNull(),
+            )
+        }
+    }
+
+    @Test
+    fun `pollPendingInvoices notifies incoming payment handler when invoice settles`() {
+        runBlocking {
+            val receivedNotifications = mutableListOf<PaymentNotification>()
+            val notifyingService =
+                NwcService(
+                    mockClient,
+                    walletPubkey,
+                    CoroutineScope(SupervisorJob()),
+                    onIncomingPaymentReceived = { paymentNotification ->
+                        receivedNotifications.add(paymentNotification)
+                    },
+                ).also { it.markReady() }
+            whenever(mockClient.makeInvoice(any(), any(), anyOrNull())).thenReturn(
+                Nip47Transaction(paymentHash = "settled_hash", invoice = "lnbc..."),
+            )
+            whenever(mockClient.listTransactions(anyOrNull(), anyOrNull(), anyOrNull(), anyOrNull(), anyOrNull(), anyOrNull())).thenReturn(
+                listOf(Nip47Transaction(paymentHash = "settled_hash", amount = 10_000L, settledAt = 1700000000L)),
+            )
+
+            notifyingService.createInvoice(CreateInvoiceRequest(amountSat = 10, description = ""))
+            notifyingService.pollPendingInvoices()
+
+            assertEquals(
+                PaymentNotification(
+                    type = "payment_received",
+                    timestamp = 1700000000L,
+                    amountSat = 10L,
+                    paymentHash = "settled_hash",
+                ),
+                receivedNotifications.single(),
             )
         }
     }

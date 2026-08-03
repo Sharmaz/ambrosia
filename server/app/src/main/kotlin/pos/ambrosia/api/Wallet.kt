@@ -46,10 +46,14 @@ import pos.ambrosia.utils.getCurrentUser
 
 fun Application.configureWallet() {
     val phoenixService = PhoenixService(environment)
+    val walletAdminNotificationService =
+        WalletAdminNotificationService(createConfiguredAdminNotificationService(environment))
     val nwcUri = environment.config.propertyOrNull("nwc-uri")?.getString()
     val backend: LightningBackend =
         if (nwcUri != null) {
-            NwcService.create(nwcUri, this)
+            NwcService.create(nwcUri, this) { paymentNotification ->
+                walletAdminNotificationService.notifyIncomingPaymentReceived(paymentNotification)
+            }
         } else {
             phoenixService
         }
@@ -61,8 +65,6 @@ fun Application.configureWallet() {
     val walletRateService = WalletRateService()
     val paymentService = PaymentService()
     val refundService = RefundService(ActiveLightningBackend)
-    val walletAdminNotificationService =
-        WalletAdminNotificationService(createConfiguredAdminNotificationService(environment))
 
     routing {
         route("/wallet") {
