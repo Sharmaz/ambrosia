@@ -1,6 +1,7 @@
 "use client";
 import { useCallback, useMemo, useState } from "react";
 
+import { addToast } from "@heroui/react";
 import { useTranslations } from "next-intl";
 
 import formatDate from "@lib/formatDate";
@@ -34,42 +35,46 @@ export function useSalesData(sales, formatCurrency) {
 
   const exportToCsv = useCallback(() => {
     if (!sales.length) return;
-    const headers = [
-      reportsTranslations("sales.product"), reportsTranslations("sales.user"), reportsTranslations("sales.quantity"),
-      reportsTranslations("sales.price"), reportsTranslations("sales.total"), reportsTranslations("sales.paymentMethod"), reportsTranslations("sales.date"),
-      reportsTranslations("orders.statusLabel"),
-    ];
-    const rows = sales.map((sale) => [
-      sale.productName,
-      sale.userName ?? "",
-      sale.quantity,
-      formatCurrency(sale.priceAtOrder),
-      formatCurrency(sale.priceAtOrder * sale.quantity),
-      sale.paymentMethod ?? "",
-      sale.saleDate ? formatDate(sale.saleDate) : "",
-      statusTranslations(`status.${refundedToStatus(sale.refunded)}`),
-    ]);
+    try {
+      const headers = [
+        reportsTranslations("sales.product"), reportsTranslations("sales.user"), reportsTranslations("sales.quantity"),
+        reportsTranslations("sales.price"), reportsTranslations("sales.total"), reportsTranslations("sales.paymentMethod"), reportsTranslations("sales.date"),
+        reportsTranslations("orders.statusLabel"),
+      ];
+      const rows = sales.map((sale) => [
+        sale.productName,
+        sale.userName ?? "",
+        sale.quantity,
+        formatCurrency(sale.priceAtOrder),
+        formatCurrency(sale.priceAtOrder * sale.quantity),
+        sale.paymentMethod ?? "",
+        sale.saleDate ? formatDate(sale.saleDate) : "",
+        statusTranslations(`status.${refundedToStatus(sale.refunded)}`),
+      ]);
 
-    const totalRevenue = sales.reduce((sum, sale) => sum + sale.priceAtOrder * sale.quantity, 0);
-    const totalRefunded = sales
-      .filter((sale) => sale.refunded)
-      .reduce((sum, sale) => sum + sale.priceAtOrder * sale.quantity, 0);
-    const summaryRows = [
-      [],
-      [reportsTranslations("summary.revenue"), formatCurrency(totalRevenue)],
-      [reportsTranslations("summary.netRevenue"), formatCurrency(totalRevenue - totalRefunded)],
-      [reportsTranslations("summary.totalRefunded"), formatCurrency(totalRefunded)],
-    ];
+      const totalRevenue = sales.reduce((sum, sale) => sum + sale.priceAtOrder * sale.quantity, 0);
+      const totalRefunded = sales
+        .filter((sale) => sale.refunded)
+        .reduce((sum, sale) => sum + sale.priceAtOrder * sale.quantity, 0);
+      const summaryRows = [
+        [],
+        [reportsTranslations("summary.revenue"), formatCurrency(totalRevenue)],
+        [reportsTranslations("summary.netRevenue"), formatCurrency(totalRevenue - totalRefunded)],
+        [reportsTranslations("summary.totalRefunded"), formatCurrency(totalRefunded)],
+      ];
 
-    const csv = [headers, ...rows, ...summaryRows]
-      .map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(","))
-      .join("\n");
-    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8;" }));
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `sales-report-${new Date().toISOString().slice(0, 10)}.csv`;
-    link.click();
-    URL.revokeObjectURL(url);
+      const csv = [headers, ...rows, ...summaryRows]
+        .map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(","))
+        .join("\n");
+      const csvDownloadUrl = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8;" }));
+      const downloadLink = document.createElement("a");
+      downloadLink.href = csvDownloadUrl;
+      downloadLink.download = `sales-report-${new Date().toISOString().slice(0, 10)}.csv`;
+      downloadLink.click();
+      URL.revokeObjectURL(csvDownloadUrl);
+    } catch {
+      addToast({ color: "danger", description: reportsTranslations("export.error") });
+    }
   }, [sales, formatCurrency, reportsTranslations, statusTranslations]);
 
   return { paginatedSales, totalPages, page, setPage, rowsPerPage, handleRowsPerPageChange, exportToCsv };

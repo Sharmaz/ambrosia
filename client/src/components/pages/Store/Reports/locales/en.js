@@ -35,6 +35,9 @@ const reportsEn = {
       orders: "Orders",
       products: "Products",
     },
+    export: {
+      error: "Could not export the CSV report",
+    },
     summary: {
       title: "Summary",
       subtitle: "Consolidated totals for the selected period",

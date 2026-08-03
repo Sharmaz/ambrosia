@@ -20,6 +20,7 @@ import { httpClient } from "@/lib/http";
 import { getBolt11ValidationErrorCode } from "@/utils/validateBolt11Invoice";
 
 import { CashRefundFields } from "./CashRefundFields";
+import { getRefundErrorDescription } from "./utils/refundErrors";
 
 function getInvoiceErrorMessage(invoiceValue, translate) {
   const hasFormatError = getBolt11ValidationErrorCode(invoiceValue) !== "";
@@ -88,7 +89,7 @@ export function RefundModal({ order, isOpen, onClose, onRefunded, formatAmount }
     } catch (refundError) {
       addToast({
         color: "danger",
-        description: refundError?.responseMessage || refundError?.message || ordersTranslations("details.refundError"),
+        description: getRefundErrorDescription(ordersTranslations, refundError),
       });
     } finally {
       setLoading(false);

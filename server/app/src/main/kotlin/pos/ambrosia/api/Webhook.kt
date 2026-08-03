@@ -7,7 +7,6 @@ import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.post
 import io.ktor.server.routing.routing
-import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import pos.ambrosia.config.AppConfig
 import pos.ambrosia.logger
@@ -19,17 +18,6 @@ import javax.crypto.spec.SecretKeySpec
 
 private const val SIGNATURE_HEADER = "X-Phoenix-Signature"
 private val json = Json { ignoreUnknownKeys = true }
-
-@Serializable
-data class PhoenixWebhookPayload(
-    val type: String,
-    val timestamp: Long? = null,
-    val amountSat: Long? = null,
-    val paymentHash: String? = null,
-    val externalId: String? = null,
-    val payerNote: String? = null,
-    val payerKey: String? = null,
-)
 
 fun Application.configurePhoenixWebhook() {
     val walletAdminNotificationService =
@@ -60,7 +48,7 @@ fun Route.phoenixWebhook(walletAdminNotificationService: WalletAdminNotification
         }
 
         val payload =
-            runCatching { json.decodeFromString<PhoenixWebhookPayload>(rawBody) }
+            runCatching { json.decodeFromString<PaymentNotification>(rawBody) }
                 .getOrElse {
                     logger.warn("Invalid Phoenix webhook payload: ${it.message}")
                     call.respond(HttpStatusCode.BadRequest, "Invalid payload")
@@ -71,7 +59,7 @@ fun Route.phoenixWebhook(walletAdminNotificationService: WalletAdminNotification
             "Phoenix webhook received: type=${payload.type}, paymentHash=${payload.paymentHash}, amountSat=${payload.amountSat}, externalId=${payload.externalId}",
         )
 
-        PhoenixWebhookNotifier.broadcast(payload)
+        PaymentNotifier.broadcast(payload)
         walletAdminNotificationService.notifyIncomingPaymentReceived(payload)
 
         call.respond(HttpStatusCode.OK, "Ok")

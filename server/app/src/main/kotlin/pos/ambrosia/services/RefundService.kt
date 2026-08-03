@@ -36,7 +36,7 @@ import java.time.ZoneOffset
 import java.util.UUID
 
 class RefundService(
-    private val phoenixService: PhoenixService,
+    private val lightningBackend: LightningBackend,
 ) {
     companion object {
         private val refundMutex = Mutex()
@@ -119,7 +119,12 @@ class RefundService(
                 transaction {
                     val entity = OrderEntity.findById(orderUuid) ?: throw ResourceNotFoundException("Order not found")
                     if (entity.status == "refunded") throw OrderAlreadyRefundedException()
-                    if (entity.status != "paid") throw OrderNotRefundableException("Only paid orders can be refunded")
+                    if (entity.status != "paid") {
+                        throw OrderNotRefundableException(
+                            message = "Only paid orders can be refunded",
+                            code = "order_not_paid",
+                        )
+                    }
                     val orderItems =
                         OrderProductsTable
                             .selectAll()
@@ -135,7 +140,10 @@ class RefundService(
                 }
 
             if (request.invoice.isNotBlank() && originalSatoshiAmount == null) {
-                throw OrderNotRefundableException("This order has no Bitcoin payment to refund via Lightning")
+                throw OrderNotRefundableException(
+                    message = "This order has no Bitcoin payment to refund via Lightning",
+                    code = "no_bitcoin_payment",
+                )
             }
 
             val (satoshiAmount, paymentHash) =
@@ -177,7 +185,21 @@ class RefundService(
         invoice: String,
         originalSatoshiAmount: Long?,
     ): Pair<Long, String?> {
-        val paymentHash = Bolt11Decoder.decodeInvoice(invoice)?.paymentHash
+        val decodedInvoice = Bolt11Decoder.decodeInvoice(invoice)
+        val paymentHash = decodedInvoice?.paymentHash
+        val invoiceAmountSat =
+            decodedInvoice?.amountSat
+                ?: throw OrderNotRefundableException(
+                    message = "The refund invoice must specify an amount",
+                    code = "refund_invoice_missing_amount",
+                )
+        if (invoiceAmountSat != originalSatoshiAmount) {
+            throw OrderNotRefundableException(
+                message = "The refund invoice amount does not match the amount owed",
+                code = "refund_invoice_amount_mismatch",
+            )
+        }
+
         val alreadyPaidPayment = findAlreadyPaidOutgoingPayment(paymentHash)
 
         val satoshiAmount =
@@ -185,10 +207,7 @@ class RefundService(
                 logger.info("Refund invoice for order $orderId was already paid (hash=$paymentHash), skipping payInvoice")
                 alreadyPaidPayment.sent
             } else {
-                val paymentResponse =
-                    phoenixService.payInvoice(
-                        PayInvoiceRequest(invoice = invoice, amountSat = originalSatoshiAmount),
-                    )
+                val paymentResponse = lightningBackend.payInvoice(PayInvoiceRequest(invoice = invoice))
                 logger.info("Refund payment sent for order $orderId (hash=$paymentHash)")
                 paymentResponse.recipientAmountSat
             }
@@ -198,7 +217,7 @@ class RefundService(
 
     private suspend fun findAlreadyPaidOutgoingPayment(paymentHash: String?): OutgoingPayment? {
         if (paymentHash == null) return null
-        return runCatching { phoenixService.getOutgoingPaymentByHash(paymentHash) }
+        return runCatching { lightningBackend.getOutgoingPaymentByHash(paymentHash) }
             .getOrNull()
             ?.takeIf { it.isPaid }
     }

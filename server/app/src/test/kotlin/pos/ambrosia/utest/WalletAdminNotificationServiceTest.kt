@@ -5,7 +5,7 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import org.junit.After
 import org.junit.Before
-import pos.ambrosia.api.PhoenixWebhookPayload
+import pos.ambrosia.api.PaymentNotification
 import pos.ambrosia.models.phoenix.PayInvoiceRequest
 import pos.ambrosia.models.phoenix.PaymentResponse
 import pos.ambrosia.services.AdminNotificationService
@@ -81,7 +81,7 @@ class WalletAdminNotificationServiceTest {
         val adminRoleId = ExposedTestDb.seedRole("admin", isAdmin = true)
         val adminUserId = ExposedTestDb.seedUser("Ada", roleId = adminRoleId)
         val payload =
-            PhoenixWebhookPayload(
+            PaymentNotification(
                 type = "payment_received",
                 timestamp = 123456789,
                 amountSat = 2500,
@@ -108,7 +108,7 @@ class WalletAdminNotificationServiceTest {
         val adminUserId = ExposedTestDb.seedUser("Ada", roleId = adminRoleId)
 
         walletAdminNotificationService.notifyIncomingPaymentReceived(
-            PhoenixWebhookPayload(type = "node_state_changed", amountSat = 2500, paymentHash = "ignored-hash"),
+            PaymentNotification(type = "node_state_changed", amountSat = 2500, paymentHash = "ignored-hash"),
         )
 
         assertTrue(adminNotificationService.getNotifications(adminUserId).isEmpty())

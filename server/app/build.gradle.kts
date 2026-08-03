@@ -40,6 +40,8 @@ dependencies {
 
     implementation(libs.clikt)
     implementation(libs.lightning.kmp)
+    implementation(libs.nostrino)
+    implementation(libs.okio)
 
     implementation(libs.escpos.coffee)
     implementation(libs.zxing.core)

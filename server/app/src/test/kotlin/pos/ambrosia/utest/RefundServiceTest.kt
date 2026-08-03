@@ -6,7 +6,6 @@ import io.ktor.client.engine.mock.MockRequestHandleScope
 import io.ktor.client.engine.mock.respond
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.request.HttpRequestData
-import io.ktor.client.request.forms.FormDataContent
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
@@ -32,18 +31,25 @@ import pos.ambrosia.db.tables.RefundEntity
 import pos.ambrosia.db.tables.RefundsTable
 import pos.ambrosia.models.RefundRequest
 import pos.ambrosia.models.UpsertVariantRequest
+import pos.ambrosia.models.phoenix.OutgoingPayment
+import pos.ambrosia.models.phoenix.PayInvoiceRequest
+import pos.ambrosia.models.phoenix.PaymentResponse
+import pos.ambrosia.services.LightningBackend
 import pos.ambrosia.services.PhoenixService
 import pos.ambrosia.services.ProductVariantService
 import pos.ambrosia.services.RefundService
 import pos.ambrosia.utils.ExposedTestDb
+import pos.ambrosia.utils.FakeLightningBackend
 import pos.ambrosia.utils.OrderAlreadyRefundedException
 import pos.ambrosia.utils.OrderNotRefundableException
 import pos.ambrosia.utils.ResourceNotFoundException
+import pos.ambrosia.utils.UnsupportedBackendOperationException
 import java.io.File
 import java.util.UUID
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertTrue
 
 class RefundServiceTest {
     private lateinit var dbFile: File
@@ -60,6 +66,7 @@ class RefundServiceTest {
             "q5rqwzqfqqqsyqcyq5rqwzqfqqqsyqcyq5rqwzqfqypqdq5xysxxatsyp3k7enxv4jsxqzpu9qrsgquk0r" +
             "l77nj30yxdy8j9vdx85fkpmdla2087ne0xh8nhedh8w27kyke0lp53ut353s06fv3qfegext0eh0ymjpf39" +
             "tuven09sam30g4vgpfna3rh"
+    private val decodableInvoiceAmountSat = 250_000L
 
     @Before
     fun setUp() {
@@ -75,6 +82,25 @@ class RefundServiceTest {
     @After
     fun tearDown() {
         ExposedTestDb.cleanup(dbFile)
+    }
+
+    private class FakeNwcLightningBackend : LightningBackend by FakeLightningBackend("nwc") {
+        var payInvoiceCalled = false
+            private set
+
+        override suspend fun getOutgoingPaymentByHash(paymentHash: String): OutgoingPayment =
+            throw UnsupportedBackendOperationException("Outgoing payment lookup by hash is not supported with NWC backend")
+
+        override suspend fun payInvoice(request: PayInvoiceRequest): PaymentResponse {
+            payInvoiceCalled = true
+            return PaymentResponse(
+                recipientAmountSat = 1234,
+                routingFeeSat = 0,
+                paymentId = "nwc-refund-payment-id",
+                paymentHash = "nwc-refund-payment-hash",
+                paymentPreimage = "nwc-refund-payment-preimage",
+            )
+        }
     }
 
     private fun mockPayInvoiceJson(recipientAmountSat: Long) =
@@ -125,19 +151,6 @@ class RefundServiceTest {
 
     private fun refundServiceRespondingWithSats(recipientAmountSat: Long): RefundService {
         val mockEngine = MockEngine { _ -> respondJson(mockPayInvoiceJson(recipientAmountSat)) }
-        return refundServiceWithHttpClient(mockEngine)
-    }
-
-    private fun refundServiceCapturingAmountSat(
-        recipientAmountSat: Long,
-        onAmountSatSent: (Long?) -> Unit,
-    ): RefundService {
-        val mockEngine =
-            MockEngine { request ->
-                val sentAmountSat = (request.body as FormDataContent).formData["amountSat"]?.toLong()
-                onAmountSatSent(sentAmountSat)
-                respondJson(mockPayInvoiceJson(recipientAmountSat))
-            }
         return refundServiceWithHttpClient(mockEngine)
     }
 
@@ -243,27 +256,49 @@ class RefundServiceTest {
     @Test
     fun `processRefund on BTC order calls payInvoice and stores recipientAmountSat`() =
         runBlocking {
-            val orderId = seedPaidBtcOrderWithPayment(satoshiAmount = 1234)
+            val orderId = seedPaidBtcOrderWithPayment(satoshiAmount = decodableInvoiceAmountSat)
 
-            val refund = refundServiceRespondingWithSats(1234).processRefund(orderId, RefundRequest(invoice = "lnbc1..."))
+            val refund =
+                refundServiceRespondingWithSats(decodableInvoiceAmountSat)
+                    .processRefund(orderId, RefundRequest(invoice = decodableInvoice))
 
-            assertEquals(1234L, refund.satoshiAmount)
+            assertEquals(decodableInvoiceAmountSat, refund.satoshiAmount)
             assertEquals("refunded", orderStatus(orderId))
         }
 
     @Test
-    fun `processRefund forces amountSat to the order's original paid amount regardless of what the invoice itself requests`() =
+    fun `processRefund pays through whichever LightningBackend it was constructed with`() =
+        runBlocking {
+            val orderId = seedPaidBtcOrderWithPayment(satoshiAmount = decodableInvoiceAmountSat)
+            val backend = FakeNwcLightningBackend()
+
+            val refund = RefundService(backend).processRefund(orderId, RefundRequest(invoice = decodableInvoice))
+
+            assertTrue(backend.payInvoiceCalled)
+            assertEquals(1234L, refund.satoshiAmount)
+        }
+
+    @Test
+    fun `processRefund rejects a refund invoice that does not specify an amount`() {
+        runBlocking {
+            val orderId = seedPaidBtcOrderWithPayment(satoshiAmount = 1234)
+
+            assertFailsWith<OrderNotRefundableException> {
+                refundServiceWithNoPhoenixCallExpected().processRefund(orderId, RefundRequest(invoice = "lnbc1..."))
+            }
+        }
+    }
+
+    @Test
+    fun `processRefund rejects a refund invoice whose amount does not match the amount owed`() {
         runBlocking {
             val orderId = seedPaidBtcOrderWithPayment(satoshiAmount = 895)
 
-            var sentAmountSat: Long? = null
-            val refund =
-                refundServiceCapturingAmountSat(recipientAmountSat = 895) { sentAmountSat = it }
-                    .processRefund(orderId, RefundRequest(invoice = "lnbc2000n1...invoice-requesting-more-than-owed"))
-
-            assertEquals(895L, sentAmountSat)
-            assertEquals(895L, refund.satoshiAmount)
+            assertFailsWith<OrderNotRefundableException> {
+                refundServiceWithNoPhoenixCallExpected().processRefund(orderId, RefundRequest(invoice = decodableInvoice))
+            }
         }
+    }
 
     @Test
     fun `processRefund rejects already refunded order`() {
@@ -406,7 +441,7 @@ class RefundServiceTest {
     @Test
     fun `processRefund skips payInvoice and persists the already-paid amount when the invoice was paid in a previous attempt`() =
         runBlocking {
-            val orderId = seedPaidBtcOrderWithPayment(satoshiAmount = 1234)
+            val orderId = seedPaidBtcOrderWithPayment(satoshiAmount = decodableInvoiceAmountSat)
 
             val refund =
                 refundServiceWithOutgoingPaymentAlreadyPaid(sentSat = 1234)
@@ -419,7 +454,7 @@ class RefundServiceTest {
     @Test
     fun `processRefund calls payInvoice normally when the outgoing payment lookup finds no prior payment`() =
         runBlocking {
-            val orderId = seedPaidBtcOrderWithPayment(satoshiAmount = 1234)
+            val orderId = seedPaidBtcOrderWithPayment(satoshiAmount = decodableInvoiceAmountSat)
 
             val refund =
                 refundServiceWithOutgoingPaymentQueryFailing(recipientAmountSat = 1234, failureStatus = HttpStatusCode.NotFound)
@@ -432,7 +467,7 @@ class RefundServiceTest {
     @Test
     fun `processRefund calls payInvoice normally when the outgoing payment lookup fails unexpectedly`() =
         runBlocking {
-            val orderId = seedPaidBtcOrderWithPayment(satoshiAmount = 1234)
+            val orderId = seedPaidBtcOrderWithPayment(satoshiAmount = decodableInvoiceAmountSat)
 
             val refund =
                 refundServiceWithOutgoingPaymentQueryFailing(
@@ -447,7 +482,7 @@ class RefundServiceTest {
     @Test
     fun `processRefund persists the invoice's payment hash on the refund row`() =
         runBlocking {
-            val orderId = seedPaidBtcOrderWithPayment(satoshiAmount = 1234)
+            val orderId = seedPaidBtcOrderWithPayment(satoshiAmount = decodableInvoiceAmountSat)
 
             refundServiceWithOutgoingPaymentQueryFailing(recipientAmountSat = 1234, failureStatus = HttpStatusCode.NotFound)
                 .processRefund(orderId, RefundRequest(invoice = decodableInvoice))
