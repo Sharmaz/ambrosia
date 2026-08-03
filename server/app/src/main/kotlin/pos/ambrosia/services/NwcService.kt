@@ -46,6 +46,7 @@ class NwcService(
     private val nwcClient: NwcClientPort,
     private val walletPubkeyHex: String,
     private val scope: CoroutineScope,
+    private val onIncomingPaymentReceived: (PaymentNotification) -> Unit = {},
 ) : LightningBackend {
     private data class PendingInvoice(
         val paymentRequest: String,
@@ -102,15 +103,17 @@ class NwcService(
             val settledAt = transaction.settledAt ?: continue
             if (pendingInvoices.remove(paymentHash) != null) {
                 val amountSat = (transaction.amount ?: 0L) / 1000
-                logger.info("NWC payment detected: hash={}, amount={}sat", paymentHash, amountSat)
-                PaymentNotifier.broadcast(
+                val paymentNotification =
                     PaymentNotification(
                         type = "payment_received",
                         timestamp = settledAt,
                         amountSat = amountSat,
                         paymentHash = paymentHash,
-                    ),
-                )
+                    )
+                logger.info("NWC payment detected: hash={}, amount={}sat", paymentHash, amountSat)
+                PaymentNotifier.broadcast(paymentNotification)
+                runCatching { onIncomingPaymentReceived(paymentNotification) }
+                    .onFailure { logger.warn("Failed to handle NWC incoming payment notification: {}", it.message) }
             }
         }
     }
@@ -281,6 +284,7 @@ class NwcService(
         fun create(
             nwcUri: String,
             application: Application,
+            onIncomingPaymentReceived: (PaymentNotification) -> Unit = {},
         ): NwcService {
             val connectionInfo = parseNwcUri(nwcUri)
             logger.info("Initializing NWC backend, relay={}", connectionInfo.relayUrl)
@@ -293,7 +297,7 @@ class NwcService(
             val nwcClient = NwcClient(connectionInfo, httpClient)
             val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
-            val service = NwcService(nwcClient, connectionInfo.walletPubkeyHex, scope)
+            val service = NwcService(nwcClient, connectionInfo.walletPubkeyHex, scope, onIncomingPaymentReceived)
 
             scope.launch {
                 connectAndMarkReady(nwcClient, service)
