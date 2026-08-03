@@ -71,16 +71,23 @@ class ProductService {
         return VariantAggregate(minPriceCents, maxPriceCents, quantity, minCostCents)
     }
 
+    private fun componentTracksStock(component: BundleComponent): Boolean {
+        val componentProductId = EntityID(UUID.fromString(component.componentId), ProductsTable)
+        return ProductEntity.findById(componentProductId)?.trackStock ?: true
+    }
+
     private fun computeBundleQuantity(components: List<BundleComponent>): Int {
         if (components.isEmpty()) return 0
-        return components.minOf { component ->
-            val componentProductId = EntityID(UUID.fromString(component.componentId), ProductsTable)
-            val componentStock =
-                component.variantId
-                    ?.let { componentVariantId -> variantQuantity(componentProductId, UUID.fromString(componentVariantId)) }
-                    ?: variantAggregate(componentProductId).quantity
-            componentStock / component.quantity
-        }
+        return components
+            .filter { component -> componentTracksStock(component) }
+            .minOfOrNull { component ->
+                val componentProductId = EntityID(UUID.fromString(component.componentId), ProductsTable)
+                val componentStock =
+                    component.variantId
+                        ?.let { componentVariantId -> variantQuantity(componentProductId, UUID.fromString(componentVariantId)) }
+                        ?: variantAggregate(componentProductId).quantity
+                componentStock / component.quantity
+            } ?: 0
     }
 
     private fun computeBundleCostCents(components: List<BundleComponent>): Int =
@@ -192,6 +199,13 @@ class ProductService {
         val bundleCostCents = if (entity.isBundle) computeBundleCostCents(bundleComponents) else 0
         val productQuantity = if (entity.isBundle) computeBundleQuantity(bundleComponents) else aggregate.quantity
         val productCostCents = if (entity.isBundle) bundleCostCents else aggregate.minCostCents
+        val productTracksStock =
+            entity.trackStock &&
+                (
+                    !entity.isBundle ||
+                        bundleComponents.isEmpty() ||
+                        bundleComponents.any { component -> componentTracksStock(component) }
+                )
         return Product(
             id = entity.id.value.toString(),
             SKU = entity.sku,
@@ -209,7 +223,7 @@ class ProductService {
             isBundle = entity.isBundle,
             bundleComponents = bundleComponents,
             bundleCostCents = bundleCostCents,
-            trackStock = entity.trackStock,
+            trackStock = productTracksStock,
         )
     }
 

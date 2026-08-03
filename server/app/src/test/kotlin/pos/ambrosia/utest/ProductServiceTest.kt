@@ -473,6 +473,35 @@ class ProductServiceTest {
     }
 
     @Test
+    fun `getProductById ignores untracked components when computing bundle quantity`() {
+        runBlocking {
+            val trackedComponent = ExposedTestDb.seedProduct(name = "Mug", quantity = 10)
+            val untrackedComponent = ExposedTestDb.seedProduct(name = "Coffee", quantity = 0, trackStock = false)
+            val bundleId = ExposedTestDb.seedProduct(name = "Kit", isBundle = true)
+            ExposedTestDb.seedBundleComponent(bundleId, trackedComponent, quantity = 1)
+            ExposedTestDb.seedBundleComponent(bundleId, untrackedComponent, quantity = 1)
+
+            val result = service.getProductById(bundleId)
+            assertEquals(10, result?.quantity)
+            assertTrue(result?.trackStock == true)
+        }
+    }
+
+    @Test
+    fun `getProductById reports a bundle as untracked when every component is untracked`() {
+        runBlocking {
+            val componentA = ExposedTestDb.seedProduct(name = "Coffee", quantity = 0, trackStock = false)
+            val componentB = ExposedTestDb.seedProduct(name = "Water", quantity = 0, trackStock = false)
+            val bundleId = ExposedTestDb.seedProduct(name = "Kit", isBundle = true)
+            ExposedTestDb.seedBundleComponent(bundleId, componentA, quantity = 1)
+            ExposedTestDb.seedBundleComponent(bundleId, componentB, quantity = 1)
+
+            val result = service.getProductById(bundleId)
+            assertEquals(false, result?.trackStock)
+        }
+    }
+
+    @Test
     fun `getProductById returns zero quantity when a component has no stock`() {
         runBlocking {
             val componentA = ExposedTestDb.seedProduct(name = "A", quantity = 5)

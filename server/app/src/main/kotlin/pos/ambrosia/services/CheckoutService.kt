@@ -127,10 +127,11 @@ class CheckoutService(
             val componentProductId = component[ProductBundleComponentsTable.componentId]
             val componentVariantId = component[ProductBundleComponentsTable.componentVariantId]?.value
             val deductQuantity = component[ProductBundleComponentsTable.quantity] * orderedQuantity
-            if (componentVariantId != null) {
-                decrementVariantStock(componentProductId, componentVariantId, deductQuantity)
-            } else {
-                decrementProductStock(componentProductId, deductQuantity)
+            val componentTracksStock = ProductEntity.findById(componentProductId)?.trackStock ?: true
+            when {
+                !componentTracksStock -> true
+                componentVariantId != null -> decrementVariantStock(componentProductId, componentVariantId, deductQuantity)
+                else -> decrementProductStock(componentProductId, deductQuantity)
             }
         }
     }

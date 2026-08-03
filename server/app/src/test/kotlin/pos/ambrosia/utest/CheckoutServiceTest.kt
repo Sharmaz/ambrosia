@@ -465,6 +465,25 @@ class CheckoutServiceTest {
     }
 
     @Test
+    fun `checkout deducts only the tracked components of a bundle`() {
+        runBlocking {
+            val userId = seedUser()
+            val trackedComponentId = ExposedTestDb.seedProduct(name = "Mug", quantity = 10)
+            val untrackedComponentId = ExposedTestDb.seedProduct(name = "Coffee", quantity = 0, trackStock = false)
+            val bundleId = ExposedTestDb.seedProduct(name = "Kit", isBundle = true, quantity = 0)
+            ExposedTestDb.seedBundleComponent(bundleId, trackedComponentId, quantity = 1)
+            ExposedTestDb.seedBundleComponent(bundleId, untrackedComponentId, quantity = 1)
+
+            val checkoutItems = listOf(StoreCheckoutItem(productId = bundleId, quantity = 1, priceAtOrder = 500))
+            val result = service.checkout(validStoreRequest(userId, items = checkoutItems))
+
+            assertTrue(result is CheckoutResult.Success)
+            assertEquals(9, productQuantity(trackedComponentId))
+            assertEquals(0, productQuantity(untrackedComponentId))
+        }
+    }
+
+    @Test
     fun `checkout deducts selected component variant stock when item is a bundle`() {
         runBlocking {
             val userId = seedUser()
