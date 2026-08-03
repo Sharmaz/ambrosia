@@ -200,6 +200,25 @@ describe("RefundModal", () => {
     expect(onRefunded).not.toHaveBeenCalled();
   });
 
+  it("shows the translated message for a known refund error code instead of the server's raw text", async () => {
+    httpClient.mockResolvedValue({ ok: false, status: 409 });
+    parseJsonResponse.mockResolvedValueOnce({
+      message: "Only paid orders can be refunded",
+      code: "order_not_paid",
+    });
+    const onRefunded = jest.fn();
+    const order = { id: "order-1", total: 10 };
+
+    render(<RefundModal order={order} isOpen onClose={jest.fn()} onRefunded={onRefunded} />);
+
+    acknowledgeCardRefundAndConfirm();
+
+    await waitFor(() => expect(addToast).toHaveBeenCalledWith(
+      expect.objectContaining({ color: "danger", description: "details.refundErrors.orderNotPaid" }),
+    ));
+    expect(onRefunded).not.toHaveBeenCalled();
+  });
+
   it("does not submit a refund twice while the first request is pending", async () => {
     let resolveRefundRequest;
     httpClient.mockReturnValueOnce(new Promise((resolve) => {
