@@ -360,10 +360,6 @@ open class ProductVariantService {
             true
         }
 
-    /**
-     * Resolves the product owning the adjustment and reports whether it tracks stock.
-     * Unresolvable ids fall through as `true` so the caller keeps raising the same errors as before.
-     */
     private fun productTracksStock(adjustment: ProductStockAdjustment): Boolean {
         val productId =
             if (adjustment.variantId != null) {

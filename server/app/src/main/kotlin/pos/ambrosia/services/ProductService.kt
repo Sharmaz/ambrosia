@@ -309,7 +309,6 @@ class ProductService {
                 }.count() == 1L
         }
 
-    /** A product that does not track stock carries no quantities: zero them once instead of at every write site. */
     private fun normalizeStockFields(product: Product): Product =
         if (product.trackStock) {
             product
