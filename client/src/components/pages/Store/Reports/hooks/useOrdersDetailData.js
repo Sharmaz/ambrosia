@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 
 import formatDate from "@lib/formatDate";
 
+import { downloadCsv } from "../utils/downloadCsv";
 import { refundedToStatus } from "../utils/refundedToStatus";
 
 const DEFAULT_ROWS_PER_PAGE = 10;
@@ -64,12 +65,7 @@ export function useOrdersDetailData(orders, formatCurrency) {
       const csv = [headers, ...rows, ...summaryRows]
         .map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(","))
         .join("\n");
-      const csvDownloadUrl = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8;" }));
-      const downloadLink = document.createElement("a");
-      downloadLink.href = csvDownloadUrl;
-      downloadLink.download = `orders-report-${new Date().toISOString().slice(0, 10)}.csv`;
-      downloadLink.click();
-      URL.revokeObjectURL(csvDownloadUrl);
+      downloadCsv(csv, `orders-report-${new Date().toISOString().slice(0, 10)}.csv`);
     } catch {
       addToast({ color: "danger", description: reportsTranslations("export.error") });
     }
