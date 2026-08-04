@@ -387,6 +387,20 @@ class RefundServiceTest {
         }
 
     @Test
+    fun `processRefund leaves stock untouched for a product that does not track stock`() =
+        runBlocking {
+            val userId = seedUser()
+            val productId = ExposedTestDb.seedProduct(name = "Consulting", quantity = 5, trackStock = false)
+            val defaultVariant = defaultVariantId(productId)
+
+            val orderId = seedPaidOrderWithLine(userId, productId, variantId = null, quantity = 3, priceAtOrder = 200, total = 5.0)
+
+            refundServiceWithNoPhoenixCallExpected().processRefund(orderId, RefundRequest())
+
+            assertEquals(5, variantQuantity(defaultVariant))
+        }
+
+    @Test
     fun `processRefund restores bundle component pinned variant and leaves bundle stock untouched`() =
         runBlocking {
             val userId = seedUser()
