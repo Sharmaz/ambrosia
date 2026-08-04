@@ -167,4 +167,12 @@ describe("ProductsCard", () => {
     rerender(<ProductsCard {...defaultProps} product={{ ...product, quantity: 11 }} />);
     expect(screen.getByText("status.ok")).toHaveClass("bg-green-200");
   });
+
+  it("shows a dash and the untracked status for products without stock tracking", () => {
+    renderCard({ product: { ...product, quantity: 0, trackStock: false } });
+
+    expect(screen.getByText("—")).toBeInTheDocument();
+    expect(screen.getByText("status.untracked")).toHaveClass("bg-gray-100");
+    expect(screen.queryByText("status.out")).not.toBeInTheDocument();
+  });
 });
