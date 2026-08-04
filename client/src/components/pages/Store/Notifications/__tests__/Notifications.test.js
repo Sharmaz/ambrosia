@@ -158,6 +158,11 @@ describe("Admin notification display", () => {
     }));
   });
 
+  it("ignores metadata values that are not JSON objects", () => {
+    expect(parseNotificationMetadata({ metadataJson: JSON.stringify(["unexpected"]) })).toEqual({});
+    expect(parseNotificationMetadata({ metadataJson: JSON.stringify("unexpected") })).toEqual({});
+  });
+
   it("renders presented feed copy instead of technical notification actor text", () => {
     render(
       <NotificationFeed

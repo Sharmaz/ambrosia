@@ -5,19 +5,12 @@ import Link from "next/link";
 
 import { LogOut } from "lucide-react";
 
+import { ADMIN_NOTIFICATIONS_ROUTE } from "@/lib/adminNotifications";
+
 import ambrosia from "../../../../../public/ambrosia.svg";
 
 import { NavIcon } from "./NavIcon";
-
-function NotificationBadge({ count }) {
-  if (!count) return null;
-
-  return (
-    <span className="ml-auto min-w-5 rounded-full bg-red-500 px-1.5 py-0.5 text-center text-xs font-semibold text-white">
-      {count > 99 ? "99+" : count}
-    </span>
-  );
-}
+import { NotificationBadge } from "./NotificationBadge";
 
 function NavBarButton({ text, icon, href, isActive, id, onClick, badgeCount }) {
   return (
@@ -31,7 +24,10 @@ function NavBarButton({ text, icon, href, isActive, id, onClick, badgeCount }) {
     >
       <NavIcon name={icon} className="w-6 h-6 md:w-5 md:h-5 lg:w-6 lg:h-6" />
       <span className="pl-2 text-2xl md:text-lg lg:text-2xl">{text}</span>
-      <NotificationBadge count={badgeCount} />
+      <NotificationBadge
+        count={badgeCount}
+        className="ml-auto min-w-5 rounded-full bg-red-500 px-1.5 py-0.5 text-center text-xs font-semibold text-white"
+      />
     </Link>
   );
 }
@@ -78,7 +74,7 @@ export function SidebarContent({
                 icon={item.icon}
                 href={item.path}
                 isActive={pathname === item.path || pathname.startsWith(item.path)}
-                badgeCount={item.path === "/store/notifications" ? notificationUnreadCount : 0}
+                badgeCount={item.path === ADMIN_NOTIFICATIONS_ROUTE ? notificationUnreadCount : 0}
                 onClick={onNavClick}
               />
             ))}

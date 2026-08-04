@@ -1,7 +1,10 @@
 export function parseNotificationMetadata(notification) {
   if (!notification?.metadataJson) return {};
   try {
-    return JSON.parse(notification.metadataJson) ?? {};
+    const notificationMetadata = JSON.parse(notification.metadataJson);
+    return notificationMetadata && typeof notificationMetadata === "object" && !Array.isArray(notificationMetadata)
+      ? notificationMetadata
+      : {};
   } catch {
     return {};
   }

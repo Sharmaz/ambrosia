@@ -5,41 +5,44 @@ import { API_URL } from "@/config/api";
 export const dynamic = "force-dynamic";
 
 export async function GET(request) {
-  const backendWsUrl = `${API_URL.replace(/^http/i, "ws")}/ws/admin-notifications`;
-  const cookies = request.headers.get("cookie") || "";
+  const backendAdminNotificationsWebSocketUrl = `${API_URL.replace(/^http/i, "ws")}/ws/admin-notifications`;
+  const requestCookies = request.headers.get("cookie") || "";
 
   const stream = new ReadableStream({
     start(controller) {
       const encoder = new TextEncoder();
 
-      const ws = new WebSocket(backendWsUrl, {
-        headers: { cookie: cookies },
+      const backendAdminNotificationsSocket = new WebSocket(backendAdminNotificationsWebSocketUrl, {
+        headers: { cookie: requestCookies },
       });
 
-      ws.on("open", () => {
-        ws.on("message", (raw) => {
-          const message = typeof raw === "string" ? raw : raw.toString();
+      backendAdminNotificationsSocket.on("open", () => {
+        backendAdminNotificationsSocket.on("message", (backendWebSocketPayload) => {
+          const adminNotificationMessage =
+            typeof backendWebSocketPayload === "string"
+              ? backendWebSocketPayload
+              : backendWebSocketPayload.toString();
           try {
-            controller.enqueue(encoder.encode(`data: ${message}\n\n`));
+            controller.enqueue(encoder.encode(`data: ${adminNotificationMessage}\n\n`));
           } catch {}
         });
       });
 
-      ws.on("error", () => {
+      backendAdminNotificationsSocket.on("error", () => {
         try {
           controller.close();
         } catch {}
       });
 
-      ws.on("close", () => {
+      backendAdminNotificationsSocket.on("close", () => {
         try {
           controller.close();
         } catch {}
       });
 
       request.signal.addEventListener("abort", () => {
-        if (ws.readyState === WebSocket.OPEN) {
-          ws.close();
+        if (backendAdminNotificationsSocket.readyState === WebSocket.OPEN) {
+          backendAdminNotificationsSocket.close();
         }
       });
     },
