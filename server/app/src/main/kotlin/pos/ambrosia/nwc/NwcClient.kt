@@ -42,7 +42,7 @@ class NwcClient(
     private val clientPubkeyHex = clientSecKey.pubKey.key.hex()
     private val walletPubKey = PubKey(connectionInfo.walletPubkeyHex.decodeHex())
     private val relay = NostrRelay(connectionInfo.relayUrl, httpClient)
-    private val pendingRequests = ConcurrentHashMap<String, CompletableDeferred<Nip47Response>>()
+    internal val pendingRequests = ConcurrentHashMap<String, CompletableDeferred<Nip47Response>>()
 
     override suspend fun connect(scope: CoroutineScope) {
         val subId = "nwc-${System.currentTimeMillis()}"
@@ -152,8 +152,9 @@ class NwcClient(
         return try {
             withTimeout(REQUEST_TIMEOUT_MS) { deferred.await() }
         } catch (e: TimeoutCancellationException) {
-            pendingRequests.remove(event.id)
             throw NwcServiceException("NWC request '$method' timed out after ${REQUEST_TIMEOUT_MS}ms")
+        } finally {
+            pendingRequests.remove(event.id)
         }
     }
 
