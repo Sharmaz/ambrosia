@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { Button, Divider, addToast } from "@heroui/react";
 import { useTranslations } from "next-intl";
@@ -31,6 +31,7 @@ export function Onboarding() {
   const [step, setStep] = useState(1);
   const [setupStatus, setSetupStatus] = useState(null);
   const [isSubmittingSetup, setIsSubmittingSetup] = useState(false);
+  const isSubmittingSetupRef = useRef(false);
   const [data, setData] = useState({
     businessType: "store",
     walletBackend: "phoenixd",
@@ -100,7 +101,8 @@ export function Onboarding() {
   };
 
   const handleComplete = async () => {
-    if (isSubmittingSetup) return;
+    if (isSubmittingSetupRef.current) return;
+    isSubmittingSetupRef.current = true;
     setIsSubmittingSetup(true);
 
     try {
@@ -168,6 +170,7 @@ export function Onboarding() {
         color: "danger",
       });
     } finally {
+      isSubmittingSetupRef.current = false;
       setIsSubmittingSetup(false);
     }
   };
