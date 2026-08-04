@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import { addToast } from "@heroui/react";
 import { useTranslations } from "next-intl";
 
 import { useTour } from "@/hooks/tour/useTour";
-import { getInfo, getSeed } from "@/services/walletService";
+import { getSeed } from "@/services/walletService";
 
 import { SeedCardLocked } from "./SeedCardLocked";
 import { SeedCardUnlocked } from "./SeedCardUnlocked";
@@ -15,19 +15,10 @@ const SEED_SETTINGS_TOUR_KEY = "ambrosia:tour:seed-settings";
 export const SEED_SEEN_KEY = "ambrosia:tour:seed-seen";
 
 export function Seed() {
-  const t = useTranslations("settings");
-  const tTour = useTranslations("seedTour");
+  const seedTranslations = useTranslations("settings");
+  const seedTourTranslations = useTranslations("seedTour");
   const [showAccess, setShowAccess] = useState(false);
   const [seed, setSeed] = useState(null);
-  const [seedSupported, setSeedSupported] = useState(true);
-
-  useEffect(() => {
-    getInfo()
-      .then((info) => {
-        if (info?.version === "NWC") setSeedSupported(false);
-      })
-      .catch(() => {});
-  }, []);
 
   useTour({
     key: SEED_SETTINGS_TOUR_KEY,
@@ -48,11 +39,11 @@ export function Seed() {
         {
           element: "#settings-seed-card",
           popover: {
-            title: tTour("settingsTitle"),
-            description: tTour.raw("settingsDescription"),
+            title: seedTourTranslations("settingsTitle"),
+            description: seedTourTranslations.raw("settingsDescription"),
             side: "bottom",
             align: "start",
-            nextBtnText: tTour("settingsButton"),
+            nextBtnText: seedTourTranslations("settingsButton"),
             showButtons: ["next"],
           },
         },
@@ -68,10 +59,12 @@ export function Seed() {
     try {
       const seedText = await getSeed();
       setSeed(seedText);
-    } catch {
+    } catch (error) {
       addToast({
-        title: t("cardSeed.errorTitle"),
-        description: t("cardSeed.errorDescription"),
+        title: seedTranslations("cardSeed.errorTitle"),
+        description: error?.code === "unsupported_operation"
+          ? seedTranslations("cardSeed.notAvailableNwc")
+          : seedTranslations("cardSeed.errorDescription"),
         color: "danger",
       });
       setShowAccess(false);
@@ -89,7 +82,7 @@ export function Seed() {
         seed={seed}
         onAuthorized={handleAuthorized}
         onHide={handleHide}
-        t={t}
+        seedCardTranslations={seedTranslations}
       />
     );
   }
@@ -97,8 +90,7 @@ export function Seed() {
   return (
     <SeedCardLocked
       onReveal={() => setShowAccess(true)}
-      disabled={!seedSupported}
-      seedCardTranslations={t}
+      seedCardTranslations={seedTranslations}
     />
   );
 }
