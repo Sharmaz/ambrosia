@@ -67,6 +67,27 @@ describe("useAdminNotifications", () => {
     expect(result.current.notifications[0].readAt).toBeTruthy();
   });
 
+  it("removes one notification from the local list when unread-only filter is active", async () => {
+    const { result } = renderHook(() => useAdminNotifications());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    act(() => {
+      result.current.updateFilters({ unreadOnly: true });
+    });
+    await waitFor(() => expect(getAdminNotifications).toHaveBeenLastCalledWith({
+      category: ADMIN_NOTIFICATION_CATEGORY_WALLET,
+      unreadOnly: true,
+      limit: 100,
+    }));
+
+    await act(async () => {
+      await result.current.markRead("notification-1");
+    });
+
+    expect(result.current.notifications).toHaveLength(0);
+    expect(result.current.unreadCount).toBe(0);
+  });
+
   it("marks all filtered notifications as read", async () => {
     const { result } = renderHook(() => useAdminNotifications());
     await waitFor(() => expect(result.current.loading).toBe(false));
@@ -76,6 +97,28 @@ describe("useAdminNotifications", () => {
     });
 
     expect(markAllAdminNotificationsRead).toHaveBeenCalledWith(ADMIN_NOTIFICATION_CATEGORY_WALLET);
+    expect(result.current.unreadCount).toBe(0);
+  });
+
+  it("removes all filtered notifications from the local list when unread-only filter is active", async () => {
+    const { result } = renderHook(() => useAdminNotifications());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    act(() => {
+      result.current.updateFilters({ unreadOnly: true });
+    });
+    await waitFor(() => expect(getAdminNotifications).toHaveBeenLastCalledWith({
+      category: ADMIN_NOTIFICATION_CATEGORY_WALLET,
+      unreadOnly: true,
+      limit: 100,
+    }));
+
+    await act(async () => {
+      await result.current.markAllRead();
+    });
+
+    expect(markAllAdminNotificationsRead).toHaveBeenCalledWith(ADMIN_NOTIFICATION_CATEGORY_WALLET);
+    expect(result.current.notifications).toHaveLength(0);
     expect(result.current.unreadCount).toBe(0);
   });
 

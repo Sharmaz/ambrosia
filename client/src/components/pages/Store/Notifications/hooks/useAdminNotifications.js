@@ -39,6 +39,36 @@ function mergeIncomingNotification(notifications, incomingNotification) {
   return [incomingNotification, ...notifications];
 }
 
+function markNotificationReadLocally(notifications, notificationId, unreadOnly) {
+  const notificationReadAt = new Date().toISOString();
+  const notificationsWithReadState = notifications.map((notification) => (
+    notification.id === notificationId
+      ? { ...notification, readAt: notification.readAt || notificationReadAt }
+      : notification
+  ));
+
+  if (!unreadOnly) return notificationsWithReadState;
+
+  return notificationsWithReadState.filter((notification) => !notification.readAt);
+}
+
+function markFilteredNotificationsReadLocally(notifications, category, unreadOnly) {
+  const notificationReadAt = new Date().toISOString();
+  const notificationMatchesActiveCategory = (notification) => (
+    !category || notification.category === category
+  );
+
+  if (unreadOnly) {
+    return notifications.filter((notification) => !notificationMatchesActiveCategory(notification));
+  }
+
+  return notifications.map((notification) => (
+    notificationMatchesActiveCategory(notification)
+      ? { ...notification, readAt: notification.readAt || notificationReadAt }
+      : notification
+  ));
+}
+
 export function useAdminNotifications() {
   const [notifications, setNotifications] = useState([]);
   const [filters, setFilters] = useState(DEFAULT_FILTERS);
@@ -75,27 +105,18 @@ export function useAdminNotifications() {
   const markRead = useCallback(async (notificationId) => {
     await markAdminNotificationRead(notificationId);
     setNotifications((currentNotifications) => (
-      currentNotifications.map((notification) => (
-        notification.id === notificationId
-          ? { ...notification, readAt: notification.readAt || new Date().toISOString() }
-          : notification
-      ))
+      markNotificationReadLocally(currentNotifications, notificationId, filters.unreadOnly)
     ));
     requestUnreadCountRefresh();
-  }, []);
+  }, [filters.unreadOnly]);
 
   const markAllRead = useCallback(async () => {
     await markAllAdminNotificationsRead(filters.category);
-    const notificationReadAt = new Date().toISOString();
     setNotifications((currentNotifications) => (
-      currentNotifications.map((notification) => (
-        filters.category && notification.category !== filters.category
-          ? notification
-          : { ...notification, readAt: notification.readAt || notificationReadAt }
-      ))
+      markFilteredNotificationsReadLocally(currentNotifications, filters.category, filters.unreadOnly)
     ));
     requestUnreadCountRefresh();
-  }, [filters.category]);
+  }, [filters.category, filters.unreadOnly]);
 
   const deleteNotification = useCallback(async (notificationId) => {
     await deleteAdminNotification(notificationId);
