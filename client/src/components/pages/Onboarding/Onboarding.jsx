@@ -163,10 +163,10 @@ export function Onboarding() {
           onClose: () => window.location.reload(),
         });
       }
-    } catch (error) {
+    } catch (setupSubmissionError) {
       addToast({
         title: onboardingTranslations("submitOnboardingToast.errorTitle"),
-        description: error.message,
+        description: setupSubmissionError.message,
         color: "danger",
       });
     } finally {
