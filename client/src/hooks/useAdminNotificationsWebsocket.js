@@ -5,6 +5,7 @@ import {
   ADMIN_ACTIVITY_ELECTRON_IPC,
   ADMIN_NOTIFICATION_LIVE_EVENT_TYPE,
   ADMIN_NOTIFICATIONS_CONNECTION_CHANGED_EVENT,
+  ADMIN_NOTIFICATIONS_EVENT_SOURCE_ROUTE,
   ADMIN_NOTIFICATIONS_LIVE_CONNECTED_STATE_KEY,
   ADMIN_NOTIFICATIONS_NEW_EVENT,
   ADMIN_NOTIFICATIONS_REFRESH_UNREAD_COUNT_EVENT,
@@ -60,7 +61,7 @@ export function useAdminNotificationsWebsocket({ enabled = true } = {}) {
     let shouldReconnect = true;
 
     const connect = () => {
-      eventSource = new EventSource("/api/ws-admin-notifications");
+      eventSource = new EventSource(ADMIN_NOTIFICATIONS_EVENT_SOURCE_ROUTE);
 
       eventSource.onmessage = (event) => {
         try {

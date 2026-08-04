@@ -3,6 +3,7 @@ import { act, renderHook } from "@testing-library/react";
 import {
   ADMIN_ACTIVITY_ELECTRON_IPC,
   ADMIN_NOTIFICATION_CATEGORY_WALLET,
+  ADMIN_NOTIFICATIONS_EVENT_SOURCE_ROUTE,
   ADMIN_NOTIFICATIONS_REFRESH_UNREAD_COUNT_EVENT,
   getAdminActivityNotificationCopy,
 } from "@/lib/adminNotifications";
@@ -59,7 +60,7 @@ describe("useAdminNotificationsWebsocket", () => {
   it("connects to admin notifications SSE bridge", () => {
     renderHook(() => useAdminNotificationsWebsocket());
 
-    expect(MockEventSource.latest().url).toBe("/api/ws-admin-notifications");
+    expect(MockEventSource.latest().url).toBe(ADMIN_NOTIFICATIONS_EVENT_SOURCE_ROUTE);
   });
 
   it("sets connected when backend confirms live connection", () => {

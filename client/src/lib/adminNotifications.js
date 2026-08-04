@@ -1,4 +1,5 @@
 export const ADMIN_NOTIFICATIONS_ROUTE = "/store/notifications";
+export const ADMIN_NOTIFICATIONS_EVENT_SOURCE_ROUTE = "/api/ws-admin-notifications";
 export const ADMIN_NOTIFICATION_CATEGORY_WALLET = "wallet";
 export const ADMIN_ACTIVITY_NOTIFICATION_TAG = "admin-activity";
 export const ADMIN_ACTIVITY_TEST_NOTIFICATION_TAG = "admin-activity-test";
