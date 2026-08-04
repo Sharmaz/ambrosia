@@ -153,6 +153,25 @@ describe("NodeInfo Component", () => {
       expect(screen.getByText("nodeInfo.channels")).toBeInTheDocument();
       expect(screen.getByText("nodeInfo.block")).toBeInTheDocument();
     });
+
+    it("shows the lightning address card when lud16 is present", () => {
+      renderNodeInfo({ ...mockNwcNodeInfo, lud16: "wallet@example.com" });
+
+      expect(screen.getByText("nodeInfo.lightningAddress")).toBeInTheDocument();
+      expect(screen.getByText("wallet@example.com")).toBeInTheDocument();
+    });
+
+    it("hides the lightning address card when lud16 is absent", () => {
+      renderNodeInfo(mockNwcNodeInfo);
+
+      expect(screen.queryByText("nodeInfo.lightningAddress")).not.toBeInTheDocument();
+    });
+
+    it("hides the lightning address card for non-NWC backends even if lud16 is present", () => {
+      renderNodeInfo({ ...mockNodeInfo, lud16: "wallet@example.com" });
+
+      expect(screen.queryByText("nodeInfo.lightningAddress")).not.toBeInTheDocument();
+    });
   });
 
   describe("Channel Details", () => {
