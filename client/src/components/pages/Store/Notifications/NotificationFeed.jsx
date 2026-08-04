@@ -100,7 +100,7 @@ function NotificationMobileCard({
           <div className="flex flex-wrap items-center gap-2 text-xs">
             <NotificationStatus isUnread={isUnread} notificationsTranslations={notificationsTranslations} />
             <span className="text-gray-400">/</span>
-            <span className="font-medium text-gray-600">{notification.category}</span>
+            <span className="font-medium text-gray-600">{notificationDisplay.categoryLabel}</span>
             {notificationDisplay.amountLabel && (
               <>
                 <span className="text-gray-400">/</span>
@@ -147,7 +147,7 @@ function NotificationTableRow({
           <div className="flex items-center gap-2 text-xs">
             <NotificationStatus isUnread={isUnread} notificationsTranslations={notificationsTranslations} />
             <span className="text-gray-400">/</span>
-            <span className="font-medium text-gray-600">{notification.category}</span>
+            <span className="font-medium text-gray-600">{notificationDisplay.categoryLabel}</span>
             {notificationDisplay.statusLabel && (
               <>
                 <span className="text-gray-400">/</span>

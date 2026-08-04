@@ -5,6 +5,9 @@ import {
   parseNotificationMetadata,
 } from "./notificationMetadata";
 
+const CATEGORY_TRANSLATION_KEYS = {
+  wallet: "filters.wallet",
+};
 const TECHNICAL_ACTORS = new Set(["phoenix webhook"]);
 const SYSTEM_ROLE = "system";
 
@@ -91,12 +94,27 @@ function getNotificationStatusLabel(notification, notificationsTranslations) {
   return notification?.status || "";
 }
 
+function getNotificationCategoryLabel(notification, notificationsTranslations) {
+  const notificationCategory = notification?.category;
+  const categoryTranslationKey = CATEGORY_TRANSLATION_KEYS[notificationCategory];
+
+  if (!categoryTranslationKey) return notificationCategory || "";
+
+  return getNotificationTranslation(
+    notificationsTranslations,
+    categoryTranslationKey,
+    undefined,
+    notificationCategory,
+  );
+}
+
 export function getAdminNotificationDisplay(notification, notificationsTranslations) {
   const notificationMetadata = parseNotificationMetadata(notification);
   const actorLabel = getNotificationActorLabel(notification, notificationsTranslations);
   const roleLabel = getNotificationRoleLabel(notification, notificationsTranslations);
   const amountLabel = formatNotificationAmountSats(getNotificationAmount(notificationMetadata));
   const statusLabel = getNotificationStatusLabel(notification, notificationsTranslations);
+  const categoryLabel = getNotificationCategoryLabel(notification, notificationsTranslations);
   const interpolationValues = {
     actor: actorLabel,
     amount: amountLabel || getNotificationTranslation(
@@ -118,6 +136,7 @@ export function getAdminNotificationDisplay(notification, notificationsTranslati
     title: notificationCopy.title,
     description: notificationCopy.description,
     actorLabel,
+    categoryLabel,
     roleLabel,
     amountLabel,
     statusLabel,

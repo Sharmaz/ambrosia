@@ -7,6 +7,7 @@ import {
 } from "@/lib/adminNotifications";
 
 import notificationsEn from "../locales/en";
+import notificationsEs from "../locales/es";
 import { NotificationFeed } from "../NotificationFeed";
 import { getAdminNotificationDisplay } from "../utils/notificationDisplay";
 import {
@@ -78,6 +79,7 @@ describe("Notifications Web Push preference state", () => {
 
 describe("Admin notification display", () => {
   const notificationsTranslations = createTranslator(notificationsEn);
+  const spanishNotificationsTranslations = createTranslator(notificationsEs);
 
   it("presents incoming wallet payments without technical webhook actor text", () => {
     const notificationDisplay = getAdminNotificationDisplay({
@@ -112,6 +114,16 @@ describe("Admin notification display", () => {
     expect(notificationDisplay.description).toBe("Seller sent 10 sats from the wallet.");
     expect(notificationDisplay.amountLabel).toBe("10 sats");
     expect(notificationDisplay.statusLabel).toBe("Success");
+  });
+
+  it("presents wallet category with translated copy", () => {
+    const notificationDisplay = getAdminNotificationDisplay({
+      category: ADMIN_NOTIFICATION_CATEGORY_WALLET,
+      type: "wallet.payment.received",
+      metadataJson: JSON.stringify({ amountSats: 90 }),
+    }, spanishNotificationsTranslations);
+
+    expect(notificationDisplay.categoryLabel).toBe("Billetera");
   });
 
   it("presents failed wallet payments with requested amount", () => {
@@ -173,7 +185,7 @@ describe("Admin notification display", () => {
     expect(screen.getAllByText("A payment of 90 sats was received in the wallet.")).toHaveLength(2);
     expect(screen.getAllByText("Delete")).toHaveLength(2);
     expect(screen.getAllByText("External payment")).toHaveLength(2);
-    expect(screen.getAllByText("Wallet")).toHaveLength(2);
+    expect(screen.getAllByText("Wallet")).toHaveLength(4);
     expect(screen.queryByText("Phoenix webhook")).not.toBeInTheDocument();
   });
 });
