@@ -30,6 +30,14 @@ function findNewUnreadNotifications(unreadNotifications, knownUnreadNotification
   );
 }
 
+function publishAdminNotification(notification) {
+  window.dispatchEvent(
+    new CustomEvent(ADMIN_NOTIFICATIONS_NEW_EVENT, {
+      detail: { notification },
+    }),
+  );
+}
+
 export function useAdminNotificationSignals({
   enabled,
   pathname,
@@ -84,6 +92,12 @@ export function useAdminNotificationSignals({
     const notificationCategory = notification?.category || ADMIN_NOTIFICATION_CATEGORY_WALLET;
     return inAppToastPreferencesRef.current[notificationCategory] !== false;
   }, []);
+
+  const showToastIfAllowed = useCallback((notification) => {
+    if (pathname !== ADMIN_NOTIFICATIONS_ROUTE && shouldShowNotificationToast(notification)) {
+      showAdminNotificationToast(notification, notificationsTranslations);
+    }
+  }, [notificationsTranslations, pathname, shouldShowNotificationToast]);
 
   const refreshNotificationUnreadCount = useCallback(() => {
     fetchUnreadNotifications()
@@ -162,10 +176,8 @@ export function useAdminNotificationSignals({
       knownUnreadNotificationIdsRef.current.add(notification.id);
     }
     setNotificationUnreadCount((currentCount) => currentCount + 1);
-    if (pathname !== ADMIN_NOTIFICATIONS_ROUTE && shouldShowNotificationToast(notification)) {
-      showAdminNotificationToast(notification, notificationsTranslations);
-    }
-  }), [onNotification, pathname, notificationsTranslations, shouldShowNotificationToast]);
+    showToastIfAllowed(notification);
+  }), [onNotification, showToastIfAllowed]);
 
   useEffect(() => {
     if (!enabled || areLiveNotificationsConnected) return undefined;
@@ -184,18 +196,8 @@ export function useAdminNotificationSignals({
 
           const newestUnreadNotification = newUnreadNotifications[0];
           if (newestUnreadNotification) {
-            window.dispatchEvent(
-              new CustomEvent(ADMIN_NOTIFICATIONS_NEW_EVENT, {
-                detail: { notification: newestUnreadNotification },
-              }),
-            );
-
-            if (
-              pathname !== ADMIN_NOTIFICATIONS_ROUTE &&
-              shouldShowNotificationToast(newestUnreadNotification)
-            ) {
-              showAdminNotificationToast(newestUnreadNotification, notificationsTranslations);
-            }
+            publishAdminNotification(newestUnreadNotification);
+            showToastIfAllowed(newestUnreadNotification);
           }
         })
         .catch(() => undefined);
@@ -207,9 +209,7 @@ export function useAdminNotificationSignals({
     areLiveNotificationsConnected,
     enabled,
     fetchUnreadNotifications,
-    pathname,
-    notificationsTranslations,
-    shouldShowNotificationToast,
+    showToastIfAllowed,
   ]);
 
   return { notificationUnreadCount };
