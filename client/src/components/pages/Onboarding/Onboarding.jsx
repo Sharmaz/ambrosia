@@ -30,6 +30,7 @@ export function Onboarding() {
   const onboardingTranslations = useTranslations();
   const [step, setStep] = useState(1);
   const [setupStatus, setSetupStatus] = useState(null);
+  const [isSubmittingSetup, setIsSubmittingSetup] = useState(false);
   const [data, setData] = useState({
     businessType: "store",
     walletBackend: "phoenixd",
@@ -99,6 +100,9 @@ export function Onboarding() {
   };
 
   const handleComplete = async () => {
+    if (isSubmittingSetup) return;
+    setIsSubmittingSetup(true);
+
     try {
       if (needsBusinessType) {
         await submitInitialSetup({
@@ -159,10 +163,12 @@ export function Onboarding() {
       }
     } catch (error) {
       addToast({
-        title: "Error",
+        title: onboardingTranslations("submitOnboardingToast.errorTitle"),
         description: error.message,
         color: "danger",
       });
+    } finally {
+      setIsSubmittingSetup(false);
     }
   };
 
@@ -260,7 +266,8 @@ export function Onboarding() {
                 <Button
                   color="primary"
                   onPress={handleComplete}
-                  isDisabled={!data.businessType}
+                  isDisabled={!data.businessType || isSubmittingSetup}
+                  isLoading={isSubmittingSetup}
                   className="bg-green-800"
                 >
                   {onboardingTranslations("buttons.finish")}
@@ -290,6 +297,8 @@ export function Onboarding() {
                 <Button
                   color="primary"
                   onPress={handleComplete}
+                  isDisabled={isSubmittingSetup}
+                  isLoading={isSubmittingSetup}
                   className="bg-green-800"
                 >
                   {onboardingTranslations("buttons.finish")}

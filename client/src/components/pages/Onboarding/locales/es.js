@@ -2,6 +2,7 @@ const onboardingEs = {
   submitOnboardingToast: {
     title: "Guardado Exitoso",
     description: "La información se almaceno correctamente",
+    errorTitle: "No se pudo completar la configuración",
     nwcSavedTitle: "Backend NWC activado",
     nwcSavedDescription: "El backend NWC está listo para usarse.",
     nwcErrorTitle: "No se pudo conectar la wallet NWC",
