@@ -31,6 +31,7 @@ import pos.ambrosia.config.InjectLogs
 import pos.ambrosia.config.ListValueSource
 import pos.ambrosia.config.SeedGenerator
 import pos.ambrosia.config.readConfValues
+import pos.ambrosia.config.replaceConfFileProperty
 import pos.ambrosia.config.writeConfValues
 import pos.ambrosia.db.DatabaseConnection
 import pos.ambrosia.services.VapidKeyService
@@ -344,30 +345,9 @@ class Ambrosia : CliktCommand() {
         readConfValues(confFile)[key] ?: throw IllegalStateException("$key not found in ambrosia.conf")
 
     private fun ensurePhoenixWebhookConfigured(url: String) {
-        val file = File(phoenixConfFile.toString())
-        file.parentFile?.mkdirs()
-        val existingLines = if (file.exists()) file.readLines() else emptyList()
-        val updatedLines = mutableListOf<String>()
-        var replaced = false
-
-        existingLines.forEach { line ->
-            if (line.trimStart().startsWith("webhook=")) {
-                if (!replaced) {
-                    updatedLines.add("webhook=$url")
-                    replaced = true
-                }
-            } else {
-                updatedLines.add(line)
-            }
-        }
-
-        if (!replaced) {
-            updatedLines.add("webhook=$url")
-        }
-
-        if (existingLines != updatedLines) {
-            file.writeText(updatedLines.joinToString(separator = "\n", postfix = "\n"))
-            logger.info("Updated phoenix webhook entry to webhook=$url in ${file.absolutePath}")
+        File(phoenixConfFile.toString()).parentFile?.mkdirs()
+        if (replaceConfFileProperty(phoenixConfFile, "webhook", url)) {
+            logger.info("Updated phoenix webhook entry to webhook=$url in $phoenixConfFile")
         }
     }
 
