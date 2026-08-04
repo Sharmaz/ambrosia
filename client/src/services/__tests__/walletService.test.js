@@ -318,6 +318,21 @@ describe("walletService", () => {
 
       expect(httpClient).toHaveBeenCalledWith("/wallet/seed");
     });
+
+    it("throws with the server code when the backend does not support seed export", async () => {
+      httpClient.mockResolvedValue(makeResponse(501, false));
+      parseJsonResponse.mockResolvedValue({
+        message: "Seed export is not available with NWC backend",
+        code: "unsupported_operation",
+        source: "ambrosia",
+      });
+
+      await expect(getSeed()).rejects.toMatchObject({
+        message: "Seed export is not available with NWC backend",
+        status: 501,
+        code: "unsupported_operation",
+      });
+    });
   });
 
   describe("closeChannel", () => {
