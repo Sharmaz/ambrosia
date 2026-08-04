@@ -50,6 +50,8 @@ class PrintTicketException(
 
 class NwcConnectionException(
     message: String = "Unable to connect to NWC relay",
+    val code: String = "nwc_connection_failed",
+    val source: String = "ambrosia",
 ) : RuntimeException(message)
 
 class NwcServiceException(

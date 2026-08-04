@@ -43,7 +43,10 @@ class HandlerNwcExceptionTest {
         val response = responseForThrowing(NwcConnectionException("relay socket reset by peer"))
 
         assertEquals(HttpStatusCode.ServiceUnavailable, response.status)
-        assertEquals("""{"message":"NWC wallet relay is unavailable"}""", response.body)
+        assertEquals(
+            """{"message":"NWC wallet relay is unavailable","code":"nwc_connection_failed","source":"ambrosia"}""",
+            response.body,
+        )
     }
 
     @Test

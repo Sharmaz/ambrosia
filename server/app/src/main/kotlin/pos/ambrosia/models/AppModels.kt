@@ -72,6 +72,11 @@ data class WalletAuthResponse(
 )
 
 @Serializable
+data class UpdateNwcUriRequest(
+    val nwcUri: String,
+)
+
+@Serializable
 data class User(
     val id: String? = null,
     val name: String,
@@ -555,6 +560,7 @@ data class Product(
     val isBundle: Boolean = false,
     val bundleComponents: List<BundleComponent> = emptyList(),
     val bundleCostCents: Int = 0,
+    val trackStock: Boolean = true,
 )
 
 @Serializable

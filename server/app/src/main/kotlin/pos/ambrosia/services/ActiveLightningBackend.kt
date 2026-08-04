@@ -29,6 +29,8 @@ object ActiveLightningBackend : LightningBackend, PaymentVerifier {
         backendReference.set(backend)
     }
 
+    fun isNwcActive(): Boolean = backendReference.get() is NwcService
+
     fun closeActive() {
         backendReference
             .getAndSet(null)

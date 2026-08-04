@@ -44,14 +44,14 @@ class WalletAdminNotificationServiceTest {
 
         walletAdminNotificationService.notifyInvoicePaymentSent(
             actorUserId = cashierUserId,
-            request =
+            invoicePaymentRequest =
                 PayInvoiceRequest(
                     amountSat = 1200,
                     invoice = "lnbc-sensitive-invoice",
                     exchangeRate = 65000.0,
                     exchangeRateCurrency = "USD",
                 ),
-            response =
+            invoicePaymentResponse =
                 PaymentResponse(
                     recipientAmountSat = 1200,
                     routingFeeSat = 3,

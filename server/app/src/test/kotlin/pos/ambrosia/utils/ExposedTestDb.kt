@@ -493,6 +493,7 @@ object ExposedTestDb {
         isBundle: Boolean = false,
         priceCents: Int = 200,
         costCents: Int? = null,
+        trackStock: Boolean = true,
     ): String =
         transaction {
             val productId =
@@ -507,6 +508,7 @@ object ExposedTestDb {
                         this.hasVariants = hasVariants
                         this.isDeleted = isDeleted
                         this.isBundle = isBundle
+                        this.trackStock = trackStock
                     }.id.value
             ProductVariantEntity.new(UUID.randomUUID()) {
                 this.productId = EntityID(productId, ProductsTable)

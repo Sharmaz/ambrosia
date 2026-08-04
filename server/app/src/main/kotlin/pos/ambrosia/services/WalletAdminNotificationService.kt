@@ -30,28 +30,28 @@ class WalletAdminNotificationService(
 ) {
     fun notifyInvoicePaymentSent(
         actorUserId: String?,
-        request: PayInvoiceRequest,
-        response: PaymentResponse,
+        invoicePaymentRequest: PayInvoiceRequest,
+        invoicePaymentResponse: PaymentResponse,
     ) {
-        val actor = resolveActor(actorUserId)
+        val notificationActor = resolveActor(actorUserId)
         createWalletNotification(
             AdminNotificationEvent(
                 category = AdminNotificationCategories.WALLET,
                 type = WalletAdminNotificationTypes.PAYMENT_SENT,
                 title = "Wallet payment sent",
-                body = walletActorLabel(actor) + " sent ${response.recipientAmountSat} sats",
-                actorUserId = actor?.userId,
-                actorUserName = actor?.userName,
-                actorRole = actor?.role,
+                body = walletActorLabel(notificationActor) + " sent ${invoicePaymentResponse.recipientAmountSat} sats",
+                actorUserId = notificationActor?.userId,
+                actorUserName = notificationActor?.userName,
+                actorRole = notificationActor?.role,
                 status = AdminNotificationStatuses.SUCCESS,
-                dedupeKey = "${WalletAdminNotificationTypes.PAYMENT_SENT}:${response.paymentHash}",
+                dedupeKey = "${WalletAdminNotificationTypes.PAYMENT_SENT}:${invoicePaymentResponse.paymentHash}",
                 metadataJson =
                     buildJsonObject {
                         put("paymentKind", "lightning_invoice")
-                        putPaymentResponse(response)
-                        putOptional("requestedAmountSats", request.amountSat)
-                        putOptional("exchangeRate", request.exchangeRate)
-                        putOptional("exchangeRateCurrency", request.exchangeRateCurrency)
+                        putPaymentResponse(invoicePaymentResponse)
+                        putOptional("requestedAmountSats", invoicePaymentRequest.amountSat)
+                        putOptional("exchangeRate", invoicePaymentRequest.exchangeRate)
+                        putOptional("exchangeRateCurrency", invoicePaymentRequest.exchangeRateCurrency)
                     }.toString(),
             ),
         )
@@ -59,26 +59,26 @@ class WalletAdminNotificationService(
 
     fun notifyOfferPaymentSent(
         actorUserId: String?,
-        request: PayOfferRequest,
-        response: PaymentResponse,
+        offerPaymentRequest: PayOfferRequest,
+        offerPaymentResponse: PaymentResponse,
     ) {
-        val actor = resolveActor(actorUserId)
+        val notificationActor = resolveActor(actorUserId)
         createWalletNotification(
             AdminNotificationEvent(
                 category = AdminNotificationCategories.WALLET,
                 type = WalletAdminNotificationTypes.PAYMENT_SENT,
                 title = "Wallet offer payment sent",
-                body = walletActorLabel(actor) + " sent ${response.recipientAmountSat} sats",
-                actorUserId = actor?.userId,
-                actorUserName = actor?.userName,
-                actorRole = actor?.role,
+                body = walletActorLabel(notificationActor) + " sent ${offerPaymentResponse.recipientAmountSat} sats",
+                actorUserId = notificationActor?.userId,
+                actorUserName = notificationActor?.userName,
+                actorRole = notificationActor?.role,
                 status = AdminNotificationStatuses.SUCCESS,
-                dedupeKey = "${WalletAdminNotificationTypes.PAYMENT_SENT}:${response.paymentHash}",
+                dedupeKey = "${WalletAdminNotificationTypes.PAYMENT_SENT}:${offerPaymentResponse.paymentHash}",
                 metadataJson =
                     buildJsonObject {
                         put("paymentKind", "bolt12_offer")
-                        putPaymentResponse(response)
-                        putOptional("requestedAmountSats", request.amountSat)
+                        putPaymentResponse(offerPaymentResponse)
+                        putOptional("requestedAmountSats", offerPaymentRequest.amountSat)
                     }.toString(),
             ),
         )
@@ -86,27 +86,27 @@ class WalletAdminNotificationService(
 
     fun notifyOnchainPaymentSent(
         actorUserId: String?,
-        request: PayOnchainRequest,
-        response: PaymentResponse,
+        onchainPaymentRequest: PayOnchainRequest,
+        onchainPaymentResponse: PaymentResponse,
     ) {
-        val actor = resolveActor(actorUserId)
+        val notificationActor = resolveActor(actorUserId)
         createWalletNotification(
             AdminNotificationEvent(
                 category = AdminNotificationCategories.WALLET,
                 type = WalletAdminNotificationTypes.PAYMENT_SENT,
                 title = "Wallet on-chain payment sent",
-                body = walletActorLabel(actor) + " sent ${response.recipientAmountSat} sats on-chain",
-                actorUserId = actor?.userId,
-                actorUserName = actor?.userName,
-                actorRole = actor?.role,
+                body = walletActorLabel(notificationActor) + " sent ${onchainPaymentResponse.recipientAmountSat} sats on-chain",
+                actorUserId = notificationActor?.userId,
+                actorUserName = notificationActor?.userName,
+                actorRole = notificationActor?.role,
                 status = AdminNotificationStatuses.SUCCESS,
-                dedupeKey = "${WalletAdminNotificationTypes.PAYMENT_SENT}:${response.paymentId}",
+                dedupeKey = "${WalletAdminNotificationTypes.PAYMENT_SENT}:${onchainPaymentResponse.paymentId}",
                 metadataJson =
                     buildJsonObject {
                         put("paymentKind", "onchain")
-                        putPaymentResponse(response)
-                        put("requestedAmountSats", request.amountSat)
-                        put("feerateSatByte", request.feerateSatByte)
+                        putPaymentResponse(onchainPaymentResponse)
+                        put("requestedAmountSats", onchainPaymentRequest.amountSat)
+                        put("feerateSatByte", onchainPaymentRequest.feerateSatByte)
                     }.toString(),
             ),
         )
@@ -116,26 +116,26 @@ class WalletAdminNotificationService(
         actorUserId: String?,
         actionType: String,
         requestedAmountSats: Long?,
-        error: Throwable,
+        paymentFailure: Throwable,
     ) {
-        val actor = resolveActor(actorUserId)
+        val notificationActor = resolveActor(actorUserId)
         createWalletNotification(
             AdminNotificationEvent(
                 category = AdminNotificationCategories.WALLET,
                 type = WalletAdminNotificationTypes.PAYMENT_FAILED,
                 title = "Wallet payment failed",
-                body = walletActorLabel(actor) + " attempted a wallet payment that failed",
-                actorUserId = actor?.userId,
-                actorUserName = actor?.userName,
-                actorRole = actor?.role,
+                body = walletActorLabel(notificationActor) + " attempted a wallet payment that failed",
+                actorUserId = notificationActor?.userId,
+                actorUserName = notificationActor?.userName,
+                actorRole = notificationActor?.role,
                 status = AdminNotificationStatuses.FAILED,
                 metadataJson =
                     buildJsonObject {
                         put("paymentKind", actionType)
                         putOptional("requestedAmountSats", requestedAmountSats)
-                        put("code", error.walletNotificationCode())
-                        putOptional("statusCode", (error as? PhoenixServiceException)?.statusCode)
-                        put("source", error.walletNotificationSource())
+                        put("code", paymentFailure.walletNotificationCode())
+                        putOptional("statusCode", (paymentFailure as? PhoenixServiceException)?.statusCode)
+                        put("source", paymentFailure.walletNotificationSource())
                     }.toString(),
             ),
         )
@@ -143,26 +143,26 @@ class WalletAdminNotificationService(
 
     fun notifyChannelClosed(
         actorUserId: String?,
-        request: CloseChannelRequest,
-        response: CloseChannelResponse,
+        closeChannelRequest: CloseChannelRequest,
+        closeChannelResponse: CloseChannelResponse,
     ) {
-        val actor = resolveActor(actorUserId)
+        val notificationActor = resolveActor(actorUserId)
         createWalletNotification(
             AdminNotificationEvent(
                 category = AdminNotificationCategories.WALLET,
                 type = WalletAdminNotificationTypes.CHANNEL_CLOSED,
                 title = "Wallet channel closed",
-                body = walletActorLabel(actor) + " closed a wallet channel",
-                actorUserId = actor?.userId,
-                actorUserName = actor?.userName,
-                actorRole = actor?.role,
+                body = walletActorLabel(notificationActor) + " closed a wallet channel",
+                actorUserId = notificationActor?.userId,
+                actorUserName = notificationActor?.userName,
+                actorRole = notificationActor?.role,
                 status = AdminNotificationStatuses.SUCCESS,
-                dedupeKey = "${WalletAdminNotificationTypes.CHANNEL_CLOSED}:${response.txId}",
+                dedupeKey = "${WalletAdminNotificationTypes.CHANNEL_CLOSED}:${closeChannelResponse.txId}",
                 metadataJson =
                     buildJsonObject {
-                        put("channelId", request.channelId)
-                        put("txId", response.txId)
-                        put("feerateSatByte", request.feerateSatByte)
+                        put("channelId", closeChannelRequest.channelId)
+                        put("txId", closeChannelResponse.txId)
+                        put("feerateSatByte", closeChannelRequest.feerateSatByte)
                     }.toString(),
             ),
         )
@@ -171,55 +171,57 @@ class WalletAdminNotificationService(
     fun notifyFeesBumped(
         actorUserId: String?,
         feerateSatByte: Long,
-        response: String,
+        feeBumpResponse: String,
     ) {
-        val actor = resolveActor(actorUserId)
+        val notificationActor = resolveActor(actorUserId)
         createWalletNotification(
             AdminNotificationEvent(
                 category = AdminNotificationCategories.WALLET,
                 type = WalletAdminNotificationTypes.FEE_BUMPED,
                 title = "Wallet on-chain fees bumped",
-                body = walletActorLabel(actor) + " bumped pending on-chain fees",
-                actorUserId = actor?.userId,
-                actorUserName = actor?.userName,
-                actorRole = actor?.role,
+                body = walletActorLabel(notificationActor) + " bumped pending on-chain fees",
+                actorUserId = notificationActor?.userId,
+                actorUserName = notificationActor?.userName,
+                actorRole = notificationActor?.role,
                 status = AdminNotificationStatuses.SUCCESS,
                 metadataJson =
                     buildJsonObject {
                         put("feerateSatByte", feerateSatByte)
-                        put("response", response.take(MAX_METADATA_TEXT_LENGTH))
+                        put("response", feeBumpResponse.take(MAX_METADATA_TEXT_LENGTH))
                     }.toString(),
             ),
         )
     }
 
-    fun notifyIncomingPaymentReceived(payload: PaymentNotification) {
-        if (payload.type != PHOENIX_PAYMENT_RECEIVED_TYPE) return
+    fun notifyIncomingPaymentReceived(paymentNotification: PaymentNotification) {
+        if (paymentNotification.type != PHOENIX_PAYMENT_RECEIVED_TYPE) return
 
         createWalletNotification(
             AdminNotificationEvent(
                 category = AdminNotificationCategories.WALLET,
                 type = WalletAdminNotificationTypes.PAYMENT_RECEIVED,
                 title = "Wallet payment received",
-                body = "Wallet received ${payload.amountSat ?: 0} sats",
+                body = "Wallet received ${paymentNotification.amountSat ?: 0} sats",
                 actorUserName = "Phoenix webhook",
                 actorRole = "system",
                 status = AdminNotificationStatuses.SUCCESS,
-                dedupeKey = payload.paymentHash?.let { "${WalletAdminNotificationTypes.PAYMENT_RECEIVED}:$it" },
+                dedupeKey = paymentNotification.paymentHash?.let { "${WalletAdminNotificationTypes.PAYMENT_RECEIVED}:$it" },
                 metadataJson =
                     buildJsonObject {
-                        putOptional("amountSats", payload.amountSat)
-                        putOptional("paymentHash", payload.paymentHash)
-                        putOptional("externalId", payload.externalId)
-                        putOptional("phoenixTimestamp", payload.timestamp)
+                        putOptional("amountSats", paymentNotification.amountSat)
+                        putOptional("paymentHash", paymentNotification.paymentHash)
+                        putOptional("externalId", paymentNotification.externalId)
+                        putOptional("phoenixTimestamp", paymentNotification.timestamp)
                     }.toString(),
             ),
         )
     }
 
-    private fun createWalletNotification(event: AdminNotificationEvent) {
-        runCatching { adminNotificationService.createNotification(event) }
-            .onFailure { logger.warn("Failed to create wallet admin notification: ${it.message}") }
+    private fun createWalletNotification(walletNotificationEvent: AdminNotificationEvent) {
+        runCatching { adminNotificationService.createNotification(walletNotificationEvent) }
+            .onFailure { notificationFailure ->
+                logger.warn("Failed to create wallet admin notification: ${notificationFailure.message}")
+            }
     }
 
     private fun resolveActor(actorUserId: String?): WalletNotificationActor? {
@@ -245,7 +247,8 @@ class WalletAdminNotificationService(
         }
     }
 
-    private fun walletActorLabel(actor: WalletNotificationActor?): String = actor?.userName ?: actor?.userId ?: "A wallet user"
+    private fun walletActorLabel(notificationActor: WalletNotificationActor?): String =
+        notificationActor?.userName ?: notificationActor?.userId ?: "A wallet user"
 
     private fun Throwable.walletNotificationCode(): String =
         when (this) {
@@ -263,11 +266,11 @@ class WalletAdminNotificationService(
             else -> "ambrosia"
         }
 
-    private fun JsonObjectBuilder.putPaymentResponse(response: PaymentResponse) {
-        put("recipientAmountSats", response.recipientAmountSat)
-        put("routingFeeSats", response.routingFeeSat)
-        put("paymentId", response.paymentId)
-        put("paymentHash", response.paymentHash)
+    private fun JsonObjectBuilder.putPaymentResponse(paymentResponse: PaymentResponse) {
+        put("recipientAmountSats", paymentResponse.recipientAmountSat)
+        put("routingFeeSats", paymentResponse.routingFeeSat)
+        put("paymentId", paymentResponse.paymentId)
+        put("paymentHash", paymentResponse.paymentHash)
     }
 
     private fun JsonObjectBuilder.putOptional(

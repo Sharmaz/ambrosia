@@ -1,4 +1,5 @@
 import lightningEs from "../Lightning/locales/es";
+import nwcConnectionEs from "../NwcConnection/locales/es";
 import printersEs from "../Printers/locales/es";
 import seedEs from "../Seed/locales/es";
 import storeInfoEs from "../StoreInfo/locales/es";
@@ -61,6 +62,7 @@ const settingsEs = {
     ...tutorialsEs,
   },
   ...lightningEs,
+  ...nwcConnectionEs,
 };
 
 export default settingsEs;

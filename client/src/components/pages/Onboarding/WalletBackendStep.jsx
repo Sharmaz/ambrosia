@@ -6,7 +6,7 @@ import { Card, CardBody, Input } from "@heroui/react";
 import { Zap, Server } from "lucide-react";
 import { useTranslations } from "next-intl";
 
-const NWC_URI_REGEX = /^nostr\+walletconnect:\/\/[0-9a-f]{64}\?/;
+import { NWC_URI_REGEX } from "@/lib/nwcUri";
 
 export function WalletBackendStep({ data, onChange }) {
   const walletBackendTranslations = useTranslations();
@@ -29,32 +29,34 @@ export function WalletBackendStep({ data, onChange }) {
   return (
     <div>
       <h2 className="text-xl md:text-2xl font-bold text-green-900 mb-2">{walletBackendTranslations("stepWallet.title")}</h2>
-      <p className="text-gray-500 mb-6">{walletBackendTranslations("stepWallet.subtitle")}</p>
+      <p className="text-gray-500 mb-4 md:mb-8">{walletBackendTranslations("stepWallet.subtitle")}</p>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
         <Card
+          shadow="none"
           isPressable
           onPress={() => handleSelect("phoenixd")}
-          className={`border-2 transition-colors cursor-pointer ${!isNwc ? "border-green-700 bg-green-50" : "border-gray-200"}`}
+          className={`border border-gray-200 rounded-lg hover:bg-green-200 ${!isNwc ? "bg-green-100 border-green-300" : ""}`}
         >
           <CardBody className="flex flex-col items-center gap-3 py-6">
-            <Server className={`w-8 h-8 ${!isNwc ? "text-green-700" : "text-gray-400"}`} />
+            <Server className="w-8 h-8 text-green-800" />
             <div className="text-center">
-              <p className={`font-semibold ${!isNwc ? "text-green-900" : "text-gray-700"}`}>phoenixd</p>
+              <p className="font-semibold text-green-900">phoenixd</p>
               <p className="text-xs text-gray-500 mt-1">{walletBackendTranslations("stepWallet.phoenixdDescription")}</p>
             </div>
           </CardBody>
         </Card>
 
         <Card
+          shadow="none"
           isPressable
           onPress={() => handleSelect("nwc")}
-          className={`border-2 transition-colors cursor-pointer ${isNwc ? "border-green-700 bg-green-50" : "border-gray-200"}`}
+          className={`border border-gray-200 rounded-lg hover:bg-green-200 ${isNwc ? "bg-green-100 border-green-300" : ""}`}
         >
           <CardBody className="flex flex-col items-center gap-3 py-6">
-            <Zap className={`w-8 h-8 ${isNwc ? "text-green-700" : "text-gray-400"}`} />
+            <Zap className="w-8 h-8 text-green-800" />
             <div className="text-center">
-              <p className={`font-semibold ${isNwc ? "text-green-900" : "text-gray-700"}`}>
+              <p className="font-semibold text-green-900">
                 {walletBackendTranslations("stepWallet.nwcName")}
               </p>
               <p className="text-xs text-gray-500 mt-1">{walletBackendTranslations("stepWallet.nwcDescription")}</p>

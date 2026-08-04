@@ -12,6 +12,7 @@ import { InstallPWA } from "./InstallPWA";
 import { Language } from "./Language";
 import { LightningCard } from "./Lightning/LightningCard";
 import { NotificationPreferencesCard } from "./Notifications";
+import { NwcConnectionCard } from "./NwcConnection/NwcConnectionCard";
 import { Printers } from "./Printers";
 import { Seed } from "./Seed";
 import { StoreInfo } from "./StoreInfo";
@@ -33,6 +34,7 @@ export function Settings() {
           <Language />
           <Display />
           <Seed />
+          <NwcConnectionCard />
           <Tutorials />
         </div>
 
