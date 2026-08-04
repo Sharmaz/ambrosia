@@ -17,9 +17,15 @@ import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 import io.ktor.server.routing.route
 import io.ktor.server.routing.routing
+import kotlinx.io.files.Path
+import pos.ambrosia.config.replaceConfFileProperty
+import pos.ambrosia.datadir
+import pos.ambrosia.logger
 import pos.ambrosia.models.IncomingPaymentWithRate
+import pos.ambrosia.models.Message
 import pos.ambrosia.models.OutgoingPaymentWithRate
 import pos.ambrosia.models.RolePassword
+import pos.ambrosia.models.UpdateNwcUriRequest
 import pos.ambrosia.models.WalletAuthResponse
 import pos.ambrosia.models.WalletInvoiceRate
 import pos.ambrosia.models.phoenix.CloseChannelRequest
@@ -41,6 +47,8 @@ import pos.ambrosia.services.WalletAdminNotificationService
 import pos.ambrosia.services.WalletRateService
 import pos.ambrosia.utils.Bolt11Decoder
 import pos.ambrosia.utils.InvalidCredentialsException
+import pos.ambrosia.utils.NwcConnectionException
+import pos.ambrosia.utils.UnsupportedBackendOperationException
 import pos.ambrosia.utils.authenticateAdmin
 import pos.ambrosia.utils.getCurrentUser
 
@@ -129,6 +137,27 @@ fun Route.wallet(
         }
     }
     authenticate("auth-jwt-wallet") {
+        post("/updatenwcuri") {
+            val updateNwcUriRequest = call.receive<UpdateNwcUriRequest>()
+            val trimmedNwcUri = updateNwcUriRequest.nwcUri.trim()
+            if (trimmedNwcUri.isBlank()) {
+                call.respond(HttpStatusCode.BadRequest, Message("Missing nwcUri"))
+                return@post
+            }
+            if (!ActiveLightningBackend.isNwcActive()) {
+                throw UnsupportedBackendOperationException(
+                    message = "Switching Lightning backend providers is not supported yet",
+                    code = "provider_switch_not_supported",
+                )
+            }
+            try {
+                ActiveLightningBackend.reinitializeNwcBackend(trimmedNwcUri, call.application)
+            } catch (exception: Exception) {
+                throw NwcConnectionException(code = "nwc_reconfigure_failed")
+            }
+            replaceConfFileProperty(Path(datadir, "ambrosia.conf"), "nwc-uri", trimmedNwcUri)
+            call.respond(HttpStatusCode.OK, Message("NWC backend reconfigured"))
+        }
         post("/createinvoice") {
             val createInvoiceRequest = call.receive<CreateInvoiceRequest>()
             val invoice = ActiveLightningBackend.createInvoice(createInvoiceRequest)

@@ -193,13 +193,36 @@ export async function getOutgoingTransactions() {
   return transactions ? transactions : [];
 }
 
+export async function updateNwcUri(nwcUri) {
+  const response = await httpClient("/wallet/updatenwcuri", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ nwcUri: nwcUri.trim() }),
+  });
+  const body = await parseJsonResponse(response, null);
+  if (!response.ok) {
+    throw createWalletServiceError(body?.message, {
+      status: response.status,
+      code: body?.code,
+      source: body?.source,
+    });
+  }
+  return body;
+}
+
 export async function getSeed() {
   const response = await httpClient("/wallet/seed");
+  const body = await parseJsonResponse(response, null);
   if (!response.ok) {
-    const body = await parseJsonResponse(response, {});
-    throw new Error(body?.message || "Seed not available");
+    throw createWalletServiceError(body?.message || "Seed not available", {
+      status: response.status,
+      code: body?.code,
+      source: body?.source,
+    });
   }
-  return await parseJsonResponse(response, null);
+  return body;
 }
 
 export async function closeChannel(channelId, address, feerateSatByte) {

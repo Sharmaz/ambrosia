@@ -129,7 +129,7 @@ fun Application.handler() {
         }
         exception<NwcConnectionException> { call, cause ->
             logger.error("NWC relay connection error: ${cause.message}")
-            call.respond(HttpStatusCode.ServiceUnavailable, Message("NWC wallet relay is unavailable"))
+            call.respondWalletError(HttpStatusCode.ServiceUnavailable, "NWC wallet relay is unavailable", cause.code, cause.source)
         }
         exception<NwcServiceException> { call, cause ->
             logger.error("NWC service error: ${cause.message}")

@@ -1,4 +1,5 @@
 import lightningEn from "../Lightning/locales/en";
+import nwcConnectionEn from "../NwcConnection/locales/en";
 import printersEn from "../Printers/locales/en";
 import seedEn from "../Seed/locales/en";
 import storeInfoEn from "../StoreInfo/locales/en";
@@ -42,6 +43,7 @@ const settingsEn = {
     ...tutorialsEn,
   },
   ...lightningEn,
+  ...nwcConnectionEn,
 };
 
 export default settingsEn;

@@ -72,6 +72,11 @@ data class WalletAuthResponse(
 )
 
 @Serializable
+data class UpdateNwcUriRequest(
+    val nwcUri: String,
+)
+
+@Serializable
 data class User(
     val id: String? = null,
     val name: String,

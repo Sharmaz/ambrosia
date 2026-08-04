@@ -43,3 +43,35 @@ fun writeConfValues(
             .trimEnd() + "\n",
     )
 }
+
+fun replaceConfFileProperty(
+    confFile: Path,
+    key: String,
+    value: String,
+): Boolean {
+    val file = File(confFile.toString())
+    val existingLines = if (file.exists()) file.readLines() else emptyList()
+    val updatedLines = mutableListOf<String>()
+    var replaced = false
+
+    existingLines.forEach { line ->
+        if (line.trimStart().startsWith("$key=")) {
+            if (!replaced) {
+                updatedLines.add("$key=$value")
+                replaced = true
+            }
+        } else {
+            updatedLines.add(line)
+        }
+    }
+
+    if (!replaced) {
+        updatedLines.add("$key=$value")
+    }
+
+    val fileChanged = existingLines != updatedLines
+    if (fileChanged) {
+        file.writeText(updatedLines.joinToString(separator = "\n", postfix = "\n"))
+    }
+    return fileChanged
+}
