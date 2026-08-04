@@ -47,6 +47,7 @@ class NwcService(
     private val walletPubkeyHex: String,
     private val scope: CoroutineScope,
     private val onIncomingPaymentReceived: (PaymentNotification) -> Unit = {},
+    private val lud16: String? = null,
 ) : LightningBackend {
     private data class PendingInvoice(
         val paymentRequest: String,
@@ -166,6 +167,7 @@ class NwcService(
             chain = chain,
             blockHeight = info.blockHeight,
             version = "NWC",
+            lud16 = lud16,
         )
     }
 
@@ -297,7 +299,8 @@ class NwcService(
             val nwcClient = NwcClient(connectionInfo, httpClient)
             val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
-            val service = NwcService(nwcClient, connectionInfo.walletPubkeyHex, scope, onIncomingPaymentReceived)
+            val service =
+                NwcService(nwcClient, connectionInfo.walletPubkeyHex, scope, onIncomingPaymentReceived, connectionInfo.lud16)
 
             scope.launch {
                 connectAndMarkReady(nwcClient, service)
