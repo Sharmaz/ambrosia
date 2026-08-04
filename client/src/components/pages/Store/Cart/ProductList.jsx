@@ -7,7 +7,7 @@ import { ChevronUp, ImageIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import { useCurrency } from "@/components/hooks/useCurrency";
-import { getProductStockQuantity, getProductStockStatus, getStockChipClassName } from "@/components/pages/Store/utils/productStockStatus";
+import { getProductStockQuantity, getProductStockStatus, getStockChipClassName, isStockTracked } from "@/components/pages/Store/utils/productStockStatus";
 import { ProductDetailsModal } from "@/components/shared/ProductDetailsModal";
 import { ViewButton } from "@/components/shared/ViewButton";
 import { storedAssetUrl } from "@/components/utils/storedAssetUrl";
@@ -72,6 +72,7 @@ export function ProductList({ products, onAddProduct, categories }) {
               const { id, description, priceCents, name, imageUrl, SKU, categoryIds, quantity } = product;
               const stockQuantity = getProductStockQuantity(product);
               const stockStatus = getProductStockStatus(product);
+              const tracksStock = isStockTracked(product);
               const productImageUrl = storedAssetUrl(imageUrl);
               const categoryNames = getCategoryNames(categoryIds);
               return (
@@ -157,12 +158,14 @@ export function ProductList({ products, onAddProduct, categories }) {
                           {cardProductTranslation("card.hasVariants")}
                         </Chip>
                       )}
-                      <Chip
-                        size="sm"
-                        className={getStockChipClassName(stockStatus)}
-                      >
-                        {stockQuantity} {cardProductTranslation("card.stock")}
-                      </Chip>
+                      {tracksStock && (
+                        <Chip
+                          size="sm"
+                          className={getStockChipClassName(stockStatus)}
+                        >
+                          {stockQuantity} {cardProductTranslation("card.stock")}
+                        </Chip>
+                      )}
                     </div>
                     <div className="flex justify-between sm:flex-1">
                       <div className="md:hidden">
@@ -172,7 +175,7 @@ export function ProductList({ products, onAddProduct, categories }) {
                         className="w-full ml-3"
                         color="primary"
                         size="sm"
-                        isDisabled={!product.hasVariants && quantity === 0}
+                        isDisabled={!product.hasVariants && tracksStock && quantity === 0}
                         onPress={() => handleAddClick(product)}
                       >
                         {cardProductTranslation("card.add")}
