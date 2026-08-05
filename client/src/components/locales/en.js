@@ -44,6 +44,8 @@ const componentsEn = {
   actions: {
     edit: "Edit",
     delete: "Delete",
+    markRead: "Mark read",
+    refresh: "Refresh",
     view: "View",
   },
   status: {

@@ -44,6 +44,8 @@ const componentsEs = {
   actions: {
     edit: "Editar",
     delete: "Eliminar",
+    markRead: "Marcar leida",
+    refresh: "Actualizar",
     view: "Ver",
   },
   status: {
