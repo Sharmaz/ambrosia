@@ -1,6 +1,7 @@
 const path = require('path');
+const { URL } = require('url');
 
-const { app, BrowserWindow, Menu, dialog, shell, ipcMain } = require('electron');
+const { app, BrowserWindow, Menu, Notification, dialog, shell, ipcMain } = require('electron');
 
 const AutoUpdater = require('./services/AutoUpdater');
 const { readConfig, writeConfig } = require('./services/ConfigurationBootstrap');
@@ -10,6 +11,7 @@ const { getPhoenixDataDirectory } = require('./utils/resourcePaths');
 
 // To prevent multiple instances of the application
 const gotTheLock = app.requestSingleInstanceLock();
+app.setName('Ambrosia');
 
 if (!gotTheLock) {
   logger.log('[Electron] Another instance is already running. Exiting...');
@@ -32,6 +34,10 @@ let serviceManager = null;
 let autoUpdaterService = null;
 let updateMenuItem = null;
 
+const ADMIN_NOTIFICATIONS_ROUTE = '/store/notifications';
+const ADMIN_ACTIVITY_NOTIFICATION_CHANNEL = 'notifications:admin-activity';
+const MAX_NOTIFICATION_TEXT_LENGTH = 160;
+
 function updateMenuItemState({ label, enabled, click }) {
   if (!updateMenuItem) return;
   updateMenuItem.label = label;
@@ -45,6 +51,76 @@ function updateMenuItemState({ label, enabled, click }) {
       }
     };
   }
+}
+
+function normalizeNotificationText(value, fallbackText) {
+  if (typeof value !== 'string') return fallbackText;
+  const trimmedValue = value.trim();
+  if (!trimmedValue) return fallbackText;
+  return trimmedValue.slice(0, MAX_NOTIFICATION_TEXT_LENGTH);
+}
+
+function getAdminNotificationsUrl() {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    try {
+      return new URL(ADMIN_NOTIFICATIONS_ROUTE, mainWindow.webContents.getURL()).toString();
+    } catch {
+      logger.log('[Electron] Could not resolve current window URL for admin notifications');
+    }
+  }
+
+  const nextJsPort = serviceManager?.getPorts?.().nextjs;
+  return nextJsPort ? `http://localhost:${nextJsPort}${ADMIN_NOTIFICATIONS_ROUTE}` : null;
+}
+
+function focusMainWindow() {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  if (mainWindow.isMinimized()) mainWindow.restore();
+  if (!mainWindow.isVisible()) mainWindow.show();
+  mainWindow.focus();
+}
+
+function openAdminNotificationsFeed() {
+  const adminNotificationsUrl = getAdminNotificationsUrl();
+  focusMainWindow();
+  if (adminNotificationsUrl && mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.loadURL(adminNotificationsUrl);
+  }
+}
+
+function showAdminActivityNotification(notificationPayload = {}) {
+  if (!Notification.isSupported()) {
+    logger.log('[Electron] Native notifications are not supported on this platform');
+    return;
+  }
+
+  const notificationTitle = normalizeNotificationText(
+    notificationPayload.systemTitle,
+    'Ambrosia',
+  );
+  const notificationBody = normalizeNotificationText(
+    notificationPayload.body,
+    notificationPayload.title ||
+      notificationPayload.fallbackActivityTitle ||
+      notificationPayload.systemBody ||
+      'New admin activity',
+  );
+
+  const nativeNotification = new Notification({
+    title: notificationTitle,
+    body: notificationBody,
+    silent: false,
+  });
+
+  logger.log(`[Electron] Showing admin activity notification: title="${notificationTitle}"`);
+  nativeNotification.on('show', () => {
+    logger.log('[Electron] Admin activity notification shown');
+  });
+  nativeNotification.on('failed', (error) => {
+    logger.error('[Electron] Admin activity notification failed:', error);
+  });
+  nativeNotification.on('click', openAdminNotificationsFeed);
+  nativeNotification.show();
 }
 
 // Splash Screen Creation
@@ -287,6 +363,11 @@ ipcMain.handle('services:restart', async (event, serviceName) => {
 ipcMain.handle('services:get-logs', () => {
   const logsDir = path.join(require('os').homedir(), '.Ambrosia-POS', 'logs');
   return { logsDir };
+});
+
+ipcMain.on(ADMIN_ACTIVITY_NOTIFICATION_CHANNEL, (_event, notificationPayload) => {
+  logger.log('[Electron] Admin activity notification IPC received');
+  showAdminActivityNotification(notificationPayload);
 });
 
 const phoenixConfigPath = path.join(getPhoenixDataDirectory(), 'phoenix.conf');

@@ -4,11 +4,13 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { useAdminNotificationsWebsocket } from "@/hooks/useAdminNotificationsWebsocket";
 import {
+  ADMIN_ACTIVITY_ELECTRON_IPC,
   ADMIN_NOTIFICATION_CATEGORY_WALLET,
   ADMIN_NOTIFICATION_PREFERENCES_CHANGED_EVENT,
   ADMIN_NOTIFICATIONS_NEW_EVENT,
   ADMIN_NOTIFICATIONS_REFRESH_UNREAD_COUNT_EVENT,
   ADMIN_NOTIFICATIONS_ROUTE,
+  getElectronAdminNotificationPayload,
   getNotificationIdSet,
 } from "@/lib/adminNotifications";
 import {
@@ -16,6 +18,8 @@ import {
   getAdminNotifications,
 } from "@/services/adminNotificationsService";
 
+import { getAdminNotificationDisplay } from "../../Notifications/utils/notificationDisplay";
+import { createNotificationsTranslator } from "../../Notifications/utils/notificationTranslations";
 import { showAdminNotificationToast } from "../adminNotificationToast";
 
 const UNREAD_NOTIFICATION_POLL_INTERVAL_MS = 10000;
@@ -38,8 +42,22 @@ function publishAdminNotification(notification) {
   );
 }
 
+function sendElectronAdminNotification(notification, locale) {
+  if (typeof window === "undefined") return;
+  const electronIpcSender = window.electron?.ipc?.send;
+  if (!electronIpcSender) return;
+
+  const notificationsTranslator = createNotificationsTranslator(locale);
+  const notificationDisplay = getAdminNotificationDisplay(notification, notificationsTranslator);
+  electronIpcSender(
+    ADMIN_ACTIVITY_ELECTRON_IPC,
+    getElectronAdminNotificationPayload(notification, locale, notificationDisplay),
+  );
+}
+
 export function useAdminNotificationSignals({
   enabled,
+  locale,
   pathname,
   notificationsTranslations,
 }) {
@@ -47,7 +65,7 @@ export function useAdminNotificationSignals({
   const knownUnreadNotificationIdsRef = useRef(new Set());
   const inAppToastPreferencesRef = useRef({});
   const inAppToastPreferencesLoadedRef = useRef(false);
-  const { connected: areLiveNotificationsConnected, onNotification } = useAdminNotificationsWebsocket({
+  const { onNotification } = useAdminNotificationsWebsocket({
     enabled,
   });
 
@@ -176,11 +194,12 @@ export function useAdminNotificationSignals({
       knownUnreadNotificationIdsRef.current.add(notification.id);
     }
     setNotificationUnreadCount((currentCount) => currentCount + 1);
+    sendElectronAdminNotification(notification, locale);
     showToastIfAllowed(notification);
-  }), [onNotification, showToastIfAllowed]);
+  }), [locale, onNotification, showToastIfAllowed]);
 
   useEffect(() => {
-    if (!enabled || areLiveNotificationsConnected) return undefined;
+    if (!enabled) return undefined;
 
     const pollUnreadNotifications = () => {
       fetchUnreadNotifications()
@@ -197,6 +216,7 @@ export function useAdminNotificationSignals({
           const newestUnreadNotification = newUnreadNotifications[0];
           if (newestUnreadNotification) {
             publishAdminNotification(newestUnreadNotification);
+            sendElectronAdminNotification(newestUnreadNotification, locale);
             showToastIfAllowed(newestUnreadNotification);
           }
         })
@@ -206,9 +226,9 @@ export function useAdminNotificationSignals({
     const intervalId = window.setInterval(pollUnreadNotifications, UNREAD_NOTIFICATION_POLL_INTERVAL_MS);
     return () => window.clearInterval(intervalId);
   }, [
-    areLiveNotificationsConnected,
     enabled,
     fetchUnreadNotifications,
+    locale,
     showToastIfAllowed,
   ]);
 

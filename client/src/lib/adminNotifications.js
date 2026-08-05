@@ -33,6 +33,19 @@ export function getAdminActivityNotificationCopy(locale) {
     : ADMIN_ACTIVITY_NOTIFICATION_COPY.en;
 }
 
+export function getElectronAdminNotificationPayload(notification, locale, notificationDisplay) {
+  const notificationCopy = getAdminActivityNotificationCopy(locale);
+  return {
+    systemTitle: notificationCopy.title,
+    systemBody: notificationCopy.body,
+    fallbackActivityTitle: notificationCopy.fallbackActivityTitle,
+    title: notificationDisplay?.title || notification?.title,
+    body: notificationDisplay?.description || notification?.body,
+    category: notification?.category,
+    status: notification?.status,
+  };
+}
+
 export function isWebPushActiveOnDevice(preference, webPushState) {
   return Boolean(
     preference?.pushEnabled &&

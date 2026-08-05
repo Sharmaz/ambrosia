@@ -2,27 +2,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
-  ADMIN_ACTIVITY_ELECTRON_IPC,
   ADMIN_NOTIFICATION_LIVE_EVENT_TYPE,
   ADMIN_NOTIFICATIONS_CONNECTION_CHANGED_EVENT,
   ADMIN_NOTIFICATIONS_EVENT_SOURCE_ROUTE,
   ADMIN_NOTIFICATIONS_LIVE_CONNECTED_STATE_KEY,
   ADMIN_NOTIFICATIONS_NEW_EVENT,
   ADMIN_NOTIFICATIONS_REFRESH_UNREAD_COUNT_EVENT,
-  getAdminActivityNotificationCopy,
 } from "@/lib/adminNotifications";
-
-function createElectronNotificationPayload(notification) {
-  const notificationCopy = getAdminActivityNotificationCopy(navigator.language);
-  return {
-    systemTitle: notificationCopy.title,
-    systemBody: notificationCopy.body,
-    fallbackActivityTitle: notificationCopy.fallbackActivityTitle,
-    title: notification.title,
-    category: notification.category,
-    status: notification.status,
-  };
-}
 
 function getAdminNotificationFromLiveMessage(liveMessage) {
   if (!liveMessage?.notification) return null;
@@ -76,10 +62,6 @@ export function useAdminNotificationsWebsocket({ enabled = true } = {}) {
           const notification = getAdminNotificationFromLiveMessage(liveMessage);
           if (notification) {
             notificationListenersRef.current.forEach((listener) => listener(notification));
-            window.electron?.ipc?.send?.(
-              ADMIN_ACTIVITY_ELECTRON_IPC,
-              createElectronNotificationPayload(notification),
-            );
             window.dispatchEvent(
               new CustomEvent(ADMIN_NOTIFICATIONS_NEW_EVENT, {
                 detail: { notification },

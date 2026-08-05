@@ -42,37 +42,37 @@ describe("useAdminNotifications", () => {
   });
 
   it("loads notifications", async () => {
-    const { result } = renderHook(() => useAdminNotifications());
+    const renderedAdminNotificationsHook = renderHook(() => useAdminNotifications());
 
-    await waitFor(() => expect(result.current.loading).toBe(false));
+    await waitFor(() => expect(renderedAdminNotificationsHook.result.current.loading).toBe(false));
 
     expect(getAdminNotifications).toHaveBeenCalledWith({
       category: ADMIN_NOTIFICATION_CATEGORY_WALLET,
       unreadOnly: false,
       limit: 100,
     });
-    expect(result.current.notifications).toHaveLength(1);
-    expect(result.current.unreadCount).toBe(1);
+    expect(renderedAdminNotificationsHook.result.current.notifications).toHaveLength(1);
+    expect(renderedAdminNotificationsHook.result.current.unreadCount).toBe(1);
   });
 
   it("marks one notification as read locally after backend success", async () => {
-    const { result } = renderHook(() => useAdminNotifications());
-    await waitFor(() => expect(result.current.loading).toBe(false));
+    const renderedAdminNotificationsHook = renderHook(() => useAdminNotifications());
+    await waitFor(() => expect(renderedAdminNotificationsHook.result.current.loading).toBe(false));
 
     await act(async () => {
-      await result.current.markRead("notification-1");
+      await renderedAdminNotificationsHook.result.current.markRead("notification-1");
     });
 
     expect(markAdminNotificationRead).toHaveBeenCalledWith("notification-1");
-    expect(result.current.notifications[0].readAt).toBeTruthy();
+    expect(renderedAdminNotificationsHook.result.current.notifications[0].readAt).toBeTruthy();
   });
 
   it("removes one notification from the local list when unread-only filter is active", async () => {
-    const { result } = renderHook(() => useAdminNotifications());
-    await waitFor(() => expect(result.current.loading).toBe(false));
+    const renderedAdminNotificationsHook = renderHook(() => useAdminNotifications());
+    await waitFor(() => expect(renderedAdminNotificationsHook.result.current.loading).toBe(false));
 
     act(() => {
-      result.current.updateFilters({ unreadOnly: true });
+      renderedAdminNotificationsHook.result.current.updateFilters({ unreadOnly: true });
     });
     await waitFor(() => expect(getAdminNotifications).toHaveBeenLastCalledWith({
       category: ADMIN_NOTIFICATION_CATEGORY_WALLET,
@@ -81,31 +81,31 @@ describe("useAdminNotifications", () => {
     }));
 
     await act(async () => {
-      await result.current.markRead("notification-1");
+      await renderedAdminNotificationsHook.result.current.markRead("notification-1");
     });
 
-    expect(result.current.notifications).toHaveLength(0);
-    expect(result.current.unreadCount).toBe(0);
+    expect(renderedAdminNotificationsHook.result.current.notifications).toHaveLength(0);
+    expect(renderedAdminNotificationsHook.result.current.unreadCount).toBe(0);
   });
 
   it("marks all filtered notifications as read", async () => {
-    const { result } = renderHook(() => useAdminNotifications());
-    await waitFor(() => expect(result.current.loading).toBe(false));
+    const renderedAdminNotificationsHook = renderHook(() => useAdminNotifications());
+    await waitFor(() => expect(renderedAdminNotificationsHook.result.current.loading).toBe(false));
 
     await act(async () => {
-      await result.current.markAllRead();
+      await renderedAdminNotificationsHook.result.current.markAllRead();
     });
 
     expect(markAllAdminNotificationsRead).toHaveBeenCalledWith(ADMIN_NOTIFICATION_CATEGORY_WALLET);
-    expect(result.current.unreadCount).toBe(0);
+    expect(renderedAdminNotificationsHook.result.current.unreadCount).toBe(0);
   });
 
   it("removes all filtered notifications from the local list when unread-only filter is active", async () => {
-    const { result } = renderHook(() => useAdminNotifications());
-    await waitFor(() => expect(result.current.loading).toBe(false));
+    const renderedAdminNotificationsHook = renderHook(() => useAdminNotifications());
+    await waitFor(() => expect(renderedAdminNotificationsHook.result.current.loading).toBe(false));
 
     act(() => {
-      result.current.updateFilters({ unreadOnly: true });
+      renderedAdminNotificationsHook.result.current.updateFilters({ unreadOnly: true });
     });
     await waitFor(() => expect(getAdminNotifications).toHaveBeenLastCalledWith({
       category: ADMIN_NOTIFICATION_CATEGORY_WALLET,
@@ -114,43 +114,43 @@ describe("useAdminNotifications", () => {
     }));
 
     await act(async () => {
-      await result.current.markAllRead();
+      await renderedAdminNotificationsHook.result.current.markAllRead();
     });
 
     expect(markAllAdminNotificationsRead).toHaveBeenCalledWith(ADMIN_NOTIFICATION_CATEGORY_WALLET);
-    expect(result.current.notifications).toHaveLength(0);
-    expect(result.current.unreadCount).toBe(0);
+    expect(renderedAdminNotificationsHook.result.current.notifications).toHaveLength(0);
+    expect(renderedAdminNotificationsHook.result.current.unreadCount).toBe(0);
   });
 
   it("deletes one notification locally after backend success", async () => {
-    const { result } = renderHook(() => useAdminNotifications());
-    await waitFor(() => expect(result.current.loading).toBe(false));
+    const renderedAdminNotificationsHook = renderHook(() => useAdminNotifications());
+    await waitFor(() => expect(renderedAdminNotificationsHook.result.current.loading).toBe(false));
 
     await act(async () => {
-      await result.current.deleteNotification("notification-1");
+      await renderedAdminNotificationsHook.result.current.deleteNotification("notification-1");
     });
 
     expect(deleteAdminNotification).toHaveBeenCalledWith("notification-1");
-    expect(result.current.notifications).toHaveLength(0);
-    expect(result.current.unreadCount).toBe(0);
+    expect(renderedAdminNotificationsHook.result.current.notifications).toHaveLength(0);
+    expect(renderedAdminNotificationsHook.result.current.unreadCount).toBe(0);
   });
 
   it("deletes all filtered notifications locally after backend success", async () => {
-    const { result } = renderHook(() => useAdminNotifications());
-    await waitFor(() => expect(result.current.loading).toBe(false));
+    const renderedAdminNotificationsHook = renderHook(() => useAdminNotifications());
+    await waitFor(() => expect(renderedAdminNotificationsHook.result.current.loading).toBe(false));
 
     await act(async () => {
-      await result.current.deleteAllNotifications();
+      await renderedAdminNotificationsHook.result.current.deleteAllNotifications();
     });
 
     expect(deleteAllAdminNotifications).toHaveBeenCalledWith(ADMIN_NOTIFICATION_CATEGORY_WALLET);
-    expect(result.current.notifications).toHaveLength(0);
-    expect(result.current.unreadCount).toBe(0);
+    expect(renderedAdminNotificationsHook.result.current.notifications).toHaveLength(0);
+    expect(renderedAdminNotificationsHook.result.current.unreadCount).toBe(0);
   });
 
   it("merges live notifications at the top of the feed", async () => {
-    const { result } = renderHook(() => useAdminNotifications());
-    await waitFor(() => expect(result.current.loading).toBe(false));
+    const renderedAdminNotificationsHook = renderHook(() => useAdminNotifications());
+    await waitFor(() => expect(renderedAdminNotificationsHook.result.current.loading).toBe(false));
 
     act(() => {
       window.dispatchEvent(
@@ -167,7 +167,7 @@ describe("useAdminNotifications", () => {
       );
     });
 
-    expect(result.current.notifications.map((notification) => notification.id)).toEqual([
+    expect(renderedAdminNotificationsHook.result.current.notifications.map((notification) => notification.id)).toEqual([
       "notification-2",
       "notification-1",
     ]);
@@ -175,10 +175,10 @@ describe("useAdminNotifications", () => {
 
   it("tracks global live connection state changes", async () => {
     window.__adminNotificationsLiveConnected = false;
-    const { result } = renderHook(() => useAdminNotifications());
-    await waitFor(() => expect(result.current.loading).toBe(false));
+    const renderedAdminNotificationsHook = renderHook(() => useAdminNotifications());
+    await waitFor(() => expect(renderedAdminNotificationsHook.result.current.loading).toBe(false));
 
-    expect(result.current.liveConnected).toBe(false);
+    expect(renderedAdminNotificationsHook.result.current.liveConnected).toBe(false);
 
     act(() => {
       window.dispatchEvent(
@@ -188,6 +188,6 @@ describe("useAdminNotifications", () => {
       );
     });
 
-    expect(result.current.liveConnected).toBe(true);
+    expect(renderedAdminNotificationsHook.result.current.liveConnected).toBe(true);
   });
 });
