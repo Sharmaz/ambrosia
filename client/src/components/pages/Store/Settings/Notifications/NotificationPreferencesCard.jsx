@@ -27,12 +27,12 @@ function EndpointSummary({ endpointSummary, label }) {
   );
 }
 
-function showWebPushToggleErrorToast(t, reason) {
+function showWebPushToggleErrorToast(settingsTranslations, reason) {
   const descriptionKey = reason ? `cardNotifications.pushErrors.${reason}` : "cardNotifications.pushErrors.failed";
   addToast({
     color: "danger",
-    title: t("cardNotifications.pushErrorTitle"),
-    description: t(descriptionKey),
+    title: settingsTranslations("cardNotifications.pushErrorTitle"),
+    description: settingsTranslations(descriptionKey),
   });
 }
 
@@ -41,8 +41,8 @@ function notifyAdminNotificationPreferencesChanged() {
 }
 
 export function NotificationPreferencesCard() {
-  const t = useTranslations("settings");
-  const tNotifications = useTranslations("notifications");
+  const settingsTranslations = useTranslations("settings");
+  const notificationTranslations = useTranslations("notifications");
   const {
     walletPreference,
     loading,
@@ -63,7 +63,7 @@ export function NotificationPreferencesCard() {
 
     const pushResult = pushEnabled ? await webPush.subscribe() : await webPush.unsubscribe();
     if (!pushResult.ok) {
-      showWebPushToggleErrorToast(t, pushResult.reason);
+      showWebPushToggleErrorToast(settingsTranslations, pushResult.reason);
       return;
     }
 
@@ -81,31 +81,31 @@ export function NotificationPreferencesCard() {
     <Card shadow="none" className="rounded-lg p-6 shadow-lg">
       <CardHeader className="flex flex-col items-start pb-0">
         <h2 className="text-lg sm:text-xl xl:text-2xl font-semibold text-green-900">
-          {t("cardNotifications.title")}
+          {settingsTranslations("cardNotifications.title")}
         </h2>
         <p className="text-xs sm:text-sm text-gray-600 mt-1">
-          {t("cardNotifications.subtitle")}
+          {settingsTranslations("cardNotifications.subtitle")}
         </p>
       </CardHeader>
 
       <CardBody>
         {error && (
           <p className="text-sm text-red-600">
-            {t("cardNotifications.error")}
+            {settingsTranslations("cardNotifications.error")}
           </p>
         )}
 
         <div className="flex flex-col gap-5">
           <div className="flex flex-col gap-1">
             <p className="text-sm sm:text-base font-semibold text-gray-700">
-              {t("cardNotifications.walletTitle")}
+              {settingsTranslations("cardNotifications.walletTitle")}
             </p>
             <p className="text-xs sm:text-sm text-gray-500">
-              {tNotifications(`webPush.${walletWebPushStatusKey}`)}
+              {notificationTranslations(`webPush.${walletWebPushStatusKey}`)}
             </p>
             <EndpointSummary
               endpointSummary={webPush.subscriptionSummary}
-              label={tNotifications("webPush.endpoint")}
+              label={notificationTranslations("webPush.endpoint")}
             />
           </div>
 
@@ -115,9 +115,9 @@ export function NotificationPreferencesCard() {
                 isSelected={Boolean(walletPreference?.inAppEnabled)}
                 isDisabled={disabled || !walletPreference}
                 onValueChange={handleInAppPreferenceChange}
-                aria-label={t("cardNotifications.inApp")}
+                aria-label={settingsTranslations("cardNotifications.inApp")}
               >
-                <span className="text-sm font-medium">{t("cardNotifications.inApp")}</span>
+                <span className="text-sm font-medium">{settingsTranslations("cardNotifications.inApp")}</span>
               </Switch>
             </div>
 
@@ -126,9 +126,9 @@ export function NotificationPreferencesCard() {
                 isSelected={isWalletPushActiveOnDevice}
                 isDisabled={disabled || webPush.loading || !webPush.isSupported || !walletPreference}
                 onValueChange={handlePushPreferenceChange}
-                aria-label={t("cardNotifications.push")}
+                aria-label={settingsTranslations("cardNotifications.push")}
               >
-                <span className="text-sm font-medium">{t("cardNotifications.push")}</span>
+                <span className="text-sm font-medium">{settingsTranslations("cardNotifications.push")}</span>
               </Switch>
             </div>
 
@@ -138,7 +138,7 @@ export function NotificationPreferencesCard() {
               isDisabled={!isWalletPushActiveOnDevice || disabled || webPush.loading}
               onPress={webPush.showTestNotification}
             >
-              {t("cardNotifications.testPush")}
+              {settingsTranslations("cardNotifications.testPush")}
             </Button>
           </div>
         </div>

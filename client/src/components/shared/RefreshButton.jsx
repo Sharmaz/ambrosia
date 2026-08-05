@@ -12,7 +12,7 @@ export function RefreshButton({
   "aria-label": ariaLabel,
   ...props
 }) {
-  const t = useTranslations("actions");
+  const actionTranslations = useTranslations("actions");
   const hasLabel = Boolean(children);
   const buttonClassName = hasLabel
     ? showLabelOnMobile
@@ -26,7 +26,7 @@ export function RefreshButton({
       onPress={onPress}
       size={size}
       variant="outline"
-      aria-label={ariaLabel ?? t("refresh")}
+      aria-label={ariaLabel ?? actionTranslations("refresh")}
       {...props}
     >
       <RefreshCw className="w-4 h-4" />

@@ -12,7 +12,7 @@ export function MarkReadButton({
   "aria-label": ariaLabel,
   ...props
 }) {
-  const t = useTranslations("actions");
+  const actionTranslations = useTranslations("actions");
   const hasLabel = Boolean(children);
   const buttonClassName = hasLabel
     ? showLabelOnMobile
@@ -26,7 +26,7 @@ export function MarkReadButton({
       onPress={onPress}
       size={size}
       variant="outline"
-      aria-label={ariaLabel ?? t("markRead")}
+      aria-label={ariaLabel ?? actionTranslations("markRead")}
       {...props}
     >
       <CheckCheck className="w-4 h-4" />

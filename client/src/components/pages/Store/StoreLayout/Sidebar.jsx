@@ -36,7 +36,7 @@ export function SidebarContent({
   availableNavigation,
   isAuth,
   pathname,
-  t,
+  navbarTranslations,
   logout,
   config,
   logoSrc,
@@ -70,7 +70,7 @@ export function SidebarContent({
               <NavBarButton
                 key={`${item.path}-${index}`}
                 id={withTourIds ? item.tourId : undefined}
-                text={t(item.label)}
+                text={navbarTranslations(item.label)}
                 icon={item.icon}
                 href={item.path}
                 isActive={pathname === item.path || pathname.startsWith(item.path)}
@@ -91,7 +91,7 @@ export function SidebarContent({
           className="flex items-center space-x-2 p-2 rounded-md transition-colors text-slate-100 hover:bg-green-300 hover:text-green-800"
         >
           <LogOut className="w-7 h-7 md:w-5 md:h-5 lg:w-7 lg:h-7" />
-          <span className="pl-2 text-2xl md:text-lg lg:text-2xl">{t("logout")}</span>
+          <span className="pl-2 text-2xl md:text-lg lg:text-2xl">{navbarTranslations("logout")}</span>
         </Link>
       </div>
     </>

@@ -20,7 +20,7 @@ import { SidebarContent } from "./Sidebar";
 
 export function StoreLayout({ children }) {
   const pathname = usePathname();
-  const t = useTranslations("navbar");
+  const navbarTranslations = useTranslations("navbar");
   const notificationsTranslations = useTranslations("notifications");
   const { config } = useConfigurations();
   const { availableNavigation, isAuth, isAdmin, logout } = useNavigation();
@@ -43,7 +43,7 @@ export function StoreLayout({ children }) {
     availableNavigation,
     isAuth,
     pathname,
-    t,
+    navbarTranslations,
     logout,
     config,
     logoSrc,
@@ -74,7 +74,7 @@ export function StoreLayout({ children }) {
         isAuth={isAuth}
         items={bottomNavItems}
         pathname={pathname}
-        t={t}
+        navbarTranslations={navbarTranslations}
         notificationUnreadCount={notificationUnreadCount}
         onMenuClick={() => setDrawerOpen(true)}
       />
