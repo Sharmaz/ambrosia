@@ -8,11 +8,6 @@ export function getAdminNotificationToastColor(notification) {
   return notification?.status === FAILED_NOTIFICATION_STATUS ? "danger" : "success";
 }
 
-export function getAdminNotificationToastDescription(notification, fallbackDescription) {
-  const notificationDisplay = getAdminNotificationDisplay(notification, () => fallbackDescription);
-  return notificationDisplay.description || fallbackDescription;
-}
-
 export function showAdminNotificationToast(notification, notificationsTranslations) {
   const notificationDisplay = getAdminNotificationDisplay(notification, notificationsTranslations);
 
