@@ -26,7 +26,7 @@ export function ProductsCard({
   const imageUrl = storedAssetUrl(product?.imageUrl);
   const stockStatus = getProductStockStatus(product);
   const stockChipClassName = getStockChipClassName(stockStatus);
-  const stockQuantityLabel = isStockTracked(product) ? getProductStockQuantity(product) : "—";
+  const stockQuantityLabel = isStockTracked(product) ? getProductStockQuantity(product) : "N/A";
 
   return (
     <Card shadow="none" className="border border-gray-200 rounded-lg">

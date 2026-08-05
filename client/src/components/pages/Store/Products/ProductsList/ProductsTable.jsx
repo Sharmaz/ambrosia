@@ -56,7 +56,7 @@ export function ProductsTable({
           const productCategories = getProductCategories(product, categoryNameById);
           const stockStatus = getProductStockStatus(product);
           const stockChipClassName = getStockChipClassName(stockStatus);
-          const stockQuantityLabel = isStockTracked(product) ? getProductStockQuantity(product) : "—";
+          const stockQuantityLabel = isStockTracked(product) ? getProductStockQuantity(product) : "N/A";
           return (
             <TableRow key={product.id}>
               <TableCell>
