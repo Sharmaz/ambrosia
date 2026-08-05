@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { Button, Divider, addToast } from "@heroui/react";
 import { useTranslations } from "next-intl";
@@ -30,6 +30,8 @@ export function Onboarding() {
   const onboardingTranslations = useTranslations();
   const [step, setStep] = useState(1);
   const [setupStatus, setSetupStatus] = useState(null);
+  const [isSubmittingSetup, setIsSubmittingSetup] = useState(false);
+  const isSubmittingSetupRef = useRef(false);
   const [data, setData] = useState({
     businessType: "store",
     walletBackend: "phoenixd",
@@ -99,6 +101,10 @@ export function Onboarding() {
   };
 
   const handleComplete = async () => {
+    if (isSubmittingSetupRef.current) return;
+    isSubmittingSetupRef.current = true;
+    setIsSubmittingSetup(true);
+
     try {
       if (needsBusinessType) {
         await submitInitialSetup({
@@ -157,12 +163,15 @@ export function Onboarding() {
           onClose: () => window.location.reload(),
         });
       }
-    } catch (error) {
+    } catch (setupSubmissionError) {
       addToast({
-        title: "Error",
-        description: error.message,
+        title: onboardingTranslations("submitOnboardingToast.errorTitle"),
+        description: setupSubmissionError.message,
         color: "danger",
       });
+    } finally {
+      isSubmittingSetupRef.current = false;
+      setIsSubmittingSetup(false);
     }
   };
 
@@ -260,7 +269,8 @@ export function Onboarding() {
                 <Button
                   color="primary"
                   onPress={handleComplete}
-                  isDisabled={!data.businessType}
+                  isDisabled={!data.businessType || isSubmittingSetup}
+                  isLoading={isSubmittingSetup}
                   className="bg-green-800"
                 >
                   {onboardingTranslations("buttons.finish")}
@@ -290,6 +300,8 @@ export function Onboarding() {
                 <Button
                   color="primary"
                   onPress={handleComplete}
+                  isDisabled={isSubmittingSetup}
+                  isLoading={isSubmittingSetup}
                   className="bg-green-800"
                 >
                   {onboardingTranslations("buttons.finish")}

@@ -72,6 +72,32 @@ async function completeOnboardingWithNwcUri(user, nwcUri) {
   });
 }
 
+async function completeOnboardingWithPhoenixd() {
+  await act(async () => {
+    fireEvent.click(screen.getByText("buttons.next"));
+  });
+  await act(async () => {
+    fireEvent.click(screen.getByText("buttons.next"));
+  });
+
+  await act(async () => {
+    fireEvent.change(screen.getByPlaceholderText("step2.fields.userNamePlaceholder"), { target: { value: "testuser" } });
+    fireEvent.change(screen.getByPlaceholderText("step2.fields.userPinPlaceholder"), { target: { value: "0000" } });
+    fireEvent.change(screen.getByPlaceholderText("step2.fields.passwordPlaceholder"), { target: { value: "Abcd123$" } });
+    fireEvent.change(screen.getByPlaceholderText("step2.fields.confirmPasswordPlaceholder"), { target: { value: "Abcd123$" } });
+  });
+  await act(async () => {
+    fireEvent.click(screen.getByText("buttons.next"));
+  });
+
+  await act(async () => {
+    fireEvent.change(screen.getByPlaceholderText("step3.fields.businessNamePlaceholder"), { target: { value: "My Business" } });
+  });
+  await act(async () => {
+    fireEvent.click(screen.getByText("buttons.next"));
+  });
+}
+
 const originalError = console.error;
 const originalWarn = console.warn;
 
@@ -389,6 +415,54 @@ describe("Onboarding Wizard", () => {
         expect(addToast).toHaveBeenCalledWith(
           expect.objectContaining({ title: "submitOnboardingToast.nwcErrorTitle", color: "danger" }),
         );
+      });
+    });
+  });
+
+  describe("setup submit feedback", () => {
+    it("shows a localized error toast when setup submission fails", async () => {
+      submitInitialSetup.mockRejectedValueOnce(new Error("Server unavailable"));
+
+      await act(async () => {
+        renderOnboarding();
+      });
+      await completeOnboardingWithPhoenixd();
+
+      await act(async () => {
+        fireEvent.click(screen.getByText("buttons.finish"));
+      });
+
+      expect(addToast).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: "submitOnboardingToast.errorTitle",
+          description: "Server unavailable",
+          color: "danger",
+        }),
+      );
+    });
+
+    it("prevents duplicate setup submissions while finish is pending", async () => {
+      let resolveSetupSubmission;
+      submitInitialSetup.mockImplementationOnce(() => new Promise((resolveSetup) => {
+        resolveSetupSubmission = resolveSetup;
+      }));
+
+      await act(async () => {
+        renderOnboarding();
+      });
+      await completeOnboardingWithPhoenixd();
+      submitInitialSetup.mockClear();
+
+      const finishButton = screen.getByText("buttons.finish");
+      await act(async () => {
+        fireEvent.click(finishButton);
+        fireEvent.click(finishButton);
+      });
+
+      expect(submitInitialSetup).toHaveBeenCalledTimes(1);
+
+      await act(async () => {
+        resolveSetupSubmission({});
       });
     });
   });

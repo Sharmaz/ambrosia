@@ -18,6 +18,7 @@ const componentsEn = {
     guardTitle: "Wallet Access",
     guardDescription: "This password protects your Bitcoin wallet. Enter it to access your Lightning channels.",
     guardButton: "Got it",
+    guardLoginError: "Could not unlock the wallet. Check the password and try again.",
     receiveAmountTitle: "Step 1: Amount in satoshis",
     receiveAmountDescription: "Enter <b>5000</b> as the amount. This covers the fee to open your Lightning channel.",
     receiveDescTitle: "Step 2: Description",
