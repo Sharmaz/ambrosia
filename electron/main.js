@@ -6,7 +6,7 @@ const AutoUpdater = require('./services/AutoUpdater');
 const { readConfig, writeConfig } = require('./services/ConfigurationBootstrap');
 const ServiceManager = require('./services/ServiceManager');
 const logger = require('./utils/logger');
-const { getPhoenixDataDirectory } = require('./utils/resourcePaths');
+const { getDataDirectory, getPhoenixDataDirectory } = require('./utils/resourcePaths');
 
 // To prevent multiple instances of the application
 const gotTheLock = app.requestSingleInstanceLock();
@@ -366,7 +366,7 @@ app.whenReady().then(async () => {
     // Track service startup progress
     updateSplash(null, 0, 'Initializing...');
 
-    serviceManager.on('service:started', ({ service, port }) => {
+    serviceManager.on('service:started', ({ service, port, skipped }) => {
       logger.log(`[Electron] Service started: ${service} on port ${port}`);
 
       // Update progress based on service
@@ -375,7 +375,7 @@ app.whenReady().then(async () => {
 
       if (service === 'phoenixd') {
         progress = 33;
-        message = 'Lightning Network ready';
+        message = skipped ? 'NWC wallet configured' : 'Lightning Network ready';
         completeSplashStep('phoenixd');
         updateSplash('backend', progress, 'Starting Backend...');
       } else if (service === 'backend') {
@@ -411,7 +411,13 @@ app.whenReady().then(async () => {
       updateSplash(null, 33, 'Development mode');
       updateSplash('nextjs', 66, 'Starting Frontend...');
     } else {
-      updateSplash('phoenixd', 10, 'Starting Lightning Network...');
+      const ambrosiaConfigPath = path.join(getDataDirectory(), 'ambrosia.conf');
+      const nwcUriConfigured = Boolean(readConfig(ambrosiaConfigPath)['nwc-uri']);
+      updateSplash(
+        'phoenixd',
+        10,
+        nwcUriConfigured ? 'Connecting to NWC wallet...' : 'Starting Lightning Network...',
+      );
     }
 
     const url = await serviceManager.startAll();
