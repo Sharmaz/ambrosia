@@ -5,6 +5,7 @@ const nodeInfoEn = {
     network: "Network",
     channels: "Channels",
     block: "Block",
+    lightningAddress: "Lightning Address",
     subtitle: "Lightning Channels",
     channel: "Channel #",
     sats: "sats",

@@ -33,6 +33,7 @@ class NwcServiceTest {
     private val mockClient: NwcClientPort = mock()
     private val walletPubkey = "b889ff5b1513b641e2a139f661a661364979c5beee91842f8f0ef42ab558e9d4"
     private val service = NwcService(mockClient, walletPubkey, CoroutineScope(SupervisorJob())).also { it.markReady() }
+    private val defaultNip47Info = Nip47Info(pubkey = null, network = "mainnet")
 
     @Test
     fun `createInvoice returns paymentHash and bolt11 from NWC client`() =
@@ -99,7 +100,7 @@ class NwcServiceTest {
     @Test
     fun `getNodeInfo uses wallet pubkey as fallback when NWC omits it`() =
         runBlocking {
-            whenever(mockClient.getInfo()).thenReturn(Nip47Info(pubkey = null, network = "mainnet"))
+            whenever(mockClient.getInfo()).thenReturn(defaultNip47Info)
 
             assertEquals(walletPubkey, service.getNodeInfo().nodeId)
         }
@@ -116,7 +117,7 @@ class NwcServiceTest {
     @Test
     fun `getNodeInfo returns empty channel list`() =
         runBlocking {
-            whenever(mockClient.getInfo()).thenReturn(Nip47Info(pubkey = null, network = "mainnet"))
+            whenever(mockClient.getInfo()).thenReturn(defaultNip47Info)
 
             assertEquals(emptyList(), service.getNodeInfo().channels)
         }
@@ -130,9 +131,28 @@ class NwcServiceTest {
         }
 
     @Test
+    fun `getNodeInfo includes lud16 when the service was constructed with one`() =
+        runBlocking {
+            val serviceWithLud16 =
+                NwcService(mockClient, walletPubkey, CoroutineScope(SupervisorJob()), lud16 = "wallet@example.com")
+                    .also { it.markReady() }
+            whenever(mockClient.getInfo()).thenReturn(defaultNip47Info)
+
+            assertEquals("wallet@example.com", serviceWithLud16.getNodeInfo().lud16)
+        }
+
+    @Test
+    fun `getNodeInfo omits lud16 when the service was constructed without one`() =
+        runBlocking {
+            whenever(mockClient.getInfo()).thenReturn(defaultNip47Info)
+
+            assertEquals(null, service.getNodeInfo().lud16)
+        }
+
+    @Test
     fun `getNodeInfo does not make a redundant get_balance round-trip`() =
         runBlocking<Unit> {
-            whenever(mockClient.getInfo()).thenReturn(Nip47Info(pubkey = null, network = "mainnet"))
+            whenever(mockClient.getInfo()).thenReturn(defaultNip47Info)
 
             service.getNodeInfo()
 
@@ -443,9 +463,9 @@ class NwcServiceTest {
     fun `close cancels coroutine scope and closes underlying NWC client`() {
         val client: NwcClientPort = mock()
         val scope = CoroutineScope(SupervisorJob())
-        val svc = NwcService(client, walletPubkey, scope).also { it.markReady() }
+        val serviceToClose = NwcService(client, walletPubkey, scope).also { it.markReady() }
 
-        svc.close()
+        serviceToClose.close()
 
         verify(client).close()
         assertEquals(false, scope.isActive)

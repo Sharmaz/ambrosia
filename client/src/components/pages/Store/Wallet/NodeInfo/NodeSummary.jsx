@@ -1,6 +1,6 @@
 "use client";
 
-import { Wallet, Layers, Globe, Zap } from "lucide-react";
+import { Wallet, Layers, Globe, Zap, AtSign } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import { formatFiat, formatSats } from "../utils/formatters";
@@ -58,6 +58,13 @@ export function NodeSummary({ info, totalBalance, currentRate, currencyAcronym, 
             value={info.blockHeight}
           />
         </>
+      )}
+      {isNwcBackend && info.lud16 && (
+        <StatCard
+          icon={AtSign}
+          label={walletTranslations("nodeInfo.lightningAddress")}
+          value={info.lud16}
+        />
       )}
     </div>
   );
