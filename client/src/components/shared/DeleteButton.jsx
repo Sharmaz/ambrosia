@@ -7,6 +7,7 @@ import { useTranslations } from "next-intl";
 export function DeleteButton({
   onPress,
   children,
+  className = "",
   size = "sm",
   showLabelOnMobile = false,
   "aria-label": ariaLabel,
@@ -22,7 +23,7 @@ export function DeleteButton({
 
   return (
     <Button
-      className={`border border-red-600 text-red-600 ${buttonClassName}`}
+      className={`border border-red-600 text-red-600 ${buttonClassName} ${className}`}
       onPress={onPress}
       size={size}
       variant="outline"

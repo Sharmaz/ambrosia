@@ -7,6 +7,7 @@ import { useTranslations } from "next-intl";
 export function RefreshButton({
   onPress,
   children,
+  className = "",
   size = "sm",
   showLabelOnMobile = false,
   "aria-label": ariaLabel,
@@ -22,7 +23,7 @@ export function RefreshButton({
 
   return (
     <Button
-      className={`border border-green-800 text-green-800 ${buttonClassName}`}
+      className={`border border-green-800 text-green-800 ${buttonClassName} ${className}`}
       onPress={onPress}
       size={size}
       variant="outline"

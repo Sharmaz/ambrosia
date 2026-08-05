@@ -43,37 +43,44 @@ export function NotificationsToolbar({
         </span>
       </div>
 
-      <div className="flex flex-col items-end gap-3 sm:flex-row sm:items-center sm:justify-end lg:ml-auto">
-        <Switch
-          size="sm"
-          isSelected={filters.unreadOnly}
-          onValueChange={(unreadOnly) => onFiltersChange({ unreadOnly })}
-        >
-          <span className="text-sm font-medium">{notificationsTranslations("filters.unreadOnly")}</span>
-        </Switch>
-        <RefreshButton
-          onPress={() => onRefresh()}
-          showLabelOnMobile
-          aria-label={notificationsTranslations("actions.refresh")}
-        >
-          {notificationsTranslations("actions.refresh")}
-        </RefreshButton>
-        <MarkReadButton
-          isDisabled={unreadCount === 0}
-          onPress={onMarkAllRead}
-          showLabelOnMobile
-          aria-label={notificationsTranslations("actions.markAllRead")}
-        >
-          {notificationsTranslations("actions.markAllRead")}
-        </MarkReadButton>
-        <DeleteButton
-          isDisabled={notificationCount === 0}
-          onPress={onDeleteAllNotifications}
-          showLabelOnMobile
-          aria-label={notificationsTranslations("actions.deleteAll")}
-        >
-          {notificationsTranslations("actions.deleteAll")}
-        </DeleteButton>
+      <div className="flex w-full flex-col gap-3 lg:ml-auto lg:w-auto lg:flex-row lg:items-center lg:justify-end">
+        <div className="flex items-center justify-between rounded-lg bg-gray-50 px-3 py-2 lg:bg-transparent lg:p-0">
+          <Switch
+            size="sm"
+            isSelected={filters.unreadOnly}
+            onValueChange={(unreadOnly) => onFiltersChange({ unreadOnly })}
+          >
+            <span className="text-sm font-medium">{notificationsTranslations("filters.unreadOnly")}</span>
+          </Switch>
+        </div>
+        <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-3 lg:flex lg:w-auto lg:items-center lg:justify-end lg:gap-3">
+          <RefreshButton
+            className="w-full justify-center lg:w-auto"
+            onPress={() => onRefresh()}
+            showLabelOnMobile
+            aria-label={notificationsTranslations("actions.refresh")}
+          >
+            {notificationsTranslations("actions.refresh")}
+          </RefreshButton>
+          <MarkReadButton
+            className="w-full justify-center lg:w-auto"
+            isDisabled={unreadCount === 0}
+            onPress={onMarkAllRead}
+            showLabelOnMobile
+            aria-label={notificationsTranslations("actions.markAllRead")}
+          >
+            {notificationsTranslations("actions.markAllRead")}
+          </MarkReadButton>
+          <DeleteButton
+            className="w-full justify-center lg:w-auto"
+            isDisabled={notificationCount === 0}
+            onPress={onDeleteAllNotifications}
+            showLabelOnMobile
+            aria-label={notificationsTranslations("actions.deleteAll")}
+          >
+            {notificationsTranslations("actions.deleteAll")}
+          </DeleteButton>
+        </div>
       </div>
     </div>
   );

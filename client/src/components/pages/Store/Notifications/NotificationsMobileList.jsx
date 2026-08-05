@@ -39,7 +39,7 @@ function NotificationMobileCard({
         notificationsTranslations={notificationsTranslations}
       />
 
-      <div className="mt-4">
+      <div className="mt-4 flex justify-end">
         <NotificationActions
           notification={notification}
           onDeleteNotification={onDeleteNotification}
@@ -58,7 +58,7 @@ export function NotificationsMobileList({
   notificationsTranslations,
 }) {
   return (
-    <div className="space-y-3 md:hidden">
+    <div className="space-y-3 pb-24 md:hidden">
       {notifications.map((notification) => (
         <NotificationMobileCard
           key={notification.id}
