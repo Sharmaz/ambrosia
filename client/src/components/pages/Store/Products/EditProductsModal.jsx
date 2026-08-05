@@ -66,6 +66,7 @@ export function EditProductsModal({
       isBundle: isBundleSelected,
       hasVariants: isBundleSelected ? false : productForm.hasVariants,
       bundleComponents: [],
+      trackStock: isBundleSelected ? true : productForm.trackStock,
       productStock: isBundleSelected ? 0 : productForm.productStock,
       productMinStock: isBundleSelected ? 0 : productForm.productMinStock,
       productMaxStock: isBundleSelected ? 0 : productForm.productMaxStock,
@@ -88,6 +89,15 @@ export function EditProductsModal({
 
   const cancelBundleConversion = () => {
     setShowBundleConversionConfirmation(false);
+  };
+
+  const handleTrackStockToggle = (isStockTrackingSelected) => {
+    onChange({
+      trackStock: isStockTrackingSelected,
+      productStock: isStockTrackingSelected ? productForm.productStock : 0,
+      productMinStock: isStockTrackingSelected ? productForm.productMinStock : 0,
+      productMaxStock: isStockTrackingSelected ? productForm.productMaxStock : 0,
+    });
   };
 
   return (
@@ -153,6 +163,18 @@ export function EditProductsModal({
               {!productForm.isBundle && (
                 <div className="flex items-center gap-3">
                   <Switch
+                    isSelected={productForm.trackStock ?? true}
+                    onValueChange={handleTrackStockToggle}
+                    size="sm"
+                    aria-label={productsTranslations("trackStock")}
+                  />
+                  <span className="text-sm text-gray-700">{productsTranslations("trackStock")}</span>
+                </div>
+              )}
+
+              {!productForm.isBundle && (
+                <div className="flex items-center gap-3">
+                  <Switch
                     isSelected={productForm.hasVariants ?? false}
                     onValueChange={(hasVariantsSelected) => onChange({ hasVariants: hasVariantsSelected })}
                     size="sm"
@@ -166,7 +188,7 @@ export function EditProductsModal({
                   productForm={productForm}
                   onChange={onChange}
                   currency={currency}
-                  includeStock={!productForm.isBundle}
+                  includeStock={!productForm.isBundle && (productForm.trackStock ?? true)}
                 />
               )}
 
