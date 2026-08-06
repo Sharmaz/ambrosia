@@ -3,17 +3,7 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import { CashRefundFields } from "../CashRefundFields";
 
 jest.mock("@heroui/react", () => ({
-  NumberInput: ({ label, value, onValueChange }) => (
-    <label>
-      {label}
-      <input
-        type="number"
-        aria-label={label}
-        value={value}
-        onChange={(e) => onValueChange(e.target.value === "" ? null : parseFloat(e.target.value))}
-      />
-    </label>
-  ),
+  NumberInput: require("@/test-utils/numberInputMock").NumberInputMock,
 }));
 
 jest.mock("next-intl", () => ({
@@ -48,10 +38,10 @@ describe("CashRefundFields", () => {
         formatAmount={formatAmount}
       />,
     );
-    expect(screen.getByLabelText("details.cashGivenLabel")).toHaveValue(5);
+    expect(screen.getByLabelText("details.cashGivenLabel")).toHaveValue("5");
   });
 
-  it("calls onCashGivenChange when the input changes", () => {
+  it("calls onCashGivenChange while typing", () => {
     const onCashGivenChange = jest.fn();
     render(
       <CashRefundFields
@@ -65,6 +55,22 @@ describe("CashRefundFields", () => {
     );
     fireEvent.change(screen.getByLabelText("details.cashGivenLabel"), { target: { value: "10" } });
     expect(onCashGivenChange).toHaveBeenCalledWith(10);
+  });
+
+  it("calls onCashGivenChange with a number when the stepper is used", () => {
+    const onCashGivenChange = jest.fn();
+    render(
+      <CashRefundFields
+        orderTotalCents={1000}
+        cashGiven={5}
+        onCashGivenChange={onCashGivenChange}
+        cashDifferenceCents={-500}
+        isCashAmountExact={false}
+        formatAmount={formatAmount}
+      />,
+    );
+    fireEvent.click(screen.getByLabelText("details.cashGivenLabel increment"));
+    expect(onCashGivenChange).toHaveBeenCalledWith(5.01);
   });
 
   it("shows the difference in red when the amount does not match", () => {

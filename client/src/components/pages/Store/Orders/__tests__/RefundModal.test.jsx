@@ -29,17 +29,7 @@ jest.mock("@heroui/react", () => ({
       {errorMessage && <span>{errorMessage}</span>}
     </label>
   ),
-  NumberInput: ({ label, value, onValueChange }) => (
-    <label>
-      {label}
-      <input
-        type="number"
-        aria-label={label}
-        value={value}
-        onChange={(e) => onValueChange(e.target.value === "" ? null : parseFloat(e.target.value))}
-      />
-    </label>
-  ),
+  NumberInput: require("@/test-utils/numberInputMock").NumberInputMock,
   Checkbox: ({ children, isSelected, onValueChange }) => (
     <label>
       <input
