@@ -2,6 +2,8 @@
 import { NumberInput } from "@heroui/react";
 import { useTranslations } from "next-intl";
 
+import { toNumberInputValue } from "@/components/utils/numberParsers";
+
 export function CashRefundFields({
   orderTotalCents,
   cashGiven,
@@ -22,11 +24,8 @@ export function CashRefundFields({
         label={ordersTranslations("details.cashGivenLabel")}
         value={cashGiven}
         onValueChange={onCashGivenChange}
-        onChange={(event) => {
-          if (event?.target) {
-            const parsedAmount = parseFloat(event.target.value.replace(/[^0-9.]/g, "")) || 0;
-            onCashGivenChange(Math.min(parsedAmount, 9999999));
-          }
+        onChange={(cashGivenChange) => {
+          onCashGivenChange(Math.min(toNumberInputValue(cashGivenChange), 9999999));
         }}
         minValue={0}
         maxValue={9999999}
