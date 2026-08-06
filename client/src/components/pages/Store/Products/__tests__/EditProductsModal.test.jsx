@@ -43,10 +43,16 @@ jest.mock("@heroui/react", () => {
     />
   );
 
-  const Switch = ({ children, isSelected, onValueChange }) => (
+  const switchTestId = (children, ariaLabel) => {
+    if (children === "modal.isBundle") return "bundle-switch";
+    if (ariaLabel === "trackStock") return "track-stock-switch";
+    return "variants-switch";
+  };
+
+  const Switch = ({ children, isSelected, onValueChange, "aria-label": ariaLabel }) => (
     <label>
       <input
-        data-testid={children === "modal.isBundle" ? "bundle-switch" : "variants-switch"}
+        data-testid={switchTestId(children, ariaLabel)}
         type="checkbox"
         checked={isSelected ?? false}
         onChange={(switchChangeEvent) => onValueChange?.(switchChangeEvent.target.checked)}
@@ -274,6 +280,44 @@ describe("EditProductsModal", () => {
       isBundle: true,
       hasVariants: false,
       bundleComponents: [],
+      trackStock: true,
+      productStock: 0,
+      productMinStock: 0,
+      productMaxStock: 0,
+    });
+  });
+
+  it("hides the stock tracking toggle when product is a bundle", () => {
+    renderModal({ productForm: { ...baseProductForm, isBundle: true } });
+
+    expect(screen.queryByTestId("track-stock-switch")).not.toBeInTheDocument();
+  });
+
+  it("shows the stock tracking toggle enabled for legacy products without the flag", () => {
+    renderModal();
+
+    expect(screen.getByTestId("track-stock-switch")).toBeChecked();
+    expect(screen.getByLabelText("modal.productStockLabel")).toBeInTheDocument();
+  });
+
+  it("hides stock field when stock tracking is disabled", () => {
+    renderModal({ productForm: { ...baseProductForm, trackStock: false } });
+
+    expect(screen.getByTestId("track-stock-switch")).not.toBeChecked();
+    expect(screen.queryByLabelText("modal.productStockLabel")).not.toBeInTheDocument();
+  });
+
+  it("resets the stock fields when stock tracking is switched off", () => {
+    const onChange = jest.fn();
+    renderModal({
+      onChange,
+      productForm: { ...baseProductForm, productMinStock: 3, productMaxStock: 30 },
+    });
+
+    fireEvent.click(screen.getByTestId("track-stock-switch"));
+
+    expect(onChange).toHaveBeenCalledWith({
+      trackStock: false,
       productStock: 0,
       productMinStock: 0,
       productMaxStock: 0,
@@ -296,6 +340,7 @@ describe("EditProductsModal", () => {
       isBundle: true,
       hasVariants: false,
       bundleComponents: [],
+      trackStock: true,
       productStock: 0,
       productMinStock: 0,
       productMaxStock: 0,

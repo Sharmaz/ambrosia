@@ -27,39 +27,39 @@ describe("useAdminNotificationPreferences", () => {
   });
 
   it("loads notification preferences and exposes the wallet preference", async () => {
-    const renderedNotificationPreferencesHook = renderHook(() => useAdminNotificationPreferences());
+    const renderedPreferencesHook = renderHook(() => useAdminNotificationPreferences());
 
-    expect(renderedNotificationPreferencesHook.result.current.loading).toBe(true);
+    expect(renderedPreferencesHook.result.current.loading).toBe(true);
 
-    await waitFor(() => expect(renderedNotificationPreferencesHook.result.current.loading).toBe(false));
+    await waitFor(() => expect(renderedPreferencesHook.result.current.loading).toBe(false));
 
     expect(getAdminNotificationPreferences).toHaveBeenCalled();
-    expect(renderedNotificationPreferencesHook.result.current.preferences).toEqual([walletPreference]);
-    expect(renderedNotificationPreferencesHook.result.current.walletPreference).toEqual(walletPreference);
-    expect(renderedNotificationPreferencesHook.result.current.error).toBeNull();
+    expect(renderedPreferencesHook.result.current.preferences).toEqual([walletPreference]);
+    expect(renderedPreferencesHook.result.current.walletPreference).toEqual(walletPreference);
+    expect(renderedPreferencesHook.result.current.error).toBeNull();
   });
 
   it("uses an empty preference list when backend response is not an array", async () => {
     getAdminNotificationPreferences.mockResolvedValueOnce(null);
 
-    const renderedNotificationPreferencesHook = renderHook(() => useAdminNotificationPreferences());
+    const renderedPreferencesHook = renderHook(() => useAdminNotificationPreferences());
 
-    await waitFor(() => expect(renderedNotificationPreferencesHook.result.current.loading).toBe(false));
+    await waitFor(() => expect(renderedPreferencesHook.result.current.loading).toBe(false));
 
-    expect(renderedNotificationPreferencesHook.result.current.preferences).toEqual([]);
-    expect(renderedNotificationPreferencesHook.result.current.walletPreference).toBeUndefined();
+    expect(renderedPreferencesHook.result.current.preferences).toEqual([]);
+    expect(renderedPreferencesHook.result.current.walletPreference).toBeUndefined();
   });
 
   it("stores fetch errors and clears preferences", async () => {
     const fetchError = new Error("failed");
     getAdminNotificationPreferences.mockRejectedValueOnce(fetchError);
 
-    const renderedNotificationPreferencesHook = renderHook(() => useAdminNotificationPreferences());
+    const renderedPreferencesHook = renderHook(() => useAdminNotificationPreferences());
 
-    await waitFor(() => expect(renderedNotificationPreferencesHook.result.current.loading).toBe(false));
+    await waitFor(() => expect(renderedPreferencesHook.result.current.loading).toBe(false));
 
-    expect(renderedNotificationPreferencesHook.result.current.preferences).toEqual([]);
-    expect(renderedNotificationPreferencesHook.result.current.error).toBe(fetchError);
+    expect(renderedPreferencesHook.result.current.preferences).toEqual([]);
+    expect(renderedPreferencesHook.result.current.error).toBe(fetchError);
   });
 
   it("updates an existing preference", async () => {
@@ -69,17 +69,17 @@ describe("useAdminNotificationPreferences", () => {
       pushEnabled: true,
     };
     updateAdminNotificationPreference.mockResolvedValueOnce(updatedWalletPreference);
-    const renderedNotificationPreferencesHook = renderHook(() => useAdminNotificationPreferences());
+    const renderedPreferencesHook = renderHook(() => useAdminNotificationPreferences());
 
-    await waitFor(() => expect(renderedNotificationPreferencesHook.result.current.loading).toBe(false));
+    await waitFor(() => expect(renderedPreferencesHook.result.current.loading).toBe(false));
 
     await act(async () => {
-      await renderedNotificationPreferencesHook.result.current.updatePreference(updatedWalletPreference);
+      await renderedPreferencesHook.result.current.updatePreference(updatedWalletPreference);
     });
 
     expect(updateAdminNotificationPreference).toHaveBeenCalledWith(updatedWalletPreference);
-    expect(renderedNotificationPreferencesHook.result.current.preferences).toEqual([updatedWalletPreference]);
-    expect(renderedNotificationPreferencesHook.result.current.walletPreference).toEqual(updatedWalletPreference);
+    expect(renderedPreferencesHook.result.current.preferences).toEqual([updatedWalletPreference]);
+    expect(renderedPreferencesHook.result.current.walletPreference).toEqual(updatedWalletPreference);
   });
 
   it("adds a new preference returned by the backend", async () => {
@@ -89,27 +89,27 @@ describe("useAdminNotificationPreferences", () => {
       pushEnabled: false,
     };
     updateAdminNotificationPreference.mockResolvedValueOnce(reportsPreference);
-    const renderedNotificationPreferencesHook = renderHook(() => useAdminNotificationPreferences());
+    const renderedPreferencesHook = renderHook(() => useAdminNotificationPreferences());
 
-    await waitFor(() => expect(renderedNotificationPreferencesHook.result.current.loading).toBe(false));
+    await waitFor(() => expect(renderedPreferencesHook.result.current.loading).toBe(false));
 
     await act(async () => {
-      await renderedNotificationPreferencesHook.result.current.updatePreference(reportsPreference);
+      await renderedPreferencesHook.result.current.updatePreference(reportsPreference);
     });
 
-    expect(renderedNotificationPreferencesHook.result.current.preferences).toEqual([walletPreference, reportsPreference]);
+    expect(renderedPreferencesHook.result.current.preferences).toEqual([walletPreference, reportsPreference]);
   });
 
   it("returns null and stores errors when update fails", async () => {
     const updateError = new Error("failed");
     updateAdminNotificationPreference.mockRejectedValueOnce(updateError);
-    const renderedNotificationPreferencesHook = renderHook(() => useAdminNotificationPreferences());
+    const renderedPreferencesHook = renderHook(() => useAdminNotificationPreferences());
 
-    await waitFor(() => expect(renderedNotificationPreferencesHook.result.current.loading).toBe(false));
+    await waitFor(() => expect(renderedPreferencesHook.result.current.loading).toBe(false));
 
     let updatedPreference;
     await act(async () => {
-      updatedPreference = await renderedNotificationPreferencesHook.result.current.updatePreference({
+      updatedPreference = await renderedPreferencesHook.result.current.updatePreference({
         category: ADMIN_NOTIFICATION_CATEGORY_WALLET,
         inAppEnabled: false,
         pushEnabled: true,
@@ -117,7 +117,7 @@ describe("useAdminNotificationPreferences", () => {
     });
 
     expect(updatedPreference).toBeNull();
-    expect(renderedNotificationPreferencesHook.result.current.error).toBe(updateError);
-    expect(renderedNotificationPreferencesHook.result.current.savingPreference).toBe(false);
+    expect(renderedPreferencesHook.result.current.error).toBe(updateError);
+    expect(renderedPreferencesHook.result.current.savingPreference).toBe(false);
   });
 });

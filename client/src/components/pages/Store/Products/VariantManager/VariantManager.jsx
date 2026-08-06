@@ -7,6 +7,7 @@ import { useTranslations } from "next-intl";
 
 import { useCurrency } from "@/components/hooks/useCurrency";
 import { useUpload } from "@/components/hooks/useUpload";
+import { isStockTracked } from "@/components/pages/Store/utils/productStockStatus";
 import { resolveImageUrl } from "@/components/pages/Store/utils/resolveImageUrl";
 
 import { OptionTypeManager } from "./OptionTypeManager";
@@ -27,6 +28,7 @@ export function VariantManager({
   const productId = product?.id;
   const variants = product?.variants ?? [];
   const options = product?.options ?? [];
+  const isStockTrackedForProduct = isStockTracked(product ?? {});
 
   const setVariantMutating = (variantId, isMutating) => {
     setVariantIdsInProgress((previousVariantIdsInProgress) => {
@@ -139,6 +141,7 @@ export function VariantManager({
               variant={variant}
               currency={currency}
               options={options}
+              isStockTrackedForProduct={isStockTrackedForProduct}
               onSave={handleUpdateVariant}
               onDelete={handleDeleteVariant}
               isProcessing={variantIdsInProgress.has(variant.id) || isUploading}
@@ -150,6 +153,7 @@ export function VariantManager({
               initial={{}}
               currency={currency}
               options={options}
+              isStockTrackedForProduct={isStockTrackedForProduct}
               onSave={handleAddVariant}
               onCancel={() => setIsAddingNewVariant(false)}
               isLoading={isAddFormMutating}

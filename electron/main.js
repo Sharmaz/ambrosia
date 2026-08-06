@@ -7,7 +7,7 @@ const AutoUpdater = require('./services/AutoUpdater');
 const { readConfig, writeConfig } = require('./services/ConfigurationBootstrap');
 const ServiceManager = require('./services/ServiceManager');
 const logger = require('./utils/logger');
-const { getPhoenixDataDirectory } = require('./utils/resourcePaths');
+const { getDataDirectory, getLogsDirectory, getPhoenixDataDirectory } = require('./utils/resourcePaths');
 
 // To prevent multiple instances of the application
 const gotTheLock = app.requestSingleInstanceLock();
@@ -229,7 +229,7 @@ async function handleStartupError(error) {
     app.relaunch();
     app.quit();
   } else if (response.response === 1) {
-    const logsDir = path.join(require('os').homedir(), '.Ambrosia-POS', 'logs');
+    const logsDir = getLogsDirectory();
     shell.openPath(logsDir);
     setTimeout(() => app.quit(), 500);
   } else {
@@ -336,78 +336,8 @@ function createAppMenu() {
   }
 }
 
-// IPC Handlers to communicate with renderer
-ipcMain.handle('services:get-statuses', () => {
-  if (!serviceManager) {
-    return null;
-  }
-  return {
-    statuses: serviceManager.getServiceStatuses(),
-    ports: serviceManager.getPorts(),
-    devMode: serviceManager.isDevMode(),
-  };
-});
-
-ipcMain.handle('services:restart', async (event, serviceName) => {
-  if (!serviceManager) {
-    throw new Error('ServiceManager not initialized');
-  }
-  try {
-    await serviceManager.restartService(serviceName);
-    return { success: true };
-  } catch (error) {
-    return { success: false, error: error.message };
-  }
-});
-
-ipcMain.handle('services:get-logs', () => {
-  const logsDir = path.join(require('os').homedir(), '.Ambrosia-POS', 'logs');
-  return { logsDir };
-});
-
-ipcMain.on(ADMIN_ACTIVITY_NOTIFICATION_CHANNEL, (_event, notificationPayload) => {
-  logger.log('[Electron] Admin activity notification IPC received');
-  showAdminActivityNotification(notificationPayload);
-});
-
-const phoenixConfigPath = path.join(getPhoenixDataDirectory(), 'phoenix.conf');
-
-let phoenixdRestartInProgress = false;
-
-ipcMain.handle('phoenixd:get-auto-liquidity', () => {
-  const phoenixConfig = readConfig(phoenixConfigPath);
-  return phoenixConfig['auto-liquidity'] ?? 'off';
-});
-
-ipcMain.handle('phoenixd:set-auto-liquidity', async (_event, value) => {
-  if (!serviceManager) {
-    throw new Error('ServiceManager not initialized');
-  }
-  if (phoenixdRestartInProgress) {
-    throw new Error('A restart is already in progress');
-  }
-
-  const phoenixConfig = readConfig(phoenixConfigPath);
-  phoenixConfig['auto-liquidity'] = value;
-  writeConfig(phoenixConfigPath, phoenixConfig);
-
-  if (!serviceManager.isDevMode()) {
-    if (serviceManager.configs?.phoenix) {
-      serviceManager.configs.phoenix['auto-liquidity'] = value;
-    }
-    phoenixdRestartInProgress = true;
-    try {
-      await serviceManager.restartService('phoenixd');
-    } finally {
-      phoenixdRestartInProgress = false;
-    }
-  }
-
-  return true;
-});
-
-// App initialization
-app.whenReady().then(async () => {
+// Runs on first launch and again if reactivated from the dock after all windows closed.
+async function initializeApp() {
   try {
     logger.log('[Electron] Initializing Ambrosia POS...');
 
@@ -447,7 +377,7 @@ app.whenReady().then(async () => {
     // Track service startup progress
     updateSplash(null, 0, 'Initializing...');
 
-    serviceManager.on('service:started', ({ service, port }) => {
+    serviceManager.on('service:started', ({ service, port, skipped }) => {
       logger.log(`[Electron] Service started: ${service} on port ${port}`);
 
       // Update progress based on service
@@ -456,7 +386,7 @@ app.whenReady().then(async () => {
 
       if (service === 'phoenixd') {
         progress = 33;
-        message = 'Lightning Network ready';
+        message = skipped ? 'NWC wallet configured' : 'Lightning Network ready';
         completeSplashStep('phoenixd');
         updateSplash('backend', progress, 'Starting Backend...');
       } else if (service === 'backend') {
@@ -492,7 +422,13 @@ app.whenReady().then(async () => {
       updateSplash(null, 33, 'Development mode');
       updateSplash('nextjs', 66, 'Starting Frontend...');
     } else {
-      updateSplash('phoenixd', 10, 'Starting Lightning Network...');
+      const ambrosiaConfigPath = path.join(getDataDirectory(), 'ambrosia.conf');
+      const nwcUriConfigured = Boolean(readConfig(ambrosiaConfigPath)['nwc-uri']);
+      updateSplash(
+        'phoenixd',
+        10,
+        nwcUriConfigured ? 'Connecting to NWC wallet...' : 'Starting Lightning Network...',
+      );
     }
 
     const url = await serviceManager.startAll();
@@ -525,15 +461,89 @@ app.whenReady().then(async () => {
     }
     await handleStartupError(error);
   }
+}
+
+// IPC Handlers to communicate with renderer
+ipcMain.handle('services:get-statuses', () => {
+  if (!serviceManager) {
+    return null;
+  }
+  return {
+    statuses: serviceManager.getServiceStatuses(),
+    ports: serviceManager.getPorts(),
+    devMode: serviceManager.isDevMode(),
+  };
 });
+
+ipcMain.handle('services:restart', async (event, serviceName) => {
+  if (!serviceManager) {
+    throw new Error('ServiceManager not initialized');
+  }
+  try {
+    await serviceManager.restartService(serviceName);
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('services:get-logs', () => {
+  const logsDir = getLogsDirectory();
+  return { logsDir };
+});
+
+ipcMain.on(ADMIN_ACTIVITY_NOTIFICATION_CHANNEL, (_event, notificationPayload) => {
+  logger.log('[Electron] Admin activity notification IPC received');
+  showAdminActivityNotification(notificationPayload);
+});
+
+const phoenixConfigPath = path.join(getPhoenixDataDirectory(), 'phoenix.conf');
+
+let phoenixdRestartInProgress = false;
+
+ipcMain.handle('phoenixd:get-auto-liquidity', () => {
+  const phoenixConfig = readConfig(phoenixConfigPath);
+  return phoenixConfig['auto-liquidity'] ?? 'off';
+});
+
+ipcMain.handle('phoenixd:set-auto-liquidity', async (_event, value) => {
+  if (!serviceManager) {
+    throw new Error('ServiceManager not initialized');
+  }
+  if (phoenixdRestartInProgress) {
+    throw new Error('A restart is already in progress');
+  }
+
+  const phoenixConfig = readConfig(phoenixConfigPath);
+  phoenixConfig['auto-liquidity'] = value;
+  writeConfig(phoenixConfigPath, phoenixConfig);
+
+  if (!serviceManager.isDevMode()) {
+    if (serviceManager.externalServices.phoenixd) {
+      return { requiresManualRestart: true };
+    }
+
+    if (serviceManager.configs?.phoenix) {
+      serviceManager.configs.phoenix['auto-liquidity'] = value;
+    }
+    phoenixdRestartInProgress = true;
+    try {
+      await serviceManager.restartService('phoenixd');
+    } finally {
+      phoenixdRestartInProgress = false;
+    }
+  }
+
+  return true;
+});
+
+// App initialization
+app.whenReady().then(initializeApp);
 
 // Activation handler (macOS)
 app.on('activate', () => {
-  if (BrowserWindow.getAllWindows().length === 0 && serviceManager) {
-    const ports = serviceManager.getPorts();
-    if (ports.nextjs) {
-      createWindow(`http://localhost:${ports.nextjs}`);
-    }
+  if (BrowserWindow.getAllWindows().length === 0 && !serviceManager) {
+    initializeApp();
   }
 });
 

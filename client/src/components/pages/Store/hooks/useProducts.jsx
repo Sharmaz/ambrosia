@@ -63,7 +63,9 @@ export function useProducts() {
       SKU: normalizeSku(productForm.productSKU),
       priceCents,
       costCents: priceCents,
-      quantity: productForm.isBundle ? 0 : toFiniteNumber(productForm.productStock),
+      quantity: productForm.isBundle || productForm.trackStock === false
+        ? 0
+        : toFiniteNumber(productForm.productStock),
       isActive: true,
     };
   };
