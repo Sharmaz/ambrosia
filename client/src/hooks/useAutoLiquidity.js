@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 
 import { isElectron } from "@lib/isElectron";
 
@@ -8,23 +8,31 @@ const DEBOUNCE_MS = 500;
 
 export function useAutoLiquidity() {
   const [enabled, setEnabled] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [restarting, setRestarting] = useState(false);
   const [error, setError] = useState(null);
   const debounceTimer = useRef(null);
 
-  useEffect(() => {
+  const load = useCallback(async () => {
     if (!isElectron) {
-      setLoading(false);
-      return;
+      return true;
     }
-    window.electron.ipc
-      .invoke("phoenixd:get-auto-liquidity")
-      .then((value) => {
-        setEnabled(value !== "off");
-      })
-      .catch((err) => setError(err.message))
-      .finally(() => setLoading(false));
+
+    setLoading(true);
+    setError(null);
+    try {
+      const value = await window.electron.ipc.invoke("phoenixd:get-auto-liquidity");
+      if (value?.nwcConfigured) {
+        return "nwc";
+      }
+      setEnabled(value !== "off");
+      return true;
+    } catch (err) {
+      setError(err.message);
+      return false;
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   const toggle = useCallback(async (newEnabled) => {
@@ -43,6 +51,9 @@ export function useAutoLiquidity() {
     try {
       const value = newEnabled ? "2m" : "off";
       const result = await window.electron.ipc.invoke("phoenixd:set-auto-liquidity", value);
+      if (result?.nwcConfigured) {
+        return "nwc";
+      }
       if (result?.requiresManualRestart) {
         return "manual";
       }
@@ -56,5 +67,5 @@ export function useAutoLiquidity() {
     }
   }, []);
 
-  return { enabled, loading, restarting, error, toggle };
+  return { enabled, loading, restarting, error, load, toggle };
 }

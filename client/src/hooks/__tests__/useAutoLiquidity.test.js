@@ -21,20 +21,40 @@ afterEach(() => {
 });
 
 describe("useAutoLiquidity", () => {
-  describe("initial load", () => {
-    it("starts with loading=true and enabled=false", () => {
-      mockInvoke.mockResolvedValue("off");
+  describe("initial state", () => {
+    it("starts with loading=false and enabled=false", () => {
       const { result } = renderHook(() => useAutoLiquidity());
 
-      expect(result.current.loading).toBe(true);
+      expect(result.current.loading).toBe(false);
       expect(result.current.enabled).toBe(false);
+    });
+
+    it("does not call the IPC bridge before load is invoked", () => {
+      renderHook(() => useAutoLiquidity());
+
+      expect(mockInvoke).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("load", () => {
+    it("sets loading=true synchronously when load is called", () => {
+      mockInvoke.mockReturnValue(new Promise(() => {}));
+      const { result } = renderHook(() => useAutoLiquidity());
+
+      act(() => {
+        result.current.load();
+      });
+
+      expect(result.current.loading).toBe(true);
     });
 
     it("sets enabled=false when config returns 'off'", async () => {
       mockInvoke.mockResolvedValue("off");
       const { result } = renderHook(() => useAutoLiquidity());
 
-      await act(async () => {});
+      await act(async () => {
+        await result.current.load();
+      });
 
       expect(result.current.enabled).toBe(false);
       expect(result.current.loading).toBe(false);
@@ -44,18 +64,37 @@ describe("useAutoLiquidity", () => {
       mockInvoke.mockResolvedValue("2m");
       const { result } = renderHook(() => useAutoLiquidity());
 
-      await act(async () => {});
+      await act(async () => {
+        await result.current.load();
+      });
 
       expect(result.current.enabled).toBe(true);
       expect(result.current.loading).toBe(false);
     });
 
-    it("sets error when IPC call fails on mount", async () => {
+    it("returns 'nwc' and leaves enabled untouched when NWC is configured", async () => {
+      mockInvoke.mockResolvedValue({ nwcConfigured: true });
+      const { result } = renderHook(() => useAutoLiquidity());
+
+      let returnValue;
+      await act(async () => {
+        returnValue = await result.current.load();
+      });
+
+      expect(returnValue).toBe("nwc");
+      expect(result.current.enabled).toBe(false);
+    });
+
+    it("sets error and returns false when the IPC call fails", async () => {
       mockInvoke.mockRejectedValue(new Error("IPC error"));
       const { result } = renderHook(() => useAutoLiquidity());
 
-      await act(async () => {});
+      let returnValue;
+      await act(async () => {
+        returnValue = await result.current.load();
+      });
 
+      expect(returnValue).toBe(false);
       expect(result.current.error).toBe("IPC error");
       expect(result.current.loading).toBe(false);
     });
@@ -63,12 +102,8 @@ describe("useAutoLiquidity", () => {
 
   describe("toggle", () => {
     it("updates enabled optimistically before IPC resolves", async () => {
-      mockInvoke
-        .mockResolvedValueOnce("off")
-        .mockResolvedValue(true);
-
+      mockInvoke.mockResolvedValue(true);
       const { result } = renderHook(() => useAutoLiquidity());
-      await act(async () => {});
 
       act(() => {
         result.current.toggle(true);
@@ -79,12 +114,8 @@ describe("useAutoLiquidity", () => {
     });
 
     it("sends '2m' when enabling", async () => {
-      mockInvoke
-        .mockResolvedValueOnce("off")
-        .mockResolvedValue(true);
-
+      mockInvoke.mockResolvedValue(true);
       const { result } = renderHook(() => useAutoLiquidity());
-      await act(async () => {});
 
       await act(async () => {
         const togglePromise = result.current.toggle(true);
@@ -96,12 +127,8 @@ describe("useAutoLiquidity", () => {
     });
 
     it("sends 'off' when disabling", async () => {
-      mockInvoke
-        .mockResolvedValueOnce("2m")
-        .mockResolvedValue(true);
-
+      mockInvoke.mockResolvedValue(true);
       const { result } = renderHook(() => useAutoLiquidity());
-      await act(async () => {});
 
       await act(async () => {
         const togglePromise = result.current.toggle(false);
@@ -113,12 +140,8 @@ describe("useAutoLiquidity", () => {
     });
 
     it("returns true on success", async () => {
-      mockInvoke
-        .mockResolvedValueOnce("off")
-        .mockResolvedValue(true);
-
+      mockInvoke.mockResolvedValue(true);
       const { result } = renderHook(() => useAutoLiquidity());
-      await act(async () => {});
 
       let returnValue;
       await act(async () => {
@@ -131,12 +154,8 @@ describe("useAutoLiquidity", () => {
     });
 
     it("returns 'manual' when requiresManualRestart is true", async () => {
-      mockInvoke
-        .mockResolvedValueOnce("off")
-        .mockResolvedValue({ requiresManualRestart: true });
-
+      mockInvoke.mockResolvedValue({ requiresManualRestart: true });
       const { result } = renderHook(() => useAutoLiquidity());
-      await act(async () => {});
 
       let returnValue;
       await act(async () => {
@@ -148,13 +167,23 @@ describe("useAutoLiquidity", () => {
       expect(returnValue).toBe("manual");
     });
 
-    it("reverts enabled and returns false when IPC fails", async () => {
-      mockInvoke
-        .mockResolvedValueOnce("off")
-        .mockRejectedValue(new Error("restart failed"));
-
+    it("returns 'nwc' when NWC is configured", async () => {
+      mockInvoke.mockResolvedValue({ nwcConfigured: true });
       const { result } = renderHook(() => useAutoLiquidity());
-      await act(async () => {});
+
+      let returnValue;
+      await act(async () => {
+        const togglePromise = result.current.toggle(true);
+        jest.runAllTimers();
+        returnValue = await togglePromise;
+      });
+
+      expect(returnValue).toBe("nwc");
+    });
+
+    it("reverts enabled and returns false when IPC fails", async () => {
+      mockInvoke.mockRejectedValue(new Error("restart failed"));
+      const { result } = renderHook(() => useAutoLiquidity());
 
       let returnValue;
       await act(async () => {
@@ -169,12 +198,8 @@ describe("useAutoLiquidity", () => {
     });
 
     it("sets restarting=false after toggle completes", async () => {
-      mockInvoke
-        .mockResolvedValueOnce("off")
-        .mockResolvedValue(true);
-
+      mockInvoke.mockResolvedValue(true);
       const { result } = renderHook(() => useAutoLiquidity());
-      await act(async () => {});
 
       await act(async () => {
         const togglePromise = result.current.toggle(true);
@@ -186,12 +211,8 @@ describe("useAutoLiquidity", () => {
     });
 
     it("debounces rapid successive calls and only sends one IPC call", async () => {
-      mockInvoke
-        .mockResolvedValueOnce("off")
-        .mockResolvedValue(true);
-
+      mockInvoke.mockResolvedValue(true);
       const { result } = renderHook(() => useAutoLiquidity());
-      await act(async () => {});
 
       await act(async () => {
         result.current.toggle(true);
