@@ -1,11 +1,9 @@
 import { act, renderHook } from "@testing-library/react";
 
 import {
-  ADMIN_ACTIVITY_ELECTRON_IPC,
   ADMIN_NOTIFICATION_CATEGORY_WALLET,
   ADMIN_NOTIFICATIONS_EVENT_SOURCE_ROUTE,
   ADMIN_NOTIFICATIONS_REFRESH_UNREAD_COUNT_EVENT,
-  getAdminActivityNotificationCopy,
 } from "@/lib/adminNotifications";
 
 import { useAdminNotificationsWebsocket } from "../useAdminNotificationsWebsocket";
@@ -64,20 +62,20 @@ describe("useAdminNotificationsWebsocket", () => {
   });
 
   it("sets connected when backend confirms live connection", () => {
-    const { result } = renderHook(() => useAdminNotificationsWebsocket());
+    const renderedAdminNotificationsWebsocketHook = renderHook(() => useAdminNotificationsWebsocket());
 
     act(() => {
       MockEventSource.latest().readyState = MockEventSource.OPEN;
       MockEventSource.latest().onopen?.();
     });
 
-    expect(result.current.connected).toBe(false);
+    expect(renderedAdminNotificationsWebsocketHook.result.current.connected).toBe(false);
 
     act(() => {
       MockEventSource.latest().onmessage?.({ data: JSON.stringify({ type: "connected" }) });
     });
 
-    expect(result.current.connected).toBe(true);
+    expect(renderedAdminNotificationsWebsocketHook.result.current.connected).toBe(true);
     expect(window.dispatchEvent).toHaveBeenCalledWith(new Event(ADMIN_NOTIFICATIONS_REFRESH_UNREAD_COUNT_EVENT));
   });
 
@@ -89,10 +87,10 @@ describe("useAdminNotificationsWebsocket", () => {
       type: "wallet.payment.sent",
       title: "Wallet payment sent",
     };
-    const { result } = renderHook(() => useAdminNotificationsWebsocket());
+    const renderedAdminNotificationsWebsocketHook = renderHook(() => useAdminNotificationsWebsocket());
 
     act(() => {
-      result.current.onNotification(listener);
+      renderedAdminNotificationsWebsocketHook.result.current.onNotification(listener);
       MockEventSource.latest().onmessage?.({
         data: JSON.stringify({ type: "admin_notification", notification }),
       });
@@ -114,10 +112,10 @@ describe("useAdminNotificationsWebsocket", () => {
       actorRole: "system",
       status: "success",
     };
-    const { result } = renderHook(() => useAdminNotificationsWebsocket());
+    const renderedAdminNotificationsWebsocketHook = renderHook(() => useAdminNotificationsWebsocket());
 
     act(() => {
-      result.current.onNotification(listener);
+      renderedAdminNotificationsWebsocketHook.result.current.onNotification(listener);
       MockEventSource.latest().onmessage?.({
         data: JSON.stringify({ notification }),
       });
@@ -129,10 +127,10 @@ describe("useAdminNotificationsWebsocket", () => {
 
   it("ignores non-admin notification typed messages", () => {
     const listener = jest.fn();
-    const { result } = renderHook(() => useAdminNotificationsWebsocket());
+    const renderedAdminNotificationsWebsocketHook = renderHook(() => useAdminNotificationsWebsocket());
 
     act(() => {
-      result.current.onNotification(listener);
+      renderedAdminNotificationsWebsocketHook.result.current.onNotification(listener);
       MockEventSource.latest().onmessage?.({
         data: JSON.stringify({
           type: "connected",
@@ -144,39 +142,12 @@ describe("useAdminNotificationsWebsocket", () => {
     expect(listener).not.toHaveBeenCalled();
   });
 
-  it("sends a localized native notification IPC event in Electron", () => {
-    window.electron = { ipc: { send: jest.fn() } };
-    const notification = {
-      id: "notification-1",
-      category: ADMIN_NOTIFICATION_CATEGORY_WALLET,
-      type: "wallet.payment.sent",
-      title: "Wallet payment sent",
-    };
-    renderHook(() => useAdminNotificationsWebsocket());
-
-    act(() => {
-      MockEventSource.latest().onmessage?.({
-        data: JSON.stringify({ type: "admin_notification", notification }),
-      });
-    });
-
-    expect(window.electron.ipc.send).toHaveBeenCalledWith(
-      ADMIN_ACTIVITY_ELECTRON_IPC,
-      expect.objectContaining({
-        systemTitle: getAdminActivityNotificationCopy("en-US").title,
-        systemBody: getAdminActivityNotificationCopy("en-US").body,
-        title: "Wallet payment sent",
-        category: ADMIN_NOTIFICATION_CATEGORY_WALLET,
-      }),
-    );
-  });
-
   it("ignores connection message events", () => {
     const listener = jest.fn();
-    const { result } = renderHook(() => useAdminNotificationsWebsocket());
+    const renderedAdminNotificationsWebsocketHook = renderHook(() => useAdminNotificationsWebsocket());
 
     act(() => {
-      result.current.onNotification(listener);
+      renderedAdminNotificationsWebsocketHook.result.current.onNotification(listener);
       MockEventSource.latest().onmessage?.({ data: JSON.stringify({ type: "connected" }) });
     });
 

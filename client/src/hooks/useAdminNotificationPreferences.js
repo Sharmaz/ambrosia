@@ -22,8 +22,8 @@ export function useAdminNotificationPreferences() {
     setLoading(true);
     setError(null);
     try {
-      const response = await getAdminNotificationPreferences();
-      setPreferences(Array.isArray(response) ? response : []);
+      const loadedNotificationPreferences = await getAdminNotificationPreferences();
+      setPreferences(Array.isArray(loadedNotificationPreferences) ? loadedNotificationPreferences : []);
     } catch (fetchError) {
       setError(fetchError);
       setPreferences([]);

@@ -15,12 +15,12 @@ export const ADMIN_NOTIFICATIONS_LIVE_CONNECTED_STATE_KEY = "__adminNotification
 
 const ADMIN_ACTIVITY_NOTIFICATION_COPY = {
   en: {
-    title: "New admin activity in Ambrosia",
+    title: "Ambrosia",
     body: "Recent important activity is available. Open the feed to review user, role, and details.",
     fallbackActivityTitle: "Recent admin activity",
   },
   es: {
-    title: "Nueva actividad admin en Ambrosia",
+    title: "Ambrosia",
     body: "Hay actividad importante reciente. Abre el feed para ver usuario, rol y detalles.",
     fallbackActivityTitle: "Actividad administrativa reciente",
   },
@@ -31,6 +31,19 @@ export function getAdminActivityNotificationCopy(locale) {
   return normalizedLocale.startsWith("es")
     ? ADMIN_ACTIVITY_NOTIFICATION_COPY.es
     : ADMIN_ACTIVITY_NOTIFICATION_COPY.en;
+}
+
+export function getElectronAdminNotificationPayload(notification, locale, notificationDisplay) {
+  const notificationCopy = getAdminActivityNotificationCopy(locale);
+  return {
+    systemTitle: notificationCopy.title,
+    systemBody: notificationCopy.body,
+    fallbackActivityTitle: notificationCopy.fallbackActivityTitle,
+    title: notificationDisplay?.title || notification?.title,
+    body: notificationDisplay?.description || notification?.body,
+    category: notification?.category,
+    status: notification?.status,
+  };
 }
 
 export function isWebPushActiveOnDevice(preference, webPushState) {

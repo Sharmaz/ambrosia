@@ -4,7 +4,7 @@ import { useState } from "react";
 
 import { usePathname } from "next/navigation";
 
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 
 import { ShiftWidget } from "@/components/turn/ShiftWidget";
 import { useSeedTour } from "@/hooks/tour/useSeedTour";
@@ -20,6 +20,7 @@ import { SidebarContent } from "./Sidebar";
 
 export function StoreLayout({ children }) {
   const pathname = usePathname();
+  const locale = useLocale();
   const navbarTranslations = useTranslations("navbar");
   const notificationsTranslations = useTranslations("notifications");
   const { config } = useConfigurations();
@@ -28,6 +29,7 @@ export function StoreLayout({ children }) {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const { notificationUnreadCount } = useAdminNotificationSignals({
     enabled: isAuth && isAdmin,
+    locale,
     pathname,
     notificationsTranslations,
   });

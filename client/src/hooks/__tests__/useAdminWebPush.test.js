@@ -123,18 +123,34 @@ describe("useAdminWebPush", () => {
     delete window.Notification;
     delete navigator.serviceWorker;
 
-    const { result } = renderHook(() => useAdminWebPush());
+    const renderedAdminWebPushHook = renderHook(() => useAdminWebPush());
 
-    expect(result.current.isSupported).toBe(false);
-    expect(result.current.permission).toBe("unsupported");
+    expect(renderedAdminWebPushHook.result.current.isSupported).toBe(false);
+    expect(renderedAdminWebPushHook.result.current.permission).toBe("unsupported");
+  });
+
+  it("stays disabled without touching browser Push APIs when disabled explicitly", async () => {
+    const { pushManager } = installWebPushGlobals();
+    const renderedAdminWebPushHook = renderHook(() => useAdminWebPush({ enabled: false }));
+
+    await act(async () => {
+      const subscribeResult = await renderedAdminWebPushHook.result.current.subscribe();
+      expect(subscribeResult).toEqual({ ok: false, reason: "unsupported" });
+    });
+
+    expect(renderedAdminWebPushHook.result.current.isSupported).toBe(false);
+    expect(renderedAdminWebPushHook.result.current.permission).toBe("unsupported");
+    expect(pushManager.getSubscription).not.toHaveBeenCalled();
+    expect(pushManager.subscribe).not.toHaveBeenCalled();
+    expect(getAdminPushVapidPublicKey).not.toHaveBeenCalled();
   });
 
   it("subscribes with VAPID public key and stores subscription in backend", async () => {
     const { pushManager } = installWebPushGlobals();
-    const { result } = renderHook(() => useAdminWebPush());
+    const renderedAdminWebPushHook = renderHook(() => useAdminWebPush());
 
     await act(async () => {
-      const subscribeResult = await result.current.subscribe();
+      const subscribeResult = await renderedAdminWebPushHook.result.current.subscribe();
       expect(subscribeResult.ok).toBe(true);
     });
 
@@ -149,10 +165,10 @@ describe("useAdminWebPush", () => {
 
   it("does not subscribe when browser permission is denied", async () => {
     installWebPushGlobals({ permission: "denied" });
-    const { result } = renderHook(() => useAdminWebPush());
+    const renderedAdminWebPushHook = renderHook(() => useAdminWebPush());
 
     await act(async () => {
-      const subscribeResult = await result.current.subscribe();
+      const subscribeResult = await renderedAdminWebPushHook.result.current.subscribe();
       expect(subscribeResult).toEqual({ ok: false, reason: "denied" });
     });
 
@@ -162,10 +178,10 @@ describe("useAdminWebPush", () => {
   it("returns a VAPID unavailable reason when public key cannot be loaded", async () => {
     const { pushManager } = installWebPushGlobals();
     getAdminPushVapidPublicKey.mockRejectedValueOnce(new Error("admin-web-push-unavailable"));
-    const { result } = renderHook(() => useAdminWebPush());
+    const renderedAdminWebPushHook = renderHook(() => useAdminWebPush());
 
     await act(async () => {
-      const subscribeResult = await result.current.subscribe();
+      const subscribeResult = await renderedAdminWebPushHook.result.current.subscribe();
       expect(subscribeResult).toEqual({ ok: false, reason: "vapidUnavailable" });
     });
 
@@ -176,10 +192,10 @@ describe("useAdminWebPush", () => {
   it("does not subscribe when VAPID public key response is empty", async () => {
     const { pushManager } = installWebPushGlobals();
     getAdminPushVapidPublicKey.mockResolvedValueOnce(null);
-    const { result } = renderHook(() => useAdminWebPush());
+    const renderedAdminWebPushHook = renderHook(() => useAdminWebPush());
 
     await act(async () => {
-      const subscribeResult = await result.current.subscribe();
+      const subscribeResult = await renderedAdminWebPushHook.result.current.subscribe();
       expect(subscribeResult).toEqual({ ok: false, reason: "vapidUnavailable" });
     });
 
@@ -197,14 +213,14 @@ describe("useAdminWebPush", () => {
         getRegistration: jest.fn(async () => null),
       },
     });
-    const { result } = renderHook(() => useAdminWebPush());
+    const renderedAdminWebPushHook = renderHook(() => useAdminWebPush());
 
     let subscribePromise;
     act(() => {
-      subscribePromise = result.current.subscribe();
+      subscribePromise = renderedAdminWebPushHook.result.current.subscribe();
     });
 
-    expect(result.current.loading).toBe(true);
+    expect(renderedAdminWebPushHook.result.current.loading).toBe(true);
 
     await act(async () => {
       await flushPromises();
@@ -213,7 +229,7 @@ describe("useAdminWebPush", () => {
     });
     await expect(subscribePromise).resolves.toEqual({ ok: false, reason: "serviceWorkerUnavailable" });
 
-    expect(result.current.loading).toBe(false);
+    expect(renderedAdminWebPushHook.result.current.loading).toBe(false);
     expect(registerAdminPushSubscription).not.toHaveBeenCalled();
     jest.useRealTimers();
   });
@@ -228,11 +244,11 @@ describe("useAdminWebPush", () => {
         getRegistration: jest.fn(async () => ({ installing: true })),
       },
     });
-    const { result } = renderHook(() => useAdminWebPush());
+    const renderedAdminWebPushHook = renderHook(() => useAdminWebPush());
 
     let subscribePromise;
     act(() => {
-      subscribePromise = result.current.subscribe();
+      subscribePromise = renderedAdminWebPushHook.result.current.subscribe();
     });
 
     await act(async () => {
@@ -242,41 +258,41 @@ describe("useAdminWebPush", () => {
     });
     await expect(subscribePromise).resolves.toEqual({ ok: false, reason: "timeout" });
 
-    expect(result.current.loading).toBe(false);
+    expect(renderedAdminWebPushHook.result.current.loading).toBe(false);
     jest.useRealTimers();
   });
 
   it("removes existing subscription from backend and browser", async () => {
     const existingSubscription = makeSubscription("https://push.example/existing");
     installWebPushGlobals({ subscription: existingSubscription });
-    const { result } = renderHook(() => useAdminWebPush());
+    const renderedAdminWebPushHook = renderHook(() => useAdminWebPush());
 
-    await waitFor(() => expect(result.current.subscriptionEndpoint).toBe("https://push.example/existing"));
+    await waitFor(() => expect(renderedAdminWebPushHook.result.current.subscriptionEndpoint).toBe("https://push.example/existing"));
     await act(async () => {
-      const unsubscribeResult = await result.current.unsubscribe();
+      const unsubscribeResult = await renderedAdminWebPushHook.result.current.unsubscribe();
       expect(unsubscribeResult.ok).toBe(true);
     });
 
     expect(deleteAdminPushSubscription).toHaveBeenCalledWith("https://push.example/existing");
     expect(existingSubscription.unsubscribe).toHaveBeenCalled();
-    expect(result.current.subscriptionEndpoint).toBe(null);
+    expect(renderedAdminWebPushHook.result.current.subscriptionEndpoint).toBe(null);
   });
 
   it("returns timeout and clears loading when browser unsubscribe hangs", async () => {
     const existingSubscription = makeSubscription("https://push.example/existing");
     existingSubscription.unsubscribe = jest.fn(() => new Promise(() => {}));
     installWebPushGlobals({ subscription: existingSubscription });
-    const { result } = renderHook(() => useAdminWebPush());
+    const renderedAdminWebPushHook = renderHook(() => useAdminWebPush());
 
-    await waitFor(() => expect(result.current.subscriptionEndpoint).toBe("https://push.example/existing"));
+    await waitFor(() => expect(renderedAdminWebPushHook.result.current.subscriptionEndpoint).toBe("https://push.example/existing"));
 
     jest.useFakeTimers();
     let unsubscribePromise;
     act(() => {
-      unsubscribePromise = result.current.unsubscribe();
+      unsubscribePromise = renderedAdminWebPushHook.result.current.unsubscribe();
     });
 
-    expect(result.current.loading).toBe(true);
+    expect(renderedAdminWebPushHook.result.current.loading).toBe(true);
 
     await act(async () => {
       await flushPromises();
@@ -290,16 +306,16 @@ describe("useAdminWebPush", () => {
     await expect(unsubscribePromise).resolves.toEqual({ ok: false, reason: "timeout" });
 
     expect(deleteAdminPushSubscription).toHaveBeenCalledWith("https://push.example/existing");
-    expect(result.current.loading).toBe(false);
+    expect(renderedAdminWebPushHook.result.current.loading).toBe(false);
     jest.useRealTimers();
   });
 
   it("summarizes the current subscription endpoint without exposing the full URL", async () => {
     const existingSubscription = makeSubscription("https://push.example/existing-secret");
     installWebPushGlobals({ subscription: existingSubscription });
-    const { result } = renderHook(() => useAdminWebPush());
+    const renderedAdminWebPushHook = renderHook(() => useAdminWebPush());
 
-    await waitFor(() => expect(result.current.subscriptionSummary).toEqual({
+    await waitFor(() => expect(renderedAdminWebPushHook.result.current.subscriptionSummary).toEqual({
       endpointHost: "push.example",
       endpointHash: "abcdef123456",
     }));
@@ -307,10 +323,10 @@ describe("useAdminWebPush", () => {
 
   it("shows a local test notification through the service worker", async () => {
     const { showNotification } = installWebPushGlobals();
-    const { result } = renderHook(() => useAdminWebPush());
+    const renderedAdminWebPushHook = renderHook(() => useAdminWebPush());
 
     await act(async () => {
-      const notificationResult = await result.current.showTestNotification();
+      const notificationResult = await renderedAdminWebPushHook.result.current.showTestNotification();
       expect(notificationResult.ok).toBe(true);
     });
 
