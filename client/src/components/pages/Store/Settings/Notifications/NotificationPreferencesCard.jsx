@@ -10,6 +10,7 @@ import {
   getWebPushStatusKey,
   isWebPushActiveOnDevice,
 } from "@/lib/adminNotifications";
+import { isElectron } from "@lib/isElectron";
 
 function EndpointSummary({ endpointSummary, label }) {
   if (!endpointSummary) return null;
@@ -50,7 +51,8 @@ export function NotificationPreferencesCard() {
     error,
     updatePreference,
   } = useAdminNotificationPreferences();
-  const webPush = useAdminWebPush();
+  const shouldShowWebPushControls = !isElectron;
+  const webPush = useAdminWebPush({ enabled: shouldShowWebPushControls });
 
   if (!loading && !walletPreference && !error) return null;
 
@@ -100,13 +102,17 @@ export function NotificationPreferencesCard() {
             <p className="text-sm sm:text-base font-semibold text-gray-700">
               {settingsTranslations("cardNotifications.walletTitle")}
             </p>
-            <p className="text-xs sm:text-sm text-gray-500">
-              {notificationTranslations(`webPush.${walletWebPushStatusKey}`)}
-            </p>
-            <EndpointSummary
-              endpointSummary={webPush.subscriptionSummary}
-              label={notificationTranslations("webPush.endpoint")}
-            />
+            {shouldShowWebPushControls && (
+              <>
+                <p className="text-xs sm:text-sm text-gray-500">
+                  {notificationTranslations(`webPush.${walletWebPushStatusKey}`)}
+                </p>
+                <EndpointSummary
+                  endpointSummary={webPush.subscriptionSummary}
+                  label={notificationTranslations("webPush.endpoint")}
+                />
+              </>
+            )}
           </div>
 
           <div className="flex flex-col gap-4">
@@ -121,25 +127,29 @@ export function NotificationPreferencesCard() {
               </Switch>
             </div>
 
-            <div>
-              <Switch
-                isSelected={isWalletPushActiveOnDevice}
-                isDisabled={disabled || webPush.loading || !webPush.isSupported || !walletPreference}
-                onValueChange={handlePushPreferenceChange}
-                aria-label={settingsTranslations("cardNotifications.push")}
-              >
-                <span className="text-sm font-medium">{settingsTranslations("cardNotifications.push")}</span>
-              </Switch>
-            </div>
+            {shouldShowWebPushControls && (
+              <>
+                <div>
+                  <Switch
+                    isSelected={isWalletPushActiveOnDevice}
+                    isDisabled={disabled || webPush.loading || !webPush.isSupported || !walletPreference}
+                    onValueChange={handlePushPreferenceChange}
+                    aria-label={settingsTranslations("cardNotifications.push")}
+                  >
+                    <span className="text-sm font-medium">{settingsTranslations("cardNotifications.push")}</span>
+                  </Switch>
+                </div>
 
-            <Button
-              color="primary"
-              className="h-8 min-w-16 px-3 rounded-small bg-green-800 sm:h-10 sm:min-w-20 sm:px-4 sm:rounded-medium"
-              isDisabled={!isWalletPushActiveOnDevice || disabled || webPush.loading}
-              onPress={webPush.showTestNotification}
-            >
-              {settingsTranslations("cardNotifications.testPush")}
-            </Button>
+                <Button
+                  color="primary"
+                  className="h-8 min-w-16 px-3 rounded-small bg-green-800 sm:h-10 sm:min-w-20 sm:px-4 sm:rounded-medium"
+                  isDisabled={!isWalletPushActiveOnDevice || disabled || webPush.loading}
+                  onPress={webPush.showTestNotification}
+                >
+                  {settingsTranslations("cardNotifications.testPush")}
+                </Button>
+              </>
+            )}
           </div>
         </div>
       </CardBody>

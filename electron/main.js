@@ -215,7 +215,7 @@ async function handleStartupError(error) {
     ? '\n\nIf you have another Java version installed (Oracle JDK, OpenJDK, etc.), it may be conflicting with the bundled runtime. Try uninstalling other Java versions.'
     : '';
 
-  const response = await dialog.showMessageBox({
+  const startupDialogResult = await dialog.showMessageBox({
     type: 'error',
     title: 'Startup Error',
     message: 'The application Ambrosia could not be started',
@@ -225,10 +225,10 @@ async function handleStartupError(error) {
     cancelId: 2,
   });
 
-  if (response.response === 0) {
+  if (startupDialogResult.response === 0) {
     app.relaunch();
     app.quit();
-  } else if (response.response === 1) {
+  } else if (startupDialogResult.response === 1) {
     const logsDir = getLogsDirectory();
     shell.openPath(logsDir);
     setTimeout(() => app.quit(), 500);

@@ -18,6 +18,12 @@ jest.mock("@/hooks/useAdminWebPush", () => ({
   useAdminWebPush: jest.fn(),
 }));
 
+jest.mock("@lib/isElectron", () => ({
+  get isElectron() {
+    return global.__mockIsElectron ?? false;
+  },
+}));
+
 jest.mock("next-intl", () => ({
   useTranslations: () => (translationKey) => ({
     "cardNotifications.error": "Could not load notification settings",
@@ -67,6 +73,7 @@ describe("NotificationPreferencesCard", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    global.__mockIsElectron = false;
     updatePreference.mockResolvedValue(walletPreference);
     subscribe.mockResolvedValue({ ok: true });
     unsubscribe.mockResolvedValue({ ok: true });
@@ -94,6 +101,10 @@ describe("NotificationPreferencesCard", () => {
     });
   });
 
+  afterEach(() => {
+    delete global.__mockIsElectron;
+  });
+
   it("renders wallet notification preferences and endpoint summary", () => {
     render(<NotificationPreferencesCard />);
 
@@ -102,6 +113,19 @@ describe("NotificationPreferencesCard", () => {
     expect(screen.getByText("Browser push enabled on this device")).toBeInTheDocument();
     expect(screen.getByText(/push.example/)).toBeInTheDocument();
     expect(screen.getByText(/abcdef123456/)).toBeInTheDocument();
+  });
+
+  it("hides Web Push controls in Electron", () => {
+    global.__mockIsElectron = true;
+
+    render(<NotificationPreferencesCard />);
+
+    expect(screen.getByText("In-app")).toBeInTheDocument();
+    expect(screen.queryByText("Web Push")).not.toBeInTheDocument();
+    expect(screen.queryByText("Test push")).not.toBeInTheDocument();
+    expect(screen.queryByText("Browser push enabled on this device")).not.toBeInTheDocument();
+    expect(screen.queryByText(/push.example/)).not.toBeInTheDocument();
+    expect(useAdminWebPush).toHaveBeenCalledWith({ enabled: false });
   });
 
   it("updates in-app preference and notifies listeners", async () => {

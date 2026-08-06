@@ -24,10 +24,15 @@ import {
   withWebPushTimeout,
 } from "./adminWebPushUtils";
 
-export function useAdminWebPush() {
-  const isSupported = useMemo(() => hasWebPushSupport(), []);
+function getInitialWebPushPermission(enabled) {
+  if (!enabled) return "unsupported";
+  return typeof window !== "undefined" && "Notification" in window ? Notification.permission : "unsupported";
+}
+
+export function useAdminWebPush({ enabled = true } = {}) {
+  const isSupported = useMemo(() => enabled && hasWebPushSupport(), [enabled]);
   const [permission, setPermission] = useState(() => (
-    typeof window !== "undefined" && "Notification" in window ? Notification.permission : "unsupported"
+    getInitialWebPushPermission(enabled)
   ));
   const [subscriptionEndpoint, setSubscriptionEndpoint] = useState(null);
   const [subscriptionSummary, setSubscriptionSummary] = useState(null);
@@ -44,8 +49,15 @@ export function useAdminWebPush() {
   }, [isSupported]);
 
   useEffect(() => {
+    if (!enabled) {
+      setPermission("unsupported");
+      setSubscriptionEndpoint(null);
+      setSubscriptionSummary(null);
+      return;
+    }
+    setPermission(getInitialWebPushPermission(true));
     refreshSubscription().catch(() => setSubscriptionEndpoint(null));
-  }, [refreshSubscription]);
+  }, [enabled, refreshSubscription]);
 
   const subscribe = useCallback(async () => {
     if (!isSupported) {
