@@ -29,6 +29,7 @@ export function StoreWallet() {
   const { currency } = useCurrency();
   const { currentRate } = useBitcoinPrice({ currencyAcronym: currency.acronym });
   const [info, setInfo] = useState(null);
+  const [infoLoading, setInfoLoading] = useState(true);
   const [balance, setBalance] = useState(null);
   const [transactions, setTransactions] = useState([]);
   const [error, setError] = useState("");
@@ -41,6 +42,7 @@ export function StoreWallet() {
 
   const fetchInfo = useCallback(async () => {
     try {
+      setInfoLoading(true);
       const [infoResponse, balanceResponse] = await Promise.all([getInfo(), getBalance()]);
       setInfo(infoResponse);
       setBalance(balanceResponse);
@@ -54,6 +56,8 @@ export function StoreWallet() {
         variant: "solid",
         color: "danger",
       });
+    } finally {
+      setInfoLoading(false);
     }
   }, [walletTranslations]);
 
@@ -62,15 +66,11 @@ export function StoreWallet() {
       try {
         setLoading(true);
         setTransactions([]);
-        let incoming = [];
-        let outgoing = [];
 
-        if (filter === "incoming" || filter === "all") {
-          incoming = await getIncomingTransactions();
-        }
-        if (filter === "outgoing" || filter === "all") {
-          outgoing = await getOutgoingTransactions();
-        }
+        const [incoming, outgoing] = await Promise.all([
+          filter === "incoming" || filter === "all" ? getIncomingTransactions() : [],
+          filter === "outgoing" || filter === "all" ? getOutgoingTransactions() : [],
+        ]);
 
         const allTx = [...incoming, ...outgoing].sort(
           (a, b) => b.completedAt - a.completedAt,
@@ -119,7 +119,7 @@ export function StoreWallet() {
     return () => off?.();
   }, [onPayment, invoiceActions]);
 
-  if (!info) {
+  if (infoLoading) {
     return (
       <Card className="w-full max-w-md shadow-2xl border-0 bg-white">
         <CardBody className="flex flex-col items-center justify-center py-12">
