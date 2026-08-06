@@ -182,7 +182,7 @@ describe("useAdminNotificationSignals", () => {
     expect(window.electron.ipc.send).toHaveBeenCalledWith(
       ADMIN_ACTIVITY_ELECTRON_IPC,
       expect.objectContaining({
-        systemTitle: "Nueva actividad admin en Ambrosia",
+        systemTitle: "Ambrosia",
         title: "Pago recibido en billetera",
         body: "Se recibio un pago de 90 sats en la billetera.",
       }),
