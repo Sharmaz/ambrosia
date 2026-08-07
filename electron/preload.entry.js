@@ -1,6 +1,6 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
-const SEND_CHANNELS = ['ping', 'restart-server'];
+const SEND_CHANNELS = ['ping', 'restart-server', 'notifications:admin-activity'];
 
 const INVOKE_CHANNELS = [
   'services:get-statuses',
@@ -72,5 +72,3 @@ contextBridge.exposeInMainWorld('electron', {
     },
   },
 });
-
-console.log('[Preload] Electron APIs exposed successfully');

@@ -18,6 +18,7 @@ const componentsEs = {
     guardTitle: "Acceso a la Billetera",
     guardDescription: "Esta contraseña protege tu billetera Bitcoin. Ingrésala para acceder a tus canales Lightning.",
     guardButton: "Entendido",
+    guardLoginError: "No se pudo desbloquear la billetera. Revisa la contraseña e intenta de nuevo.",
     receiveAmountTitle: "Paso 1: Monto en satoshis",
     receiveAmountDescription: "Ingresa <b>5000</b> como monto. Esta cantidad cubre la comisión para abrir tu canal Lightning.",
     receiveDescTitle: "Paso 2: Descripción",
@@ -44,6 +45,8 @@ const componentsEs = {
   actions: {
     edit: "Editar",
     delete: "Eliminar",
+    markRead: "Marcar leida",
+    refresh: "Actualizar",
     view: "Ver",
   },
   status: {

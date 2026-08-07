@@ -1,5 +1,6 @@
 import { useRouter } from "next/navigation";
 
+import { addToast } from "@heroui/react";
 import { act, render, screen, fireEvent } from "@testing-library/react";
 
 import { useAuth } from "@/hooks/auth/useAuth";
@@ -14,13 +15,18 @@ jest.mock("../EmployeeSelect", () => ({
     <div>
       <label>selectLabel</label>
       {employees.length > 0
-        ? employees.map((emp) => (
-          <button key={emp.id} onClick={() => onSelect(emp.id)}>{emp.name}</button>
+        ? employees.map((employee) => (
+          <button key={employee.id} onClick={() => onSelect(employee.id)}>{employee.name}</button>
         ))
         : <span>noEmployees</span>
       }
     </div>
   ),
+}));
+
+jest.mock("@heroui/react", () => ({
+  ...jest.requireActual("@heroui/react"),
+  addToast: jest.fn(),
 }));
 
 jest.mock("@/services/authService", () => ({ getUsers: jest.fn() }));
@@ -37,13 +43,13 @@ const employees = [
 ];
 
 const renderPinLogin = async () => {
-  const result = render(
+  const pinLoginScreen = render(
     <I18nProvider>
       <PinLogin />
     </I18nProvider>,
   );
   await act(async () => {});
-  return result;
+  return pinLoginScreen;
 };
 
 beforeEach(() => {
@@ -76,6 +82,18 @@ describe("PinLogin", () => {
     expect(screen.getByText("noEmployees")).toBeInTheDocument();
   });
 
+  it("shows an error toast when employees cannot be loaded", async () => {
+    getUsers.mockRejectedValueOnce(new Error("Users unavailable"));
+
+    await renderPinLogin();
+
+    expect(addToast).toHaveBeenCalledWith({
+      title: "errorMessages.loadEmployeesTitle",
+      description: "errorMessages.loadEmployeesDescription",
+      color: "danger",
+    });
+  });
+
   it("redirects to '/' when already authenticated", async () => {
     useAuth.mockReturnValue({ login: mockLogin, isAuth: true, isLoading: false });
     await renderPinLogin();
@@ -83,10 +101,10 @@ describe("PinLogin", () => {
   });
 
   it("shows lockout message after a 429 response from the server", async () => {
-    const error = new Error("Too many requests");
-    error.status = 429;
-    error.retryAfter = 180;
-    mockLogin.mockRejectedValue(error);
+    const rateLimitError = new Error("Too many requests");
+    rateLimitError.status = 429;
+    rateLimitError.retryAfter = 180;
+    mockLogin.mockRejectedValue(rateLimitError);
 
     await renderPinLogin();
 
@@ -123,8 +141,8 @@ describe("PinLogin", () => {
 
   it("shows the specific error message when the user's role is deleted", async () => {
     const specificMessage = "No assigned role for this user, contact Admin";
-    const error = new Error(specificMessage);
-    mockLogin.mockRejectedValue(error);
+    const missingRoleError = new Error(specificMessage);
+    mockLogin.mockRejectedValue(missingRoleError);
 
     await renderPinLogin();
 

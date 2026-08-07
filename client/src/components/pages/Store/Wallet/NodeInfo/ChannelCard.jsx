@@ -17,7 +17,7 @@ const CLOSING_STATES = {
 function ChannelStateLabel({ state }) {
   const walletTranslations = useTranslations("wallet");
 
-  if (state === CHANNEL_STATE_NORMAL) {
+  if (state?.toUpperCase() === CHANNEL_STATE_NORMAL) {
     return (
       <div className="flex items-center space-x-1 mt-1">
         <span className="w-2 h-2 rounded-full bg-green-500" />
@@ -44,7 +44,7 @@ function ChannelStateLabel({ state }) {
 
 export function ChannelCard({ channel, index, onClose }) {
   const walletTranslations = useTranslations("wallet");
-  const isNormal = channel.state === CHANNEL_STATE_NORMAL;
+  const isNormal = channel.state?.toUpperCase() === CHANNEL_STATE_NORMAL;
 
   return (
     <Card className="border" shadow="none">

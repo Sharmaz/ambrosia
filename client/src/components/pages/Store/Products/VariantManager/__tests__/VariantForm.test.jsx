@@ -69,6 +69,12 @@ describe("VariantForm", () => {
     expect(screen.getByLabelText("variantStock")).toBeInTheDocument();
   });
 
+  it("hides the stock field when the product does not track stock", () => {
+    renderForm({ isStockTrackedForProduct: false });
+    expect(screen.getByLabelText("variantPrice")).toBeInTheDocument();
+    expect(screen.queryByLabelText("variantStock")).not.toBeInTheDocument();
+  });
+
   it("renders an option selector for each option type", () => {
     renderForm({ options });
     expect(screen.getByLabelText("Color")).toBeInTheDocument();
@@ -120,6 +126,18 @@ describe("VariantForm", () => {
         optionValueIds: [],
       }),
     );
+  });
+
+  it("saves a zero quantity when the product does not track stock", () => {
+    const { onSave } = renderForm({
+      options: [],
+      initial: { quantity: 9 },
+      isStockTrackedForProduct: false,
+    });
+
+    fireEvent.click(screen.getByText("saveVariant"));
+
+    expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ quantity: 0 }));
   });
 
   it("sends null SKU when the field is blank", () => {
