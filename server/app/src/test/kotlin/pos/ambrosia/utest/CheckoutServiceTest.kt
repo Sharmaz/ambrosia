@@ -137,7 +137,7 @@ class CheckoutServiceTest {
             val result = service.checkout(validStoreRequest(userId, items = checkoutItems))
 
             assertTrue(result is CheckoutResult.Invalid)
-            assertTrue(service.getStoreOrders().isEmpty())
+            assertTrue(transaction { OrderEntity.all().toList() }.isEmpty())
         }
     }
 
@@ -176,6 +176,49 @@ class CheckoutServiceTest {
             assertTrue(result is CheckoutResult.Success)
             assertEquals(9, productQuantity(productId1))
             assertEquals(17, productQuantity(productId2))
+        }
+    }
+
+    @Test
+    fun `checkout succeeds without stock for a product that does not track stock`() {
+        runBlocking {
+            val userId = seedUser()
+            val productId = ExposedTestDb.seedProduct(name = "Consulting", quantity = 0, trackStock = false)
+            val items = listOf(StoreCheckoutItem(productId = productId, quantity = 3, priceAtOrder = 500))
+            val result = service.checkout(validStoreRequest(userId, items = items))
+
+            assertTrue(result is CheckoutResult.Success)
+            assertEquals(0, productQuantity(productId))
+            assertEquals(1, transaction { OrderEntity.all().toList() }.size)
+        }
+    }
+
+    @Test
+    fun `checkout leaves stock untouched for a product that does not track stock`() {
+        runBlocking {
+            val userId = seedUser()
+            val productId = ExposedTestDb.seedProduct(name = "Consulting", quantity = 7, trackStock = false)
+            val items = listOf(StoreCheckoutItem(productId = productId, quantity = 2, priceAtOrder = 500))
+            val result = service.checkout(validStoreRequest(userId, items = items))
+
+            assertTrue(result is CheckoutResult.Success)
+            assertEquals(7, productQuantity(productId))
+        }
+    }
+
+    @Test
+    fun `checkout skips component deduction for an untracked bundle`() {
+        runBlocking {
+            val userId = seedUser()
+            val componentId = ExposedTestDb.seedProduct(name = "Part", quantity = 0)
+            val bundleId = ExposedTestDb.seedProduct(name = "Kit", isBundle = true, trackStock = false)
+            ExposedTestDb.seedBundleComponent(bundleId, componentId, quantity = 2)
+
+            val checkoutItems = listOf(StoreCheckoutItem(productId = bundleId, quantity = 1, priceAtOrder = 500))
+            val result = service.checkout(validStoreRequest(userId, items = checkoutItems))
+
+            assertTrue(result is CheckoutResult.Success)
+            assertEquals(0, productQuantity(componentId))
         }
     }
 
@@ -223,7 +266,7 @@ class CheckoutServiceTest {
 
             assertTrue(result is CheckoutResult.Invalid)
             assertEquals(1, productQuantity(productId))
-            assertTrue(service.getStoreOrders().isEmpty())
+            assertTrue(transaction { OrderEntity.all().toList() }.isEmpty())
         }
     }
 
@@ -243,7 +286,7 @@ class CheckoutServiceTest {
             assertTrue(result is CheckoutResult.Invalid)
             assertEquals(10, productQuantity(productId1))
             assertEquals(1, productQuantity(productId2))
-            assertTrue(service.getStoreOrders().isEmpty())
+            assertTrue(transaction { OrderEntity.all().toList() }.isEmpty())
         }
     }
 
@@ -259,7 +302,7 @@ class CheckoutServiceTest {
 
             assertTrue(result is CheckoutResult.NotPaid)
             assertEquals(10, productQuantity(productId))
-            assertTrue(service.getStoreOrders().isEmpty())
+            assertTrue(transaction { OrderEntity.all().toList() }.isEmpty())
         }
     }
 
@@ -274,7 +317,7 @@ class CheckoutServiceTest {
             val result = service.checkout(validStoreRequest(userId, items = items, paymentHash = "hash-unknown"))
 
             assertTrue(result is CheckoutResult.NotPaid)
-            assertTrue(service.getStoreOrders().isEmpty())
+            assertTrue(transaction { OrderEntity.all().toList() }.isEmpty())
         }
     }
 
@@ -314,67 +357,8 @@ class CheckoutServiceTest {
             assertEquals(first.response.ticketId, second.response.ticketId)
             assertEquals(first.response.paymentId, second.response.paymentId)
 
-            // Only one order persisted — the recovered checkout must not duplicate.
-            assertEquals(1, service.getStoreOrders().size)
+            assertEquals(1, transaction { OrderEntity.all().toList() }.size)
             assertEquals(9, productQuantity(productId))
-        }
-    }
-
-    @Test
-    fun `getStoreOrders returns empty list when no orders found`() {
-        runBlocking {
-            assertTrue(service.getStoreOrders().isEmpty())
-        }
-    }
-
-    @Test
-    fun `getStoreOrders returns store orders with items after checkout`() {
-        runBlocking {
-            val userId = seedUser()
-            val productId = ExposedTestDb.seedProduct(name = "Widget", quantity = 10)
-            val items = listOf(StoreCheckoutItem(productId = productId, quantity = 2, priceAtOrder = 500))
-            val checkout = service.checkout(validStoreRequest(userId, items = items))
-            assertTrue(checkout is CheckoutResult.Success)
-
-            val result = service.getStoreOrders()
-            assertEquals(1, result.size)
-            assertEquals(checkout.response.orderId, result[0].id)
-            assertEquals(1, result[0].items.size)
-            assertEquals(productId, result[0].items[0].productId)
-        }
-    }
-
-    @Test
-    fun `getStoreOrders filters by status`() {
-        runBlocking {
-            val userId = seedUser()
-            val productId = ExposedTestDb.seedProduct(quantity = 10)
-            val items = listOf(StoreCheckoutItem(productId = productId, quantity = 1, priceAtOrder = 100))
-            service.checkout(validStoreRequest(userId, items = items))
-
-            assertEquals(1, service.getStoreOrders(status = "paid").size)
-            assertTrue(service.getStoreOrders(status = "open").isEmpty())
-        }
-    }
-
-    @Test
-    fun `getStoreOrderById returns null when order not found`() {
-        runBlocking {
-            assertEquals(null, service.getStoreOrderById(UUID.randomUUID().toString()))
-        }
-    }
-
-    @Test
-    fun `getStoreOrderById returns order when found`() {
-        runBlocking {
-            val userId = seedUser()
-            val productId = ExposedTestDb.seedProduct(quantity = 10)
-            val items = listOf(StoreCheckoutItem(productId = productId, quantity = 1, priceAtOrder = 100))
-            val checkout = service.checkout(validStoreRequest(userId, items = items))
-            assertTrue(checkout is CheckoutResult.Success)
-
-            val result = service.getStoreOrderById(checkout.response.orderId)
-            assertEquals(checkout.response.orderId, result?.id)
         }
     }
 
@@ -384,7 +368,7 @@ class CheckoutServiceTest {
             val userId = seedUser()
             val orderId = ExposedTestDb.seedOrder(userId, status = "open")
             assertTrue(service.cancelStoreOrder(orderId))
-            assertEquals("closed", service.getStoreOrderById(orderId)?.status)
+            assertEquals("closed", transaction { OrderEntity.findById(UUID.fromString(orderId))?.status })
         }
     }
 
@@ -481,6 +465,25 @@ class CheckoutServiceTest {
     }
 
     @Test
+    fun `checkout deducts only the tracked components of a bundle`() {
+        runBlocking {
+            val userId = seedUser()
+            val trackedComponentId = ExposedTestDb.seedProduct(name = "Mug", quantity = 10)
+            val untrackedComponentId = ExposedTestDb.seedProduct(name = "Coffee", quantity = 0, trackStock = false)
+            val bundleId = ExposedTestDb.seedProduct(name = "Kit", isBundle = true, quantity = 0)
+            ExposedTestDb.seedBundleComponent(bundleId, trackedComponentId, quantity = 1)
+            ExposedTestDb.seedBundleComponent(bundleId, untrackedComponentId, quantity = 1)
+
+            val checkoutItems = listOf(StoreCheckoutItem(productId = bundleId, quantity = 1, priceAtOrder = 500))
+            val result = service.checkout(validStoreRequest(userId, items = checkoutItems))
+
+            assertTrue(result is CheckoutResult.Success)
+            assertEquals(9, productQuantity(trackedComponentId))
+            assertEquals(0, productQuantity(untrackedComponentId))
+        }
+    }
+
+    @Test
     fun `checkout deducts selected component variant stock when item is a bundle`() {
         runBlocking {
             val userId = seedUser()
@@ -532,7 +535,7 @@ class CheckoutServiceTest {
 
             assertTrue(result is CheckoutResult.Invalid)
             assertEquals(1, productQuantity(componentId))
-            assertTrue(service.getStoreOrders().isEmpty())
+            assertTrue(transaction { OrderEntity.all().toList() }.isEmpty())
         }
     }
 
@@ -555,7 +558,7 @@ class CheckoutServiceTest {
             assertTrue(result is CheckoutResult.Invalid)
             assertEquals(5, productQuantity(regularProductId))
             assertEquals(1, productQuantity(componentId))
-            assertTrue(service.getStoreOrders().isEmpty())
+            assertTrue(transaction { OrderEntity.all().toList() }.isEmpty())
         }
     }
 }

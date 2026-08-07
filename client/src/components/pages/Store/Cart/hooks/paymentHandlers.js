@@ -61,8 +61,8 @@ export function buildHandlePay({
         userId: user?.userId,
         currencyId: currency?.id,
       });
-    } catch (err) {
-      notifyError(err.message);
+    } catch (cartValidationError) {
+      notifyError(cartValidationError.message);
       return;
     }
 
@@ -145,9 +145,9 @@ export function buildHandlePay({
       notifySuccess("success.paid");
       onResetCart?.();
       onPay?.({ items: cartItems, ...paymentAmounts, paymentMethod: selectedPaymentMethod, ...storeCheckoutResult });
-    } catch (err) {
-      console.error("Error processing payment:", err);
-      notifyError(err?.message || "errors.process");
+    } catch (paymentProcessingError) {
+      console.error("Error processing payment:", paymentProcessingError);
+      notifyError(paymentProcessingError?.message || "errors.process");
     } finally {
       dispatch({ type: "stop" });
     }
@@ -233,9 +233,9 @@ async function runDeferredCheckout({
     onPay?.(buildOnPayPayload(storeCheckoutResult));
     onResetCart?.();
     notifySuccess(successKey);
-  } catch (err) {
-    console.error("Error completing payment:", err);
-    notifyError(err?.message || errorKey);
+  } catch (paymentCompletionError) {
+    console.error("Error completing payment:", paymentCompletionError);
+    notifyError(paymentCompletionError?.message || errorKey);
   } finally {
     finalize();
     dispatch({ type: "stop" });

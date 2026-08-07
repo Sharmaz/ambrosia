@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 
 import { addToast, Button, Card, CardBody } from "@heroui/react";
 import { useTranslations } from "next-intl";
@@ -19,7 +19,7 @@ import { permissionCatalog } from "./utils/permissionCatalog";
 
 export function Roles({ roles, createRole, deleteRole, loading: loadingRoles, updateRoleWithPermissions, getRolePermissions }) {
   const { permissions, loading: loadingPerms } = usePermissions();
-  const t = useTranslations();
+  const roleTranslations = useTranslations();
   const { businessType } = useConfigurations();
   const [showModal, setShowModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -28,6 +28,9 @@ export function Roles({ roles, createRole, deleteRole, loading: loadingRoles, up
   const [updating, setUpdating] = useState(false);
   const [roleToDelete, setRoleToDelete] = useState(null);
   const [deleting, setDeleting] = useState(false);
+  const creatingRef = useRef(false);
+  const updatingRef = useRef(false);
+  const deletingRef = useRef(false);
   const [form, setForm] = useState({
     name: "",
     password: "",
@@ -36,10 +39,10 @@ export function Roles({ roles, createRole, deleteRole, loading: loadingRoles, up
   });
 
   const permSet = useMemo(() => buildPermissionSet(permissions), [permissions]);
-  const filteredCatalog = useMemo(() => permissionCatalog.filter((perm) => {
-    if (!permSet.has(perm.key)) return false;
+  const filteredCatalog = useMemo(() => permissionCatalog.filter((permission) => {
+    if (!permSet.has(permission.key)) return false;
     if (!businessType) return true;
-    return perm.business === "both" || perm.business === businessType;
+    return permission.business === "both" || permission.business === businessType;
   }), [permSet, businessType]);
 
   const togglePermission = (name) => {
@@ -56,6 +59,8 @@ export function Roles({ roles, createRole, deleteRole, loading: loadingRoles, up
 
   const handleCreateRole = async () => {
     if (!form.name.trim()) return;
+    if (creatingRef.current) return;
+    creatingRef.current = true;
     try {
       setCreating(true);
       await createRole({
@@ -66,7 +71,15 @@ export function Roles({ roles, createRole, deleteRole, loading: loadingRoles, up
       });
       setForm({ name: "", password: "", isAdmin: false, permissions: [] });
       setShowModal(false);
+      addToast({ title: roleTranslations("roles.actions.createSuccess"), color: "success" });
+    } catch (error) {
+      addToast({
+        title: error?.status === 409 ? roleTranslations("roles.actions.createConflictTitle") : roleTranslations("roles.actions.createErrorTitle"),
+        description: error?.status === 409 ? roleTranslations("roles.actions.createConflictDescription") : roleTranslations("roles.actions.createErrorDescription"),
+        color: error?.status === 409 ? "warning" : "danger",
+      });
     } finally {
+      creatingRef.current = false;
       setCreating(false);
     }
   };
@@ -89,6 +102,8 @@ export function Roles({ roles, createRole, deleteRole, loading: loadingRoles, up
 
   const handleUpdateRole = async () => {
     if (!editingRole) return;
+    if (updatingRef.current) return;
+    updatingRef.current = true;
     try {
       setUpdating(true);
       await updateRoleWithPermissions(editingRole.id, {
@@ -100,32 +115,36 @@ export function Roles({ roles, createRole, deleteRole, loading: loadingRoles, up
       setShowEditModal(false);
       setEditingRole(null);
       setForm({ name: "", password: "", isAdmin: false, permissions: [] });
-      addToast({ title: t("roles.actions.saveSuccess"), color: "success" });
+      addToast({ title: roleTranslations("roles.actions.saveSuccess"), color: "success" });
     } catch (error) {
       addToast({
-        title: error?.status === 409 ? t("roles.actions.lastAdminErrorTittle") : t("roles.actions.saveErrorTitle"),
-        description: error?.status == 409 ? t("roles.actions.lastAdminErrorDescription") : t("roles.actions.saveErrorDescription"),
+        title: error?.status === 409 ? roleTranslations("roles.actions.lastAdminErrorTitle") : roleTranslations("roles.actions.saveErrorTitle"),
+        description: error?.status === 409 ? roleTranslations("roles.actions.lastAdminErrorDescription") : roleTranslations("roles.actions.saveErrorDescription"),
         color: error?.status === 409 ? "warning" : "danger",
       });
     } finally {
+      updatingRef.current = false;
       setUpdating(false);
     }
   };
 
   const handleDeleteRole = async () => {
     if (!roleToDelete) return;
+    if (deletingRef.current) return;
+    deletingRef.current = true;
     try {
       setDeleting(true);
       await deleteRole(roleToDelete.id);
       setRoleToDelete(null);
-      addToast({ title: t("roles.actions.deleteSuccess"), color: "success" });
+      addToast({ title: roleTranslations("roles.actions.deleteSuccess"), color: "success" });
     } catch (error) {
       addToast({
-        title: error?.status === 409 ? t("roles.actions.lastAdminErrorTittle") : t("roles.actions.saveErrorTitle"),
-        description: error?.status == 409 ? t("roles.actions.lastAdminErrorDescription") : t("roles.actions.saveErrorDescription"),
+        title: error?.status === 409 ? roleTranslations("roles.actions.lastAdminErrorTitle") : roleTranslations("roles.actions.saveErrorTitle"),
+        description: error?.status === 409 ? roleTranslations("roles.actions.lastAdminErrorDescription") : roleTranslations("roles.actions.deleteError"),
         color: error?.status === 409 ? "warning" : "danger",
       });
     } finally {
+      deletingRef.current = false;
       setDeleting(false);
     }
   };
@@ -133,8 +152,8 @@ export function Roles({ roles, createRole, deleteRole, loading: loadingRoles, up
   return (
     <div>
       <PageHeader
-        title={t("roles.header.title")}
-        subtitle={t("roles.header.subtitle")}
+        title={roleTranslations("roles.header.title")}
+        subtitle={roleTranslations("roles.header.subtitle")}
         actions={(
           <RequirePermission allOf={["roles_create"]}>
             <Button
@@ -143,7 +162,7 @@ export function Roles({ roles, createRole, deleteRole, loading: loadingRoles, up
               onPress={() => setShowModal(true)}
               isDisabled={loadingPerms}
             >
-              {t("roles.actions.new")}
+              {roleTranslations("roles.actions.new")}
             </Button>
           </RequirePermission>
         )}
@@ -169,7 +188,6 @@ export function Roles({ roles, createRole, deleteRole, loading: loadingRoles, up
         setForm={setForm}
         permissionOptions={filteredCatalog}
         togglePermission={togglePermission}
-        t={t}
         businessType={businessType}
       />
 
@@ -194,7 +212,6 @@ export function Roles({ roles, createRole, deleteRole, loading: loadingRoles, up
           togglePermission={togglePermission}
           updating={updating}
           roleName={editingRole?.role}
-          t={t}
           businessType={businessType}
         />
       )}

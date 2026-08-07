@@ -7,6 +7,9 @@ import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.SchemaUtils
 import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
+import pos.ambrosia.db.tables.AdminNotificationPreferencesTable
+import pos.ambrosia.db.tables.AdminNotificationReceiptsTable
+import pos.ambrosia.db.tables.AdminNotificationsTable
 import pos.ambrosia.db.tables.BaseCurrencyTable
 import pos.ambrosia.db.tables.CategoriesTable
 import pos.ambrosia.db.tables.CategoryEntity
@@ -42,6 +45,9 @@ import pos.ambrosia.db.tables.ProductOptionValuesTable
 import pos.ambrosia.db.tables.ProductVariantEntity
 import pos.ambrosia.db.tables.ProductVariantsTable
 import pos.ambrosia.db.tables.ProductsTable
+import pos.ambrosia.db.tables.PushSubscriptionsTable
+import pos.ambrosia.db.tables.RefundEntity
+import pos.ambrosia.db.tables.RefundsTable
 import pos.ambrosia.db.tables.RoleEntity
 import pos.ambrosia.db.tables.RolePermissionsTable
 import pos.ambrosia.db.tables.RolesTable
@@ -108,6 +114,11 @@ object ExposedTestDb {
                 TicketTemplatesTable,
                 TicketTemplateElementsTable,
                 OrderProductsTable,
+                RefundsTable,
+                AdminNotificationsTable,
+                AdminNotificationReceiptsTable,
+                AdminNotificationPreferencesTable,
+                PushSubscriptionsTable,
             )
         }
         return file
@@ -116,10 +127,15 @@ object ExposedTestDb {
     fun cleanup(file: File) {
         transaction {
             SchemaUtils.drop(
+                RefundsTable,
                 OrderProductsTable,
                 TicketTemplateElementsTable,
                 TicketTemplatesTable,
                 PrinterConfigsTable,
+                PushSubscriptionsTable,
+                AdminNotificationPreferencesTable,
+                AdminNotificationReceiptsTable,
+                AdminNotificationsTable,
                 ShiftsTable,
                 DishesIngredientsTable,
                 VariantOptionValuesTable,
@@ -477,6 +493,7 @@ object ExposedTestDb {
         isBundle: Boolean = false,
         priceCents: Int = 200,
         costCents: Int? = null,
+        trackStock: Boolean = true,
     ): String =
         transaction {
             val productId =
@@ -491,6 +508,7 @@ object ExposedTestDb {
                         this.hasVariants = hasVariants
                         this.isDeleted = isDeleted
                         this.isBundle = isBundle
+                        this.trackStock = trackStock
                     }.id.value
             ProductVariantEntity.new(UUID.randomUUID()) {
                 this.productId = EntityID(productId, ProductsTable)
@@ -518,6 +536,25 @@ object ExposedTestDb {
             }
         }
     }
+
+    fun seedRefund(
+        orderId: String,
+        refundInvoice: String = "",
+        satoshiAmount: Long = 0L,
+        refundedAt: String = "2024-01-01T00:00:00",
+        paymentHash: String? = null,
+    ): String =
+        transaction {
+            RefundEntity
+                .new(UUID.randomUUID()) {
+                    this.orderId = EntityID(UUID.fromString(orderId), OrdersTable)
+                    this.refundInvoice = refundInvoice
+                    this.satoshiAmount = satoshiAmount
+                    this.refundedAt = refundedAt
+                    this.paymentHash = paymentHash
+                }.id.value
+                .toString()
+        }
 
     fun seedProductCategory(
         productId: String,

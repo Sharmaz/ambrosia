@@ -17,7 +17,7 @@ import { resolveImageUrl } from "../utils/resolveImageUrl";
 import { useProductVariants } from "./useProductVariants";
 
 export function useProducts() {
-  const productsTranslation = useTranslations("products");
+  const productsTranslations = useTranslations("products");
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -27,32 +27,34 @@ export function useProducts() {
   const notifyMutationError = (mutationError) => {
     if (mutationError?.status === 409) {
       addToast({
-        title: productsTranslation("toasts.duplicateSkuTitle"),
-        description: productsTranslation("toasts.duplicateSkuDescription"),
+        title: productsTranslations("toasts.duplicateSkuTitle"),
+        description: productsTranslations("toasts.duplicateSkuDescription"),
         color: "danger",
       });
       return;
     }
 
     addToast({
-      title: productsTranslation("toasts.genericErrorTitle"),
-      description: productsTranslation("toasts.genericErrorDescription"),
+      title: productsTranslations("toasts.genericErrorTitle"),
+      description: productsTranslations("toasts.genericErrorDescription"),
       color: "danger",
     });
   };
 
   const notifyBundleComponentDeleteError = () => {
     addToast({
-      title: productsTranslation("toasts.bundleComponentErrorTitle"),
-      description: productsTranslation("toasts.bundleComponentErrorDescription"),
+      title: productsTranslations("toasts.bundleComponentErrorTitle"),
+      description: productsTranslations("toasts.bundleComponentErrorDescription"),
       color: "danger",
     });
   };
 
-  const ensureSuccess = async (response) => {
-    const responseBody = await parseJsonResponse(response, null);
-    if (!response.ok) throw buildHttpError(response, responseBody);
-    return responseBody;
+  const ensureSuccess = async (productMutationResponse) => {
+    const parsedProductMutationBody = await parseJsonResponse(productMutationResponse, null);
+    if (!productMutationResponse.ok) {
+      throw buildHttpError(productMutationResponse, "Request failed", parsedProductMutationBody);
+    }
+    return parsedProductMutationBody;
   };
 
   const buildDefaultVariantPayload = (productForm) => {
@@ -61,7 +63,9 @@ export function useProducts() {
       SKU: normalizeSku(productForm.productSKU),
       priceCents,
       costCents: priceCents,
-      quantity: productForm.isBundle ? 0 : toFiniteNumber(productForm.productStock),
+      quantity: productForm.isBundle || productForm.trackStock === false
+        ? 0
+        : toFiniteNumber(productForm.productStock),
       isActive: true,
     };
   };

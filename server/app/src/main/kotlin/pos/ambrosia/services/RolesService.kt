@@ -21,6 +21,7 @@ class RolesService(
     private val env: ApplicationEnvironment,
 ) {
     private val adminGuard = AdminGuardService()
+    private val permissionsService = PermissionsService()
 
     fun addRole(role: Role): String? =
         transaction {
@@ -38,14 +39,18 @@ class RolesService(
                     env = env,
                 )
 
+            val isAdmin = role.isAdmin ?: false
             val generatedId =
                 RoleEntity
                     .new(id) {
                         this.role = role.role
                         this.password = SecurePinProcessor.byteArrayToBase64(encryptedPin)
-                        this.isAdmin = role.isAdmin ?: false
+                        this.isAdmin = isAdmin
                     }.id.value
                     .toString()
+
+            grantAllPermissionsIfAdmin(generatedId, isAdmin)
+
             logger.info("Role created successfully with ID: $generatedId")
             generatedId
         }
@@ -111,7 +116,8 @@ class RolesService(
                 logger.error("Role name already exists: ${role.role}")
                 return@transaction false
             }
-            ensureRoleAdminInvariant(id, role.isAdmin ?: false)
+            val isAdmin = role.isAdmin ?: false
+            ensureRoleAdminInvariant(id, isAdmin)
 
             val entity = RoleEntity.findById(UUID.fromString(id))?.takeIf { !it.isDeleted }
             if (entity == null) {
@@ -119,15 +125,23 @@ class RolesService(
                 false
             } else {
                 entity.role = role.role
-                entity.isAdmin = role.isAdmin ?: false
+                entity.isAdmin = isAdmin
                 if (role.password != null) {
                     val encryptedPin = SecurePinProcessor.hashPinForStorage(role.password.toCharArray(), id, env)
                     entity.password = SecurePinProcessor.byteArrayToBase64(encryptedPin)
                 }
+                grantAllPermissionsIfAdmin(id, isAdmin)
                 logger.info("Role updated successfully: ${role.id}")
                 true
             }
         }
+
+    private fun grantAllPermissionsIfAdmin(
+        roleId: String,
+        isAdmin: Boolean,
+    ) {
+        if (isAdmin) permissionsService.assignAllEnabledToRole(roleId)
+    }
 
     fun deleteRole(id: String): Boolean =
         transaction {
