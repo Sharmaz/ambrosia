@@ -66,7 +66,7 @@ const productsEn = {
       bundleComponentsNotFound: "No products found.",
       bundleComponentsEmpty: "No components yet. Search and add products above.",
       bundleComponentsRequired: "Add at least one component before saving this bundle.",
-      bundleCostReference: "Components cost:",
+      bundleComponentsPriceReference: "Components price:",
       bundleComponentQuantityLabel: "Quantity",
       bundleComponentVariantLabel: "Variant",
       confirmBundleConversionTitle: "Convert variant product to bundle?",
