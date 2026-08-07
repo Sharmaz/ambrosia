@@ -161,8 +161,8 @@ beforeEach(() => {
     loading: false,
     restarting: false,
     error: null,
-    load: jest.fn(),
-    toggle: jest.fn(),
+    loadAutoLiquidity: jest.fn(),
+    toggleAutoLiquidity: jest.fn(),
   });
 
   jest.spyOn(useAdminWebPushHook, "useAdminWebPush").mockReturnValue({

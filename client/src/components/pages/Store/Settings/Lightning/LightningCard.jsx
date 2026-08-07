@@ -13,10 +13,10 @@ import { LightningCardUnlocked } from "./LightningCardUnlocked";
 export function LightningCard() {
   const lightningCardTranslations = useTranslations("lightning");
   const [showAccess, setShowAccess] = useState(false);
-  const { enabled, loading, restarting, load, toggle } = useAutoLiquidity();
+  const { enabled, loading, restarting, loadAutoLiquidity, toggleAutoLiquidity } = useAutoLiquidity();
 
   const handleAuthorized = async () => {
-    const result = await load();
+    const result = await loadAutoLiquidity();
     if (result === "nwc") {
       addToast({ color: "warning", description: lightningCardTranslations("notAvailableNwc") });
       setShowAccess(false);
@@ -26,7 +26,7 @@ export function LightningCard() {
   const handleHide = () => setShowAccess(false);
 
   const handleToggle = async (newEnabled) => {
-    const result = await toggle(newEnabled);
+    const result = await toggleAutoLiquidity(newEnabled);
     if (result === "nwc") {
       addToast({ color: "warning", description: lightningCardTranslations("notAvailableNwc") });
       setShowAccess(false);

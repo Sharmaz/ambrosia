@@ -36,13 +36,13 @@ describe("useAutoLiquidity", () => {
     });
   });
 
-  describe("load", () => {
+  describe("loadAutoLiquidity", () => {
     it("sets loading=true synchronously when load is called", () => {
       mockInvoke.mockReturnValue(new Promise(() => {}));
       const { result } = renderHook(() => useAutoLiquidity());
 
       act(() => {
-        result.current.load();
+        result.current.loadAutoLiquidity();
       });
 
       expect(result.current.loading).toBe(true);
@@ -53,7 +53,7 @@ describe("useAutoLiquidity", () => {
       const { result } = renderHook(() => useAutoLiquidity());
 
       await act(async () => {
-        await result.current.load();
+        await result.current.loadAutoLiquidity();
       });
 
       expect(result.current.enabled).toBe(false);
@@ -65,7 +65,7 @@ describe("useAutoLiquidity", () => {
       const { result } = renderHook(() => useAutoLiquidity());
 
       await act(async () => {
-        await result.current.load();
+        await result.current.loadAutoLiquidity();
       });
 
       expect(result.current.enabled).toBe(true);
@@ -78,7 +78,7 @@ describe("useAutoLiquidity", () => {
 
       let returnValue;
       await act(async () => {
-        returnValue = await result.current.load();
+        returnValue = await result.current.loadAutoLiquidity();
       });
 
       expect(returnValue).toBe("nwc");
@@ -91,7 +91,7 @@ describe("useAutoLiquidity", () => {
 
       let returnValue;
       await act(async () => {
-        returnValue = await result.current.load();
+        returnValue = await result.current.loadAutoLiquidity();
       });
 
       expect(returnValue).toBe(false);
@@ -100,13 +100,13 @@ describe("useAutoLiquidity", () => {
     });
   });
 
-  describe("toggle", () => {
+  describe("toggleAutoLiquidity", () => {
     it("updates enabled optimistically before IPC resolves", async () => {
       mockInvoke.mockResolvedValue(true);
       const { result } = renderHook(() => useAutoLiquidity());
 
       act(() => {
-        result.current.toggle(true);
+        result.current.toggleAutoLiquidity(true);
       });
 
       expect(result.current.enabled).toBe(true);
@@ -118,7 +118,7 @@ describe("useAutoLiquidity", () => {
       const { result } = renderHook(() => useAutoLiquidity());
 
       await act(async () => {
-        const togglePromise = result.current.toggle(true);
+        const togglePromise = result.current.toggleAutoLiquidity(true);
         jest.runAllTimers();
         await togglePromise;
       });
@@ -131,7 +131,7 @@ describe("useAutoLiquidity", () => {
       const { result } = renderHook(() => useAutoLiquidity());
 
       await act(async () => {
-        const togglePromise = result.current.toggle(false);
+        const togglePromise = result.current.toggleAutoLiquidity(false);
         jest.runAllTimers();
         await togglePromise;
       });
@@ -145,7 +145,7 @@ describe("useAutoLiquidity", () => {
 
       let returnValue;
       await act(async () => {
-        const togglePromise = result.current.toggle(true);
+        const togglePromise = result.current.toggleAutoLiquidity(true);
         jest.runAllTimers();
         returnValue = await togglePromise;
       });
@@ -159,7 +159,7 @@ describe("useAutoLiquidity", () => {
 
       let returnValue;
       await act(async () => {
-        const togglePromise = result.current.toggle(true);
+        const togglePromise = result.current.toggleAutoLiquidity(true);
         jest.runAllTimers();
         returnValue = await togglePromise;
       });
@@ -173,7 +173,7 @@ describe("useAutoLiquidity", () => {
 
       let returnValue;
       await act(async () => {
-        const togglePromise = result.current.toggle(true);
+        const togglePromise = result.current.toggleAutoLiquidity(true);
         jest.runAllTimers();
         returnValue = await togglePromise;
       });
@@ -187,7 +187,7 @@ describe("useAutoLiquidity", () => {
 
       let returnValue;
       await act(async () => {
-        const togglePromise = result.current.toggle(true);
+        const togglePromise = result.current.toggleAutoLiquidity(true);
         jest.runAllTimers();
         returnValue = await togglePromise;
       });
@@ -202,7 +202,7 @@ describe("useAutoLiquidity", () => {
       const { result } = renderHook(() => useAutoLiquidity());
 
       await act(async () => {
-        const togglePromise = result.current.toggle(true);
+        const togglePromise = result.current.toggleAutoLiquidity(true);
         jest.runAllTimers();
         await togglePromise;
       });
@@ -215,9 +215,9 @@ describe("useAutoLiquidity", () => {
       const { result } = renderHook(() => useAutoLiquidity());
 
       await act(async () => {
-        result.current.toggle(true);
-        result.current.toggle(false);
-        result.current.toggle(true);
+        result.current.toggleAutoLiquidity(true);
+        result.current.toggleAutoLiquidity(false);
+        result.current.toggleAutoLiquidity(true);
         jest.runAllTimers();
         await Promise.resolve();
         await Promise.resolve();

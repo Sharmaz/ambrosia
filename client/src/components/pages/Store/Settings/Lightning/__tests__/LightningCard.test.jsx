@@ -45,8 +45,8 @@ jest.mock("lucide-react", () => ({
 
 const { addToast } = require("@heroui/react");
 
-const mockLoad = jest.fn();
-const mockToggle = jest.fn();
+const mockLoadAutoLiquidity = jest.fn();
+const mockToggleAutoLiquidity = jest.fn();
 
 function mockHook(overrides = {}) {
   jest.spyOn(useAutoLiquidityHook, "useAutoLiquidity").mockReturnValue({
@@ -54,8 +54,8 @@ function mockHook(overrides = {}) {
     loading: false,
     restarting: false,
     error: null,
-    load: mockLoad,
-    toggle: mockToggle,
+    loadAutoLiquidity: mockLoadAutoLiquidity,
+    toggleAutoLiquidity: mockToggleAutoLiquidity,
     ...overrides,
   });
 }
@@ -77,7 +77,7 @@ async function openAndAuthorize() {
 
 beforeEach(() => {
   jest.clearAllMocks();
-  mockLoad.mockResolvedValue(true);
+  mockLoadAutoLiquidity.mockResolvedValue(true);
 });
 
 describe("LightningCard", () => {
@@ -113,17 +113,17 @@ describe("LightningCard", () => {
 
   describe("onAuthorized — successful load", () => {
     it("calls load when WalletGuard confirms", async () => {
-      mockLoad.mockResolvedValue(true);
+      mockLoadAutoLiquidity.mockResolvedValue(true);
       mockHook();
       renderCard();
 
       await openAndAuthorize();
 
-      expect(mockLoad).toHaveBeenCalledTimes(1);
+      expect(mockLoadAutoLiquidity).toHaveBeenCalledTimes(1);
     });
 
     it("stays in unlocked state after a successful load", async () => {
-      mockLoad.mockResolvedValue(true);
+      mockLoadAutoLiquidity.mockResolvedValue(true);
       mockHook();
       renderCard();
 
@@ -135,7 +135,7 @@ describe("LightningCard", () => {
 
   describe("onAuthorized — not available under NWC", () => {
     it("shows a warning toast when load returns 'nwc'", async () => {
-      mockLoad.mockResolvedValue("nwc");
+      mockLoadAutoLiquidity.mockResolvedValue("nwc");
       mockHook();
       renderCard();
 
@@ -147,7 +147,7 @@ describe("LightningCard", () => {
     });
 
     it("goes back to locked state when load returns 'nwc'", async () => {
-      mockLoad.mockResolvedValue("nwc");
+      mockLoadAutoLiquidity.mockResolvedValue("nwc");
       mockHook();
       renderCard();
 
@@ -169,7 +169,7 @@ describe("LightningCard", () => {
 
   describe("Toggle interactions", () => {
     it("calls toggle when switch is clicked", async () => {
-      mockToggle.mockResolvedValue(true);
+      mockToggleAutoLiquidity.mockResolvedValue(true);
       mockHook({ enabled: false });
       renderCard();
 
@@ -178,11 +178,11 @@ describe("LightningCard", () => {
         fireEvent.click(screen.getByRole("switch"));
       });
 
-      expect(mockToggle).toHaveBeenCalledWith(true);
+      expect(mockToggleAutoLiquidity).toHaveBeenCalledWith(true);
     });
 
     it("shows success toast when toggle returns true", async () => {
-      mockToggle.mockResolvedValue(true);
+      mockToggleAutoLiquidity.mockResolvedValue(true);
       mockHook({ enabled: false });
       renderCard();
 
@@ -197,7 +197,7 @@ describe("LightningCard", () => {
     });
 
     it("shows warning toast when toggle returns 'manual'", async () => {
-      mockToggle.mockResolvedValue("manual");
+      mockToggleAutoLiquidity.mockResolvedValue("manual");
       mockHook({ enabled: false });
       renderCard();
 
@@ -212,7 +212,7 @@ describe("LightningCard", () => {
     });
 
     it("shows danger toast when toggle returns false", async () => {
-      mockToggle.mockResolvedValue(false);
+      mockToggleAutoLiquidity.mockResolvedValue(false);
       mockHook({ enabled: false });
       renderCard();
 
@@ -227,7 +227,7 @@ describe("LightningCard", () => {
     });
 
     it("shows a warning toast and returns to locked state when toggle returns 'nwc'", async () => {
-      mockToggle.mockResolvedValue("nwc");
+      mockToggleAutoLiquidity.mockResolvedValue("nwc");
       mockHook({ enabled: false });
       renderCard();
 

@@ -13,7 +13,7 @@ export function useAutoLiquidity() {
   const [error, setError] = useState(null);
   const debounceTimer = useRef(null);
 
-  const load = useCallback(async () => {
+  const loadAutoLiquidity = useCallback(async () => {
     if (!isElectron) {
       return true;
     }
@@ -21,21 +21,21 @@ export function useAutoLiquidity() {
     setLoading(true);
     setError(null);
     try {
-      const value = await window.electron.ipc.invoke("phoenixd:get-auto-liquidity");
-      if (value?.nwcConfigured) {
+      const autoLiquidityConfig = await window.electron.ipc.invoke("phoenixd:get-auto-liquidity");
+      if (autoLiquidityConfig?.nwcConfigured) {
         return "nwc";
       }
-      setEnabled(value !== "off");
+      setEnabled(autoLiquidityConfig !== "off");
       return true;
-    } catch (err) {
-      setError(err.message);
+    } catch (loadError) {
+      setError(loadError.message);
       return false;
     } finally {
       setLoading(false);
     }
   }, []);
 
-  const toggle = useCallback(async (newEnabled) => {
+  const toggleAutoLiquidity = useCallback(async (newEnabled) => {
     if (debounceTimer.current) {
       clearTimeout(debounceTimer.current);
     }
@@ -49,23 +49,27 @@ export function useAutoLiquidity() {
     });
 
     try {
-      const value = newEnabled ? "2m" : "off";
-      const result = await window.electron.ipc.invoke("phoenixd:set-auto-liquidity", value);
-      if (result?.nwcConfigured) {
+      const requestedAutoLiquidityValue = newEnabled ? "2m" : "off";
+      const setAutoLiquidityResult = await window.electron.ipc.invoke(
+        "phoenixd:set-auto-liquidity",
+        requestedAutoLiquidityValue,
+      );
+      if (setAutoLiquidityResult?.nwcConfigured) {
+        setEnabled(!newEnabled);
         return "nwc";
       }
-      if (result?.requiresManualRestart) {
+      if (setAutoLiquidityResult?.requiresManualRestart) {
         return "manual";
       }
       return true;
-    } catch (err) {
+    } catch (toggleError) {
       setEnabled(!newEnabled);
-      setError(err.message);
+      setError(toggleError.message);
       return false;
     } finally {
       setRestarting(false);
     }
   }, []);
 
-  return { enabled, loading, restarting, error, load, toggle };
+  return { enabled, loading, restarting, error, loadAutoLiquidity, toggleAutoLiquidity };
 }
