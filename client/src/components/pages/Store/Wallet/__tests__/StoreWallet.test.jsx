@@ -65,6 +65,24 @@ function renderStoreWallet() {
   );
 }
 
+async function authenticateAndWait() {
+  await act(async () => {
+    renderStoreWallet();
+  });
+
+  const passwordInput = screen.getByLabelText("access.passwordLabel");
+  const confirmButton = screen.getByText("access.confirmText");
+
+  await userEvent.type(passwordInput, "password123");
+  await act(async () => {
+    fireEvent.click(confirmButton);
+  });
+
+  await waitFor(() => {
+    expect(walletService.getInfo).toHaveBeenCalled();
+  });
+}
+
 const originalWarn = console.warn;
 const originalError = console.error;
 
@@ -253,24 +271,6 @@ describe("StoreWallet Component", () => {
   });
 
   describe("Wallet Content After Authentication", () => {
-    async function authenticateAndWait() {
-      await act(async () => {
-        renderStoreWallet();
-      });
-
-      const passwordInput = screen.getByLabelText("access.passwordLabel");
-      const confirmButton = screen.getByText("access.confirmText");
-
-      await userEvent.type(passwordInput, "password123");
-      await act(async () => {
-        fireEvent.click(confirmButton);
-      });
-
-      await waitFor(() => {
-        expect(walletService.getInfo).toHaveBeenCalled();
-      });
-    }
-
     it("fetches and displays node info after authentication", async () => {
       await authenticateAndWait();
 
@@ -293,6 +293,23 @@ describe("StoreWallet Component", () => {
       await waitFor(() => {
         expect(walletService.getIncomingTransactions).toHaveBeenCalled();
         expect(walletService.getOutgoingTransactions).toHaveBeenCalled();
+      });
+    });
+
+    it("fetches incoming and outgoing transactions concurrently, not sequentially", async () => {
+      let resolveIncoming;
+      jest.spyOn(walletService, "getIncomingTransactions").mockImplementation(
+        () => new Promise((resolve) => { resolveIncoming = resolve; }),
+      );
+
+      await authenticateAndWait();
+
+      await waitFor(() => {
+        expect(walletService.getOutgoingTransactions).toHaveBeenCalled();
+      });
+
+      await act(async () => {
+        resolveIncoming(mockIncomingTransactions);
       });
     });
 
@@ -320,45 +337,29 @@ describe("StoreWallet Component", () => {
   });
 
   describe("Error Handling", () => {
-    it("handles phoenixd connection error gracefully", async () => {
+    it("clears the loading spinner and shows NodeError when node info fails to load", async () => {
       jest.spyOn(walletService, "getInfo").mockRejectedValue(new Error("Connection failed"));
 
-      await act(async () => {
-        renderStoreWallet();
-      });
-
-      const passwordInput = screen.getByLabelText("access.passwordLabel");
-      const confirmButton = screen.getByText("access.confirmText");
-
-      await userEvent.type(passwordInput, "password123");
-      await act(async () => {
-        fireEvent.click(confirmButton);
-      });
+      await authenticateAndWait();
 
       await waitFor(() => {
-        expect(walletService.getInfo).toHaveBeenCalled();
+        expect(screen.getByText("nodeInfo.fetchInfoError")).toBeInTheDocument();
       });
+
+      expect(screen.queryByText("loadingMessage")).not.toBeInTheDocument();
     });
 
-    it("handles transaction fetch error", async () => {
+    it("falls back to the empty transactions state when the transaction fetch fails", async () => {
       jest.spyOn(walletService, "getIncomingTransactions").mockRejectedValue(
         new Error("Failed to fetch"),
       );
 
-      await act(async () => {
-        renderStoreWallet();
-      });
+      await authenticateAndWait();
 
-      const passwordInput = screen.getByLabelText("access.passwordLabel");
-      const confirmButton = screen.getByText("access.confirmText");
-
-      await userEvent.type(passwordInput, "password123");
-      await act(async () => {
-        fireEvent.click(confirmButton);
-      });
+      await userEvent.click(screen.getByText("payments.history.tabTitle"));
 
       await waitFor(() => {
-        expect(walletService.getIncomingTransactions).toHaveBeenCalled();
+        expect(screen.getByText("payments.history.noTx")).toBeInTheDocument();
       });
     });
   });
