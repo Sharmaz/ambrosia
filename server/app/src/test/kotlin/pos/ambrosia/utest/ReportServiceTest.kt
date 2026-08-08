@@ -221,6 +221,84 @@ class ReportServiceTest {
     }
 
     @Test
+    fun `utcOffsetMinutes includes an order whose UTC created_at date is the next local day`() {
+        val sale = seedSale(createdAt = "2024-06-16T04:00:00")
+        addOrderProduct(sale.orderId)
+
+        val report =
+            service.getProductSalesReport(
+                period = null,
+                startDate = "2024-06-15",
+                endDate = "2024-06-15",
+                productName = null,
+                userId = null,
+                paymentMethod = null,
+                utcOffsetMinutes = 360,
+            )
+
+        assertEquals(1, report.sales.size)
+        assertEquals(sale.orderId, report.sales[0].orderId)
+    }
+
+    @Test
+    fun `utcOffsetMinutes excludes an order that falls just outside the local day boundary`() {
+        val sale = seedSale(createdAt = "2024-06-16T06:00:01")
+        addOrderProduct(sale.orderId)
+
+        val report =
+            service.getProductSalesReport(
+                period = null,
+                startDate = "2024-06-15",
+                endDate = "2024-06-15",
+                productName = null,
+                userId = null,
+                paymentMethod = null,
+                utcOffsetMinutes = 360,
+            )
+
+        assertTrue(report.sales.isEmpty())
+    }
+
+    @Test
+    fun `without utcOffsetMinutes, an order just after local midnight is still excluded by date-only comparison`() {
+        val sale = seedSale(createdAt = "2024-06-16T04:00:00")
+        addOrderProduct(sale.orderId)
+
+        val report =
+            service.getProductSalesReport(
+                period = null,
+                startDate = "2024-06-15",
+                endDate = "2024-06-15",
+                productName = null,
+                userId = null,
+                paymentMethod = null,
+            )
+
+        assertTrue(report.sales.isEmpty())
+    }
+
+    @Test
+    fun `utcOffsetMinutes includes a refund whose UTC refunded_at date is the next local day`() {
+        val sale = seedSale(orderStatus = "refunded", total = 30.0, createdAt = "2024-06-15T12:00:00")
+        addOrderProduct(sale.orderId, quantity = 1, priceAtOrder = 3000)
+        ExposedTestDb.seedRefund(sale.orderId, refundedAt = "2024-06-16T04:00:00")
+
+        val report =
+            service.getProductSalesReport(
+                period = null,
+                startDate = "2024-06-15",
+                endDate = "2024-06-15",
+                productName = null,
+                userId = null,
+                paymentMethod = null,
+                utcOffsetMinutes = 360,
+            )
+
+        assertEquals(1, report.refundCount)
+        assertEquals(3000L, report.totalRefundedCents)
+    }
+
+    @Test
     fun `productName filters with case-insensitive LIKE`() {
         val widget = seedSale()
         addOrderProduct(widget.orderId, productName = "Widget")
