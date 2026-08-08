@@ -17,6 +17,7 @@ import { AlertCircle, Printer } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import { usePrinters } from "@/components/pages/Store/hooks/usePrinter";
+import { toNumberInputValue } from "@/components/utils/numberParsers";
 import { useTurn } from "@/hooks/turn/useTurn";
 
 export function CloseTurnModal({
@@ -118,9 +119,7 @@ export function CloseTurnModal({
               minValue={0}
               value={finalAmount}
               onValueChange={(value) => setFinalAmount(value ?? 0)}
-              onChange={(changeEvent) => {
-                if (changeEvent?.target) setFinalAmount(parseFloat(changeEvent.target.value) || 0);
-              }}
+              onChange={(finalAmountChange) => setFinalAmount(toNumberInputValue(finalAmountChange))}
               step={0.10}
               classNames={{ inputWrapper: "shadow-none" }}
             />

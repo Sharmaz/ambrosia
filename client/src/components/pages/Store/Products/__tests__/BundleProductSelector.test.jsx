@@ -15,17 +15,7 @@ jest.mock("@heroui/react", () => ({
       onChange={onChange}
     />
   ),
-  NumberInput: ({ "aria-label": ariaLabel, value, onValueChange, onChange }) => (
-    <input
-      aria-label={ariaLabel}
-      type="number"
-      value={value}
-      onChange={(event) => {
-        onValueChange?.(Number(event.target.value));
-        onChange?.(event);
-      }}
-    />
-  ),
+  NumberInput: require("@/test-utils/numberInputMock").NumberInputMock,
   Select: ({ "aria-label": ariaLabel, children, selectedKeys = [], onSelectionChange }) => (
     <select
       aria-label={ariaLabel}
@@ -237,6 +227,18 @@ describe("BundleProductSelector", () => {
     fireEvent.change(variantSelect, { target: { value: "variant-blue" } });
 
     expect(onChange).toHaveBeenCalledWith([{ productId: "prod-variant", variantId: "variant-blue", quantity: 1 }]);
+  });
+
+  it("calls onComponentsChange with updated quantity when the stepper is used", () => {
+    const onChange = jest.fn();
+    renderSelector({
+      selectedProducts: [{ productId: "prod-a", quantity: 2 }],
+      onComponentsChange: onChange,
+    });
+
+    fireEvent.click(screen.getByLabelText("modal.bundleComponentQuantityLabel increment"));
+
+    expect(onChange).toHaveBeenCalledWith([{ productId: "prod-a", quantity: 3 }]);
   });
 
   it("enforces a minimum quantity of 1", () => {

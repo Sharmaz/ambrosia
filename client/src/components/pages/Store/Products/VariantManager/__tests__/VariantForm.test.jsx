@@ -22,15 +22,7 @@ jest.mock("@heroui/react", () => ({
   Input: ({ label, value, onChange, placeholder }) => (
     <input aria-label={label} value={value} placeholder={placeholder} onChange={onChange} />
   ),
-  NumberInput: ({ label, value, onValueChange, minValue }) => (
-    <input
-      aria-label={label}
-      type="number"
-      value={value}
-      min={minValue}
-      onChange={(numberInputChangeEvent) => onValueChange?.(Number(numberInputChangeEvent.target.value))}
-    />
-  ),
+  NumberInput: require("@/test-utils/numberInputMock").NumberInputMock,
   Select: ({ label, children }) => <div aria-label={label}>{children}</div>,
   SelectItem: ({ children }) => <span>{children}</span>,
 }));
@@ -112,8 +104,8 @@ describe("VariantForm", () => {
     const initial = { SKU: "SKU-001", priceCents: 2000, quantity: 3 };
     renderForm({ initial });
     expect(screen.getByLabelText("variantSku")).toHaveValue("SKU-001");
-    expect(screen.getByLabelText("variantPrice")).toHaveValue(20);
-    expect(screen.getByLabelText("variantStock")).toHaveValue(3);
+    expect(screen.getByLabelText("variantPrice")).toHaveValue("20");
+    expect(screen.getByLabelText("variantStock")).toHaveValue("3");
   });
 
   it("calls onSave with correct data when submitted", () => {
@@ -121,7 +113,9 @@ describe("VariantForm", () => {
 
     fireEvent.change(screen.getByLabelText("variantSku"), { target: { value: "MY-SKU" } });
     fireEvent.change(screen.getByLabelText("variantPrice"), { target: { value: "15" } });
+    fireEvent.blur(screen.getByLabelText("variantPrice"));
     fireEvent.change(screen.getByLabelText("variantStock"), { target: { value: "7" } });
+    fireEvent.blur(screen.getByLabelText("variantStock"));
     fireEvent.click(screen.getByText("saveVariant"));
 
     expect(onSave).toHaveBeenCalledWith(

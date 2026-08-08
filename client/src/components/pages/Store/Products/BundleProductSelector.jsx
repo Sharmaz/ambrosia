@@ -13,6 +13,7 @@ import {
 } from "@/components/pages/Store/utils/bundleComponentsPrice";
 import { deriveVariantDisplayName } from "@/components/pages/Store/utils/productVariantOptionValues";
 import { DeleteButton } from "@/components/shared/DeleteButton";
+import { toNumberInputValue } from "@/components/utils/numberParsers";
 
 export function BundleProductSelector({ selectedProducts, allProducts, onComponentsChange }) {
   const productsTranslation = useTranslations("products");
@@ -206,7 +207,7 @@ export function BundleProductSelector({ selectedProducts, allProducts, onCompone
                   minValue={1}
                   value={selectedProduct.quantity}
                   onValueChange={(newQuantity) => handleQuantityChange(selectedProduct.productId, newQuantity)}
-                  onChange={(event) => handleQuantityChange(selectedProduct.productId, Number(event.target.value))}
+                  onChange={(quantityChange) => handleQuantityChange(selectedProduct.productId, toNumberInputValue(quantityChange))}
                 />
                 <div className="flex h-12 items-center justify-end">
                   <DeleteButton
