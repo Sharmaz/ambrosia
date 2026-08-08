@@ -7,7 +7,10 @@ import { useTranslations } from "next-intl";
 
 import { useCurrency } from "@/components/hooks/useCurrency";
 import { useProductVariants } from "@/components/pages/Store/hooks/useProductVariants";
-import { variantIsActive } from "@/components/pages/Store/utils/productVariantAvailability";
+import {
+  calculateComponentsPriceCents,
+  resolveActiveComponentVariants,
+} from "@/components/pages/Store/utils/bundleComponentsPrice";
 import { deriveVariantDisplayName } from "@/components/pages/Store/utils/productVariantOptionValues";
 import { DeleteButton } from "@/components/shared/DeleteButton";
 
@@ -36,8 +39,8 @@ export function BundleProductSelector({ selectedProducts, allProducts, onCompone
 
   const resolveProduct = useCallback((productId) => productById.get(productId), [productById]);
   const activeVariantsForProduct = (productId) => (
-    componentDetailByProductId[productId]?.variants ?? []
-  ).filter(variantIsActive);
+    resolveActiveComponentVariants(componentDetailByProductId[productId])
+  );
 
   const variantLabel = (productId, variant) => {
     const componentDetail = componentDetailByProductId[productId];
@@ -69,17 +72,15 @@ export function BundleProductSelector({ selectedProducts, allProducts, onCompone
     };
   }, [componentDetailByProductId, fetchProductDetail, resolveProduct, selectedProducts]);
 
-  const bundleCostCents = selectedProducts.reduce((accumulatedCents, selectedProduct) => {
-    const product = resolveProduct(selectedProduct.productId);
-    const selectedVariant = activeVariantsForProduct(selectedProduct.productId)
-      .find((variant) => variant.id === selectedProduct.variantId);
-    const componentCostCents = selectedVariant?.costCents ?? product?.costCents ?? 0;
-    return accumulatedCents + componentCostCents * selectedProduct.quantity;
-  }, 0);
+  const componentsPriceCents = calculateComponentsPriceCents(
+    selectedProducts,
+    productById,
+    componentDetailByProductId,
+  );
 
   const handleAddProduct = async (product) => {
     const productDetail = product.hasVariants ? await fetchProductDetail(product.id) : null;
-    const activeVariants = (productDetail?.variants ?? []).filter(variantIsActive);
+    const activeVariants = resolveActiveComponentVariants(productDetail);
     if (productDetail) {
       setComponentDetailByProductId((previousComponentDetails) => ({
         ...previousComponentDetails,
@@ -216,7 +217,7 @@ export function BundleProductSelector({ selectedProducts, allProducts, onCompone
             );
           })}
           <p className="text-xs text-gray-500 text-right pt-2">
-            {productsTranslation("modal.bundleCostReference")} {formatAmount(bundleCostCents)}
+            {productsTranslation("modal.bundleComponentsPriceReference")} {formatAmount(componentsPriceCents)}
           </p>
         </div>
       )}
