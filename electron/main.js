@@ -502,6 +502,9 @@ const phoenixConfigPath = path.join(getPhoenixDataDirectory(), 'phoenix.conf');
 let phoenixdRestartInProgress = false;
 
 ipcMain.handle('phoenixd:get-auto-liquidity', () => {
+  if (serviceManager?.configs?.ambrosia?.['nwc-uri']) {
+    return { nwcConfigured: true };
+  }
   const phoenixConfig = readConfig(phoenixConfigPath);
   return phoenixConfig['auto-liquidity'] ?? 'off';
 });
@@ -509,6 +512,9 @@ ipcMain.handle('phoenixd:get-auto-liquidity', () => {
 ipcMain.handle('phoenixd:set-auto-liquidity', async (_event, value) => {
   if (!serviceManager) {
     throw new Error('ServiceManager not initialized');
+  }
+  if (serviceManager.configs?.ambrosia?.['nwc-uri']) {
+    return { nwcConfigured: true };
   }
   if (phoenixdRestartInProgress) {
     throw new Error('A restart is already in progress');
