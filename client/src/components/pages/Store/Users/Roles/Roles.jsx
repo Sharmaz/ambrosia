@@ -33,7 +33,6 @@ export function Roles({ roles, createRole, deleteRole, loading: loadingRoles, up
   const deletingRef = useRef(false);
   const [form, setForm] = useState({
     name: "",
-    password: "",
     isAdmin: false,
     permissions: [],
   });
@@ -46,13 +45,13 @@ export function Roles({ roles, createRole, deleteRole, loading: loadingRoles, up
   }), [permSet, businessType]);
 
   const togglePermission = (name) => {
-    setForm((prev) => {
-      const exists = prev.permissions.includes(name);
+    setForm((previousForm) => {
+      const permissionExists = previousForm.permissions.includes(name);
       return {
-        ...prev,
-        permissions: exists
-          ? prev.permissions.filter((p) => p !== name)
-          : [...prev.permissions, name],
+        ...previousForm,
+        permissions: permissionExists
+          ? previousForm.permissions.filter((permissionName) => permissionName !== name)
+          : [...previousForm.permissions, name],
       };
     });
   };
@@ -65,11 +64,10 @@ export function Roles({ roles, createRole, deleteRole, loading: loadingRoles, up
       setCreating(true);
       await createRole({
         name: form.name.trim(),
-        password: form.password.trim() || undefined,
         isAdmin: form.isAdmin,
         permissions: form.permissions,
       });
-      setForm({ name: "", password: "", isAdmin: false, permissions: [] });
+      setForm({ name: "", isAdmin: false, permissions: [] });
       setShowModal(false);
       addToast({ title: roleTranslations("roles.actions.createSuccess"), color: "success" });
     } catch (error) {
@@ -96,9 +94,8 @@ export function Roles({ roles, createRole, deleteRole, loading: loadingRoles, up
       const rolePerms = await getRolePermissions(role.id);
       setForm({
         name: role.role,
-        password: "",
         isAdmin: role.isAdmin,
-        permissions: rolePerms.map((p) => p.name),
+        permissions: rolePerms.map((permission) => permission.name),
       });
       setShowEditModal(true);
     } catch {
@@ -113,13 +110,12 @@ export function Roles({ roles, createRole, deleteRole, loading: loadingRoles, up
       setUpdating(true);
       await updateRoleWithPermissions(editingRole.id, {
         name: form.name.trim(),
-        password: form.password.trim() || undefined,
         isAdmin: form.isAdmin,
         permissions: form.permissions,
       });
       setShowEditModal(false);
       setEditingRole(null);
-      setForm({ name: "", password: "", isAdmin: false, permissions: [] });
+      setForm({ name: "", isAdmin: false, permissions: [] });
       addToast({ title: roleTranslations("roles.actions.saveSuccess"), color: "success" });
     } catch (error) {
       const adminRequired = error?.status === 403 && form.isAdmin;
