@@ -8,6 +8,7 @@ const reportsEs = {
       title: "Seleccionar Período",
       subtitle: "Filtra y analiza tus ventas por período y producto",
       period: {
+        day: "Hoy",
         week: "Esta Semana",
         month: "Este Mes",
         year: "Este Año",

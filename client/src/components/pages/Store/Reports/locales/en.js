@@ -8,6 +8,7 @@ const reportsEn = {
       title: "Select Period",
       subtitle: "Filter and analyze your sales by period and product",
       period: {
+        day: "Today",
         week: "This Week",
         month: "This Month",
         year: "This Year",
