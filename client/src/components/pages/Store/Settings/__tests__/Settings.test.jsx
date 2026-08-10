@@ -161,7 +161,8 @@ beforeEach(() => {
     loading: false,
     restarting: false,
     error: null,
-    toggle: jest.fn(),
+    loadAutoLiquidity: jest.fn(),
+    toggleAutoLiquidity: jest.fn(),
   });
 
   jest.spyOn(useAdminWebPushHook, "useAdminWebPush").mockReturnValue({
@@ -481,7 +482,7 @@ describe("Settings page", () => {
         renderSettings();
       });
 
-      expect(screen.queryByText("autoLiquidityLabel")).not.toBeInTheDocument();
+      expect(screen.queryByText("manageButton")).not.toBeInTheDocument();
     });
 
     it("renders LightningCard when in Electron context", async () => {
@@ -491,7 +492,7 @@ describe("Settings page", () => {
         renderSettings();
       });
 
-      expect(screen.getByText("autoLiquidityLabel")).toBeInTheDocument();
+      expect(screen.getByText("manageButton")).toBeInTheDocument();
 
       global.__mockIsElectron = false;
     });

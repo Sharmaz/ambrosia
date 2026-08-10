@@ -10,6 +10,7 @@ import org.jetbrains.exposed.v1.core.dao.id.EntityID
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.greaterEq
 import org.jetbrains.exposed.v1.core.inList
+import org.jetbrains.exposed.v1.core.less
 import org.jetbrains.exposed.v1.core.lessEq
 import org.jetbrains.exposed.v1.core.like
 import org.jetbrains.exposed.v1.jdbc.andWhere
@@ -189,6 +190,29 @@ class ReportService {
         return null
     }
 
+    private fun resolveDateTimeRange(
+        startDate: String?,
+        endDate: String?,
+        utcOffsetMinutes: Int?,
+    ): Pair<String, String>? {
+        if (startDate == null || endDate == null || utcOffsetMinutes == null) return null
+        val localZoneOffset = ZoneOffset.ofTotalSeconds(-utcOffsetMinutes * 60)
+        val start =
+            LocalDate
+                .parse(startDate)
+                .atStartOfDay(localZoneOffset)
+                .withZoneSameInstant(ZoneOffset.UTC)
+                .toLocalDateTime()
+        val end =
+            LocalDate
+                .parse(endDate)
+                .plusDays(1)
+                .atStartOfDay(localZoneOffset)
+                .withZoneSameInstant(ZoneOffset.UTC)
+                .toLocalDateTime()
+        return Pair(start.toString(), end.toString())
+    }
+
     private fun validateOrdersWithPaymentFilters(filters: OrderWithPaymentFilters) {
         filters.status?.let { status ->
             if (!isValidStatus(status)) {
@@ -220,9 +244,11 @@ class ReportService {
         productName: String?,
         userId: String?,
         paymentMethod: String?,
+        utcOffsetMinutes: Int? = null,
     ): ProductSalesReport =
         transaction {
             val dateRange = resolveDateRange(period, startDate, endDate)
+            val preciseDateRange = resolveDateTimeRange(startDate, endDate, utcOffsetMinutes)
 
             val join =
                 OrderProductsTable
@@ -239,9 +265,15 @@ class ReportService {
                     .selectAll()
                     .where { (OrdersTable.status inList listOf("paid", "refunded")) and (OrdersTable.isDeleted eq false) }
 
-            dateRange?.let { (start, end) ->
-                query = query.andWhere { dateFunc(OrdersTable.createdAt) greaterEq start }
-                query = query.andWhere { dateFunc(OrdersTable.createdAt) lessEq end }
+            if (preciseDateRange != null) {
+                val (start, end) = preciseDateRange
+                query = query.andWhere { OrdersTable.createdAt greaterEq start }
+                query = query.andWhere { OrdersTable.createdAt less end }
+            } else {
+                dateRange?.let { (start, end) ->
+                    query = query.andWhere { dateFunc(OrdersTable.createdAt) greaterEq start }
+                    query = query.andWhere { dateFunc(OrdersTable.createdAt) lessEq end }
+                }
             }
             productName?.let { name ->
                 query = query.andWhere { ProductsTable.name like "%$name%" }
@@ -285,7 +317,7 @@ class ReportService {
                     .sumOf { it.satoshiAmount!! }
 
             val (totalRefundedCents, totalRefundedSatoshis, refundCount) =
-                getRefundTotals(dateRange, productName, userId, paymentMethod)
+                getRefundTotals(dateRange, preciseDateRange, productName, userId, paymentMethod)
 
             ProductSalesReport(
                 totalRevenueCents = sales.sumOf { it.priceAtOrder.toLong() * it.quantity },
@@ -306,6 +338,7 @@ class ReportService {
 
     private fun getRefundTotals(
         dateRange: Pair<String, String>?,
+        preciseDateRange: Pair<String, String>?,
         productName: String?,
         userId: String?,
         paymentMethod: String?,
@@ -321,9 +354,15 @@ class ReportService {
                 .join(PaymentMethodsTable, JoinType.INNER, PaymentMethodsTable.id, PaymentsTable.methodId)
 
         var query = join.selectAll()
-        dateRange?.let { (start, end) ->
-            query = query.andWhere { dateFunc(RefundsTable.refundedAt) greaterEq start }
-            query = query.andWhere { dateFunc(RefundsTable.refundedAt) lessEq end }
+        if (preciseDateRange != null) {
+            val (start, end) = preciseDateRange
+            query = query.andWhere { RefundsTable.refundedAt greaterEq start }
+            query = query.andWhere { RefundsTable.refundedAt less end }
+        } else {
+            dateRange?.let { (start, end) ->
+                query = query.andWhere { dateFunc(RefundsTable.refundedAt) greaterEq start }
+                query = query.andWhere { dateFunc(RefundsTable.refundedAt) lessEq end }
+            }
         }
         productName?.let { name -> query = query.andWhere { ProductsTable.name like "%$name%" } }
         userId?.let { uid -> query = query.andWhere { OrdersTable.userId eq EntityID(UUID.fromString(uid), UsersTable) } }

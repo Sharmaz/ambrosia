@@ -66,7 +66,7 @@ const productsEs = {
       bundleComponentsNotFound: "No se encontraron productos.",
       bundleComponentsEmpty: "Sin componentes. Busca y agrega productos arriba.",
       bundleComponentsRequired: "Agrega al menos un componente antes de guardar este paquete.",
-      bundleCostReference: "Costo de componentes:",
+      bundleComponentsPriceReference: "Precio de componentes:",
       bundleComponentQuantityLabel: "Cantidad",
       bundleComponentVariantLabel: "Variante",
       confirmBundleConversionTitle: "¿Convertir producto con variantes a paquete?",

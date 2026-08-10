@@ -1,7 +1,7 @@
 "use client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { parseDate } from "@internationalized/date";
+import { getLocalTimeZone, parseDate, startOfMonth, startOfWeek, startOfYear, today } from "@internationalized/date";
 
 export const defaultFilters = {
   activePeriod: "month",
@@ -9,13 +9,28 @@ export const defaultFilters = {
   endDate: "",
 };
 
+function getUtcOffsetMinutes() {
+  return new Date().getTimezoneOffset();
+}
+
+function resolvePeriodRange(period) {
+  const endDate = today(getLocalTimeZone());
+  const startDateByPeriod = {
+    day: endDate,
+    week: startOfWeek(endDate, "en-US", "mon"),
+    month: startOfMonth(endDate),
+    year: startOfYear(endDate),
+  };
+  return { startDate: startDateByPeriod[period].toString(), endDate: endDate.toString() };
+}
+
 export function useDateRangeFilters(filters, onFiltersChange) {
   const dateRangeValue = useMemo(() => {
-    if (!filters.startDate || !filters.endDate) return null;
+    if (filters.activePeriod || !filters.startDate || !filters.endDate) return null;
     return { start: parseDate(filters.startDate), end: parseDate(filters.endDate) };
-  }, [filters.startDate, filters.endDate]);
+  }, [filters.activePeriod, filters.startDate, filters.endDate]);
 
-  const handlePeriodChange = (period) => onFiltersChange({ activePeriod: period, startDate: "", endDate: "" });
+  const handlePeriodChange = (period) => onFiltersChange({ activePeriod: period, ...resolvePeriodRange(period) });
 
   const handleDateRangeChange = (range) => onFiltersChange({
     startDate: range?.start?.toString() ?? "",
@@ -33,7 +48,7 @@ export function useFiltersState(fetchReport) {
   useEffect(() => { latestFiltersRef.current = filters; }, [filters]);
 
   useEffect(() => {
-    fetchReport({ period: defaultFilters.activePeriod });
+    fetchReport({ ...resolvePeriodRange(defaultFilters.activePeriod), utcOffsetMinutes: getUtcOffsetMinutes() });
   }, [fetchReport]);
 
   const handleFiltersChange = useCallback(
@@ -42,24 +57,23 @@ export function useFiltersState(fetchReport) {
       const next = { ...prev, ...patch };
       setFilters(next);
 
-      if ("activePeriod" in patch && patch.activePeriod) {
-        return fetchReport({ period: next.activePeriod });
-      }
-
-      if ("startDate" in patch || "endDate" in patch) {
-        if (!next.startDate || !next.endDate) return;
-        return fetchReport({ startDate: next.startDate, endDate: next.endDate });
-      }
+      if (!next.startDate || !next.endDate) return;
+      return fetchReport({
+        startDate: next.startDate,
+        endDate: next.endDate,
+        utcOffsetMinutes: getUtcOffsetMinutes(),
+      });
     },
     [fetchReport],
   );
 
   const refetch = useCallback(() => {
     const snapshotFilters = latestFiltersRef.current;
-    fetchReport({
-      period: snapshotFilters.activePeriod || undefined,
-      startDate: snapshotFilters.activePeriod ? undefined : snapshotFilters.startDate || undefined,
-      endDate: snapshotFilters.activePeriod ? undefined : snapshotFilters.endDate || undefined,
+    if (!snapshotFilters.startDate || !snapshotFilters.endDate) return;
+    return fetchReport({
+      startDate: snapshotFilters.startDate,
+      endDate: snapshotFilters.endDate,
+      utcOffsetMinutes: getUtcOffsetMinutes(),
     });
   }, [fetchReport]);
 
