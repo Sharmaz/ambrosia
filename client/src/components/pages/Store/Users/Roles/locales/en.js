@@ -32,8 +32,6 @@ const rolesEn = {
       title: "Create role",
       roleName: "Role name",
       roleNamePlaceholder: "e.g. Cashier",
-      password: "Password for critical actions",
-      passwordPlaceholder: "Optional",
       isAdmin: "With admin privileges",
       templateLegend: "Choose a role template to get started, or use advanced mode to configure it manually.",
       advanced: "Advanced mode",
@@ -68,8 +66,6 @@ const rolesEn = {
       title: "Edit role",
       roleName: "Role name",
       roleNamePlaceholder: "e.g. Cashier",
-      password: "Update password (optional)",
-      passwordPlaceholder: "Leave empty to keep current",
       isAdmin: "With admin privileges",
     },
     permissions: {
