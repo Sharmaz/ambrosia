@@ -33,6 +33,7 @@ HOSTAPD_CONF = Path("/run/ambrosia-wifi-portal/hostapd.conf")
 DNSMASQ_CONF = Path("/run/ambrosia-wifi-portal/dnsmasq.conf")
 DNSMASQ_LEASES = Path("/run/ambrosia-wifi-portal/dnsmasq.leases")
 BOOT_WAIT_SECONDS = 30
+WIFI_RECOVERY_MARKER = Path("/run/ambrosia-wifi-recovery-attempted")
 
 app = Flask(__name__)
 hostapd_proc = None
@@ -58,6 +59,38 @@ def wifi_is_real():
         if len(parts) >= 3 and parts[0] == WLAN and parts[1] == "wifi" and parts[2] == "connected":
             return True
     return False
+
+
+def is_orange_pi():
+    """Return true for boards affected by the unisoc_wifi TCP stall."""
+    identity = Path("/etc/ambrosia/board-identity")
+    try:
+        return "BOARD_SHORT_NAME=opi" in identity.read_text()
+    except OSError:
+        return False
+
+
+def recover_orange_pi_wifi_once():
+    """Bounce an associated OPi link once per boot.
+
+    The unisoc_wifi driver can report an associated link with a DHCP address
+    while TCP traffic remains stuck. Reconnecting through NetworkManager is
+    the reliable recovery and is deliberately limited to one attempt per boot.
+    """
+    if not is_orange_pi() or WIFI_RECOVERY_MARKER.exists() or not wifi_is_real():
+        return
+
+    WIFI_RECOVERY_MARKER.touch()
+    print("Orange Pi Wi-Fi is associated; cycling wlan0 to prevent a stalled TCP link.", flush=True)
+    try:
+        sh(["nmcli", "device", "disconnect", WLAN], timeout=15)
+        time.sleep(2)
+        result = sh(["nmcli", "device", "connect", WLAN], timeout=45)
+        if result.returncode != 0:
+            print(f"Wi-Fi recovery failed: {result.stderr.strip()}", flush=True)
+        time.sleep(3)
+    except subprocess.TimeoutExpired:
+        print("Wi-Fi recovery timed out; continuing to the setup portal.", flush=True)
 
 
 def uplink_is_real():
@@ -494,7 +527,12 @@ def main():
     sh(["nmcli", "radio", "wifi", "on"])
 
     for _ in range(BOOT_WAIT_SECONDS):
-        if wifi_is_real() or uplink_is_real():
+        if wifi_is_real():
+            recover_orange_pi_wifi_once()
+            if wifi_is_real():
+                print("Network uplink already connected, exiting.", flush=True)
+                return
+        if uplink_is_real():
             print("Network uplink already connected, exiting.", flush=True)
             return
         time.sleep(1)

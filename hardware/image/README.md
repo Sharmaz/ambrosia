@@ -353,6 +353,17 @@ rm /tmp/ambrosia-check.img
 **The image loops at first boot or takes more than 5 minutes.**
 SSH into the device and check `/var/log/ambrosia-firstboot.log`. If SSH is not yet available, connect a serial console or HDMI monitor.
 
+**SSH reports `REMOTE HOST IDENTIFICATION HAS CHANGED` after reflashing.**
+The image intentionally generates new SSH host keys on every installation. Remove the old entries and reconnect:
+
+```bash
+ssh-keygen -R <hostname>.local
+ssh-keygen -R <device-ip>
+```
+
+**SSH connects over Ethernet but hangs over Wi-Fi on an Orange Pi Zero 2W.**
+The `unisoc_wifi` driver can remain associated while TCP traffic is stalled. The Wi-Fi portal cycles an associated Orange Pi link once during boot to recover it. If the problem persists, use Ethernet and inspect `journalctl -u ambrosia-wifi-portal` and `nmcli device status`.
+
 **`assemble-image.sh` fails midway.**
 Rerun with `--keep-workdir` to preserve the mounted work directory and inspect what went wrong. Use `--validate-only` first to confirm all host tools are present.
 

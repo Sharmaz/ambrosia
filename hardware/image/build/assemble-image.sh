@@ -535,6 +535,7 @@ install_phoenixd() {
 
 install_repo_assets() {
   install -d "$ROOTFS_MNT/opt/ambrosia/bin" "$ROOTFS_MNT/etc/ambrosia" "$ROOTFS_MNT/etc/systemd/system"
+  install -d "$ROOTFS_MNT/etc/ssh/sshd_config.d"
 
   install -m 0755 "$IMAGE_ROOT/common/portal/ambrosia-wifi-portal" "$ROOTFS_MNT/opt/ambrosia/bin/ambrosia-wifi-portal"
   install -m 0755 "$IMAGE_ROOT/common/firstboot/ambrosia-firstboot" "$ROOTFS_MNT/opt/ambrosia/bin/ambrosia-firstboot"
@@ -549,6 +550,13 @@ install_repo_assets() {
   install -m 0644 "$IMAGE_ROOT/common/templates/ambrosia.conf.stub" "$ROOTFS_MNT/etc/ambrosia/ambrosia.conf.stub"
   install -m 0644 "$IMAGE_ROOT/common/templates/phoenix.conf.stub" "$ROOTFS_MNT/etc/ambrosia/phoenix.conf.stub"
   install -m 0644 "$IMAGE_ROOT/common/templates/ambrosia-device.env.example" "$BOOT_MNT/ambrosia-device.env.example"
+
+  # OpenSSH uses the first value it encounters, so this drop-in must sort
+  # before cloud-image snippets such as 50-cloud-init.conf.
+  cat > "$ROOTFS_MNT/etc/ssh/sshd_config.d/00-ambrosia.conf" <<'EOF'
+PasswordAuthentication yes
+PermitRootLogin no
+EOF
 
   printf 'BOARD_SHORT_NAME=%s\n' "$BOARD_SHORT_NAME" > "$ROOTFS_MNT/etc/ambrosia/board-identity"
   chmod 0644 "$ROOTFS_MNT/etc/ambrosia/board-identity"
@@ -596,7 +604,8 @@ enable_services() {
     phoenixd.service \
     caddy.service \
     NetworkManager.service \
-    avahi-daemon.service >/dev/null
+    avahi-daemon.service \
+    ssh.service >/dev/null
 }
 
 clean_forbidden_state() {
@@ -638,7 +647,12 @@ verify_mounted_image() {
   require_nonempty_file "$ROOTFS_MNT/etc/systemd/system/ambrosia-client.service"
   require_nonempty_file "$ROOTFS_MNT/etc/systemd/system/ambrosia.service"
   require_nonempty_file "$ROOTFS_MNT/etc/systemd/system/phoenixd.service"
+  require_nonempty_file "$ROOTFS_MNT/usr/sbin/sshd"
+  require_nonempty_file "$ROOTFS_MNT/etc/ssh/sshd_config.d/00-ambrosia.conf"
   [[ -L "$ROOTFS_MNT/etc/systemd/system/multi-user.target.wants/ambrosia-firstboot.service" ]] || fail "ambrosia-firstboot.service was not enabled"
+  systemctl --root="$ROOTFS_MNT" is-enabled ssh.service >/dev/null 2>&1 || fail "ssh.service was not enabled"
+  grep -Eq '^[[:space:]]*Include[[:space:]]+.*/sshd_config\.d/\*\.conf' "$ROOTFS_MNT/etc/ssh/sshd_config" || fail "sshd_config does not include SSH drop-ins"
+  grep -Eq '^PasswordAuthentication[[:space:]]+yes$' "$ROOTFS_MNT/etc/ssh/sshd_config.d/00-ambrosia.conf" || fail "SSH password authentication was not enabled"
   [[ ! -e "$ROOTFS_MNT/home/${RUNTIME_USER}/.phoenix/seed.dat" ]] || fail "Forbidden state present: phoenix seed.dat"
   [[ ! -e "$ROOTFS_MNT/home/${RUNTIME_USER}/.Ambrosia-POS/ambrosia.db" ]] || fail "Forbidden state present: ambrosia.db"
   if compgen -G "$ROOTFS_MNT/etc/ssh/ssh_host_*" >/dev/null; then
