@@ -73,10 +73,15 @@ export function Roles({ roles, createRole, deleteRole, loading: loadingRoles, up
       setShowModal(false);
       addToast({ title: roleTranslations("roles.actions.createSuccess"), color: "success" });
     } catch (error) {
+      const adminRequired = error?.status === 403 && form.isAdmin;
       addToast({
-        title: error?.status === 409 ? roleTranslations("roles.actions.createConflictTitle") : roleTranslations("roles.actions.createErrorTitle"),
-        description: error?.status === 409 ? roleTranslations("roles.actions.createConflictDescription") : roleTranslations("roles.actions.createErrorDescription"),
-        color: error?.status === 409 ? "warning" : "danger",
+        title: adminRequired
+          ? roleTranslations("roles.actions.adminRequiredTitle")
+          : error?.status === 409 ? roleTranslations("roles.actions.createConflictTitle") : roleTranslations("roles.actions.createErrorTitle"),
+        description: adminRequired
+          ? roleTranslations("roles.actions.adminRequiredDescription")
+          : error?.status === 409 ? roleTranslations("roles.actions.createConflictDescription") : roleTranslations("roles.actions.createErrorDescription"),
+        color: adminRequired || error?.status === 409 ? "warning" : "danger",
       });
     } finally {
       creatingRef.current = false;
@@ -117,10 +122,15 @@ export function Roles({ roles, createRole, deleteRole, loading: loadingRoles, up
       setForm({ name: "", password: "", isAdmin: false, permissions: [] });
       addToast({ title: roleTranslations("roles.actions.saveSuccess"), color: "success" });
     } catch (error) {
+      const adminRequired = error?.status === 403 && form.isAdmin;
       addToast({
-        title: error?.status === 409 ? roleTranslations("roles.actions.lastAdminErrorTitle") : roleTranslations("roles.actions.saveErrorTitle"),
-        description: error?.status === 409 ? roleTranslations("roles.actions.lastAdminErrorDescription") : roleTranslations("roles.actions.saveErrorDescription"),
-        color: error?.status === 409 ? "warning" : "danger",
+        title: adminRequired
+          ? roleTranslations("roles.actions.adminRequiredTitle")
+          : error?.status === 409 ? roleTranslations("roles.actions.lastAdminErrorTitle") : roleTranslations("roles.actions.saveErrorTitle"),
+        description: adminRequired
+          ? roleTranslations("roles.actions.adminRequiredDescription")
+          : error?.status === 409 ? roleTranslations("roles.actions.lastAdminErrorDescription") : roleTranslations("roles.actions.saveErrorDescription"),
+        color: adminRequired || error?.status === 409 ? "warning" : "danger",
       });
     } finally {
       updatingRef.current = false;

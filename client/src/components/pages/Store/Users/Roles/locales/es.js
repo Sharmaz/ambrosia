@@ -18,6 +18,8 @@ const rolesEs = {
       saveSuccess: "Rol actualizado correctamente",
       saveErrorTitle: "Error",
       saveErrorDescription: "No se pudo actualizar el rol",
+      adminRequiredTitle: "Se requieren privilegios de administrador",
+      adminRequiredDescription: "Solo un administrador puede crear u otorgar un rol de administrador.",
       cancel: "Cancelar",
       deleteConfirmTitle: "Eliminar rol",
       deleteConfirmBody: "¿Estás seguro de que quieres eliminar el rol {name}? Los usuarios con este rol quedarán sin rol asignado.",

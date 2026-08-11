@@ -18,6 +18,8 @@ const rolesEn = {
       saveSuccess: "Role updated successfully",
       saveErrorTitle: "Error",
       saveErrorDescription: "Could not update the role",
+      adminRequiredTitle: "Admin privileges required",
+      adminRequiredDescription: "Only an administrator can create or grant an admin role.",
       cancel: "Cancel",
       deleteConfirmTitle: "Delete role",
       deleteConfirmBody: "Are you sure you want to delete the role {name}? Users with this role will have no role assigned.",

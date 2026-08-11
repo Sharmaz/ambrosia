@@ -14,6 +14,10 @@ function isLastAdminConflict(requestError) {
   return requestError?.status === 409 && requestError?.responseMessage?.includes("last admin");
 }
 
+function isAdminPrivilegesRequired(requestError) {
+  return requestError?.status === 403 && requestError?.responseMessage === "Admin privileges required";
+}
+
 export function useUsers() {
   const usersTranslations = useTranslations("users");
   const { fetchList } = useFetchList();
@@ -26,6 +30,14 @@ export function useUsers() {
       title: usersTranslations("toasts.genericErrorTitle"),
       description: usersTranslations("toasts.genericErrorDescription"),
       color: "danger",
+    });
+  }, [usersTranslations]);
+
+  const showAdminRequiredToast = useCallback(() => {
+    addToast({
+      title: usersTranslations("toasts.adminRequiredTitle"),
+      description: usersTranslations("toasts.adminRequiredDescription"),
+      color: "warning",
     });
   }, [usersTranslations]);
 
@@ -86,6 +98,10 @@ export function useUsers() {
 
       return updatedUserData;
     } catch (requestError) {
+      if (isAdminPrivilegesRequired(requestError)) {
+        showAdminRequiredToast();
+        throw requestError;
+      }
       if (requestError?.status === 409) {
         showUserConflictToast(requestError, {
           title: usersTranslations("toasts.duplicateNameTitle"),
@@ -123,6 +139,10 @@ export function useUsers() {
       await fetchUsers();
       return createUserResponse;
     } catch (requestError) {
+      if (isAdminPrivilegesRequired(requestError)) {
+        showAdminRequiredToast();
+        throw requestError;
+      }
       if (requestError?.status === 409) {
         showUserConflictToast(requestError, {
           title: usersTranslations("toasts.duplicateNameTitle"),
