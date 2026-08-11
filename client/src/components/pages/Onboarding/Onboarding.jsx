@@ -212,16 +212,9 @@ export function Onboarding() {
               value={data.businessType}
               onChange={(businessType) => handleDataChange({ businessType })}
             />
-          )}
+          )}  
 
           {step === 2 && (
-            <WalletBackendStep
-              data={{ walletBackend: data.walletBackend, nwcUri: data.nwcUri }}
-              onChange={(walletData) => handleDataChange(walletData)}
-            />
-          )}
-
-          {step === 3 && (
             <UserAccountStep
               data={{
                 userName: data.userName,
@@ -233,7 +226,7 @@ export function Onboarding() {
             />
           )}
 
-          {step === 4 && (
+          {step === 3 && (
             <BusinessDetailsStep
               data={{
                 businessType: data.businessType,
@@ -246,6 +239,13 @@ export function Onboarding() {
                 businessLogo: data.businessLogo,
               }}
               onChange={(businessData) => handleDataChange(businessData)}
+            />
+          )}
+
+          {step === 4 && (
+            <WalletBackendStep
+              data={{ walletBackend: data.walletBackend, nwcUri: data.nwcUri }}
+              onChange={(walletData) => handleDataChange(walletData)}
             />
           )}
 
