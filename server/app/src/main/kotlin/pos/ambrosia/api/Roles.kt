@@ -18,6 +18,7 @@ import pos.ambrosia.models.RolePermissionsUpdateResult
 import pos.ambrosia.services.PermissionsService
 import pos.ambrosia.services.RolesService
 import pos.ambrosia.utils.authorizePermission
+import pos.ambrosia.utils.requireAdmin
 
 fun Application.configureRoles() {
     val roleService = RolesService(environment)
@@ -74,6 +75,9 @@ fun Route.roles(
     authorizePermission("roles_create") {
         post("") {
             val user = call.receive<Role>()
+            if (user.isAdmin == true) {
+                call.requireAdmin()
+            }
             val id = roleService.addRole(user)
             if (id == null) {
                 call.respond(HttpStatusCode.BadRequest, "Invalid role data")
@@ -97,6 +101,9 @@ fun Route.roles(
             if (updatedRole.role.isBlank()) {
                 call.respond(HttpStatusCode.BadRequest, "Invalid role data")
                 return@put
+            }
+            if (updatedRole.isAdmin == true) {
+                call.requireAdmin()
             }
             val isUpdated = roleService.updateRole(id, updatedRole)
 

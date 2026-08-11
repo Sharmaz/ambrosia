@@ -125,13 +125,15 @@ class UsersService(
                 id = user.id.value.toString(),
                 name = user.name,
                 pin = "****",
-                refreshToken = user.refreshToken,
+                refreshToken = "****",
                 role = role?.role,
                 isAdmin = role?.isAdmin ?: false,
                 email = user.email,
                 phone = user.phone,
             )
         }
+
+    fun isRoleAdmin(roleId: String): Boolean = adminGuard.isRoleAdmin(roleId) == true
 
     fun updateUser(
         id: String?,
