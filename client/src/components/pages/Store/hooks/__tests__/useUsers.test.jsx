@@ -262,4 +262,30 @@ describe("useUsers", () => {
       color: "danger",
     });
   });
+
+  it("shows admin-required toast when assigning an admin role is forbidden", async () => {
+    httpClient.mockResolvedValueOnce({ ok: true });
+    parseJsonResponse.mockResolvedValueOnce([{ id: 3, name: "Paula" }]);
+    httpClient.mockResolvedValueOnce({ ok: false, status: 403 });
+    parseJsonResponse.mockResolvedValueOnce({ message: "Admin privileges required" });
+
+    render(<TestComponent />);
+
+    await waitFor(() => expect(screen.getByTestId("count")).toHaveTextContent("1"));
+
+    await expect(handlers.updateUser({
+      userId: 3,
+      userName: "Paula",
+      userRole: "admin-role-id",
+      userEmail: "paula@example.com",
+      userPhone: "555-0202",
+      userPin: "",
+    })).rejects.toMatchObject({ status: 403 });
+
+    expect(addToast).toHaveBeenCalledWith({
+      title: "toasts.adminRequiredTitle",
+      description: "toasts.adminRequiredDescription",
+      color: "warning",
+    });
+  });
 });

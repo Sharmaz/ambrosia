@@ -45,6 +45,8 @@ const usersEs = {
       duplicateNameDescription: "Ya existe un usuario con ese nombre.",
       genericErrorTitle: "Error",
       genericErrorDescription: "No se pudo completar la operación.",
+      adminRequiredTitle: "Se requieren privilegios de administrador",
+      adminRequiredDescription: "Solo un administrador puede asignar un rol de administrador.",
       lastUserTitle: "No permitido",
       lastUserDescription: "No puedes eliminar el único usuario existente.",
       lastAdminTitle: "No permitido",

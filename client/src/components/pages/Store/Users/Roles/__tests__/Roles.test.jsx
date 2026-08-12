@@ -53,6 +53,9 @@ jest.mock("../CreateRoleModal", () => ({
         <button type="button" onClick={() => setForm((currentForm) => ({ ...currentForm, name: "cashier" }))}>
           set role name
         </button>
+        <button type="button" onClick={() => setForm((currentForm) => ({ ...currentForm, isAdmin: true }))}>
+          set admin role
+        </button>
         <button type="button" onClick={onSubmit}>
           roles.actions.create
         </button>
@@ -84,6 +87,9 @@ jest.mock("../EditRoleModal", () => ({
         <span data-testid="edit-role-name">{form.name}</span>
         <button type="button" onClick={() => setForm((currentForm) => ({ ...currentForm, name: "manager" }))}>
           set edit role name
+        </button>
+        <button type="button" onClick={() => setForm((currentForm) => ({ ...currentForm, isAdmin: true }))}>
+          set edit admin role
         </button>
         <button type="button" onClick={onSubmit}>
           roles.actions.save
@@ -189,6 +195,53 @@ describe("Roles", () => {
       color: "warning",
     });
     expect(screen.getByText("roles.create.title")).toBeInTheDocument();
+  });
+
+  it("shows admin-required feedback when admin role creation is forbidden", async () => {
+    const adminRequiredError = new Error("admin required");
+    adminRequiredError.status = 403;
+    const createRole = jest.fn(() => Promise.reject(adminRequiredError));
+
+    renderRoles({ createRole });
+
+    fireEvent.click(screen.getByText("roles.actions.new"));
+    fireEvent.click(screen.getByText("set role name"));
+    fireEvent.click(screen.getByText("set admin role"));
+    fireEvent.click(screen.getByText("roles.actions.create"));
+
+    await waitFor(() => expect(createRole).toHaveBeenCalledWith(expect.objectContaining({ isAdmin: true })));
+    expect(addToast).toHaveBeenCalledWith({
+      title: "roles.actions.adminRequiredTitle",
+      description: "roles.actions.adminRequiredDescription",
+      color: "warning",
+    });
+  });
+
+  it("shows admin-required feedback when admin role promotion is forbidden", async () => {
+    const adminRequiredError = new Error("admin required");
+    adminRequiredError.status = 403;
+    const updateRoleWithPermissions = jest.fn(() => Promise.reject(adminRequiredError));
+
+    renderRoles({
+      roles: [{ id: "role-id", role: "cashier", isAdmin: false }],
+      updateRoleWithPermissions,
+      getRolePermissions: jest.fn(() => Promise.resolve([])),
+    });
+
+    fireEvent.click(screen.getByText("edit role"));
+    await waitFor(() => expect(screen.getByText("roles.edit.title")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("set edit admin role"));
+    fireEvent.click(screen.getByText("roles.actions.save"));
+
+    await waitFor(() => expect(updateRoleWithPermissions).toHaveBeenCalledWith(
+      "role-id",
+      expect.objectContaining({ isAdmin: true }),
+    ));
+    expect(addToast).toHaveBeenCalledWith({
+      title: "roles.actions.adminRequiredTitle",
+      description: "roles.actions.adminRequiredDescription",
+      color: "warning",
+    });
   });
 
   it("does not create a role twice while creation is pending", async () => {
