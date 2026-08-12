@@ -281,8 +281,7 @@ export function Onboarding() {
                   onPress={handleNext}
                   isDisabled={
                     (step === 1 && !data.businessType) ||
-                    (step === 2 && data.walletBackend === "nwc" && (!data.nwcUri || !NWC_URI_REGEX.test(data.nwcUri))) ||
-                    (step === 3 && (
+                    (step === 2 && (
                       !data.userName ||
                       !data.userPassword ||
                       !data.userPasswordConfirmation ||
@@ -290,7 +289,8 @@ export function Onboarding() {
                       !isPasswordStrong(data.userPassword) ||
                       !isPinValid(data.userPin)
                     )) ||
-                    (step === 4 && (!data.businessName || !data.businessCurrency))
+                    (step === 3 && (!data.businessName || !data.businessCurrency)) ||
+                    (step === 4 && data.walletBackend === "nwc" && (!data.nwcUri || !NWC_URI_REGEX.test(data.nwcUri)))
                   }
                   className="bg-green-800"
                 >

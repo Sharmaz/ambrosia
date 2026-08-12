@@ -40,16 +40,6 @@ async function completeOnboardingWithNwcUri(user, nwcUri) {
     fireEvent.click(screen.getByText("buttons.next"));
   });
 
-  await user.click(screen.getByText("stepWallet.nwcName"));
-  await act(async () => {
-    fireEvent.change(screen.getByPlaceholderText("nostr+walletconnect://..."), {
-      target: { value: nwcUri },
-    });
-  });
-  await act(async () => {
-    fireEvent.click(screen.getByText("buttons.next"));
-  });
-
   await act(async () => {
     fireEvent.change(screen.getByPlaceholderText("step2.fields.userNamePlaceholder"), { target: { value: "testuser" } });
     fireEvent.change(screen.getByPlaceholderText("step2.fields.userPinPlaceholder"), { target: { value: "0000" } });
@@ -62,6 +52,16 @@ async function completeOnboardingWithNwcUri(user, nwcUri) {
 
   await act(async () => {
     fireEvent.change(screen.getByPlaceholderText("step3.fields.businessNamePlaceholder"), { target: { value: "My Business" } });
+  });
+  await act(async () => {
+    fireEvent.click(screen.getByText("buttons.next"));
+  });
+
+  await user.click(screen.getByText("stepWallet.nwcName"));
+  await act(async () => {
+    fireEvent.change(screen.getByPlaceholderText("nostr+walletconnect://..."), {
+      target: { value: nwcUri },
+    });
   });
   await act(async () => {
     fireEvent.click(screen.getByText("buttons.next"));
@@ -76,9 +76,6 @@ async function completeOnboardingWithPhoenixd() {
   await act(async () => {
     fireEvent.click(screen.getByText("buttons.next"));
   });
-  await act(async () => {
-    fireEvent.click(screen.getByText("buttons.next"));
-  });
 
   await act(async () => {
     fireEvent.change(screen.getByPlaceholderText("step2.fields.userNamePlaceholder"), { target: { value: "testuser" } });
@@ -92,6 +89,9 @@ async function completeOnboardingWithPhoenixd() {
 
   await act(async () => {
     fireEvent.change(screen.getByPlaceholderText("step3.fields.businessNamePlaceholder"), { target: { value: "My Business" } });
+  });
+  await act(async () => {
+    fireEvent.click(screen.getByText("buttons.next"));
   });
   await act(async () => {
     fireEvent.click(screen.getByText("buttons.next"));
@@ -176,7 +176,7 @@ describe("Onboarding Wizard", () => {
     });
 
     const nextButton = screen.getByText("buttons.next");
-    await navigateToStep(nextButton, 3);
+    await navigateToStep(nextButton, 2);
 
     const userNameInput = screen.getByPlaceholderText("step2.fields.userNamePlaceholder");
     await act(async () => {
@@ -211,7 +211,7 @@ describe("Onboarding Wizard", () => {
     });
 
     const nextButton = screen.getByText("buttons.next");
-    await navigateToStep(nextButton, 3);
+    await navigateToStep(nextButton, 2);
 
     const userNameInput = screen.getByPlaceholderText("step2.fields.userNamePlaceholder");
     await act(async () => {
@@ -251,7 +251,7 @@ describe("Onboarding Wizard", () => {
     });
 
     const nextButton = screen.getByText("buttons.next");
-    await navigateToStep(nextButton, 3);
+    await navigateToStep(nextButton, 2);
 
     const userNameInput = screen.getByPlaceholderText("step2.fields.userNamePlaceholder");
     const userPinInput = screen.getByPlaceholderText("step2.fields.userPinPlaceholder");
@@ -336,7 +336,7 @@ describe("Onboarding Wizard", () => {
     });
 
     const nextButton = screen.getByText("buttons.next");
-    await navigateToStep(nextButton, 3);
+    await navigateToStep(nextButton, 2);
 
     await act(async () => {
       const userNameInput = screen.getByPlaceholderText("step2.fields.userNamePlaceholder");
