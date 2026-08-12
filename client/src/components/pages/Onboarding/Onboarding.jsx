@@ -215,13 +215,6 @@ export function Onboarding() {
           )}
 
           {step === 2 && (
-            <WalletBackendStep
-              data={{ walletBackend: data.walletBackend, nwcUri: data.nwcUri }}
-              onChange={(walletData) => handleDataChange(walletData)}
-            />
-          )}
-
-          {step === 3 && (
             <UserAccountStep
               data={{
                 userName: data.userName,
@@ -233,7 +226,7 @@ export function Onboarding() {
             />
           )}
 
-          {step === 4 && (
+          {step === 3 && (
             <BusinessDetailsStep
               data={{
                 businessType: data.businessType,
@@ -246,6 +239,13 @@ export function Onboarding() {
                 businessLogo: data.businessLogo,
               }}
               onChange={(businessData) => handleDataChange(businessData)}
+            />
+          )}
+
+          {step === 4 && (
+            <WalletBackendStep
+              data={{ walletBackend: data.walletBackend, nwcUri: data.nwcUri }}
+              onChange={(walletData) => handleDataChange(walletData)}
             />
           )}
 
@@ -281,8 +281,7 @@ export function Onboarding() {
                   onPress={handleNext}
                   isDisabled={
                     (step === 1 && !data.businessType) ||
-                    (step === 2 && data.walletBackend === "nwc" && (!data.nwcUri || !NWC_URI_REGEX.test(data.nwcUri))) ||
-                    (step === 3 && (
+                    (step === 2 && (
                       !data.userName ||
                       !data.userPassword ||
                       !data.userPasswordConfirmation ||
@@ -290,7 +289,8 @@ export function Onboarding() {
                       !isPasswordStrong(data.userPassword) ||
                       !isPinValid(data.userPin)
                     )) ||
-                    (step === 4 && (!data.businessName || !data.businessCurrency))
+                    (step === 3 && (!data.businessName || !data.businessCurrency)) ||
+                    (step === 4 && data.walletBackend === "nwc" && (!data.nwcUri || !NWC_URI_REGEX.test(data.nwcUri)))
                   }
                   className="bg-green-800"
                 >
