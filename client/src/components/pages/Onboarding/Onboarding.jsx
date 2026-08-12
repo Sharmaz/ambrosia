@@ -212,7 +212,7 @@ export function Onboarding() {
               value={data.businessType}
               onChange={(businessType) => handleDataChange({ businessType })}
             />
-          )}  
+          )}
 
           {step === 2 && (
             <UserAccountStep
