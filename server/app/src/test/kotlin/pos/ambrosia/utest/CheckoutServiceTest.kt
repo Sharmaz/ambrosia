@@ -1,335 +1,564 @@
 package pos.ambrosia.utest
 
 import kotlinx.coroutines.runBlocking
-import org.mockito.ArgumentMatchers.contains
-import org.mockito.kotlin.any
-import org.mockito.kotlin.mock
-import org.mockito.kotlin.never
-import org.mockito.kotlin.times
-import org.mockito.kotlin.verify
-import org.mockito.kotlin.whenever
+import org.jetbrains.exposed.v1.jdbc.transactions.transaction
+import org.junit.After
+import org.junit.Before
+import pos.ambrosia.db.tables.OrderEntity
+import pos.ambrosia.db.tables.PaymentEntity
 import pos.ambrosia.models.StoreCheckoutItem
 import pos.ambrosia.models.StoreCheckoutRequest
+import pos.ambrosia.models.UpsertVariantRequest
+import pos.ambrosia.models.phoenix.IncomingPayment
+import pos.ambrosia.services.CheckoutResult
 import pos.ambrosia.services.CheckoutService
-import java.sql.Connection
-import java.sql.PreparedStatement
-import java.sql.ResultSet
-import java.sql.SQLException
+import pos.ambrosia.services.PaymentVerifier
+import pos.ambrosia.services.ProductVariantService
+import pos.ambrosia.utils.ExposedTestDb
+import java.io.File
+import java.util.UUID
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
-import kotlin.test.assertNotNull
-import kotlin.test.assertNull
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
+private class FakePaymentVerifier : PaymentVerifier {
+    var result: IncomingPayment? = null
+    var error: Throwable? = null
+    var callCount = 0
+
+    override suspend fun getIncomingPayment(paymentHash: String): IncomingPayment {
+        callCount++
+        error?.let { throw it }
+        return result ?: error("FakePaymentVerifier has no stubbed result for $paymentHash")
+    }
+}
+
 class CheckoutServiceTest {
-    private val mockConnection: Connection = mock()
-    private val mockStatement: PreparedStatement = mock()
-    private val mockResultSet: ResultSet = mock()
+    private lateinit var dbFile: File
+    private val variantService = ProductVariantService()
+    private val verifier = FakePaymentVerifier()
+    private val service = CheckoutService(verifier)
+
+    @Before
+    fun setUp() {
+        dbFile = ExposedTestDb.connect()
+    }
+
+    @After
+    fun tearDown() {
+        ExposedTestDb.cleanup(dbFile)
+    }
+
+    private fun seedUser(): String {
+        val roleId = ExposedTestDb.seedRole("admin", isAdmin = true)
+        return ExposedTestDb.seedUser("Alice", roleId)
+    }
+
+    private fun productQuantity(productId: String): Int = variantService.getVariants(productId).sumOf { it.quantity }
 
     private fun validStoreRequest(
-        items: List<StoreCheckoutItem> = listOf(StoreCheckoutItem("prod-1", 2, 500)),
+        userId: String,
+        items: List<StoreCheckoutItem>,
         transactionId: String? = null,
+        paymentHash: String? = null,
+        discountAmount: Double = 0.0,
     ) = StoreCheckoutRequest(
-        userId = "user-1",
+        userId = userId,
         items = items,
-        paymentMethodId = "pm-cash",
-        currencyId = "cur-mxn",
+        paymentMethodId = ExposedTestDb.seedPaymentMethod("Cash"),
+        currencyId = ExposedTestDb.seedCurrency("USD"),
         amount = 10.0,
         transactionId = transactionId,
         ticketNotes = "",
+        paymentHash = paymentHash,
+        discountAmount = discountAmount,
     )
 
-    private fun setupSuccessfulCheckout(
-        orderStatement: PreparedStatement = mock(),
-        itemStatement: PreparedStatement = mock(),
-        stockStatement: PreparedStatement = mock(),
-        ticketStatement: PreparedStatement = mock(),
-        paymentStatement: PreparedStatement = mock(),
-        ticketPaymentStatement: PreparedStatement = mock(),
-    ) {
-        whenever(mockConnection.prepareStatement(contains("INSERT INTO orders"))).thenReturn(orderStatement)
-        whenever(mockConnection.prepareStatement(contains("INSERT INTO order_products"))).thenReturn(itemStatement)
-        whenever(mockConnection.prepareStatement(contains("UPDATE products"))).thenReturn(stockStatement)
-        whenever(mockConnection.prepareStatement(contains("INSERT INTO tickets"))).thenReturn(ticketStatement)
-        whenever(mockConnection.prepareStatement(contains("INSERT INTO payments"))).thenReturn(paymentStatement)
-        whenever(mockConnection.prepareStatement(contains("INSERT INTO ticket_payments"))).thenReturn(ticketPaymentStatement)
-        whenever(stockStatement.executeUpdate()).thenReturn(1)
-    }
+    private fun incomingPayment(
+        paymentHash: String,
+        isPaid: Boolean,
+    ) = IncomingPayment(
+        type = "incoming_payment",
+        subType = "lightning",
+        paymentHash = paymentHash,
+        isPaid = isPaid,
+        receivedSat = 0,
+        fees = 0,
+        createdAt = 0,
+    )
 
     @Test
-    fun `checkout returns null when items list is empty`() {
+    fun `checkout returns Invalid when items list is empty`() {
         runBlocking {
-            val service = CheckoutService(mockConnection) // Arrange
-            val result = service.checkout(validStoreRequest(items = emptyList())) // Act
-            assertNull(result) // Assert
-            verify(mockConnection, never()).prepareStatement(any()) // Assert — no DB calls
+            val userId = seedUser()
+            val result = service.checkout(validStoreRequest(userId, items = emptyList()))
+            assertTrue(result is CheckoutResult.Invalid)
         }
     }
 
     @Test
-    fun `checkout returns null when any item has quantity zero`() {
+    fun `checkout returns Invalid when any item has quantity zero`() {
         runBlocking {
-            val items = listOf(StoreCheckoutItem("prod-1", 0, 500)) // Arrange
-            val service = CheckoutService(mockConnection) // Arrange
-            val result = service.checkout(validStoreRequest(items = items)) // Act
-            assertNull(result) // Assert
-            verify(mockConnection, never()).prepareStatement(any()) // Assert
+            val userId = seedUser()
+            val productId = ExposedTestDb.seedProduct(quantity = 10)
+            val items = listOf(StoreCheckoutItem(productId = productId, quantity = 0, priceAtOrder = 500))
+            val result = service.checkout(validStoreRequest(userId, items = items))
+            assertTrue(result is CheckoutResult.Invalid)
         }
     }
 
     @Test
-    fun `checkout returns null when any item has negative quantity`() {
+    fun `checkout returns Invalid when any item has negative quantity`() {
         runBlocking {
-            val items = listOf(StoreCheckoutItem("prod-1", -1, 500)) // Arrange
-            val service = CheckoutService(mockConnection) // Arrange
-            val result = service.checkout(validStoreRequest(items = items)) // Act
-            assertNull(result) // Assert
+            val userId = seedUser()
+            val productId = ExposedTestDb.seedProduct(quantity = 10)
+            val items = listOf(StoreCheckoutItem(productId = productId, quantity = -1, priceAtOrder = 500))
+            val result = service.checkout(validStoreRequest(userId, items = items))
+            assertTrue(result is CheckoutResult.Invalid)
         }
     }
 
     @Test
-    fun `checkout returns StoreCheckoutResponse with non-null IDs on success`() {
+    fun `checkout returns Invalid when variant id is malformed`() {
         runBlocking {
-            setupSuccessfulCheckout() // Arrange
-            val service = CheckoutService(mockConnection) // Arrange
-            val result = service.checkout(validStoreRequest()) // Act
-            assertNotNull(result) // Assert
-            assertNotNull(result.orderId) // Assert
-            assertNotNull(result.ticketId) // Assert
-            assertNotNull(result.paymentId) // Assert
-            assertTrue(result.orderId.isNotBlank()) // Assert
-            assertTrue(result.ticketId.isNotBlank()) // Assert
-            assertTrue(result.paymentId.isNotBlank()) // Assert
+            val userId = seedUser()
+            val productId = ExposedTestDb.seedProduct(quantity = 10)
+            val checkoutItems =
+                listOf(
+                    StoreCheckoutItem(
+                        productId = productId,
+                        variantId = "not-a-uuid",
+                        quantity = 1,
+                        priceAtOrder = 500,
+                    ),
+                )
+
+            val result = service.checkout(validStoreRequest(userId, items = checkoutItems))
+
+            assertTrue(result is CheckoutResult.Invalid)
+            assertTrue(transaction { OrderEntity.all().toList() }.isEmpty())
         }
     }
 
     @Test
-    fun `checkout returns unique IDs for order, ticket and payment`() {
+    fun `checkout returns Success with unique non-blank IDs when paymentHash is absent`() {
         runBlocking {
-            setupSuccessfulCheckout() // Arrange
-            val service = CheckoutService(mockConnection) // Arrange
-            val result = service.checkout(validStoreRequest())!! // Act
-            assertEquals(3, setOf(result.orderId, result.ticketId, result.paymentId).size) // Assert
+            val userId = seedUser()
+            val productId = ExposedTestDb.seedProduct(quantity = 10)
+            val items = listOf(StoreCheckoutItem(productId = productId, quantity = 2, priceAtOrder = 500))
+            val result = service.checkout(validStoreRequest(userId, items = items))
+
+            assertTrue(result is CheckoutResult.Success)
+            assertFalse(result.alreadyExisted)
+            val response = result.response
+            assertTrue(response.orderId.isNotBlank())
+            assertTrue(response.ticketId.isNotBlank())
+            assertTrue(response.paymentId.isNotBlank())
+            assertEquals(3, setOf(response.orderId, response.ticketId, response.paymentId).size)
+            assertEquals(0, verifier.callCount)
         }
     }
 
     @Test
-    fun `checkout commits transaction on success`() {
+    fun `checkout decrements stock for each item on success`() {
         runBlocking {
-            setupSuccessfulCheckout() // Arrange
-            val service = CheckoutService(mockConnection) // Arrange
-            service.checkout(validStoreRequest()) // Act
-            verify(mockConnection).commit() // Assert
-            verify(mockConnection, never()).rollback() // Assert
+            val userId = seedUser()
+            val productId1 = ExposedTestDb.seedProduct(quantity = 10)
+            val productId2 = ExposedTestDb.seedProduct(quantity = 20)
+            val items =
+                listOf(
+                    StoreCheckoutItem(productId = productId1, quantity = 1, priceAtOrder = 100),
+                    StoreCheckoutItem(productId = productId2, quantity = 3, priceAtOrder = 200),
+                )
+            val result = service.checkout(validStoreRequest(userId, items = items))
+
+            assertTrue(result is CheckoutResult.Success)
+            assertEquals(9, productQuantity(productId1))
+            assertEquals(17, productQuantity(productId2))
         }
     }
 
     @Test
-    fun `checkout returns null and rolls back when stock decrement affects 0 rows`() {
+    fun `checkout succeeds without stock for a product that does not track stock`() {
         runBlocking {
-            val orderStatement: PreparedStatement = mock() // Arrange
-            val itemStatement: PreparedStatement = mock() // Arrange
-            val stockStatement: PreparedStatement = mock() // Arrange
-            whenever(mockConnection.prepareStatement(contains("INSERT INTO orders"))).thenReturn(orderStatement) // Arrange
-            whenever(mockConnection.prepareStatement(contains("INSERT INTO order_products"))).thenReturn(itemStatement) // Arrange
-            whenever(mockConnection.prepareStatement(contains("UPDATE products"))).thenReturn(stockStatement) // Arrange
-            whenever(stockStatement.executeUpdate()).thenReturn(0) // Arrange — stock insufficient
-            val service = CheckoutService(mockConnection) // Arrange
-            val result = service.checkout(validStoreRequest()) // Act
-            assertNull(result) // Assert
-            verify(mockConnection).rollback() // Assert
-            verify(mockConnection, never()).commit() // Assert
+            val userId = seedUser()
+            val productId = ExposedTestDb.seedProduct(name = "Consulting", quantity = 0, trackStock = false)
+            val items = listOf(StoreCheckoutItem(productId = productId, quantity = 3, priceAtOrder = 500))
+            val result = service.checkout(validStoreRequest(userId, items = items))
+
+            assertTrue(result is CheckoutResult.Success)
+            assertEquals(0, productQuantity(productId))
+            assertEquals(1, transaction { OrderEntity.all().toList() }.size)
         }
     }
 
     @Test
-    fun `checkout rolls back and rethrows on SQL exception`() {
-        val orderStatement: PreparedStatement = mock() // Arrange
-        whenever(mockConnection.prepareStatement(contains("INSERT INTO orders"))).thenReturn(orderStatement) // Arrange
-        whenever(orderStatement.executeUpdate()).thenThrow(SQLException("DB error")) // Arrange
-        val service = CheckoutService(mockConnection) // Arrange
-        assertFailsWith<SQLException> {
-            runBlocking { service.checkout(validStoreRequest()) }
-        }
-        verify(mockConnection).rollback() // Assert
-        verify(mockConnection, never()).commit() // Assert
-    }
-
-    @Test
-    fun `checkout restores autoCommit to previous value after success`() {
+    fun `checkout leaves stock untouched for a product that does not track stock`() {
         runBlocking {
-            whenever(mockConnection.autoCommit).thenReturn(true) // Arrange — prev = true
-            setupSuccessfulCheckout() // Arrange
-            val service = CheckoutService(mockConnection) // Arrange
-            service.checkout(validStoreRequest()) // Act
-            verify(mockConnection).autoCommit = false // Assert — disabled for transaction
-            verify(mockConnection).autoCommit = true // Assert — restored
+            val userId = seedUser()
+            val productId = ExposedTestDb.seedProduct(name = "Consulting", quantity = 7, trackStock = false)
+            val items = listOf(StoreCheckoutItem(productId = productId, quantity = 2, priceAtOrder = 500))
+            val result = service.checkout(validStoreRequest(userId, items = items))
+
+            assertTrue(result is CheckoutResult.Success)
+            assertEquals(7, productQuantity(productId))
         }
     }
 
     @Test
-    fun `checkout restores autoCommit after rollback`() {
-        whenever(mockConnection.autoCommit).thenReturn(true) // Arrange — prev = true
-        val orderStatement: PreparedStatement = mock() // Arrange
-        whenever(mockConnection.prepareStatement(contains("INSERT INTO orders"))).thenReturn(orderStatement) // Arrange
-        whenever(orderStatement.executeUpdate()).thenThrow(SQLException("forced")) // Arrange
-        val service = CheckoutService(mockConnection) // Arrange
-        assertFailsWith<SQLException> { runBlocking { service.checkout(validStoreRequest()) } } // Act
-        verify(mockConnection).autoCommit = true // Assert — restored even after exception
+    fun `checkout skips component deduction for an untracked bundle`() {
+        runBlocking {
+            val userId = seedUser()
+            val componentId = ExposedTestDb.seedProduct(name = "Part", quantity = 0)
+            val bundleId = ExposedTestDb.seedProduct(name = "Kit", isBundle = true, trackStock = false)
+            ExposedTestDb.seedBundleComponent(bundleId, componentId, quantity = 2)
+
+            val checkoutItems = listOf(StoreCheckoutItem(productId = bundleId, quantity = 1, priceAtOrder = 500))
+            val result = service.checkout(validStoreRequest(userId, items = checkoutItems))
+
+            assertTrue(result is CheckoutResult.Success)
+            assertEquals(0, productQuantity(componentId))
+        }
     }
 
     @Test
     fun `checkout uses empty string when transactionId is null`() {
         runBlocking {
-            val paymentStatement: PreparedStatement = mock() // Arrange
-            val orderStatement: PreparedStatement = mock() // Arrange
-            val itemStatement: PreparedStatement = mock() // Arrange
-            val stockStatement: PreparedStatement = mock() // Arrange
-            val ticketStatement: PreparedStatement = mock() // Arrange
-            val ticketPaymentStatement: PreparedStatement = mock() // Arrange
-            whenever(mockConnection.prepareStatement(contains("INSERT INTO orders"))).thenReturn(orderStatement) // Arrange
-            whenever(mockConnection.prepareStatement(contains("INSERT INTO order_products"))).thenReturn(itemStatement) // Arrange
-            whenever(mockConnection.prepareStatement(contains("UPDATE products"))).thenReturn(stockStatement) // Arrange
-            whenever(mockConnection.prepareStatement(contains("INSERT INTO tickets"))).thenReturn(ticketStatement) // Arrange
-            whenever(mockConnection.prepareStatement(contains("INSERT INTO payments"))).thenReturn(paymentStatement) // Arrange
-            whenever(mockConnection.prepareStatement(contains("INSERT INTO ticket_payments"))).thenReturn(ticketPaymentStatement) // Arrange
-            whenever(stockStatement.executeUpdate()).thenReturn(1) // Arrange
-            val service = CheckoutService(mockConnection) // Arrange
-            service.checkout(validStoreRequest(transactionId = null)) // Act
-            verify(paymentStatement).setString(4, "") // Assert — null → ""
+            val userId = seedUser()
+            val productId = ExposedTestDb.seedProduct(quantity = 10)
+            val items = listOf(StoreCheckoutItem(productId = productId, quantity = 1, priceAtOrder = 100))
+            val result = service.checkout(validStoreRequest(userId, items = items, transactionId = null))
+
+            assertTrue(result is CheckoutResult.Success)
+            val transactionId =
+                transaction {
+                    PaymentEntity.findById(UUID.fromString(result.response.paymentId))!!.transactionId
+                }
+            assertEquals("", transactionId)
         }
     }
 
     @Test
-    fun `checkout uses provided transactionId when not null`() {
+    fun `checkout stores provided transactionId`() {
         runBlocking {
-            val paymentStatement: PreparedStatement = mock() // Arrange
-            val orderStatement: PreparedStatement = mock() // Arrange
-            val itemStatement: PreparedStatement = mock() // Arrange
-            val stockStatement: PreparedStatement = mock() // Arrange
-            val ticketStatement: PreparedStatement = mock() // Arrange
-            val ticketPaymentStatement: PreparedStatement = mock() // Arrange
-            whenever(mockConnection.prepareStatement(contains("INSERT INTO orders"))).thenReturn(orderStatement) // Arrange
-            whenever(mockConnection.prepareStatement(contains("INSERT INTO order_products"))).thenReturn(itemStatement) // Arrange
-            whenever(mockConnection.prepareStatement(contains("UPDATE products"))).thenReturn(stockStatement) // Arrange
-            whenever(mockConnection.prepareStatement(contains("INSERT INTO tickets"))).thenReturn(ticketStatement) // Arrange
-            whenever(mockConnection.prepareStatement(contains("INSERT INTO payments"))).thenReturn(paymentStatement) // Arrange
-            whenever(mockConnection.prepareStatement(contains("INSERT INTO ticket_payments"))).thenReturn(ticketPaymentStatement) // Arrange
-            whenever(stockStatement.executeUpdate()).thenReturn(1) // Arrange
-            val service = CheckoutService(mockConnection) // Arrange
-            service.checkout(validStoreRequest(transactionId = "lnbc123")) // Act
-            verify(paymentStatement).setString(4, "lnbc123") // Assert
+            val userId = seedUser()
+            val productId = ExposedTestDb.seedProduct(quantity = 10)
+            val items = listOf(StoreCheckoutItem(productId = productId, quantity = 1, priceAtOrder = 100))
+            val result = service.checkout(validStoreRequest(userId, items = items, transactionId = "lnbc123"))
+
+            assertTrue(result is CheckoutResult.Success)
+            val transactionId =
+                transaction {
+                    PaymentEntity.findById(UUID.fromString(result.response.paymentId))!!.transactionId
+                }
+            assertEquals("lnbc123", transactionId)
         }
     }
 
     @Test
-    fun `checkout processes all items iterating stock decrement for each`() {
+    fun `checkout returns Invalid and does not persist anything when stock is insufficient`() {
         runBlocking {
-            val items =
-                listOf( // Arrange
-                    StoreCheckoutItem("prod-1", 1, 100),
-                    StoreCheckoutItem("prod-2", 3, 200),
-                )
-            val stockStatement: PreparedStatement = mock() // Arrange
-            val orderStatement: PreparedStatement = mock() // Arrange
-            val itemStatement: PreparedStatement = mock() // Arrange
-            val ticketStatement: PreparedStatement = mock() // Arrange
-            val paymentStatement: PreparedStatement = mock() // Arrange
-            val ticketPaymentStatement: PreparedStatement = mock() // Arrange
-            whenever(mockConnection.prepareStatement(contains("INSERT INTO orders"))).thenReturn(orderStatement) // Arrange
-            whenever(mockConnection.prepareStatement(contains("INSERT INTO order_products"))).thenReturn(itemStatement) // Arrange
-            whenever(mockConnection.prepareStatement(contains("UPDATE products"))).thenReturn(stockStatement) // Arrange
-            whenever(mockConnection.prepareStatement(contains("INSERT INTO tickets"))).thenReturn(ticketStatement) // Arrange
-            whenever(mockConnection.prepareStatement(contains("INSERT INTO payments"))).thenReturn(paymentStatement) // Arrange
-            whenever(mockConnection.prepareStatement(contains("INSERT INTO ticket_payments"))).thenReturn(ticketPaymentStatement) // Arrange
-            whenever(stockStatement.executeUpdate()).thenReturn(1) // Arrange — both items have stock
-            val service = CheckoutService(mockConnection) // Arrange
-            val result = service.checkout(validStoreRequest(items = items)) // Act
-            assertNotNull(result) // Assert
-            verify(stockStatement, times(2)).executeUpdate() // Assert — called once per item
+            val userId = seedUser()
+            val productId = ExposedTestDb.seedProduct(quantity = 1)
+            val items = listOf(StoreCheckoutItem(productId = productId, quantity = 5, priceAtOrder = 500))
+            val result = service.checkout(validStoreRequest(userId, items = items))
+
+            assertTrue(result is CheckoutResult.Invalid)
+            assertEquals(1, productQuantity(productId))
+            assertTrue(transaction { OrderEntity.all().toList() }.isEmpty())
         }
     }
 
     @Test
     fun `checkout rolls back when second item has insufficient stock`() {
         runBlocking {
+            val userId = seedUser()
+            val productId1 = ExposedTestDb.seedProduct(quantity = 10)
+            val productId2 = ExposedTestDb.seedProduct(quantity = 1)
             val items =
-                listOf( // Arrange
-                    StoreCheckoutItem("prod-1", 1, 100),
-                    StoreCheckoutItem("prod-2", 999, 200),
+                listOf(
+                    StoreCheckoutItem(productId = productId1, quantity = 1, priceAtOrder = 100),
+                    StoreCheckoutItem(productId = productId2, quantity = 999, priceAtOrder = 200),
                 )
-            val stockStatement: PreparedStatement = mock() // Arrange
-            val orderStatement: PreparedStatement = mock() // Arrange
-            val itemStatement: PreparedStatement = mock() // Arrange
-            whenever(mockConnection.prepareStatement(contains("INSERT INTO orders"))).thenReturn(orderStatement) // Arrange
-            whenever(mockConnection.prepareStatement(contains("INSERT INTO order_products"))).thenReturn(itemStatement) // Arrange
-            whenever(mockConnection.prepareStatement(contains("UPDATE products"))).thenReturn(stockStatement) // Arrange
-            whenever(stockStatement.executeUpdate()).thenReturn(1).thenReturn(0) // Arrange — second item fails
-            val service = CheckoutService(mockConnection) // Arrange
-            val result = service.checkout(validStoreRequest(items = items)) // Act
-            assertNull(result) // Assert
-            verify(mockConnection).rollback() // Assert
+            val result = service.checkout(validStoreRequest(userId, items = items))
+
+            assertTrue(result is CheckoutResult.Invalid)
+            assertEquals(10, productQuantity(productId1))
+            assertEquals(1, productQuantity(productId2))
+            assertTrue(transaction { OrderEntity.all().toList() }.isEmpty())
         }
     }
 
     @Test
-    fun `getStoreOrders returns empty list when no orders found`() {
+    fun `checkout returns NotPaid when phoenix has not confirmed the payment`() {
         runBlocking {
-            whenever(mockConnection.prepareStatement(any())).thenReturn(mockStatement) // Arrange
-            whenever(mockStatement.executeQuery()).thenReturn(mockResultSet) // Arrange
-            whenever(mockResultSet.next()).thenReturn(false) // Arrange
-            val service = CheckoutService(mockConnection) // Arrange
-            val result = service.getStoreOrders() // Act
-            assertTrue(result.isEmpty()) // Assert
+            val userId = seedUser()
+            val productId = ExposedTestDb.seedProduct(quantity = 10)
+            val items = listOf(StoreCheckoutItem(productId = productId, quantity = 1, priceAtOrder = 100))
+            verifier.result = incomingPayment(paymentHash = "hash-pending", isPaid = false)
+
+            val result = service.checkout(validStoreRequest(userId, items = items, paymentHash = "hash-pending"))
+
+            assertTrue(result is CheckoutResult.NotPaid)
+            assertEquals(10, productQuantity(productId))
+            assertTrue(transaction { OrderEntity.all().toList() }.isEmpty())
         }
     }
 
     @Test
-    fun `getStoreOrders uses status filter query when status is provided`() {
+    fun `checkout returns NotPaid when phoenix lookup fails`() {
         runBlocking {
-            val statusStatement: PreparedStatement = mock() // Arrange
-            val statusResultSet: ResultSet = mock() // Arrange
-            whenever(mockConnection.prepareStatement(contains("AND o.status = ?"))).thenReturn(statusStatement) // Arrange
-            whenever(statusStatement.executeQuery()).thenReturn(statusResultSet) // Arrange
-            whenever(statusResultSet.next()).thenReturn(false) // Arrange
-            val service = CheckoutService(mockConnection) // Arrange
-            service.getStoreOrders(status = "paid") // Act
-            verify(statusStatement).setString(1, "paid") // Assert
+            val userId = seedUser()
+            val productId = ExposedTestDb.seedProduct(quantity = 10)
+            val items = listOf(StoreCheckoutItem(productId = productId, quantity = 1, priceAtOrder = 100))
+            verifier.error = RuntimeException("phoenix unreachable")
+
+            val result = service.checkout(validStoreRequest(userId, items = items, paymentHash = "hash-unknown"))
+
+            assertTrue(result is CheckoutResult.NotPaid)
+            assertTrue(transaction { OrderEntity.all().toList() }.isEmpty())
         }
     }
 
     @Test
-    fun `getStoreOrderById returns null when order not found`() {
+    fun `checkout creates a new order when phoenix confirms the BTC payment is paid`() {
         runBlocking {
-            whenever(mockConnection.prepareStatement(any())).thenReturn(mockStatement) // Arrange
-            whenever(mockStatement.executeQuery()).thenReturn(mockResultSet) // Arrange
-            whenever(mockResultSet.next()).thenReturn(false) // Arrange
-            val service = CheckoutService(mockConnection) // Arrange
-            val result = service.getStoreOrderById("not-found") // Act
-            assertNull(result) // Assert
+            val userId = seedUser()
+            val productId = ExposedTestDb.seedProduct(quantity = 10)
+            val items = listOf(StoreCheckoutItem(productId = productId, quantity = 1, priceAtOrder = 100))
+            verifier.result = incomingPayment(paymentHash = "hash-paid", isPaid = true)
+
+            val result = service.checkout(validStoreRequest(userId, items = items, paymentHash = "hash-paid"))
+
+            assertTrue(result is CheckoutResult.Success)
+            assertFalse(result.alreadyExisted)
+            assertEquals(9, productQuantity(productId))
         }
     }
 
     @Test
-    fun `cancelStoreOrder returns true when order is cancelled`() {
+    fun `checkout returns existing order when paymentHash already recorded`() {
         runBlocking {
-            whenever(mockConnection.prepareStatement(any())).thenReturn(mockStatement) // Arrange
-            whenever(mockStatement.executeUpdate()).thenReturn(1) // Arrange
-            val service = CheckoutService(mockConnection) // Arrange
-            val result = service.cancelStoreOrder("order-1") // Act
-            assertTrue(result) // Assert
+            val userId = seedUser()
+            val productId = ExposedTestDb.seedProduct(quantity = 10)
+            val items = listOf(StoreCheckoutItem(productId = productId, quantity = 1, priceAtOrder = 100))
+            verifier.result = incomingPayment(paymentHash = "hash-recovered", isPaid = true)
+            val request = validStoreRequest(userId, items = items, paymentHash = "hash-recovered")
+
+            val first = service.checkout(request)
+            assertTrue(first is CheckoutResult.Success)
+            assertFalse(first.alreadyExisted)
+
+            val second = service.checkout(request)
+            assertTrue(second is CheckoutResult.Success)
+            assertTrue(second.alreadyExisted)
+            assertEquals(first.response.orderId, second.response.orderId)
+            assertEquals(first.response.ticketId, second.response.ticketId)
+            assertEquals(first.response.paymentId, second.response.paymentId)
+
+            assertEquals(1, transaction { OrderEntity.all().toList() }.size)
+            assertEquals(9, productQuantity(productId))
         }
     }
 
     @Test
-    fun `cancelStoreOrder returns false when order not found or already closed`() {
+    fun `cancelStoreOrder returns true when order is open`() {
         runBlocking {
-            whenever(mockConnection.prepareStatement(any())).thenReturn(mockStatement) // Arrange
-            whenever(mockStatement.executeUpdate()).thenReturn(0) // Arrange
-            val service = CheckoutService(mockConnection) // Arrange
-            val result = service.cancelStoreOrder("not-found") // Act
-            assertEquals(false, result) // Assert
+            val userId = seedUser()
+            val orderId = ExposedTestDb.seedOrder(userId, status = "open")
+            assertTrue(service.cancelStoreOrder(orderId))
+            assertEquals("closed", transaction { OrderEntity.findById(UUID.fromString(orderId))?.status })
+        }
+    }
+
+    @Test
+    fun `cancelStoreOrder returns false when order not found`() {
+        runBlocking {
+            assertFalse(service.cancelStoreOrder(UUID.randomUUID().toString()))
+        }
+    }
+
+    @Test
+    fun `cancelStoreOrder returns false when order already closed`() {
+        runBlocking {
+            val userId = seedUser()
+            val orderId = ExposedTestDb.seedOrder(userId, status = "closed")
+            assertFalse(service.cancelStoreOrder(orderId))
+        }
+    }
+
+    @Test
+    fun `findCheckoutByPaymentHash returns null when not found`() {
+        runBlocking {
+            assertEquals(null, service.findCheckoutByPaymentHash("non-existent-hash"))
+        }
+    }
+
+    @Test
+    fun `findCheckoutByPaymentHash returns checkout info when found`() {
+        runBlocking {
+            val userId = seedUser()
+            val productId = ExposedTestDb.seedProduct(quantity = 10)
+            val items = listOf(StoreCheckoutItem(productId = productId, quantity = 1, priceAtOrder = 100))
+            verifier.result = incomingPayment(paymentHash = "hash-123", isPaid = true)
+            val checkout = service.checkout(validStoreRequest(userId, items = items, paymentHash = "hash-123"))
+            assertTrue(checkout is CheckoutResult.Success)
+
+            val result = service.findCheckoutByPaymentHash("hash-123")
+            assertEquals("completed", result?.get("status"))
+            assertEquals(checkout.response.orderId, result?.get("orderId"))
+            assertEquals(checkout.response.ticketId, result?.get("ticketId"))
+            assertEquals(checkout.response.paymentId, result?.get("paymentId"))
+        }
+    }
+
+    @Test
+    fun `checkout persists discountAmount on the order`() {
+        runBlocking {
+            val userId = seedUser()
+            val productId = ExposedTestDb.seedProduct(quantity = 10)
+            val items = listOf(StoreCheckoutItem(productId = productId, quantity = 1, priceAtOrder = 100))
+            val result = service.checkout(validStoreRequest(userId, items = items, discountAmount = 1.0))
+
+            assertTrue(result is CheckoutResult.Success)
+            val persistedDiscountAmount =
+                transaction {
+                    OrderEntity.findById(UUID.fromString(result.response.orderId))!!.discountAmount
+                }
+            assertEquals(1.0, persistedDiscountAmount)
+        }
+    }
+
+    @Test
+    fun `checkout persists zero discountAmount when not provided`() {
+        runBlocking {
+            val userId = seedUser()
+            val productId = ExposedTestDb.seedProduct(quantity = 10)
+            val items = listOf(StoreCheckoutItem(productId = productId, quantity = 1, priceAtOrder = 100))
+            val result = service.checkout(validStoreRequest(userId, items = items))
+
+            assertTrue(result is CheckoutResult.Success)
+            val persistedDiscountAmount =
+                transaction {
+                    OrderEntity.findById(UUID.fromString(result.response.orderId))!!.discountAmount
+                }
+            assertEquals(0.0, persistedDiscountAmount)
+        }
+    }
+
+    @Test
+    fun `checkout deducts component stock when item is a bundle`() {
+        runBlocking {
+            val userId = seedUser()
+            val componentId = ExposedTestDb.seedProduct(name = "Part", quantity = 10)
+            val bundleId = ExposedTestDb.seedProduct(name = "Kit", isBundle = true, quantity = 0)
+            ExposedTestDb.seedBundleComponent(bundleId, componentId, quantity = 2)
+
+            val checkoutItems = listOf(StoreCheckoutItem(productId = bundleId, quantity = 1, priceAtOrder = 500))
+            val result = service.checkout(validStoreRequest(userId, items = checkoutItems))
+
+            assertTrue(result is CheckoutResult.Success)
+            assertEquals(8, productQuantity(componentId))
+            assertEquals(0, productQuantity(bundleId))
+        }
+    }
+
+    @Test
+    fun `checkout deducts only the tracked components of a bundle`() {
+        runBlocking {
+            val userId = seedUser()
+            val trackedComponentId = ExposedTestDb.seedProduct(name = "Mug", quantity = 10)
+            val untrackedComponentId = ExposedTestDb.seedProduct(name = "Coffee", quantity = 0, trackStock = false)
+            val bundleId = ExposedTestDb.seedProduct(name = "Kit", isBundle = true, quantity = 0)
+            ExposedTestDb.seedBundleComponent(bundleId, trackedComponentId, quantity = 1)
+            ExposedTestDb.seedBundleComponent(bundleId, untrackedComponentId, quantity = 1)
+
+            val checkoutItems = listOf(StoreCheckoutItem(productId = bundleId, quantity = 1, priceAtOrder = 500))
+            val result = service.checkout(validStoreRequest(userId, items = checkoutItems))
+
+            assertTrue(result is CheckoutResult.Success)
+            assertEquals(9, productQuantity(trackedComponentId))
+            assertEquals(0, productQuantity(untrackedComponentId))
+        }
+    }
+
+    @Test
+    fun `checkout deducts selected component variant stock when item is a bundle`() {
+        runBlocking {
+            val userId = seedUser()
+            val componentId = ExposedTestDb.seedProduct(name = "Shirt", quantity = 10)
+            val defaultVariantId = variantService.getVariants(componentId)[0].id!!
+            val selectedVariantId =
+                variantService.addVariant(
+                    componentId,
+                    UpsertVariantRequest(priceCents = 1500, costCents = 700, quantity = 6),
+                )!!
+            val bundleId = ExposedTestDb.seedProduct(name = "Kit", isBundle = true, quantity = 0)
+            ExposedTestDb.seedBundleComponent(bundleId, componentId, componentVariantId = selectedVariantId, quantity = 2)
+
+            val checkoutItems = listOf(StoreCheckoutItem(productId = bundleId, quantity = 2, priceAtOrder = 500))
+            val result = service.checkout(validStoreRequest(userId, items = checkoutItems))
+
+            assertTrue(result is CheckoutResult.Success)
+            assertEquals(10, variantService.getVariantById(defaultVariantId)?.quantity)
+            assertEquals(2, variantService.getVariantById(selectedVariantId)?.quantity)
+        }
+    }
+
+    @Test
+    fun `checkout deducts N times component quantity when N bundles are sold`() {
+        runBlocking {
+            val userId = seedUser()
+            val componentId = ExposedTestDb.seedProduct(name = "Part", quantity = 12)
+            val bundleId = ExposedTestDb.seedProduct(name = "Kit", isBundle = true)
+            ExposedTestDb.seedBundleComponent(bundleId, componentId, quantity = 3)
+
+            val checkoutItems = listOf(StoreCheckoutItem(productId = bundleId, quantity = 2, priceAtOrder = 500))
+            val result = service.checkout(validStoreRequest(userId, items = checkoutItems))
+
+            assertTrue(result is CheckoutResult.Success)
+            assertEquals(6, productQuantity(componentId))
+        }
+    }
+
+    @Test
+    fun `checkout returns Invalid when a bundle component has insufficient stock`() {
+        runBlocking {
+            val userId = seedUser()
+            val componentId = ExposedTestDb.seedProduct(name = "Part", quantity = 1)
+            val bundleId = ExposedTestDb.seedProduct(name = "Kit", isBundle = true)
+            ExposedTestDb.seedBundleComponent(bundleId, componentId, quantity = 2)
+
+            val checkoutItems = listOf(StoreCheckoutItem(productId = bundleId, quantity = 1, priceAtOrder = 500))
+            val result = service.checkout(validStoreRequest(userId, items = checkoutItems))
+
+            assertTrue(result is CheckoutResult.Invalid)
+            assertEquals(1, productQuantity(componentId))
+            assertTrue(transaction { OrderEntity.all().toList() }.isEmpty())
+        }
+    }
+
+    @Test
+    fun `checkout rolls back all when bundle component stock is insufficient mid-transaction`() {
+        runBlocking {
+            val userId = seedUser()
+            val regularProductId = ExposedTestDb.seedProduct(name = "Regular", quantity = 5)
+            val componentId = ExposedTestDb.seedProduct(name = "Part", quantity = 1)
+            val bundleId = ExposedTestDb.seedProduct(name = "Kit", isBundle = true)
+            ExposedTestDb.seedBundleComponent(bundleId, componentId, quantity = 3)
+
+            val checkoutItems =
+                listOf(
+                    StoreCheckoutItem(productId = regularProductId, quantity = 1, priceAtOrder = 100),
+                    StoreCheckoutItem(productId = bundleId, quantity = 1, priceAtOrder = 500),
+                )
+            val result = service.checkout(validStoreRequest(userId, items = checkoutItems))
+
+            assertTrue(result is CheckoutResult.Invalid)
+            assertEquals(5, productQuantity(regularProductId))
+            assertEquals(1, productQuantity(componentId))
+            assertTrue(transaction { OrderEntity.all().toList() }.isEmpty())
         }
     }
 }

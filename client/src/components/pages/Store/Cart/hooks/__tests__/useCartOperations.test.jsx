@@ -5,13 +5,14 @@ import { useCartOperations } from "../useCartOperations";
 const mockAddToast = jest.fn();
 
 jest.mock("@heroui/react", () => ({
-  addToast: (...args) => mockAddToast(...args),
+  addToast: (...toastArgs) => mockAddToast(...toastArgs),
 }));
 
 const products = [
   { id: 1, name: "Jade Wallet", priceCents: 100, quantity: 5 },
   { id: 2, name: "M5 Stick", priceCents: 200, quantity: 3 },
   { id: 3, name: "Out of Stock Item", priceCents: 50, quantity: 0 },
+  { id: 4, name: "Consulting", priceCents: 5000, quantity: 0, trackStock: false },
 ];
 
 function setupHook(cart = []) {
@@ -39,7 +40,18 @@ describe("useCartOperations", () => {
       });
 
       expect(setCart).toHaveBeenCalledWith([
-        { id: 1, imageUrl: "/img.png", name: "Jade Wallet", price: 100, quantity: 1, subtotal: 100 },
+        {
+          id: 1,
+          productId: 1,
+          variantId: null,
+          variantName: null,
+          imageUrl: "/img.png",
+          name: "Jade Wallet",
+          price: 100,
+          quantity: 1,
+          subtotal: 100,
+          maxQuantity: 5,
+        },
       ]);
     });
 
@@ -51,9 +63,9 @@ describe("useCartOperations", () => {
         result.current.addProduct({ id: 1, imageUrl: "/img.png", name: "Jade Wallet", priceCents: 100 });
       });
 
-      const updatedCart = setCart.mock.calls[0][0];
-      expect(updatedCart[0].quantity).toBe(3);
-      expect(updatedCart[0].subtotal).toBe(300);
+      const updatedCartItems = setCart.mock.calls[0][0];
+      expect(updatedCartItems[0].quantity).toBe(3);
+      expect(updatedCartItems[0].subtotal).toBe(300);
     });
 
     it("does not add a product that is out of stock", () => {
@@ -80,9 +92,46 @@ describe("useCartOperations", () => {
       jest.runAllTimers();
       expect(mockAddToast).toHaveBeenCalledWith(expect.objectContaining({ color: "danger" }));
     });
+
+    it("adds a product without stock tracking even when its quantity is zero", () => {
+      const { result, setCart } = setupHook([]);
+
+      act(() => {
+        result.current.addProduct({ id: 4, name: "Consulting", priceCents: 5000 });
+      });
+
+      expect(setCart).toHaveBeenCalledWith([
+        expect.objectContaining({ id: 4, quantity: 1, maxQuantity: Number.MAX_SAFE_INTEGER }),
+      ]);
+      jest.runAllTimers();
+      expect(mockAddToast).not.toHaveBeenCalled();
+    });
   });
 
   describe("updateQuantity", () => {
+    it("does not cap the quantity of a product without stock tracking", () => {
+      const cart = [{
+        id: 4,
+        productId: 4,
+        name: "Consulting",
+        price: 5000,
+        quantity: 1,
+        subtotal: 5000,
+        maxQuantity: Number.MAX_SAFE_INTEGER,
+      }];
+      const { result, setCart } = setupHook(cart);
+
+      act(() => {
+        result.current.updateQuantity(4, 50);
+      });
+
+      expect(setCart).toHaveBeenCalledWith([
+        expect.objectContaining({ id: 4, quantity: 50, subtotal: 250000 }),
+      ]);
+      jest.runAllTimers();
+      expect(mockAddToast).not.toHaveBeenCalled();
+    });
+
     it("updates quantity and recalculates subtotal", () => {
       const cart = [{ id: 1, name: "Jade Wallet", price: 100, quantity: 1, subtotal: 100 }];
       const { result, setCart } = setupHook(cart);
@@ -91,9 +140,9 @@ describe("useCartOperations", () => {
         result.current.updateQuantity(1, 4);
       });
 
-      const updatedCart = setCart.mock.calls[0][0];
-      expect(updatedCart[0].quantity).toBe(4);
-      expect(updatedCart[0].subtotal).toBe(400);
+      const updatedCartItems = setCart.mock.calls[0][0];
+      expect(updatedCartItems[0].quantity).toBe(4);
+      expect(updatedCartItems[0].subtotal).toBe(400);
     });
 
     it("removes the item when quantity is set to zero", () => {
@@ -115,9 +164,9 @@ describe("useCartOperations", () => {
         result.current.updateQuantity(2, 10);
       });
 
-      const updatedCart = setCart.mock.calls[0][0];
-      expect(updatedCart[0].quantity).toBe(3);
-      expect(updatedCart[0].subtotal).toBe(600);
+      const updatedCartItems = setCart.mock.calls[0][0];
+      expect(updatedCartItems[0].quantity).toBe(3);
+      expect(updatedCartItems[0].subtotal).toBe(600);
       jest.runAllTimers();
       expect(mockAddToast).toHaveBeenCalledWith(expect.objectContaining({ color: "danger" }));
     });

@@ -21,9 +21,10 @@ import { calculateCartTotals } from "./utils/cartTotals";
 
 function syncCartWithProducts(cart, products) {
   const syncedItems = cart
-    .filter((cartItem) => products.some((product) => product.id === cartItem.id))
+    .filter((cartItem) => products.some((product) => product.id === (cartItem.productId ?? cartItem.id)))
     .map((cartItem) => {
-      const catalogProduct = products.find((product) => product.id === cartItem.id);
+      if (cartItem.variantId) return cartItem;
+      const catalogProduct = products.find((product) => product.id === (cartItem.productId ?? cartItem.id));
       return catalogProduct.priceCents === cartItem.price
         ? cartItem
         : { ...cartItem, price: catalogProduct.priceCents, subtotal: cartItem.quantity * catalogProduct.priceCents };
@@ -43,9 +44,20 @@ export function Cart() {
     cart,
     setCart,
     discount,
+    setDiscount,
+    discountType,
+    setDiscountType,
     isCartRestored,
     resetCartState,
   } = usePersistentCart();
+
+  const handleApplyDiscount = useCallback(
+    (discountValue, selectedDiscountType) => {
+      setDiscount(discountValue);
+      setDiscountType(selectedDiscountType);
+    },
+    [setDiscount, setDiscountType],
+  );
   const { products, refetch: refetchProducts } = useProducts();
   const { categories } = useCategories();
 
@@ -68,17 +80,18 @@ export function Cart() {
   } = usePendingRemoval();
 
   const visibleCart = useMemo(
-    () => cart.filter((item) => !pendingRemovals.has(item.id)),
+    () => cart.filter((cartItem) => !pendingRemovals.has(cartItem.id)),
     [cart, pendingRemovals],
   );
 
   const handleAddProduct = useCallback(
-    (product) => {
-      if (pendingRemovals.has(product.id)) {
-        cancelRemoval(product.id);
+    (product, variant = null) => {
+      const cartItemId = variant?.id ?? product.id;
+      if (pendingRemovals.has(cartItemId)) {
+        cancelRemoval(cartItemId);
         return;
       }
-      addProduct(product);
+      addProduct(product, variant);
     },
     [addProduct, cancelRemoval, pendingRemovals],
   );
@@ -117,8 +130,10 @@ export function Cart() {
   useEffect(() => {
     if (visibleCart.length === 0) {
       setTimeout(() => setShowMobileSummary(false), 0);
+      setDiscount(0);
+      setDiscountType("percentage");
     }
-  }, [visibleCart.length]);
+  }, [visibleCart.length, setDiscount, setDiscountType]);
 
   const cartTotal = useMemo(
     () => calculateCartTotals(visibleCart, discount).total,
@@ -137,6 +152,8 @@ export function Cart() {
           <Summary
             cartItems={visibleCart}
             discount={discount}
+            discountType={discountType}
+            onApplyDiscount={handleApplyDiscount}
             onRemoveProduct={removeProduct}
             onClearCart={handleClearCart}
             onUpdateQuantity={updateQuantity}
@@ -161,6 +178,8 @@ export function Cart() {
         onClose={() => setShowMobileSummary(false)}
         cartItems={visibleCart}
         discount={discount}
+        discountType={discountType}
+        onApplyDiscount={handleApplyDiscount}
         onRemoveProduct={removeProduct}
         onClearCart={handleClearCart}
         onUpdateQuantity={updateQuantity}

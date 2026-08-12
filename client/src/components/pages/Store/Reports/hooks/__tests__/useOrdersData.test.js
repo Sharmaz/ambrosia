@@ -3,8 +3,8 @@ import { renderHook } from "@testing-library/react";
 import { useOrdersData } from "../useOrdersData";
 
 const SALES_FIXTURE = [
-  { orderId: "order-aaa-00000001", productName: "Widget A", quantity: 2, priceAtOrder: 1000, userName: "alice", paymentMethod: "Cash", saleDate: "2024-01-02T10:00:00" },
-  { orderId: "order-aaa-00000001", productName: "Widget B", quantity: 1, priceAtOrder: 500, userName: "alice", paymentMethod: "Cash", saleDate: "2024-01-02T10:00:00" },
+  { orderId: "order-aaa-00000001", productName: "Widget A", quantity: 2, priceAtOrder: 1000, userName: "alice", paymentMethod: "Cash", saleDate: "2024-01-02T10:00:00", discountAmount: 250 },
+  { orderId: "order-aaa-00000001", productName: "Widget B", quantity: 1, priceAtOrder: 500, userName: "alice", paymentMethod: "Cash", saleDate: "2024-01-02T10:00:00", discountAmount: 250 },
   { orderId: "order-bbb-00000002", productName: "Widget C", quantity: 3, priceAtOrder: 2000, userName: "bob", paymentMethod: "BTC", saleDate: "2024-01-01T08:00:00", satoshiAmount: 100000, exchangeRateAtPayment: 95000, exchangeRateCurrency: "usd", fiatAmountAtPayment: 1.0 },
 ];
 
@@ -19,10 +19,16 @@ describe("useOrdersData", () => {
     expect(result.current).toHaveLength(2);
   });
 
-  it("computes total as sum of quantity * priceAtOrder across all items", () => {
+  it("computes subtotal as sum of quantity times priceAtOrder across all items", () => {
     const { result } = renderHook(() => useOrdersData(SALES_FIXTURE));
     const orderA = result.current.find((order) => order.orderId === "order-aaa-00000001");
-    expect(orderA.total).toBe(2 * 1000 + 1 * 500);
+    expect(orderA.subtotal).toBe(2 * 1000 + 1 * 500);
+  });
+
+  it("computes total after subtracting the order discount", () => {
+    const { result } = renderHook(() => useOrdersData(SALES_FIXTURE));
+    const orderA = result.current.find((order) => order.orderId === "order-aaa-00000001");
+    expect(orderA.total).toBe(2 * 1000 + 1 * 500 - 250);
   });
 
   it("computes itemCount as sum of quantities across all items", () => {
@@ -63,6 +69,7 @@ describe("useOrdersData", () => {
     const { result } = renderHook(() => useOrdersData(SALES_FIXTURE));
     const orderB = result.current.find((order) => order.orderId === "order-bbb-00000002");
     expect(orderB.items).toHaveLength(1);
+    expect(orderB.subtotal).toBe(3 * 2000);
     expect(orderB.total).toBe(3 * 2000);
   });
 
@@ -82,5 +89,20 @@ describe("useOrdersData", () => {
     expect(cashOrder.exchangeRateAtPayment).toBeNull();
     expect(cashOrder.exchangeRateCurrency).toBeNull();
     expect(cashOrder.fiatAmountAtPayment).toBeNull();
+  });
+
+  it("defaults refunded to false when no line item is refunded", () => {
+    const { result } = renderHook(() => useOrdersData(SALES_FIXTURE));
+    const orderA = result.current.find((order) => order.orderId === "order-aaa-00000001");
+    expect(orderA.refunded).toBe(false);
+  });
+
+  it("sets refunded to true when any line item of the order is refunded", () => {
+    const refundedSales = [
+      { orderId: "order-ccc-00000003", productName: "Widget D", quantity: 1, priceAtOrder: 100, refunded: false },
+      { orderId: "order-ccc-00000003", productName: "Widget E", quantity: 1, priceAtOrder: 200, refunded: true },
+    ];
+    const { result } = renderHook(() => useOrdersData(refundedSales));
+    expect(result.current[0].refunded).toBe(true);
   });
 });

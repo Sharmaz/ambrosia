@@ -11,16 +11,12 @@ import { CloseChannelModal } from "../CloseChannel/CloseChannelModal";
 import { ChannelCard } from "./ChannelCard";
 import { NodeSummary } from "./NodeSummary";
 
-export function NodeInfo({ info, onRefresh }) {
-  const t = useTranslations("wallet");
+export function NodeInfo({ info, balance, onRefresh, currentRate, currencyAcronym, locale }) {
+  const walletTranslations = useTranslations("wallet");
   const [selectedChannel, setSelectedChannel] = useState(null);
   const [isCloseModalOpen, setIsCloseModalOpen] = useState(false);
 
-  const totalBalance = info?.channels
-    ? info.channels
-      .filter((channel) => channel.state === "Normal")
-      .reduce((total, channel) => total + channel.balanceSat, 0)
-    : 0;
+  const totalBalance = balance?.balanceSat ?? 0;
 
   const handleOpenCloseModal = (channel) => {
     setSelectedChannel(channel);
@@ -37,19 +33,25 @@ export function NodeInfo({ info, onRefresh }) {
       <Card className="rounded-lg mb-6 p-6">
         <CardHeader>
           <h3 className="text-lg font-bold text-deep flex items-center">
-            {t("nodeInfo.title")}
+            {walletTranslations("nodeInfo.title")}
           </h3>
         </CardHeader>
         <CardBody>
-          <NodeSummary info={info} totalBalance={totalBalance} />
+          <NodeSummary
+            info={info}
+            totalBalance={totalBalance}
+            currentRate={currentRate}
+            currencyAcronym={currencyAcronym}
+            locale={locale}
+          />
           {!info.channels?.length ? (
             <div className="flex flex-col items-center py-8 text-forest opacity-60">
               <Zap className="w-8 h-8 mb-2" />
-              <p className="text-sm">{t("nodeInfo.noChannels")}</p>
+              <p className="text-sm">{walletTranslations("nodeInfo.noChannels")}</p>
             </div>
           ) : (
             <div className="space-y-3">
-              <h4 className="font-semibold text-deep">{t("nodeInfo.subtitle")}</h4>
+              <h4 className="font-semibold text-deep">{walletTranslations("nodeInfo.subtitle")}</h4>
               {(info.channels ?? []).map((channel, index) => (
                 <ChannelCard
                   key={channel.channelId}

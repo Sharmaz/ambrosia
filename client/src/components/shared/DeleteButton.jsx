@@ -7,9 +7,11 @@ import { useTranslations } from "next-intl";
 export function DeleteButton({
   onPress,
   children,
+  className = "",
   size = "sm",
   showLabelOnMobile = false,
   "aria-label": ariaLabel,
+  ...props
 }) {
   const t = useTranslations("actions");
   const hasLabel = Boolean(children);
@@ -17,15 +19,16 @@ export function DeleteButton({
     ? showLabelOnMobile
       ? "w-auto min-w-16 px-3"
       : "w-8 min-w-0 px-0 sm:w-auto sm:min-w-16 sm:px-3"
-    : "w-8 min-w-0 px-0";
+    : "w-8 h-8 min-w-0 px-0 shrink-0";
 
   return (
     <Button
-      className={`border border-red-600 text-red-600 ${buttonClassName}`}
+      className={`border border-red-600 text-red-600 ${buttonClassName} ${className}`}
       onPress={onPress}
       size={size}
       variant="outline"
       aria-label={ariaLabel ?? t("delete")}
+      {...props}
     >
       <Trash className="w-4 h-4" />
       {hasLabel && (

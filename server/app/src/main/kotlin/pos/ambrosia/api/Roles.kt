@@ -11,7 +11,6 @@ import io.ktor.server.routing.post
 import io.ktor.server.routing.put
 import io.ktor.server.routing.route
 import io.ktor.server.routing.routing
-import pos.ambrosia.db.DatabaseConnection
 import pos.ambrosia.logger
 import pos.ambrosia.models.Role
 import pos.ambrosia.models.RolePermissionsUpdateRequest
@@ -19,12 +18,11 @@ import pos.ambrosia.models.RolePermissionsUpdateResult
 import pos.ambrosia.services.PermissionsService
 import pos.ambrosia.services.RolesService
 import pos.ambrosia.utils.authorizePermission
-import java.sql.Connection
+import pos.ambrosia.utils.requireAdmin
 
 fun Application.configureRoles() {
-    val connection: Connection = DatabaseConnection.getConnection()
-    val roleService = RolesService(environment, connection)
-    val permissionsService = PermissionsService(environment, connection)
+    val roleService = RolesService(environment)
+    val permissionsService = PermissionsService()
     routing { route("/roles") { roles(roleService, permissionsService) } }
 }
 
@@ -77,6 +75,9 @@ fun Route.roles(
     authorizePermission("roles_create") {
         post("") {
             val user = call.receive<Role>()
+            if (user.isAdmin == true) {
+                call.requireAdmin()
+            }
             val id = roleService.addRole(user)
             if (id == null) {
                 call.respond(HttpStatusCode.BadRequest, "Invalid role data")
@@ -100,6 +101,9 @@ fun Route.roles(
             if (updatedRole.role.isBlank()) {
                 call.respond(HttpStatusCode.BadRequest, "Invalid role data")
                 return@put
+            }
+            if (updatedRole.isAdmin == true) {
+                call.requireAdmin()
             }
             val isUpdated = roleService.updateRole(id, updatedRole)
 

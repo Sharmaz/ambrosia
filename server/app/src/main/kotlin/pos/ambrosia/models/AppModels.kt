@@ -2,6 +2,12 @@ package pos.ambrosia.models
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import java.time.Instant
+
+object AdminNotificationLiveEventTypes {
+    const val ADMIN_NOTIFICATION = "admin_notification"
+    const val CONNECTED = "connected"
+}
 
 @Serializable data class AuthRequest(
     val name: String,
@@ -63,6 +69,11 @@ data class WalletErrorResponse(
 data class WalletAuthResponse(
     val message: String,
     val walletTokenExpiresAt: Long,
+)
+
+@Serializable
+data class UpdateNwcUriRequest(
+    val nwcUri: String,
 )
 
 @Serializable
@@ -146,7 +157,15 @@ data class Order(
     val tableId: String? = null,
     val status: String,
     val total: Double,
+    val discountAmount: Double = 0.0,
     val createdAt: String,
+)
+
+@Serializable
+data class OrderItem(
+    val productName: String,
+    val quantity: Int,
+    val priceAtOrder: Int,
 )
 
 @Serializable
@@ -157,6 +176,7 @@ data class OrderWithPayment(
     val tableId: String? = null,
     val status: String,
     val total: Double,
+    val discountAmount: Double = 0.0,
     val createdAt: String,
     val paymentMethod: String? = null,
     val paymentMethodIds: List<String> = emptyList(),
@@ -164,6 +184,9 @@ data class OrderWithPayment(
     val exchangeRateAtPayment: Double? = null,
     val exchangeRateCurrency: String? = null,
     val fiatAmountAtPayment: Double? = null,
+    val paymentHash: String? = null,
+    val items: List<OrderItem> = emptyList(),
+    val refund: StoreRefund? = null,
 )
 
 data class OrderWithPaymentFilters(
@@ -287,6 +310,113 @@ data class Permission(
     val enabled: Boolean = true,
 )
 
+@Serializable
+data class AdminNotification(
+    val id: String,
+    val category: String,
+    val type: String,
+    val title: String,
+    val body: String,
+    val actorUserId: String? = null,
+    val actorUserName: String? = null,
+    val actorRole: String? = null,
+    val status: String? = null,
+    val occurredAt: String,
+    val createdAt: String,
+    val readAt: String? = null,
+    val metadataJson: String? = null,
+)
+
+@Serializable
+data class AdminNotificationLiveEvent(
+    val type: String = AdminNotificationLiveEventTypes.ADMIN_NOTIFICATION,
+    val notification: AdminNotification,
+)
+
+@Serializable
+data class AdminNotificationCountResponse(
+    val updated: Int? = null,
+    val deleted: Int? = null,
+)
+
+@Serializable
+data class AdminNotificationMutationResponse(
+    val id: String,
+    val read: Boolean? = null,
+    val deleted: Boolean? = null,
+)
+
+data class AdminNotificationEvent(
+    val category: String,
+    val type: String,
+    val title: String,
+    val body: String,
+    val actorUserId: String? = null,
+    val actorUserName: String? = null,
+    val actorRole: String? = null,
+    val status: String? = null,
+    val occurredAt: String = Instant.now().toString(),
+    val dedupeKey: String? = null,
+    val metadataJson: String? = null,
+)
+
+@Serializable
+data class AdminNotificationPreferences(
+    val category: String,
+    val inAppEnabled: Boolean = true,
+    val pushEnabled: Boolean = true,
+)
+
+@Serializable
+data class AdminNotificationPreferenceUpdateRequest(
+    val category: String,
+    val inAppEnabled: Boolean = true,
+    val pushEnabled: Boolean = true,
+)
+
+@Serializable
+data class AdminNotificationPreferencesResponse(
+    val adminUserId: String,
+    val category: String,
+    val inAppEnabled: Boolean,
+    val pushEnabled: Boolean,
+    val createdAt: String,
+    val updatedAt: String,
+)
+
+@Serializable
+data class WebPushKeys(
+    val p256dh: String,
+    val auth: String,
+)
+
+@Serializable
+data class WebPushSubscriptionRequest(
+    val endpoint: String,
+    val keys: WebPushKeys,
+    val userAgent: String? = null,
+)
+
+@Serializable
+data class WebPushUnsubscribeRequest(
+    val endpoint: String,
+)
+
+@Serializable
+data class WebPushSubscriptionResponse(
+    val id: String,
+    val endpoint: String,
+    val userAgent: String? = null,
+    val createdAt: String,
+    val updatedAt: String,
+    val revokedAt: String? = null,
+)
+
+@Serializable
+data class VapidPublicKeyResponse(
+    val publicKey: String,
+)
+
 @Serializable data class RolePermissionsUpdateRequest(
     val permissions: List<String>,
 )
@@ -350,24 +480,108 @@ data class Config(
 )
 
 @Serializable
+data class ProductOptionValue(
+    val id: String? = null,
+    val optionTypeId: String? = null,
+    val value: String,
+    val displayOrder: Int = 0,
+)
+
+@Serializable
+data class ProductOptionType(
+    val id: String? = null,
+    val productId: String? = null,
+    val name: String,
+    val displayOrder: Int = 0,
+    val values: List<ProductOptionValue> = emptyList(),
+)
+
+@Serializable
+data class ProductVariant(
+    val id: String? = null,
+    val productId: String? = null,
+    val SKU: String? = null,
+    val priceCents: Int,
+    val costCents: Int? = null,
+    val quantity: Int = 0,
+    val isActive: Boolean = true,
+    val imageUrl: String? = null,
+    val optionValueIds: List<String> = emptyList(),
+)
+
+@Serializable
+data class UpsertVariantRequest(
+    val SKU: String? = null,
+    val priceCents: Int,
+    val costCents: Int? = null,
+    val quantity: Int = 0,
+    val isActive: Boolean = true,
+    val imageUrl: String? = null,
+    val optionValueIds: List<String> = emptyList(),
+)
+
+@Serializable
+data class UpsertOptionTypeRequest(
+    val name: String,
+    val displayOrder: Int = 0,
+    val values: List<UpsertOptionValueRequest> = emptyList(),
+)
+
+@Serializable
+data class UpsertOptionValueRequest(
+    val value: String,
+    val displayOrder: Int = 0,
+)
+
+@Serializable
+data class BundleComponent(
+    val componentId: String,
+    val variantId: String? = null,
+    val quantity: Int,
+)
+
+@Serializable
 data class Product(
     val id: String? = null,
     val SKU: String? = null,
     val name: String,
     val description: String? = null,
     val imageUrl: String? = null,
-    val costCents: Int,
+    val priceCents: Int = 0,
+    val maxPriceCents: Int = 0,
+    val quantity: Int = 0,
+    val minStockThreshold: Int = 0,
+    val maxStockThreshold: Int = 0,
+    val hasVariants: Boolean = false,
     val categoryIds: List<String> = emptyList(),
-    val quantity: Int,
-    val minStockThreshold: Int,
-    val maxStockThreshold: Int,
-    val priceCents: Int,
+    val options: List<ProductOptionType> = emptyList(),
+    val variants: List<ProductVariant> = emptyList(),
+    val costCents: Int = 0,
+    val isBundle: Boolean = false,
+    val bundleComponents: List<BundleComponent> = emptyList(),
+    val bundleCostCents: Int = 0,
+    val trackStock: Boolean = true,
 )
 
 @Serializable
 data class ProductStockAdjustment(
     val productId: String,
+    val variantId: String? = null,
     val quantity: Int,
+)
+
+@Serializable
+data class StoreRefund(
+    val id: String,
+    val orderId: String,
+    val refundInvoice: String,
+    val satoshiAmount: Long,
+    val refundedAt: String,
+)
+
+@Serializable
+data class RefundRequest(
+    val invoice: String = "",
 )
 
 @Serializable data class CategoryItem(
@@ -395,6 +609,15 @@ data class InitialSetupRequest(
     val businessCurrency: String? = null,
     val businessLogo: String? = null,
     val businessLogoUrl: String? = null,
+    val nwcUri: String? = null,
+)
+
+@Serializable
+data class InitialSetupResponse(
+    val message: String,
+    val userId: String,
+    val roleId: String,
+    val nwcSaved: Boolean = false,
 )
 
 @Serializable
@@ -411,6 +634,7 @@ data class SetBaseCurrencyRequest(
 @Serializable
 data class CreateStoreOrderItemRequest(
     val productId: String,
+    val variantId: String? = null,
     val quantity: Int,
 )
 
@@ -420,26 +644,9 @@ data class CreateStoreOrderRequest(
 )
 
 @Serializable
-data class StoreOrderItem(
-    val productId: String,
-    val quantity: Int,
-    val priceAtOrder: Int,
-)
-
-@Serializable
-data class StoreOrder(
-    val id: String,
-    val userId: String,
-    val userName: String? = null,
-    val status: String,
-    val total: Int,
-    val createdAt: String,
-    val items: List<StoreOrderItem>,
-)
-
-@Serializable
 data class StoreCheckoutItem(
     val productId: String,
+    val variantId: String? = null,
     val quantity: Int,
     val priceAtOrder: Int,
 )
@@ -458,6 +665,7 @@ data class StoreCheckoutRequest(
     val paymentHash: String? = null,
     val exchangeRateCurrency: String? = null,
     val fiatAmountAtPayment: Double? = null,
+    val discountAmount: Double = 0.0,
 )
 
 @Serializable
@@ -471,6 +679,7 @@ data class StoreCheckoutResponse(
 data class ProductSaleItem(
     val orderId: String,
     val productName: String,
+    val variantId: String? = null,
     val quantity: Int,
     val priceAtOrder: Int,
     val userName: String,
@@ -481,6 +690,8 @@ data class ProductSaleItem(
     val exchangeRateCurrency: String? = null,
     val fiatAmountAtPayment: Double? = null,
     val paymentId: String? = null,
+    val discountAmount: Double = 0.0,
+    val refunded: Boolean = false,
 )
 
 @Serializable
@@ -489,6 +700,9 @@ data class ProductSalesReport(
     val totalItemsSold: Int,
     val sales: List<ProductSaleItem>,
     val totalBtcSatoshis: Long = 0L,
+    val totalRefundedCents: Long = 0L,
+    val totalRefundedSatoshis: Long = 0L,
+    val refundCount: Int = 0,
 )
 
 @Serializable
@@ -509,6 +723,7 @@ data class OutgoingPaymentWithRate(
     val exchangeRateAtPayment: Double? = null,
     val exchangeRateCurrency: String? = null,
     val fiatAmountAtPayment: Double? = null,
+    val refunded: Boolean,
 )
 
 data class WalletInvoiceRate(
@@ -546,4 +761,5 @@ data class IncomingPaymentWithRate(
     val exchangeRateAtPayment: Double? = null,
     val exchangeRateCurrency: String? = null,
     val fiatAmountAtPayment: Double? = null,
+    val refunded: Boolean,
 )

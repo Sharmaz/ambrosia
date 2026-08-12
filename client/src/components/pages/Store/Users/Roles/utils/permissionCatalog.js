@@ -29,6 +29,7 @@ export const permissionCatalog = [
   { key: "orders_delete", group: "sales", business: "store" },
   { key: "orders_export", group: "sales", business: "store" },
   { key: "orders_refund", group: "sales", business: "store" },
+  { key: "orders_discount", group: "sales", business: "store" },
 
   { key: "payments_read", group: "payments", business: "both", related: ["Wallet"] },
   { key: "payments_create", group: "payments", business: "both" },
@@ -36,7 +37,7 @@ export const permissionCatalog = [
   { key: "wallet_read", group: "payments", business: "store" },
 
   { key: "settings_update", group: "settings", business: "both", related: ["Settings"] },
-  { key: "printer_update", group: "settings", business: "restaurant" },
+  { key: "printer_update", group: "settings", business: "store" },
 
   { key: "dish_read", group: "menu", business: "restaurant", related: ["Dishes"] },
   { key: "dish_create", group: "menu", business: "restaurant" },
@@ -71,6 +72,6 @@ export const permissionCatalog = [
   { key: "tickets_create", group: "tickets", business: "both" },
   { key: "tickets_update", group: "tickets", business: "both" },
 
-  { key: "reports_read", group: "reports", business: "restaurant" },
-  { key: "reports_export", group: "reports", business: "restaurant" },
+  { key: "reports_read", group: "reports", business: "store" },
+  { key: "reports_export", group: "reports", business: "store" },
 ];

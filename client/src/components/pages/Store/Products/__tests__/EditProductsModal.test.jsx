@@ -12,6 +12,10 @@ jest.mock("../CategorySelector", () => ({
   ),
 }));
 
+jest.mock("../BundleProductSelector", () => ({
+  BundleProductSelector: () => <div data-testid="bundle-product-selector" />,
+}));
+
 jest.mock("@heroui/react", () => {
   const actual = jest.requireActual("@heroui/react");
   const NumberInput = ({
@@ -23,14 +27,15 @@ jest.mock("@heroui/react", () => {
     startContent,
     minValue,
     maxValue,
+    classNames,
     ...props
   }) => (
     <input
       aria-label={label}
       type="number"
       value={value}
-      onChange={(e) => {
-        const parsed = Number(e.target.value);
+      onChange={(numberInputChangeEvent) => {
+        const parsed = Number(numberInputChangeEvent.target.value);
         const clamped = Number.isNaN(parsed) ? "" : Math.max(0, parsed);
         onValueChange?.(clamped);
       }}
@@ -38,7 +43,41 @@ jest.mock("@heroui/react", () => {
     />
   );
 
-  return { ...actual, NumberInput };
+  const switchTestId = (children, ariaLabel) => {
+    if (children === "modal.isBundle") return "bundle-switch";
+    if (ariaLabel === "trackStock") return "track-stock-switch";
+    return "variants-switch";
+  };
+
+  const Switch = ({ children, isSelected, onValueChange, "aria-label": ariaLabel }) => (
+    <label>
+      <input
+        data-testid={switchTestId(children, ariaLabel)}
+        type="checkbox"
+        checked={isSelected ?? false}
+        onChange={(switchChangeEvent) => onValueChange?.(switchChangeEvent.target.checked)}
+      />
+      {children}
+    </label>
+  );
+
+  const Button = ({
+    children,
+    onPress,
+    isDisabled,
+    disabled,
+    type = "button",
+    isLoading,
+    isIconOnly,
+    fullWidth,
+    ...buttonProps
+  }) => (
+    <button type={type} onClick={onPress} disabled={isDisabled || disabled || isLoading} {...buttonProps}>
+      {children}
+    </button>
+  );
+
+  return { ...actual, addToast: jest.fn(), Button, NumberInput, Switch };
 });
 
 jest.mock("@/components/hooks/useCurrency", () => ({
@@ -51,7 +90,9 @@ const categories = [
   { id: "cat-1", name: "Category 1" },
 ];
 
-const baseData = {
+const { addToast } = require("@heroui/react");
+
+const baseProductForm = {
   productId: "1",
   productName: "Jade Wallet",
   productDescription: "Hardware wallet",
@@ -62,23 +103,23 @@ const baseData = {
   productImage: "",
 };
 
-const mockFileReader = (result = "data:image/png;base64,test") => {
-  const original = global.FileReader;
+const mockFileReader = (fileReaderResult = "data:image/png;base64,test") => {
+  const originalFileReader = global.FileReader;
   global.FileReader = jest.fn(() => ({
     readAsDataURL() {
-      this.result = result;
-      this.onloadend?.({ target: { result } });
+      this.result = fileReaderResult;
+      this.onloadend?.({ target: { result: fileReaderResult } });
     },
   }));
   return () => {
-    global.FileReader = original;
+    global.FileReader = originalFileReader;
   };
 };
 
 const renderModal = (props = {}) => render(
   <I18nProvider>
     <EditProductsModal
-      data={baseData}
+      productForm={baseProductForm}
       onChange={jest.fn()}
       updateProduct={jest.fn()}
       onProductUpdated={jest.fn()}
@@ -124,19 +165,19 @@ describe("EditProductsModal", () => {
     renderModal({ onChange });
 
     fireEvent.change(screen.getByLabelText("modal.productPriceLabel"), { target: { value: "-12" } });
-    const priceCall = onChange.mock.calls.at(-1)[0];
-    expect(typeof priceCall.productPrice).toBe("number");
-    expect(priceCall.productPrice).toBeGreaterThanOrEqual(0);
+    const latestPriceUpdate = onChange.mock.calls.at(-1)[0];
+    expect(typeof latestPriceUpdate.productPrice).toBe("number");
+    expect(latestPriceUpdate.productPrice).toBeGreaterThanOrEqual(0);
 
     fireEvent.change(screen.getByLabelText("modal.productStockLabel"), { target: { value: "-8" } });
-    const stockCall = onChange.mock.calls.at(-1)[0];
-    expect(typeof stockCall.productStock).toBe("number");
-    expect(stockCall.productStock).toBeGreaterThanOrEqual(0);
+    const latestStockUpdate = onChange.mock.calls.at(-1)[0];
+    expect(typeof latestStockUpdate.productStock).toBe("number");
+    expect(latestStockUpdate.productStock).toBeGreaterThanOrEqual(0);
   });
 
   it("handles image upload and removal", async () => {
     const onChange = jest.fn();
-    const restore = mockFileReader();
+    const restoreFileReader = mockFileReader();
     renderModal({ onChange });
     const fileInput = document.querySelector("input[type=\"file\"]");
     const file = new File(["content"], "photo.png", { type: "image/png" });
@@ -148,10 +189,10 @@ describe("EditProductsModal", () => {
     const removeButton = screen.getByTestId("remove-image-button");
     fireEvent.click(removeButton);
 
-    const lastCall = onChange.mock.calls.at(-1)?.[0];
-    expect(lastCall).toEqual({ productImage: null, productImageRemoved: true });
+    const latestImageUpdate = onChange.mock.calls.at(-1)?.[0];
+    expect(latestImageUpdate).toEqual({ productImage: null, productImageRemoved: true });
     expect(screen.queryByAltText("Image preview")).not.toBeInTheDocument();
-    restore();
+    restoreFileReader();
   });
 
   it("ignores image change when no file is provided", () => {
@@ -163,7 +204,11 @@ describe("EditProductsModal", () => {
   });
 
   it("handles category select with empty value and loading", () => {
-    renderModal({ categories: [], categoriesLoading: true, data: { ...baseData, productCategories: [] } });
+    renderModal({
+      categories: [],
+      categoriesLoading: true,
+      productForm: { ...baseProductForm, productCategories: [] },
+    });
 
     const select = screen.getAllByLabelText("modal.productCategoryLabel")[0];
     expect(select).toBeInTheDocument();
@@ -192,6 +237,116 @@ describe("EditProductsModal", () => {
     expect(onClose).toHaveBeenCalled();
   });
 
+  it("renders the bundle toggle", () => {
+    renderModal();
+
+    expect(screen.getByText("modal.isBundle")).toBeInTheDocument();
+  });
+
+  it("hides stock field when product is a bundle", () => {
+    renderModal({ productForm: { ...baseProductForm, isBundle: true } });
+
+    expect(screen.queryByLabelText("modal.productStockLabel")).not.toBeInTheDocument();
+  });
+
+  it("shows BundleComponentSelector when product is a bundle", () => {
+    renderModal({ productForm: { ...baseProductForm, isBundle: true } });
+
+    expect(screen.getByTestId("bundle-product-selector")).toBeInTheDocument();
+  });
+
+  it("requires bundle components before saving a bundle", () => {
+    const updateProduct = jest.fn();
+    renderModal({
+      updateProduct,
+      productForm: { ...baseProductForm, isBundle: true, bundleComponents: [] },
+    });
+
+    expect(screen.getByText("modal.bundleComponentsRequired")).toBeInTheDocument();
+    expect(screen.getByText("modal.editButton")).toBeDisabled();
+
+    fireEvent.click(screen.getByText("modal.editButton"));
+
+    expect(updateProduct).not.toHaveBeenCalled();
+  });
+
+  it("calls onChange with bundle fields when bundle toggle is switched on", () => {
+    const onChange = jest.fn();
+    renderModal({ onChange });
+
+    fireEvent.click(screen.getByTestId("bundle-switch"));
+
+    expect(onChange).toHaveBeenCalledWith({
+      isBundle: true,
+      hasVariants: false,
+      bundleComponents: [],
+      trackStock: true,
+      productStock: 0,
+      productMinStock: 0,
+      productMaxStock: 0,
+    });
+  });
+
+  it("hides the stock tracking toggle when product is a bundle", () => {
+    renderModal({ productForm: { ...baseProductForm, isBundle: true } });
+
+    expect(screen.queryByTestId("track-stock-switch")).not.toBeInTheDocument();
+  });
+
+  it("shows the stock tracking toggle enabled for legacy products without the flag", () => {
+    renderModal();
+
+    expect(screen.getByTestId("track-stock-switch")).toBeChecked();
+    expect(screen.getByLabelText("modal.productStockLabel")).toBeInTheDocument();
+  });
+
+  it("hides stock field when stock tracking is disabled", () => {
+    renderModal({ productForm: { ...baseProductForm, trackStock: false } });
+
+    expect(screen.getByTestId("track-stock-switch")).not.toBeChecked();
+    expect(screen.queryByLabelText("modal.productStockLabel")).not.toBeInTheDocument();
+  });
+
+  it("resets the stock fields when stock tracking is switched off", () => {
+    const onChange = jest.fn();
+    renderModal({
+      onChange,
+      productForm: { ...baseProductForm, productMinStock: 3, productMaxStock: 30 },
+    });
+
+    fireEvent.click(screen.getByTestId("track-stock-switch"));
+
+    expect(onChange).toHaveBeenCalledWith({
+      trackStock: false,
+      productStock: 0,
+      productMinStock: 0,
+      productMaxStock: 0,
+    });
+  });
+
+  it("asks for confirmation before converting a variant product to a bundle", () => {
+    const onChange = jest.fn();
+    renderModal({ productForm: { ...baseProductForm, hasVariants: true, isBundle: false }, onChange });
+
+    fireEvent.click(screen.getByTestId("bundle-switch"));
+
+    expect(screen.getByText("modal.confirmBundleConversionTitle")).toBeInTheDocument();
+    expect(screen.getByText("modal.confirmBundleConversionDescription")).toBeInTheDocument();
+    expect(onChange).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByText("modal.confirmBundleConversionButton"));
+
+    expect(onChange).toHaveBeenCalledWith({
+      isBundle: true,
+      hasVariants: false,
+      bundleComponents: [],
+      trackStock: true,
+      productStock: 0,
+      productMinStock: 0,
+      productMaxStock: 0,
+    });
+  });
+
   it("saves changes and closes on submit", async () => {
     const onClose = jest.fn();
     const updateProduct = jest.fn(() => Promise.resolve());
@@ -201,9 +356,27 @@ describe("EditProductsModal", () => {
 
     fireEvent.click(screen.getByText("modal.editButton"));
 
-    await waitFor(() => expect(updateProduct).toHaveBeenCalledWith(baseData));
+    await waitFor(() => expect(updateProduct).toHaveBeenCalledWith(baseProductForm));
+    expect(addToast).toHaveBeenCalledWith({
+      description: "toasts.updateSuccess",
+      color: "success",
+    });
     expect(onClose).toHaveBeenCalled();
     expect(onProductUpdated).toHaveBeenCalled();
+  });
+
+  it("keeps the modal open when update fails", async () => {
+    const onClose = jest.fn();
+    const updateProduct = jest.fn(() => Promise.reject(new Error("Invalid product data")));
+    const onProductUpdated = jest.fn();
+
+    renderModal({ onClose, updateProduct, onProductUpdated });
+
+    fireEvent.click(screen.getByText("modal.editButton"));
+
+    await waitFor(() => expect(updateProduct).toHaveBeenCalledWith(baseProductForm));
+    expect(onClose).not.toHaveBeenCalled();
+    expect(onProductUpdated).not.toHaveBeenCalled();
   });
 
   it("does not submit when uploading", () => {

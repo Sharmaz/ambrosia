@@ -3,11 +3,10 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import { SummaryContent } from "../SummaryContent";
 
 jest.mock("../CartTotals", () => ({
-  CartTotals: ({ subtotal, discountAmount, total }) => (
+  CartTotals: ({ subtotal, discountAmount }) => (
     <div>
       <span>{`fmt-${subtotal}`}</span>
       <span>{`fmt-${discountAmount}`}</span>
-      <span>{`fmt-${total}`}</span>
     </div>
   ),
 }));
@@ -61,9 +60,7 @@ jest.mock("@heroui/react", () => {
     ...actual,
     addToast: (...args) => mockAddToast(...args),
     closeToast: (...args) => mockCloseToast(...args),
-    NumberInput: ({ label, value, onChange }) => (
-      <input aria-label={label} value={value} onChange={(e) => onChange?.(e.target.value)} />
-    ),
+    NumberInput: require("@/test-utils/numberInputMock").NumberInputMock,
     Select: ({ label, selectedKeys, onSelectionChange, children, isDisabled }) => (
       <select
         aria-label={label}
@@ -109,8 +106,8 @@ describe("SummaryContent", () => {
   it("passes computed totals to CartTotals", () => {
     render(<SummaryContent {...defaultProps} />);
 
+    expect(screen.getByText("fmt-2000")).toBeInTheDocument();
     expect(screen.getByText("fmt-200")).toBeInTheDocument();
-    expect(screen.getByText("fmt-1800")).toBeInTheDocument();
   });
 
   it("calls onRemoveProduct when delete is pressed", () => {

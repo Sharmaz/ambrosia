@@ -8,6 +8,7 @@ const reportsEn = {
       title: "Select Period",
       subtitle: "Filter and analyze your sales by period and product",
       period: {
+        day: "Today",
         week: "This Week",
         month: "This Month",
         year: "This Year",
@@ -35,10 +36,14 @@ const reportsEn = {
       orders: "Orders",
       products: "Products",
     },
+    export: {
+      error: "Could not export the CSV report",
+    },
     summary: {
       title: "Summary",
       subtitle: "Consolidated totals for the selected period",
       revenue: "Total Revenue",
+      netRevenue: "Net Revenue",
       items: "Items Sold",
       transactions: "Transactions",
       averageTicket: "Average Ticket",
@@ -47,6 +52,9 @@ const reportsEn = {
       totalBtcSatoshis: "Total Bitcoin",
       orderCount: "Orders",
       avgItemsPerOrder: "Average Items / Order",
+      totalDiscounts: "Total Discounts",
+      totalRefunded: "Total Refunded",
+      totalRefundedSatoshis: "Total Refunded (Bitcoin)",
     },
     charts: {
       title: "Analytics",
@@ -63,8 +71,10 @@ const reportsEn = {
       avgTicket: "Average Ticket",
       avgItems: "Average Items / Order",
       shortId: "Order ID",
+      statusLabel: "Status",
       products: "Products",
       total: "Total",
+      discount: "Discount",
       more: "more",
       empty: "No orders found for the selected filters",
       paginationAria: "Orders pagination",

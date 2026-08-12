@@ -13,6 +13,7 @@ import { useTranslations } from "next-intl";
 import { useBitcoinPrice } from "@/components/hooks/useBitcoinPrice";
 import { useCurrency } from "@/components/hooks/useCurrency";
 import {
+  getBalance,
   getIncomingTransactions,
   getInfo,
   getOutgoingTransactions,
@@ -28,6 +29,8 @@ export function StoreWallet() {
   const { currency } = useCurrency();
   const { currentRate } = useBitcoinPrice({ currencyAcronym: currency.acronym });
   const [info, setInfo] = useState(null);
+  const [infoLoading, setInfoLoading] = useState(true);
+  const [balance, setBalance] = useState(null);
   const [transactions, setTransactions] = useState([]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -39,8 +42,10 @@ export function StoreWallet() {
 
   const fetchInfo = useCallback(async () => {
     try {
-      const res = await getInfo();
-      setInfo(res);
+      setInfoLoading(true);
+      const [infoResponse, balanceResponse] = await Promise.all([getInfo(), getBalance()]);
+      setInfo(infoResponse);
+      setBalance(balanceResponse);
       setError("");
     } catch (err) {
       console.error(err);
@@ -51,6 +56,8 @@ export function StoreWallet() {
         variant: "solid",
         color: "danger",
       });
+    } finally {
+      setInfoLoading(false);
     }
   }, [walletTranslations]);
 
@@ -59,15 +66,11 @@ export function StoreWallet() {
       try {
         setLoading(true);
         setTransactions([]);
-        let incoming = [];
-        let outgoing = [];
 
-        if (filter === "incoming" || filter === "all") {
-          incoming = await getIncomingTransactions();
-        }
-        if (filter === "outgoing" || filter === "all") {
-          outgoing = await getOutgoingTransactions();
-        }
+        const [incoming, outgoing] = await Promise.all([
+          filter === "incoming" || filter === "all" ? getIncomingTransactions() : [],
+          filter === "outgoing" || filter === "all" ? getOutgoingTransactions() : [],
+        ]);
 
         const allTx = [...incoming, ...outgoing].sort(
           (a, b) => b.completedAt - a.completedAt,
@@ -116,7 +119,7 @@ export function StoreWallet() {
     return () => off?.();
   }, [onPayment, invoiceActions]);
 
-  if (!info) {
+  if (infoLoading) {
     return (
       <Card className="w-full max-w-md shadow-2xl border-0 bg-white">
         <CardBody className="flex flex-col items-center justify-center py-12">
@@ -140,7 +143,14 @@ export function StoreWallet() {
       {nodeAvailable && (
         <>
           <div className="lg:grid lg:grid-cols-2 lg:gap-6">
-            <NodeInfo info={info} onRefresh={fetchInfo} />
+            <NodeInfo
+              info={info}
+              balance={balance}
+              onRefresh={fetchInfo}
+              currentRate={currentRate}
+              currencyAcronym={currency.acronym}
+              locale={currency.locale}
+            />
 
             <Transactions
               transactions={transactions}

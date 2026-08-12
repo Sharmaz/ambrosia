@@ -12,7 +12,6 @@ import io.ktor.server.routing.post
 import io.ktor.server.routing.put
 import io.ktor.server.routing.route
 import io.ktor.server.routing.routing
-import pos.ambrosia.db.DatabaseConnection
 import pos.ambrosia.logger
 import pos.ambrosia.models.UpdateUserRequest
 import pos.ambrosia.models.User
@@ -22,13 +21,12 @@ import pos.ambrosia.services.PermissionsService
 import pos.ambrosia.services.TokenService
 import pos.ambrosia.services.UsersService
 import pos.ambrosia.utils.authorizePermission
-import java.sql.Connection
+import pos.ambrosia.utils.requireAdmin
 
 fun Application.configureUsers() {
-    val connection: Connection = DatabaseConnection.getConnection()
-    val userService = UsersService(environment, connection)
-    val tokenService = TokenService(environment, connection)
-    val permissionsService = PermissionsService(environment, connection)
+    val userService = UsersService(environment)
+    val tokenService = TokenService(environment)
+    val permissionsService = PermissionsService()
     routing { route("/users") { users(userService, tokenService, permissionsService) } }
 }
 
@@ -45,20 +43,22 @@ fun Route.users(
         }
         call.respond(HttpStatusCode.OK, users)
     }
-    get("/{id}") {
-        val id = call.parameters["id"]
-        if (id == null) {
-            call.respond(HttpStatusCode.BadRequest, "Missing or malformed ID")
-            return@get
-        }
+    authorizePermission("users_read") {
+        get("/{id}") {
+            val id = call.parameters["id"]
+            if (id == null) {
+                call.respond(HttpStatusCode.BadRequest, "Missing or malformed ID")
+                return@get
+            }
 
-        val user = userService.getUserById(id)
-        if (user == null) {
-            call.respond(HttpStatusCode.NotFound, "User not found")
-            return@get
-        }
+            val user = userService.getUserById(id)
+            if (user == null) {
+                call.respond(HttpStatusCode.NotFound, "User not found")
+                return@get
+            }
 
-        call.respond(HttpStatusCode.OK, user)
+            call.respond(HttpStatusCode.OK, user)
+        }
     }
 
     authenticate("auth-jwt") {
@@ -117,6 +117,9 @@ fun Route.users(
                 call.respond(HttpStatusCode.BadRequest, "Failed to add user, pin must be at least 4 characters long")
                 return@post
             }
+            if (user.role?.let(userService::isRoleAdmin) == true) {
+                call.requireAdmin()
+            }
             val result = userService.addUser(user)
             if (result == null) {
                 call.respond(HttpStatusCode.BadRequest, "Failed to add user")
@@ -155,6 +158,9 @@ fun Route.users(
             if (updatedUser.pin != null && updatedUser.pin.isNotBlank() && updatedUser.pin.length < 4) {
                 call.respond(HttpStatusCode.BadRequest, "Failed to update user, pin must be at least 4 characters long")
                 return@put
+            }
+            if (updatedUser.roleId?.let(userService::isRoleAdmin) == true) {
+                call.requireAdmin()
             }
 
             val isUpdated = userService.updateUser(id, updatedUser)

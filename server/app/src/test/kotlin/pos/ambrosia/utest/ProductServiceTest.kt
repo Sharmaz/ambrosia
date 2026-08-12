@@ -1,19 +1,18 @@
 package pos.ambrosia.utest
 
 import kotlinx.coroutines.runBlocking
-import org.mockito.ArgumentMatchers.contains
-import org.mockito.kotlin.any
-import org.mockito.kotlin.mock
-import org.mockito.kotlin.never
-import org.mockito.kotlin.verify
-import org.mockito.kotlin.whenever
+import org.jetbrains.exposed.v1.exceptions.ExposedSQLException
+import org.junit.After
+import org.junit.Before
+import pos.ambrosia.models.BundleComponent
 import pos.ambrosia.models.Product
 import pos.ambrosia.models.ProductStockAdjustment
+import pos.ambrosia.models.UpsertVariantRequest
 import pos.ambrosia.services.ProductService
-import pos.ambrosia.utils.DuplicateProductSkuException
-import java.sql.Connection
-import java.sql.PreparedStatement
-import java.sql.ResultSet
+import pos.ambrosia.services.ProductVariantService
+import pos.ambrosia.utils.ExposedTestDb
+import pos.ambrosia.utils.ProductIsBundleComponentException
+import java.io.File
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -23,571 +22,758 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class ProductServiceTest {
-    private val mockConnection: Connection = mock()
-    private val mockStatement: PreparedStatement = mock()
-    private val mockResultSet: ResultSet = mock()
+    private lateinit var dbFile: File
+    private val service = ProductService()
+    private val variantService = ProductVariantService()
 
-    private val mockCatStatement: PreparedStatement = mock()
-    private val mockCatResultSet: ResultSet = mock()
-
-    private fun stubCategoryIds() {
-        whenever(mockConnection.prepareStatement(contains("SELECT category_id FROM product_categories"))).thenReturn(mockCatStatement)
-        whenever(mockConnection.prepareStatement(contains("INSERT OR IGNORE INTO product_categories"))).thenReturn(mockCatStatement)
-        whenever(mockConnection.prepareStatement(contains("DELETE FROM product_categories"))).thenReturn(mockCatStatement)
-        whenever(mockCatStatement.executeQuery()).thenReturn(mockCatResultSet)
-        whenever(mockCatResultSet.next()).thenReturn(false)
+    @Before
+    fun setUp() {
+        dbFile = ExposedTestDb.connect()
     }
+
+    @After
+    fun tearDown() {
+        ExposedTestDb.cleanup(dbFile)
+    }
+
+    private fun newProduct(
+        id: String? = null,
+        sku: String? = "SKU-1",
+        name: String = "Prod1",
+        categoryIds: List<String> = emptyList(),
+        minStockThreshold: Int = 1,
+        maxStockThreshold: Int = 10,
+        quantity: Int = 0,
+        trackStock: Boolean = true,
+    ): Product =
+        Product(
+            id = id,
+            SKU = sku,
+            name = name,
+            description = null,
+            imageUrl = null,
+            categoryIds = categoryIds,
+            minStockThreshold = minStockThreshold,
+            maxStockThreshold = maxStockThreshold,
+            quantity = quantity,
+            trackStock = trackStock,
+        )
 
     @Test
     fun `getProducts returns list when found`() {
         runBlocking {
-            stubCategoryIds() // Arrange
-            whenever(mockConnection.prepareStatement(contains("FROM products WHERE is_deleted"))).thenReturn(mockStatement) // Arrange
-            whenever(mockStatement.executeQuery()).thenReturn(mockResultSet) // Arrange
-            whenever(mockResultSet.next()).thenReturn(true).thenReturn(true).thenReturn(false) // Arrange
-            whenever(mockResultSet.getString("id")).thenReturn("p-1").thenReturn("p-2") // Arrange
-            whenever(mockResultSet.getString("SKU")).thenReturn("SKU-1").thenReturn("SKU-2") // Arrange
-            whenever(mockResultSet.getString("name")).thenReturn("Prod1").thenReturn("Prod2") // Arrange
-            whenever(mockResultSet.getString("description")).thenReturn(null) // Arrange
-            whenever(mockResultSet.getString("image_url")).thenReturn(null) // Arrange
-            whenever(mockResultSet.getInt("cost_cents")).thenReturn(100).thenReturn(250) // Arrange
-            whenever(mockResultSet.getInt("quantity")).thenReturn(5).thenReturn(10) // Arrange
-            whenever(mockResultSet.getInt("min_stock_threshold")).thenReturn(1).thenReturn(2) // Arrange
-            whenever(mockResultSet.getInt("max_stock_threshold")).thenReturn(10).thenReturn(20) // Arrange
-            whenever(mockResultSet.getInt("price_cents")).thenReturn(199).thenReturn(499) // Arrange
-            val service = ProductService(mockConnection) // Arrange
-            val result = service.getProducts() // Act
-            assertEquals(2, result.size) // Assert
-            assertEquals("SKU-1", result[0].SKU) // Assert
-            assertEquals(499, result[1].priceCents) // Assert
+            ExposedTestDb.seedProduct(name = "Prod1", sku = "SKU-1", priceCents = 199)
+            ExposedTestDb.seedProduct(name = "Prod2", sku = "SKU-2", priceCents = 499)
+
+            val result = service.getProducts()
+            assertEquals(2, result.size)
+            assertTrue(result.any { it.SKU == "SKU-1" })
+            assertTrue(result.any { it.priceCents == 499 })
         }
     }
 
     @Test
     fun `getProducts returns empty list when none found`() {
         runBlocking {
-            whenever(mockConnection.prepareStatement(any())).thenReturn(mockStatement) // Arrange
-            whenever(mockStatement.executeQuery()).thenReturn(mockResultSet) // Arrange
-            whenever(mockResultSet.next()).thenReturn(false) // Arrange
-            val service = ProductService(mockConnection) // Arrange
-            val result = service.getProducts() // Act
-            assertTrue(result.isEmpty()) // Assert
+            val result = service.getProducts()
+            assertTrue(result.isEmpty())
+        }
+    }
+
+    @Test
+    fun `getProducts excludes soft deleted products`() {
+        runBlocking {
+            ExposedTestDb.seedProduct(name = "Active")
+            ExposedTestDb.seedProduct(name = "Deleted", isDeleted = true)
+
+            val result = service.getProducts()
+            assertEquals(1, result.size)
+            assertEquals("Active", result[0].name)
         }
     }
 
     @Test
     fun `getProductById returns product when found`() {
         runBlocking {
-            stubCategoryIds() // Arrange
-            whenever(mockConnection.prepareStatement(contains("WHERE id = ?"))).thenReturn(mockStatement) // Arrange
-            whenever(mockStatement.executeQuery()).thenReturn(mockResultSet) // Arrange
-            whenever(mockResultSet.next()).thenReturn(true) // Arrange
-            whenever(mockResultSet.getString("id")).thenReturn("p-1") // Arrange
-            whenever(mockResultSet.getString("SKU")).thenReturn("SKU-1") // Arrange
-            whenever(mockResultSet.getString("name")).thenReturn("Prod1") // Arrange
-            whenever(mockResultSet.getString("description")).thenReturn(null) // Arrange
-            whenever(mockResultSet.getString("image_url")).thenReturn(null) // Arrange
-            whenever(mockResultSet.getInt("cost_cents")).thenReturn(100) // Arrange
-            whenever(mockResultSet.getInt("quantity")).thenReturn(5) // Arrange
-            whenever(mockResultSet.getInt("min_stock_threshold")).thenReturn(1) // Arrange
-            whenever(mockResultSet.getInt("max_stock_threshold")).thenReturn(10) // Arrange
-            whenever(mockResultSet.getInt("price_cents")).thenReturn(199) // Arrange
-            val service = ProductService(mockConnection) // Arrange
-            val result = service.getProductById("p-1") // Act
-            assertNotNull(result) // Assert
-            assertEquals("SKU-1", result!!.SKU) // Assert
+            val id = ExposedTestDb.seedProduct(name = "Prod1", sku = "SKU-1")
+
+            val result = service.getProductById(id)
+            assertNotNull(result)
+            assertEquals("SKU-1", result.SKU)
         }
     }
 
     @Test
     fun `getProductById returns null when not found`() {
         runBlocking {
-            whenever(mockConnection.prepareStatement(any())).thenReturn(mockStatement) // Arrange
-            whenever(mockStatement.executeQuery()).thenReturn(mockResultSet) // Arrange
-            whenever(mockResultSet.next()).thenReturn(false) // Arrange
-            val service = ProductService(mockConnection) // Arrange
-            val result = service.getProductById("missing") // Act
-            assertNull(result) // Assert
+            val result =
+                service.getProductById(
+                    java.util.UUID
+                        .randomUUID()
+                        .toString(),
+                )
+            assertNull(result)
         }
     }
 
     @Test
     fun `getProductBySKU returns product when found`() {
         runBlocking {
-            stubCategoryIds() // Arrange
-            whenever(mockConnection.prepareStatement(contains("WHERE SKU = ?"))).thenReturn(mockStatement) // Arrange
-            whenever(mockStatement.executeQuery()).thenReturn(mockResultSet) // Arrange
-            whenever(mockResultSet.next()).thenReturn(true) // Arrange
-            whenever(mockResultSet.getString("id")).thenReturn("p-1") // Arrange
-            whenever(mockResultSet.getString("SKU")).thenReturn("SKU-1") // Arrange
-            whenever(mockResultSet.getString("name")).thenReturn("Prod1") // Arrange
-            whenever(mockResultSet.getString("description")).thenReturn(null) // Arrange
-            whenever(mockResultSet.getString("image_url")).thenReturn(null) // Arrange
-            whenever(mockResultSet.getInt("cost_cents")).thenReturn(100) // Arrange
-            whenever(mockResultSet.getInt("quantity")).thenReturn(5) // Arrange
-            whenever(mockResultSet.getInt("min_stock_threshold")).thenReturn(1) // Arrange
-            whenever(mockResultSet.getInt("max_stock_threshold")).thenReturn(10) // Arrange
-            whenever(mockResultSet.getInt("price_cents")).thenReturn(199) // Arrange
-            val service = ProductService(mockConnection) // Arrange
-            val result = service.getProductBySKU("SKU-1") // Act
-            assertNotNull(result) // Assert
-            assertEquals("p-1", result!!.id) // Assert
+            val id = ExposedTestDb.seedProduct(name = "Prod1", sku = "SKU-1")
+
+            val result = service.getProductBySKU("SKU-1")
+            assertNotNull(result)
+            assertEquals(id, result.id)
         }
     }
 
     @Test
     fun `getProductBySKU returns null when not found`() {
         runBlocking {
-            whenever(mockConnection.prepareStatement(any())).thenReturn(mockStatement) // Arrange
-            whenever(mockStatement.executeQuery()).thenReturn(mockResultSet) // Arrange
-            whenever(mockResultSet.next()).thenReturn(false) // Arrange
-            val service = ProductService(mockConnection) // Arrange
-            val result = service.getProductBySKU("NOPE") // Act
-            assertNull(result) // Assert
+            val result = service.getProductBySKU("NOPE")
+            assertNull(result)
         }
     }
 
     @Test
     fun `getProductsByCategory returns list when found`() {
         runBlocking {
-            stubCategoryIds() // Arrange
-            whenever(mockConnection.prepareStatement(contains("INNER JOIN product_categories"))).thenReturn(mockStatement) // Arrange
-            whenever(mockStatement.executeQuery()).thenReturn(mockResultSet) // Arrange
-            whenever(mockResultSet.next()).thenReturn(true).thenReturn(false) // Arrange
-            whenever(mockResultSet.getString("id")).thenReturn("p-1") // Arrange
-            whenever(mockResultSet.getString("SKU")).thenReturn("SKU-1") // Arrange
-            whenever(mockResultSet.getString("name")).thenReturn("Prod1") // Arrange
-            whenever(mockResultSet.getString("description")).thenReturn(null) // Arrange
-            whenever(mockResultSet.getString("image_url")).thenReturn(null) // Arrange
-            whenever(mockResultSet.getInt("cost_cents")).thenReturn(100) // Arrange
-            whenever(mockResultSet.getInt("quantity")).thenReturn(5) // Arrange
-            whenever(mockResultSet.getInt("min_stock_threshold")).thenReturn(1) // Arrange
-            whenever(mockResultSet.getInt("max_stock_threshold")).thenReturn(10) // Arrange
-            whenever(mockResultSet.getInt("price_cents")).thenReturn(199) // Arrange
-            val service = ProductService(mockConnection) // Arrange
-            val result = service.getProductsByCategory("cat-1") // Act
-            assertEquals(1, result.size) // Assert
-            assertEquals("SKU-1", result[0].SKU) // Assert
+            val categoryId = ExposedTestDb.seedCategory(type = "product")
+            val productId = ExposedTestDb.seedProduct(name = "Prod1", sku = "SKU-1")
+            ExposedTestDb.seedProductCategory(productId, categoryId)
+            ExposedTestDb.seedProduct(name = "Prod2", sku = "SKU-2")
+
+            val result = service.getProductsByCategory(categoryId)
+            assertEquals(1, result.size)
+            assertEquals("SKU-1", result[0].SKU)
         }
     }
 
     @Test
     fun `getProductsByCategory returns empty list when none found`() {
         runBlocking {
-            whenever(mockConnection.prepareStatement(any())).thenReturn(mockStatement) // Arrange
-            whenever(mockStatement.executeQuery()).thenReturn(mockResultSet) // Arrange
-            whenever(mockResultSet.next()).thenReturn(false) // Arrange
-            val service = ProductService(mockConnection) // Arrange
-            val result = service.getProductsByCategory("cat-404") // Act
-            assertTrue(result.isEmpty()) // Assert
+            val categoryId = ExposedTestDb.seedCategory(type = "product")
+            val result = service.getProductsByCategory(categoryId)
+            assertTrue(result.isEmpty())
         }
     }
 
     @Test
     fun `addProduct returns null if invalid data`() {
         runBlocking {
-            val invalid =
-                Product(
-                    id = null,
-                    SKU = " ",
-                    name = "Valid Name",
-                    description = null,
-                    imageUrl = null,
-                    costCents = -1,
-                    categoryIds = emptyList(),
-                    quantity = -5,
-                    minStockThreshold = -1,
-                    maxStockThreshold = -1,
-                    priceCents = -10,
-                ) // Arrange
-            val service = ProductService(mockConnection) // Arrange
-            val result = service.addProduct(invalid) // Act
-            assertNull(result) // Assert
+            val invalid = newProduct(sku = " ", name = " ", minStockThreshold = -1, maxStockThreshold = -1)
+            val result = service.addProduct(invalid)
+            assertNull(result)
         }
     }
 
     @Test
     fun `addProduct throws if SKU already exists`() {
         runBlocking {
-            val newProduct = Product(null, "SKU-1", "Prod1", null, null, 100, listOf("cat-1"), 5, 1, 10, 199) // Arrange
-            val skuCheckStatement: PreparedStatement = mock() // Arrange
-            val skuCheckResultSet: ResultSet = mock() // Arrange
-            whenever(mockConnection.prepareStatement(contains("WHERE SKU = ?"))).thenReturn(skuCheckStatement) // Arrange
-            whenever(skuCheckStatement.executeQuery()).thenReturn(skuCheckResultSet) // Arrange
-            whenever(skuCheckResultSet.next()).thenReturn(true) // Arrange
-            whenever(skuCheckResultSet.getString("id")).thenReturn("existing-id") // Arrange
-            whenever(skuCheckResultSet.getString("SKU")).thenReturn("SKU-1") // Arrange
-            whenever(skuCheckResultSet.getString("name")).thenReturn("Existing Product") // Arrange
-            whenever(skuCheckResultSet.getString("description")).thenReturn(null) // Arrange
-            whenever(skuCheckResultSet.getString("image_url")).thenReturn(null) // Arrange
-            whenever(skuCheckResultSet.getInt("cost_cents")).thenReturn(100) // Arrange
-            whenever(skuCheckResultSet.getInt("quantity")).thenReturn(10) // Arrange
-            whenever(skuCheckResultSet.getInt("min_stock_threshold")).thenReturn(1) // Arrange
-            whenever(skuCheckResultSet.getInt("max_stock_threshold")).thenReturn(10) // Arrange
-            whenever(skuCheckResultSet.getInt("price_cents")).thenReturn(199) // Arrange
-            stubCategoryIds() // Arrange
-            val service = ProductService(mockConnection) // Arrange
-            assertFailsWith<DuplicateProductSkuException> { service.addProduct(newProduct) } // Act
+            ExposedTestDb.seedProduct(name = "Existing", sku = "SKU-1")
+            val newProductData = newProduct(sku = "SKU-1", name = "Prod1")
+            assertFailsWith<ExposedSQLException> { service.addProduct(newProductData) }
         }
     }
 
     @Test
     fun `addProduct returns new ID on success`() {
         runBlocking {
-            val newProduct = Product(null, "SKU-NEW", "New Product", null, null, 100, listOf("cat-1"), 5, 1, 10, 199) // Arrange
-            val skuCheckStatement: PreparedStatement = mock() // Arrange
-            val insertStatement: PreparedStatement = mock() // Arrange
-            whenever(mockConnection.prepareStatement(contains("WHERE SKU = ?"))).thenReturn(skuCheckStatement) // Arrange
-            whenever(mockConnection.prepareStatement(contains("INSERT INTO products"))).thenReturn(insertStatement) // Arrange
-            stubCategoryIds() // Arrange - also covers INSERT OR IGNORE INTO product_categories
-            val skuCheckResultSet: ResultSet = mock() // Arrange
-            whenever(skuCheckResultSet.next()).thenReturn(false) // Arrange
-            whenever(skuCheckStatement.executeQuery()).thenReturn(skuCheckResultSet) // Arrange
-            whenever(insertStatement.executeUpdate()).thenReturn(1) // Arrange
-            val service = ProductService(mockConnection) // Arrange
-            val result = service.addProduct(newProduct) // Act
-            assertNotNull(result) // Assert
-            assertTrue(result!!.isNotBlank()) // Assert
+            val categoryId = ExposedTestDb.seedCategory(type = "product")
+            val newProductData = newProduct(sku = "SKU-NEW", name = "New Product", categoryIds = listOf(categoryId))
+            val result = service.addProduct(newProductData)
+            assertNotNull(result)
+            assertTrue(result.isNotBlank())
+
+            val created = service.getProductById(result)
+            assertEquals(listOf(categoryId), created?.categoryIds)
         }
     }
 
     @Test
-    fun `addProduct succeeds with null SKU and description`() {
+    fun `addProduct succeeds with null SKU`() {
         runBlocking {
-            val newProduct = Product(null, null, "No SKU Product", null, null, 100, emptyList(), 5, 1, 10, 199) // Arrange
-            val insertStatement: PreparedStatement = mock() // Arrange
-            whenever(mockConnection.prepareStatement(contains("INSERT INTO products"))).thenReturn(insertStatement) // Arrange
-            stubCategoryIds() // Arrange
-            whenever(insertStatement.executeUpdate()).thenReturn(1) // Arrange
-            val service = ProductService(mockConnection) // Arrange
-            val result = service.addProduct(newProduct) // Act
-            assertNotNull(result) // Assert
-            verify(mockConnection, never()).prepareStatement(contains("WHERE SKU = ?")) // Assert
+            val newProductData = newProduct(sku = null, name = "No SKU Product")
+            val result = service.addProduct(newProductData)
+            assertNotNull(result)
         }
     }
 
     @Test
-    fun `addProduct succeeds with blank SKU and does not check uniqueness`() {
+    fun `addProduct succeeds with blank SKU`() {
         runBlocking {
-            val newProduct = Product(null, "   ", "Blank SKU Product", null, null, 100, emptyList(), 5, 1, 10, 199) // Arrange
-            val insertStatement: PreparedStatement = mock() // Arrange
-            whenever(mockConnection.prepareStatement(contains("INSERT INTO products"))).thenReturn(insertStatement) // Arrange
-            stubCategoryIds() // Arrange
-            whenever(insertStatement.executeUpdate()).thenReturn(1) // Arrange
-            val service = ProductService(mockConnection) // Arrange
-            val result = service.addProduct(newProduct) // Act
-            assertNotNull(result) // Assert
-            verify(mockConnection, never()).prepareStatement(contains("WHERE SKU = ?")) // Assert
+            val newProductData = newProduct(sku = "   ", name = "Blank SKU Product")
+            val result = service.addProduct(newProductData)
+            assertNotNull(result)
         }
     }
 
     @Test
     fun `addProduct returns new ID when categoryIds is empty`() {
         runBlocking {
-            val newProduct = Product(null, "SKU-NO-CAT", "New Product", null, null, 100, emptyList(), 5, 1, 10, 199) // Arrange
-            val skuCheckStatement: PreparedStatement = mock() // Arrange
-            val insertStatement: PreparedStatement = mock() // Arrange
-            whenever(mockConnection.prepareStatement(contains("WHERE SKU = ?"))).thenReturn(skuCheckStatement) // Arrange
-            whenever(mockConnection.prepareStatement(contains("INSERT INTO products"))).thenReturn(insertStatement) // Arrange
-            stubCategoryIds() // Arrange
-            val skuCheckResultSet: ResultSet = mock() // Arrange
-            whenever(skuCheckResultSet.next()).thenReturn(false) // Arrange
-            whenever(skuCheckStatement.executeQuery()).thenReturn(skuCheckResultSet) // Arrange
-            whenever(insertStatement.executeUpdate()).thenReturn(1) // Arrange
-            val service = ProductService(mockConnection) // Arrange
-            val result = service.addProduct(newProduct) // Act
-            assertNotNull(result) // Assert
-            assertTrue(result!!.isNotBlank()) // Assert
-            verify(mockCatStatement, never()).addBatch() // Assert
+            val newProductData = newProduct(sku = "SKU-NO-CAT", name = "New Product", categoryIds = emptyList())
+            val result = service.addProduct(newProductData)
+            assertNotNull(result)
+            assertTrue(result.isNotBlank())
         }
     }
 
     @Test
-    fun `addProduct returns null when database insert fails`() {
+    fun `addProduct defaults trackStock to true`() {
         runBlocking {
-            val newProduct = Product(null, "SKU-NEW", "New Product", null, null, 100, listOf("cat-1"), 5, 1, 10, 199) // Arrange
-            val skuCheckStatement: PreparedStatement = mock() // Arrange
-            val insertStatement: PreparedStatement = mock() // Arrange
-            whenever(mockConnection.prepareStatement(contains("WHERE SKU = ?"))).thenReturn(skuCheckStatement) // Arrange
-            whenever(mockConnection.prepareStatement(contains("INSERT INTO products"))).thenReturn(insertStatement) // Arrange
-            val skuCheckResultSet: ResultSet = mock() // Arrange
-            whenever(skuCheckResultSet.next()).thenReturn(false) // Arrange
-            whenever(skuCheckStatement.executeQuery()).thenReturn(skuCheckResultSet) // Arrange
-            whenever(insertStatement.executeUpdate()).thenReturn(0) // Arrange
-            val service = ProductService(mockConnection) // Arrange
-            val result = service.addProduct(newProduct) // Act
-            assertNull(result) // Assert
+            val id = service.addProduct(newProduct(sku = "SKU-TRACKED", name = "Tracked"))
+            assertNotNull(id)
+            assertTrue(service.getProductById(id)!!.trackStock)
+        }
+    }
+
+    @Test
+    fun `addProduct persists trackStock false and zeroes stock fields`() {
+        runBlocking {
+            val untracked =
+                newProduct(
+                    sku = "SKU-SERVICE",
+                    name = "Consulting service",
+                    minStockThreshold = 5,
+                    maxStockThreshold = 50,
+                    quantity = 7,
+                    trackStock = false,
+                )
+            val id = service.addProduct(untracked)
+            assertNotNull(id)
+
+            val created = service.getProductById(id)!!
+            assertFalse(created.trackStock)
+            assertEquals(0, created.minStockThreshold)
+            assertEquals(0, created.maxStockThreshold)
+            assertEquals(0, created.quantity)
+        }
+    }
+
+    @Test
+    fun `updateProduct toggles trackStock off and back on`() {
+        runBlocking {
+            val id = ExposedTestDb.seedProduct(name = "Prod1", sku = "SKU-1", minStockThreshold = 3)
+
+            val turnedOff =
+                service.updateProduct(
+                    newProduct(id = id, sku = "SKU-1", name = "Prod1", minStockThreshold = 3, trackStock = false),
+                )
+            assertTrue(turnedOff)
+            val untracked = service.getProductById(id)!!
+            assertFalse(untracked.trackStock)
+            assertEquals(0, untracked.minStockThreshold)
+
+            val turnedOn =
+                service.updateProduct(
+                    newProduct(id = id, sku = "SKU-1", name = "Prod1", minStockThreshold = 3, trackStock = true),
+                )
+            assertTrue(turnedOn)
+            val tracked = service.getProductById(id)!!
+            assertTrue(tracked.trackStock)
+            assertEquals(3, tracked.minStockThreshold)
         }
     }
 
     @Test
     fun `updateProduct returns false if ID is null`() {
         runBlocking {
-            val productWithNullId =
-                Product(
-                    id = null,
-                    SKU = "SKU-1",
-                    name = "Name",
-                    description = null,
-                    imageUrl = null,
-                    costCents = 100,
-                    categoryIds = listOf("cat-1"),
-                    quantity = 1,
-                    minStockThreshold = 0,
-                    maxStockThreshold = 0,
-                    priceCents = 100,
-                ) // Arrange
-            val service = ProductService(mockConnection) // Arrange
-            val result = service.updateProduct(productWithNullId) // Act
-            assertFalse(result) // Assert
-            verify(mockConnection, never()).prepareStatement(any()) // Assert
+            val productWithNullId = newProduct(id = null, sku = "SKU-1", name = "Name")
+            val result = service.updateProduct(productWithNullId)
+            assertFalse(result)
         }
     }
 
     @Test
     fun `updateProduct returns false if invalid data`() {
         runBlocking {
-            val invalid =
-                Product(
-                    id = "p-1",
-                    SKU = "",
-                    name = "Valid Name",
-                    description = null,
-                    imageUrl = null,
-                    costCents = -1,
-                    categoryIds = emptyList(),
-                    quantity = -1,
-                    minStockThreshold = -1,
-                    maxStockThreshold = -1,
-                    priceCents = -1,
-                ) // Arrange
-            val service = ProductService(mockConnection) // Arrange
-            val result = service.updateProduct(invalid) // Act
-            assertFalse(result) // Assert
+            val invalidProduct = newProduct(id = "p-1", name = " ", minStockThreshold = -1, maxStockThreshold = -1)
+            val result = service.updateProduct(invalidProduct)
+            assertFalse(result)
         }
     }
 
     @Test
     fun `updateProduct throws if SKU belongs to another product`() {
         runBlocking {
-            val toUpdate =
-                Product(
-                    id = "p-1",
-                    SKU = "SKU-TAKEN",
-                    name = "New Name",
-                    description = null,
-                    imageUrl = null,
-                    costCents = 100,
-                    categoryIds = listOf("cat-1"),
-                    quantity = 5,
-                    minStockThreshold = 1,
-                    maxStockThreshold = 10,
-                    priceCents = 250,
-                ) // Arrange
-            val skuCheckStatement: PreparedStatement = mock() // Arrange
-            val skuCheckResultSet: ResultSet = mock() // Arrange
-            whenever(mockConnection.prepareStatement(contains("WHERE SKU = ?"))).thenReturn(skuCheckStatement) // Arrange
-            whenever(skuCheckStatement.executeQuery()).thenReturn(skuCheckResultSet) // Arrange
-            whenever(skuCheckResultSet.next()).thenReturn(true) // Arrange
-            whenever(skuCheckResultSet.getString("id")).thenReturn("another-id") // Arrange
-            whenever(skuCheckResultSet.getString("SKU")).thenReturn("SKU-TAKEN") // Arrange
-            whenever(skuCheckResultSet.getString("name")).thenReturn("Other") // Arrange
-            whenever(skuCheckResultSet.getString("description")).thenReturn(null) // Arrange
-            whenever(skuCheckResultSet.getString("image_url")).thenReturn(null) // Arrange
-            whenever(skuCheckResultSet.getInt("cost_cents")).thenReturn(50) // Arrange
-            whenever(skuCheckResultSet.getInt("quantity")).thenReturn(1) // Arrange
-            whenever(skuCheckResultSet.getInt("min_stock_threshold")).thenReturn(1) // Arrange
-            whenever(skuCheckResultSet.getInt("max_stock_threshold")).thenReturn(5) // Arrange
-            whenever(skuCheckResultSet.getInt("price_cents")).thenReturn(99) // Arrange
-            stubCategoryIds() // Arrange
-            val service = ProductService(mockConnection) // Arrange
-            assertFailsWith<DuplicateProductSkuException> { service.updateProduct(toUpdate) } // Act
-            verify(mockConnection, never()).prepareStatement(contains("UPDATE products")) // Assert
+            ExposedTestDb.seedProduct(name = "Other", sku = "SKU-TAKEN")
+            val id = ExposedTestDb.seedProduct(name = "Mine", sku = "SKU-MINE")
+
+            val toUpdate = newProduct(id = id, sku = "SKU-TAKEN", name = "New Name")
+            assertFailsWith<ExposedSQLException> { service.updateProduct(toUpdate) }
+
+            val unchanged = service.getProductById(id)
+            assertEquals("SKU-MINE", unchanged?.SKU)
         }
     }
 
     @Test
     fun `updateProduct returns true on success`() {
         runBlocking {
-            val toUpdate =
-                Product(
-                    id = "p-1",
-                    SKU = "SKU-OK",
-                    name = "Updated",
-                    description = null,
-                    imageUrl = null,
-                    costCents = 100,
-                    categoryIds = listOf("cat-1"),
-                    quantity = 5,
-                    minStockThreshold = 1,
-                    maxStockThreshold = 10,
-                    priceCents = 250,
-                ) // Arrange
-            val skuCheckStatement: PreparedStatement = mock() // Arrange
-            val updateStatement: PreparedStatement = mock() // Arrange
-            whenever(mockConnection.prepareStatement(contains("WHERE SKU = ?"))).thenReturn(skuCheckStatement) // Arrange
-            whenever(mockConnection.prepareStatement(contains("UPDATE products"))).thenReturn(updateStatement) // Arrange
-            stubCategoryIds() // Arrange
-            val skuCheckResultSet: ResultSet = mock() // Arrange
-            whenever(skuCheckResultSet.next()).thenReturn(false) // Arrange
-            whenever(skuCheckStatement.executeQuery()).thenReturn(skuCheckResultSet) // Arrange
-            whenever(updateStatement.executeUpdate()).thenReturn(1) // Arrange
-            val service = ProductService(mockConnection) // Arrange
-            val result = service.updateProduct(toUpdate) // Act
-            assertTrue(result) // Assert
+            val categoryId = ExposedTestDb.seedCategory(type = "product")
+            val id = ExposedTestDb.seedProduct(name = "Old Name", sku = "SKU-OLD")
+
+            val toUpdate = newProduct(id = id, sku = "SKU-OK", name = "Updated", categoryIds = listOf(categoryId))
+            val result = service.updateProduct(toUpdate)
+            assertTrue(result)
+
+            val updatedProduct = service.getProductById(id)
+            assertEquals("Updated", updatedProduct?.name)
+            assertEquals("SKU-OK", updatedProduct?.SKU)
+            assertEquals(listOf(categoryId), updatedProduct?.categoryIds)
         }
     }
 
     @Test
     fun `updateProduct succeeds with null SKU`() {
         runBlocking {
-            val toUpdate =
-                Product(
-                    id = "p-1",
-                    SKU = null,
-                    name = "Updated No SKU",
-                    description = "Now no SKU",
-                    imageUrl = null,
-                    costCents = 100,
-                    categoryIds = emptyList(),
-                    quantity = 5,
-                    minStockThreshold = 1,
-                    maxStockThreshold = 10,
-                    priceCents = 250,
-                ) // Arrange
-            val updateStatement: PreparedStatement = mock() // Arrange
-            whenever(mockConnection.prepareStatement(contains("UPDATE products"))).thenReturn(updateStatement) // Arrange
-            stubCategoryIds() // Arrange
-            whenever(updateStatement.executeUpdate()).thenReturn(1) // Arrange
-            val service = ProductService(mockConnection) // Arrange
-            val result = service.updateProduct(toUpdate) // Act
-            assertTrue(result) // Assert
-            verify(mockConnection, never()).prepareStatement(contains("WHERE SKU = ?")) // Assert
+            val id = ExposedTestDb.seedProduct(name = "Old Name", sku = "SKU-OLD")
+
+            val toUpdate = newProduct(id = id, sku = null, name = "Updated No SKU", categoryIds = emptyList())
+            val result = service.updateProduct(toUpdate)
+            assertTrue(result)
+
+            val updatedProduct = service.getProductById(id)
+            assertNull(updatedProduct?.SKU)
         }
     }
 
     @Test
     fun `updateProduct returns true when categoryIds is empty`() {
         runBlocking {
-            val toUpdate =
-                Product(
-                    id = "p-1",
-                    SKU = "SKU-1",
-                    name = "Updated Name",
-                    description = null,
-                    imageUrl = null,
-                    costCents = 100,
-                    categoryIds = emptyList(),
-                    quantity = 5,
-                    minStockThreshold = 1,
-                    maxStockThreshold = 10,
-                    priceCents = 250,
-                ) // Arrange
-            val skuCheckStatement: PreparedStatement = mock() // Arrange
-            val skuCheckResultSet: ResultSet = mock() // Arrange
-            val updateStatement: PreparedStatement = mock() // Arrange
-            whenever(mockConnection.prepareStatement(contains("WHERE SKU = ?"))).thenReturn(skuCheckStatement) // Arrange
-            whenever(mockConnection.prepareStatement(contains("UPDATE products"))).thenReturn(updateStatement) // Arrange
-            stubCategoryIds() // Arrange
-            whenever(skuCheckStatement.executeQuery()).thenReturn(skuCheckResultSet) // Arrange
-            whenever(skuCheckResultSet.next()).thenReturn(false) // Arrange
-            whenever(updateStatement.executeUpdate()).thenReturn(1) // Arrange
-            whenever(mockCatStatement.executeUpdate()).thenReturn(1) // Arrange
-            val service = ProductService(mockConnection) // Arrange
-            val result = service.updateProduct(toUpdate) // Act
-            assertTrue(result) // Assert
-            verify(mockCatStatement, never()).addBatch() // Assert
+            val categoryId = ExposedTestDb.seedCategory(type = "product")
+            val id = ExposedTestDb.seedProduct(name = "Old Name", sku = "SKU-1")
+            ExposedTestDb.seedProductCategory(id, categoryId)
+
+            val toUpdate = newProduct(id = id, sku = "SKU-1", name = "Updated Name", categoryIds = emptyList())
+            val result = service.updateProduct(toUpdate)
+            assertTrue(result)
+
+            val updatedProduct = service.getProductById(id)
+            assertTrue(updatedProduct?.categoryIds?.isEmpty() == true)
         }
     }
 
     @Test
-    fun `updateProduct returns false when database update fails`() {
+    fun `updateProduct returns false when not found`() {
         runBlocking {
             val toUpdate =
-                Product(
-                    id = "p-1",
-                    SKU = "SKU-OK",
+                newProduct(
+                    id =
+                        java.util.UUID
+                            .randomUUID()
+                            .toString(),
+                    sku = "SKU-OK",
                     name = "Updated",
-                    description = null,
-                    imageUrl = null,
-                    costCents = 100,
-                    categoryIds = listOf("cat-1"),
-                    quantity = 5,
-                    minStockThreshold = 1,
-                    maxStockThreshold = 10,
-                    priceCents = 250,
-                ) // Arrange
-            val skuCheckStatement: PreparedStatement = mock() // Arrange
-            val updateStatement: PreparedStatement = mock() // Arrange
-            whenever(mockConnection.prepareStatement(contains("WHERE SKU = ?"))).thenReturn(skuCheckStatement) // Arrange
-            whenever(mockConnection.prepareStatement(contains("UPDATE products"))).thenReturn(updateStatement) // Arrange
-            val skuCheckResultSet: ResultSet = mock() // Arrange
-            whenever(skuCheckResultSet.next()).thenReturn(false) // Arrange
-            whenever(skuCheckStatement.executeQuery()).thenReturn(skuCheckResultSet) // Arrange
-            whenever(updateStatement.executeUpdate()).thenReturn(0) // Arrange
-            val service = ProductService(mockConnection) // Arrange
-            val result = service.updateProduct(toUpdate) // Act
-            assertFalse(result) // Assert
+                )
+            val result = service.updateProduct(toUpdate)
+            assertFalse(result)
         }
     }
 
     @Test
     fun `deleteProduct returns true on success`() {
         runBlocking {
-            val deleteStatement: PreparedStatement = mock() // Arrange
-            whenever(mockConnection.prepareStatement(contains("UPDATE products SET is_deleted"))).thenReturn(deleteStatement) // Arrange
-            whenever(deleteStatement.executeUpdate()).thenReturn(1) // Arrange
-            val service = ProductService(mockConnection) // Arrange
-            val result = service.deleteProduct("p-1") // Act
-            assertTrue(result) // Assert
-            verify(deleteStatement).setString(1, "DELETED-p-1") // Assert
-            verify(deleteStatement).setString(2, "p-1") // Assert
+            val id = ExposedTestDb.seedProduct(name = "Prod1", sku = "SKU-1")
+
+            val result = service.deleteProduct(id)
+            assertTrue(result)
+            assertNull(service.getProductById(id))
         }
     }
 
     @Test
-    fun `deleteProduct returns false when not updated`() {
+    fun `deleteProduct returns false when not found`() {
         runBlocking {
-            val deleteStatement: PreparedStatement = mock() // Arrange
-            whenever(mockConnection.prepareStatement(contains("UPDATE products SET is_deleted"))).thenReturn(deleteStatement) // Arrange
-            whenever(deleteStatement.executeUpdate()).thenReturn(0) // Arrange
-            val service = ProductService(mockConnection) // Arrange
-            val result = service.deleteProduct("not-found") // Act
-            assertFalse(result) // Assert
-            verify(deleteStatement).setString(1, "DELETED-not-found") // Assert
-            verify(deleteStatement).setString(2, "not-found") // Assert
+            val result =
+                service.deleteProduct(
+                    java.util.UUID
+                        .randomUUID()
+                        .toString(),
+                )
+            assertFalse(result)
+        }
+    }
+
+    @Test
+    fun `deleteProduct throws ProductIsBundleComponentException when product is a bundle component`() {
+        runBlocking {
+            val componentId = ExposedTestDb.seedProduct(name = "Component")
+            val bundleId = ExposedTestDb.seedProduct(name = "My Bundle", isBundle = true)
+            ExposedTestDb.seedBundleComponent(bundleId, componentId)
+
+            val exception =
+                assertFailsWith<ProductIsBundleComponentException> {
+                    service.deleteProduct(componentId)
+                }
+            assertTrue(exception.bundleNames.contains("My Bundle"))
+        }
+    }
+
+    @Test
+    fun `addProduct returns null when bundle has no components`() {
+        runBlocking {
+            val bundle =
+                Product(
+                    name = "Empty Bundle",
+                    costCents = 0,
+                    quantity = 0,
+                    minStockThreshold = 0,
+                    maxStockThreshold = 0,
+                    priceCents = 500,
+                    isBundle = true,
+                    bundleComponents = emptyList(),
+                )
+            val result = service.addProduct(bundle)
+            assertNull(result)
+        }
+    }
+
+    @Test
+    fun `addProduct creates bundle and persists components`() {
+        runBlocking {
+            val componentId = ExposedTestDb.seedProduct(name = "Part A", costCents = 100, quantity = 10)
+            val componentVariantId = variantService.getVariants(componentId)[0].id!!
+            val bundle =
+                Product(
+                    name = "Kit",
+                    costCents = 0,
+                    quantity = 0,
+                    minStockThreshold = 0,
+                    maxStockThreshold = 0,
+                    priceCents = 500,
+                    isBundle = true,
+                    bundleComponents = listOf(BundleComponent(componentId, variantId = componentVariantId, quantity = 2)),
+                )
+            val bundleId = service.addProduct(bundle)
+            assertNotNull(bundleId)
+
+            val created = service.getProductById(bundleId)
+            assertNotNull(created)
+            assertTrue(created.isBundle)
+            assertEquals(1, created.bundleComponents.size)
+            assertEquals(componentId, created.bundleComponents[0].componentId)
+            assertEquals(componentVariantId, created.bundleComponents[0].variantId)
+            assertEquals(2, created.bundleComponents[0].quantity)
+        }
+    }
+
+    @Test
+    fun `getProductById returns quantity as min floor of component stocks for bundle`() {
+        runBlocking {
+            val componentA = ExposedTestDb.seedProduct(name = "A", quantity = 10)
+            val componentB = ExposedTestDb.seedProduct(name = "B", quantity = 7)
+            val bundleId = ExposedTestDb.seedProduct(name = "Bundle", isBundle = true)
+            ExposedTestDb.seedBundleComponent(bundleId, componentA, quantity = 2)
+            ExposedTestDb.seedBundleComponent(bundleId, componentB, quantity = 1)
+
+            val result = service.getProductById(bundleId)
+            assertEquals(5, result?.quantity)
+        }
+    }
+
+    @Test
+    fun `getProductById ignores untracked components when computing bundle quantity`() {
+        runBlocking {
+            val trackedComponent = ExposedTestDb.seedProduct(name = "Mug", quantity = 10)
+            val untrackedComponent = ExposedTestDb.seedProduct(name = "Coffee", quantity = 0, trackStock = false)
+            val bundleId = ExposedTestDb.seedProduct(name = "Kit", isBundle = true)
+            ExposedTestDb.seedBundleComponent(bundleId, trackedComponent, quantity = 1)
+            ExposedTestDb.seedBundleComponent(bundleId, untrackedComponent, quantity = 1)
+
+            val result = service.getProductById(bundleId)
+            assertEquals(10, result?.quantity)
+            assertTrue(result?.trackStock == true)
+        }
+    }
+
+    @Test
+    fun `getProductById reports a bundle as untracked when every component is untracked`() {
+        runBlocking {
+            val componentA = ExposedTestDb.seedProduct(name = "Coffee", quantity = 0, trackStock = false)
+            val componentB = ExposedTestDb.seedProduct(name = "Water", quantity = 0, trackStock = false)
+            val bundleId = ExposedTestDb.seedProduct(name = "Kit", isBundle = true)
+            ExposedTestDb.seedBundleComponent(bundleId, componentA, quantity = 1)
+            ExposedTestDb.seedBundleComponent(bundleId, componentB, quantity = 1)
+
+            val result = service.getProductById(bundleId)
+            assertEquals(false, result?.trackStock)
+        }
+    }
+
+    @Test
+    fun `getProductById returns zero quantity when a component has no stock`() {
+        runBlocking {
+            val componentA = ExposedTestDb.seedProduct(name = "A", quantity = 5)
+            val componentB = ExposedTestDb.seedProduct(name = "B", quantity = 0)
+            val bundleId = ExposedTestDb.seedProduct(name = "Bundle", isBundle = true)
+            ExposedTestDb.seedBundleComponent(bundleId, componentA, quantity = 1)
+            ExposedTestDb.seedBundleComponent(bundleId, componentB, quantity = 1)
+
+            val result = service.getProductById(bundleId)
+            assertEquals(0, result?.quantity)
+        }
+    }
+
+    @Test
+    fun `getProductById returns bundleCostCents as sum of component costs times required quantity`() {
+        runBlocking {
+            val componentA = ExposedTestDb.seedProduct(name = "A", costCents = 300, quantity = 10)
+            val componentB = ExposedTestDb.seedProduct(name = "B", costCents = 200, quantity = 10)
+            val bundleId = ExposedTestDb.seedProduct(name = "Bundle", isBundle = true)
+            ExposedTestDb.seedBundleComponent(bundleId, componentA, quantity = 2)
+            ExposedTestDb.seedBundleComponent(bundleId, componentB, quantity = 1)
+
+            val result = service.getProductById(bundleId)
+            assertEquals(800, result?.bundleCostCents)
+        }
+    }
+
+    @Test
+    fun `getProductById returns bundle stock and cost from selected component variant`() {
+        runBlocking {
+            val componentId = ExposedTestDb.seedProduct(name = "Shirt", costCents = 300, quantity = 2)
+            val selectedVariantId =
+                variantService.addVariant(
+                    componentId,
+                    UpsertVariantRequest(priceCents = 1500, costCents = 600, quantity = 9),
+                )
+            val bundleId = ExposedTestDb.seedProduct(name = "Bundle", isBundle = true)
+            ExposedTestDb.seedBundleComponent(bundleId, componentId, componentVariantId = selectedVariantId, quantity = 3)
+
+            val result = service.getProductById(bundleId)
+
+            assertEquals(3, result?.quantity)
+            assertEquals(1800, result?.bundleCostCents)
+            assertEquals(selectedVariantId, result?.bundleComponents?.first()?.variantId)
+        }
+    }
+
+    @Test
+    fun `updateProduct returns false when bundle component variant belongs to another product`() {
+        runBlocking {
+            val componentId = ExposedTestDb.seedProduct(name = "Component")
+            val otherProductId = ExposedTestDb.seedProduct(name = "Other")
+            val foreignVariantId = variantService.getVariants(otherProductId)[0].id!!
+            val bundleId = ExposedTestDb.seedProduct(name = "Bundle", isBundle = true)
+
+            val bundleUpdateRequest =
+                Product(
+                    id = bundleId,
+                    name = "Bundle",
+                    costCents = 0,
+                    quantity = 0,
+                    minStockThreshold = 0,
+                    maxStockThreshold = 0,
+                    priceCents = 500,
+                    isBundle = true,
+                    bundleComponents = listOf(BundleComponent(componentId, variantId = foreignVariantId, quantity = 1)),
+                )
+
+            assertFalse(service.updateProduct(bundleUpdateRequest))
+        }
+    }
+
+    @Test
+    fun `updateProduct replaces bundle components`() {
+        runBlocking {
+            val componentA = ExposedTestDb.seedProduct(name = "A", quantity = 10)
+            val componentB = ExposedTestDb.seedProduct(name = "B", quantity = 10)
+            val bundleId = ExposedTestDb.seedProduct(name = "Bundle", isBundle = true)
+            ExposedTestDb.seedBundleComponent(bundleId, componentA, quantity = 1)
+
+            val bundleUpdateRequest =
+                Product(
+                    id = bundleId,
+                    name = "Bundle",
+                    costCents = 0,
+                    quantity = 0,
+                    minStockThreshold = 0,
+                    maxStockThreshold = 0,
+                    priceCents = 500,
+                    isBundle = true,
+                    bundleComponents = listOf(BundleComponent(componentB, quantity = 3)),
+                )
+            assertTrue(service.updateProduct(bundleUpdateRequest))
+
+            val result = service.getProductById(bundleId)
+            assertEquals(1, result?.bundleComponents?.size)
+            assertEquals(componentB, result?.bundleComponents?.get(0)?.componentId)
+            assertEquals(3, result?.bundleComponents?.get(0)?.quantity)
+        }
+    }
+
+    @Test
+    fun `updateProduct converts variant product to bundle and disables previous sellable variants`() {
+        runBlocking {
+            val productId = ExposedTestDb.seedProduct(name = "Variant Product", hasVariants = true, priceCents = 1200)
+            val extraVariantId =
+                variantService.addVariant(
+                    productId,
+                    UpsertVariantRequest(priceCents = 1800, costCents = 900, quantity = 4),
+                )
+            val componentId = ExposedTestDb.seedProduct(name = "Part", quantity = 10)
+            val bundleUpdateRequest =
+                Product(
+                    id = productId,
+                    name = "Bundle",
+                    costCents = 700,
+                    quantity = 0,
+                    minStockThreshold = 0,
+                    maxStockThreshold = 0,
+                    priceCents = 2500,
+                    hasVariants = true,
+                    isBundle = true,
+                    bundleComponents = listOf(BundleComponent(componentId, quantity = 2)),
+                )
+
+            assertTrue(service.updateProduct(bundleUpdateRequest))
+
+            val updatedProduct = service.getProductById(productId)
+            assertNotNull(updatedProduct)
+            assertTrue(updatedProduct.isBundle)
+            assertFalse(updatedProduct.hasVariants)
+            assertEquals(2500, updatedProduct.priceCents)
+            assertEquals(1, updatedProduct.variants.size)
+            assertEquals(0, updatedProduct.variants[0].quantity)
+            assertFalse(updatedProduct.variants.any { variant -> variant.id == extraVariantId })
+        }
+    }
+
+    @Test
+    fun `updateProduct clears bundle components when switching to non-bundle`() {
+        runBlocking {
+            val componentId = ExposedTestDb.seedProduct(name = "Part", quantity = 10)
+            val bundleId = ExposedTestDb.seedProduct(name = "Bundle", isBundle = true)
+            ExposedTestDb.seedBundleComponent(bundleId, componentId, quantity = 1)
+
+            val nonBundleUpdateRequest =
+                Product(
+                    id = bundleId,
+                    name = "Bundle",
+                    costCents = 0,
+                    quantity = 5,
+                    minStockThreshold = 0,
+                    maxStockThreshold = 0,
+                    priceCents = 500,
+                    isBundle = false,
+                    bundleComponents = emptyList(),
+                )
+            assertTrue(service.updateProduct(nonBundleUpdateRequest))
+
+            val updatedProduct = service.getProductById(bundleId)
+            assertNotNull(updatedProduct)
+            assertFalse(updatedProduct.isBundle)
+            assertTrue(updatedProduct.bundleComponents.isEmpty())
+        }
+    }
+
+    @Test
+    fun `deleteProduct returns true when deleting a bundle itself`() {
+        runBlocking {
+            val componentId = ExposedTestDb.seedProduct(name = "Part")
+            val bundleId = ExposedTestDb.seedProduct(name = "Kit", isBundle = true)
+            ExposedTestDb.seedBundleComponent(bundleId, componentId)
+
+            assertTrue(service.deleteProduct(bundleId))
+            assertNull(service.getProductById(bundleId))
+            assertNotNull(service.getProductById(componentId))
+        }
+    }
+
+    @Test
+    fun `updateProduct returns false when bundle has no components`() {
+        runBlocking {
+            val bundleId = ExposedTestDb.seedProduct(name = "Bundle", isBundle = true)
+            val emptyBundleUpdateRequest =
+                Product(
+                    id = bundleId,
+                    name = "Bundle",
+                    costCents = 0,
+                    quantity = 0,
+                    minStockThreshold = 0,
+                    maxStockThreshold = 0,
+                    priceCents = 500,
+                    isBundle = true,
+                    bundleComponents = emptyList(),
+                )
+            assertFalse(service.updateProduct(emptyBundleUpdateRequest))
         }
     }
 
     @Test
     fun `adjustStock returns true when all updates succeed`() {
         runBlocking {
-            val updateStatement: PreparedStatement = mock() // Arrange
-            whenever(mockConnection.prepareStatement(contains("UPDATE products SET quantity = quantity -"))).thenReturn(updateStatement)
-            whenever(updateStatement.executeUpdate()).thenReturn(1) // Arrange
-            val service = ProductService(mockConnection) // Arrange
+            val productId1 = ExposedTestDb.seedProduct(name = "Prod1", quantity = 5)
+            val productId2 = ExposedTestDb.seedProduct(name = "Prod2", quantity = 3)
+
             val adjustments =
                 listOf(
-                    ProductStockAdjustment(productId = "p-1", quantity = 2),
-                    ProductStockAdjustment(productId = "p-2", quantity = 1),
+                    ProductStockAdjustment(productId = productId1, quantity = 2),
+                    ProductStockAdjustment(productId = productId2, quantity = 1),
                 )
-            val result = service.adjustStock(adjustments) // Act
-            assertTrue(result) // Assert
-            verify(mockConnection).commit() // Assert
+            val result = service.adjustStock(adjustments)
+            assertTrue(result)
+
+            assertEquals(3, service.getProductById(productId1)?.quantity)
+            assertEquals(2, service.getProductById(productId2)?.quantity)
         }
     }
 
     @Test
-    fun `adjustStock returns false when update fails`() {
+    fun `adjustStock returns false when stock is insufficient`() {
         runBlocking {
-            val updateStatement: PreparedStatement = mock() // Arrange
-            whenever(mockConnection.prepareStatement(contains("UPDATE products SET quantity = quantity -"))).thenReturn(updateStatement)
-            whenever(updateStatement.executeUpdate()).thenReturn(0) // Arrange
-            val service = ProductService(mockConnection) // Arrange
-            val adjustments = listOf(ProductStockAdjustment(productId = "p-1", quantity = 2))
-            val result = service.adjustStock(adjustments) // Act
-            assertFalse(result) // Assert
-            verify(mockConnection).rollback() // Assert
+            val productId = ExposedTestDb.seedProduct(name = "Prod1", quantity = 1)
+
+            val adjustments = listOf(ProductStockAdjustment(productId = productId, quantity = 2))
+            val result = service.adjustStock(adjustments)
+            assertFalse(result)
+
+            assertEquals(1, service.getProductById(productId)?.quantity)
+        }
+    }
+
+    @Test
+    fun `adjustStock skips products that do not track stock`() {
+        runBlocking {
+            val untrackedId = ExposedTestDb.seedProduct(name = "Service", quantity = 0, trackStock = false)
+
+            val adjustments = listOf(ProductStockAdjustment(productId = untrackedId, quantity = 4))
+            assertTrue(service.adjustStock(adjustments))
+
+            assertEquals(0, service.getProductById(untrackedId)?.quantity)
+        }
+    }
+
+    @Test
+    fun `adjustStock skips untracked products addressed by variant id`() {
+        runBlocking {
+            val untrackedId = ExposedTestDb.seedProduct(name = "Service", quantity = 0, trackStock = false)
+            val variantId = variantService.getVariants(untrackedId).first().id
+
+            val adjustments =
+                listOf(ProductStockAdjustment(productId = untrackedId, variantId = variantId, quantity = 4))
+            assertTrue(service.adjustStock(adjustments))
+
+            assertEquals(0, service.getProductById(untrackedId)?.quantity)
+        }
+    }
+
+    @Test
+    fun `adjustStock returns false when product not found`() {
+        runBlocking {
+            val adjustments =
+                listOf(
+                    ProductStockAdjustment(
+                        productId =
+                            java.util.UUID
+                                .randomUUID()
+                                .toString(),
+                        quantity = 1,
+                    ),
+                )
+            val result = service.adjustStock(adjustments)
+            assertFalse(result)
         }
     }
 }

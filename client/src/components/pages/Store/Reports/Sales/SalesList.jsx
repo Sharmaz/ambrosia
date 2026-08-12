@@ -5,9 +5,13 @@ import { useTranslations } from "next-intl";
 
 import { AmountDisplay } from "@/components/shared/AmountDisplay";
 import { DataTable } from "@/components/shared/DataTable";
+import { StatusChip } from "@/components/shared/StatusChip";
 import { formatDateParts } from "@lib/formatDate";
 
+import { refundedToStatus } from "../utils/refundedToStatus";
+
 import { SalesCard } from "./SalesCard";
+import { buildSaleItemKey } from "./utils/saleItemKeys";
 
 export function SalesList({ sales, formatCurrency, currentRate }) {
   const reportsTranslations = useTranslations("reports");
@@ -25,7 +29,12 @@ export function SalesList({ sales, formatCurrency, currentRate }) {
     {
       key: "product",
       label: reportsTranslations("sales.product"),
-      render: ({ productName }) => <span className="font-medium text-deep">{productName}</span>,
+      render: ({ productName, refunded }) => (
+        <div className="flex items-center gap-2">
+          <span className="font-medium text-deep">{productName}</span>
+          <StatusChip status={refundedToStatus(refunded)} />
+        </div>
+      ),
     },
     {
       key: "user",
@@ -91,14 +100,14 @@ export function SalesList({ sales, formatCurrency, currentRate }) {
     <section aria-label={reportsTranslations("sales.tableAriaLabel")} className="w-full">
       <div className="md:hidden space-y-3">
         {sales.map((sale) => (
-          <SalesCard key={`${sale.orderId}-${sale.productName}`} sale={sale} formatCurrency={formatCurrency} currentRate={currentRate} />
+          <SalesCard key={buildSaleItemKey(sale)} sale={sale} formatCurrency={formatCurrency} currentRate={currentRate} />
         ))}
       </div>
       <div className="hidden md:block overflow-x-auto">
         <DataTable
           columns={columns}
           items={sales}
-          getKey={(sale) => `${sale.orderId}-${sale.productName}`}
+          getKey={buildSaleItemKey}
         />
       </div>
     </section>

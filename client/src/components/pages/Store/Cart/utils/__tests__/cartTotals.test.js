@@ -34,4 +34,45 @@ describe("calculateCartTotals", () => {
       total: 2000,
     });
   });
+
+  it("applies a fixed discount in display units converted to cents", () => {
+    expect(calculateCartTotals(items, 5, "fixed")).toEqual({
+      subtotal: 2000,
+      discountAmount: 500,
+      total: 1500,
+    });
+  });
+
+  it("applies a 100% percentage discount", () => {
+    expect(calculateCartTotals(items, 100)).toEqual({
+      subtotal: 2000,
+      discountAmount: 2000,
+      total: 0,
+    });
+  });
+
+  it("treats a non-numeric fixed discount as zero", () => {
+    expect(calculateCartTotals(items, undefined, "fixed")).toEqual({
+      subtotal: 2000,
+      discountAmount: 0,
+      total: 2000,
+    });
+  });
+
+  it("rounds a percentage discount that would leave a fraction of a cent", () => {
+    const fractionalItems = [{ id: 1, subtotal: 999 }];
+    expect(calculateCartTotals(fractionalItems, 15)).toEqual({
+      subtotal: 999,
+      discountAmount: 150,
+      total: 849,
+    });
+  });
+
+  it("rounds a fixed discount that would leave a fraction of a cent", () => {
+    expect(calculateCartTotals(items, 19.995, "fixed")).toEqual({
+      subtotal: 2000,
+      discountAmount: 2000,
+      total: 0,
+    });
+  });
 });

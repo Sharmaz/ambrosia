@@ -9,31 +9,34 @@ import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 import io.ktor.server.routing.route
 import io.ktor.server.routing.routing
-import pos.ambrosia.db.DatabaseConnection
+import org.jetbrains.exposed.v1.jdbc.transactions.transaction
+import pos.ambrosia.datadir
 import pos.ambrosia.logger
 import pos.ambrosia.models.Config
 import pos.ambrosia.models.InitialSetupRequest
+import pos.ambrosia.models.InitialSetupResponse
 import pos.ambrosia.models.InitialSetupStatus
 import pos.ambrosia.models.Role
 import pos.ambrosia.models.User
+import pos.ambrosia.services.ActiveLightningBackend
 import pos.ambrosia.services.ConfigService
 import pos.ambrosia.services.CurrencyService
 import pos.ambrosia.services.PermissionsService
 import pos.ambrosia.services.RolesService
 import pos.ambrosia.services.UsersService
+import pos.ambrosia.services.WalletAdminNotificationService
 import pos.ambrosia.utils.InitialSetupException
-import java.sql.Connection
+import java.io.File
 
 fun Application.configureInitialSetup() {
-    val connection: Connection = DatabaseConnection.getConnection()
     routing {
-        route("/initial-setup") { initialSetupRoutes(connection) }
+        route("/initial-setup") { initialSetupRoutes() }
     }
 }
 
-private fun Route.initialSetupRoutes(connection: Connection) {
+private fun Route.initialSetupRoutes() {
     get("") {
-        val configService = ConfigService(connection)
+        val configService = ConfigService()
         val config = configService.getConfig()
         val needsBusinessType = config != null && !config.businessTypeConfirmed
         call.respond(
@@ -43,13 +46,13 @@ private fun Route.initialSetupRoutes(connection: Connection) {
     }
 
     post("") {
-        val req = call.receive<InitialSetupRequest>()
+        val initialSetupRequest = call.receive<InitialSetupRequest>()
 
-        val configService = ConfigService(connection)
+        val configService = ConfigService()
         val existingConfig = configService.getConfig()
         if (existingConfig != null) {
             if (!existingConfig.businessTypeConfirmed) {
-                val businessType = req.businessType
+                val businessType = initialSetupRequest.businessType
                 if (businessType != "store" && businessType != "restaurant") {
                     call.respond(HttpStatusCode.BadRequest, mapOf("message" to "Invalid business type"))
                     return@post
@@ -71,12 +74,12 @@ private fun Route.initialSetupRoutes(connection: Connection) {
             return@post
         }
 
-        val businessType = req.businessType
-        val userName = req.userName?.trim()
-        val userPassword = req.userPassword
-        val userPin = req.userPin
-        val businessName = req.businessName?.trim()
-        val businessCurrency = req.businessCurrency
+        val businessType = initialSetupRequest.businessType
+        val userName = initialSetupRequest.userName?.trim()
+        val userPassword = initialSetupRequest.userPassword
+        val userPin = initialSetupRequest.userPin
+        val businessName = initialSetupRequest.businessName?.trim()
+        val businessCurrency = initialSetupRequest.businessCurrency
 
         if (
             businessType != "store" &&
@@ -94,66 +97,82 @@ private fun Route.initialSetupRoutes(connection: Connection) {
             return@post
         }
 
-        val taxId = req.businessTaxId ?: req.businessRFC
-        val logoUrl = req.businessLogoUrl ?: req.businessLogo
+        val taxId = initialSetupRequest.businessTaxId ?: initialSetupRequest.businessRFC
+        val logoUrl = initialSetupRequest.businessLogoUrl ?: initialSetupRequest.businessLogo
 
-        val env = call.application.environment
-        val rolesService = RolesService(env, connection)
-        val usersService = UsersService(env, connection)
-        val permissionsService = PermissionsService(env, connection)
-        val currencyService = CurrencyService(connection)
+        val applicationEnvironment = call.application.environment
+        val rolesService = RolesService(applicationEnvironment)
+        val usersService = UsersService(applicationEnvironment)
+        val permissionsService = PermissionsService()
+        val currencyService = CurrencyService()
 
-        val currency = currencyService.getByAcronym(businessCurrency)
-        if (currency == null) {
-            call.respond(HttpStatusCode.NotFound, mapOf("message" to "Unknown currency acronym: $businessCurrency"))
-            return@post
-        }
-
-        try {
-            connection.autoCommit = false
-
-            val roleId =
-                rolesService.addRole(Role(role = "Admin", password = userPassword, isAdmin = true))
-                    ?: throw InitialSetupException("Failed to create admin role")
-
-            permissionsService.assignAllEnabledToRole(roleId)
-
-            val userId =
-                usersService.addUser(User(name = userName, pin = userPin, role = roleId))
-                    ?: throw InitialSetupException("Failed to create user")
-
-            val saved =
-                configService.updateConfig(
-                    Config(
-                        businessType = businessType,
-                        businessName = businessName,
-                        businessAddress = req.businessAddress,
-                        businessPhone = req.businessPhone,
-                        businessEmail = req.businessEmail,
-                        businessTaxId = taxId,
-                        businessLogoUrl = logoUrl,
-                        businessTypeConfirmed = true,
-                    ),
+        val currency =
+            currencyService.getByAcronym(businessCurrency)
+                ?: return@post call.respond(
+                    HttpStatusCode.NotFound,
+                    mapOf("message" to "Unknown currency acronym: $businessCurrency"),
                 )
-            if (!saved) throw InitialSetupException("Failed to save config")
 
-            val currencyId = currency.id ?: throw InitialSetupException("Currency ID missing")
-            if (!currencyService.setBaseCurrencyById(currencyId)) throw InitialSetupException("Failed to set base currency")
+        val (userId, roleId) =
+            transaction {
+                val roleId =
+                    rolesService.addRole(Role(role = "Admin", password = userPassword, isAdmin = true))
+                        ?: throw InitialSetupException("Failed to create admin role")
 
-            connection.commit()
-            call.respond(HttpStatusCode.Created, mapOf("message" to "Initial setup completed", "userId" to userId, "roleId" to roleId))
-        } catch (e: Exception) {
-            logger.error("Initial setup failed: ${e.message}")
-            try {
-                connection.rollback()
-            } catch (_: Exception) {
+                permissionsService.assignAllEnabledToRole(roleId)
+
+                val userId =
+                    usersService.addUser(User(name = userName, pin = userPin, role = roleId))
+                        ?: throw InitialSetupException("Failed to create user")
+
+                val saved =
+                    configService.updateConfig(
+                        Config(
+                            businessType = businessType,
+                            businessName = businessName,
+                            businessAddress = initialSetupRequest.businessAddress,
+                            businessPhone = initialSetupRequest.businessPhone,
+                            businessEmail = initialSetupRequest.businessEmail,
+                            businessTaxId = taxId,
+                            businessLogoUrl = logoUrl,
+                            businessTypeConfirmed = true,
+                        ),
+                    )
+                if (!saved) throw InitialSetupException("Failed to save config")
+
+                val currencyId = currency.id ?: throw InitialSetupException("Currency ID missing")
+                if (!currencyService.setBaseCurrencyById(currencyId)) {
+                    throw InitialSetupException("Failed to set base currency")
+                }
+
+                userId to roleId
             }
-            throw if (e is InitialSetupException) e else InitialSetupException(e.message ?: "Setup failed")
-        } finally {
-            try {
-                connection.autoCommit = true
-            } catch (_: Exception) {
-            }
-        }
+
+        val nwcSaved =
+            initialSetupRequest.nwcUri?.takeIf { it.isNotBlank() }?.let { uri ->
+                try {
+                    File(datadir.toString(), "ambrosia.conf").appendText("\nnwc-uri=$uri\n")
+                    logger.info("NWC URI saved to ambrosia.conf — hot-reloading backend")
+                    val walletAdminNotificationService =
+                        WalletAdminNotificationService(createConfiguredAdminNotificationService(call.application.environment))
+                    ActiveLightningBackend.reinitializeNwcBackend(uri, call.application) { paymentNotification ->
+                        walletAdminNotificationService.notifyIncomingPaymentReceived(paymentNotification)
+                    }
+                    true
+                } catch (exception: Exception) {
+                    logger.error("Failed to save or activate NWC URI: ${exception.message}")
+                    false
+                }
+            } ?: false
+
+        call.respond(
+            HttpStatusCode.Created,
+            InitialSetupResponse(
+                message = "Initial setup completed",
+                userId = userId,
+                roleId = roleId,
+                nwcSaved = nwcSaved,
+            ),
+        )
     }
 }

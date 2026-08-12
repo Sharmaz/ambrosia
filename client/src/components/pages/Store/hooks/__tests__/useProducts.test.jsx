@@ -102,9 +102,10 @@ describe("useProducts", () => {
   });
 
   it("adds a product and uploads a file when provided", async () => {
-    const upload = jest.fn().mockResolvedValue([{ url: "https://img.test/item.png" }]);
-    useUpload.mockReturnValue({ upload, isUploading: false });
+    const uploadFile = jest.fn().mockResolvedValue([{ url: "https://img.test/item.png" }]);
+    useUpload.mockReturnValue({ upload: uploadFile, isUploading: false });
 
+    httpClient.mockResolvedValueOnce({ ok: true });
     httpClient.mockResolvedValueOnce({ ok: true });
     httpClient.mockResolvedValueOnce({ ok: true });
     parseJsonResponse.mockResolvedValueOnce([]);
@@ -132,7 +133,7 @@ describe("useProducts", () => {
       });
     });
 
-    expect(upload).toHaveBeenCalledWith([imageFile]);
+    expect(uploadFile).toHaveBeenCalledWith([imageFile]);
     expect(httpClient).toHaveBeenCalledWith("/products", {
       method: "POST",
       headers: {
@@ -148,21 +149,34 @@ describe("useProducts", () => {
         quantity: 3,
         minStockThreshold: 0,
         maxStockThreshold: 0,
+        hasVariants: false,
+        trackStock: true,
         priceCents: 1050,
+        isBundle: false,
+        bundleComponents: [],
       }),
       notShowError: false,
     });
   });
 
   it("sends null SKU when the SKU field is blank", async () => {
-    const upload = jest.fn();
-    useUpload.mockReturnValue({ upload, isUploading: false });
+    httpClient.mockReset();
+    parseJsonResponse.mockReset();
 
-    httpClient.mockResolvedValueOnce({ ok: true });
-    httpClient.mockResolvedValueOnce({ ok: true });
-    parseJsonResponse.mockResolvedValueOnce([]);
-    parseJsonResponse.mockResolvedValueOnce({ id: 2, message: "Product added successfully" });
-    parseJsonResponse.mockResolvedValueOnce([]);
+    const uploadFile = jest.fn();
+    useUpload.mockReturnValue({ upload: uploadFile, isUploading: false });
+
+    httpClient.mockImplementation((url, options = {}) => Promise.resolve({
+      ok: true,
+      isProductPost: url === "/products" && options?.method === "POST",
+    }),
+    );
+    parseJsonResponse.mockImplementation((response, fallback) => Promise.resolve(
+      response?.isProductPost
+        ? { id: 2, message: "Product added successfully" }
+        : (Array.isArray(fallback) ? [] : null),
+    ),
+    );
 
     renderWithProvider();
 
@@ -198,15 +212,76 @@ describe("useProducts", () => {
         quantity: 1,
         minStockThreshold: 0,
         maxStockThreshold: 0,
+        hasVariants: false,
+        trackStock: true,
         priceCents: 1000,
+        isBundle: false,
+        bundleComponents: [],
+      }),
+      notShowError: false,
+    });
+  });
+
+  it("sends selected bundle component variant when adding a bundle", async () => {
+    useUpload.mockReturnValue({ upload: jest.fn(), isUploading: false });
+
+    httpClient.mockResolvedValueOnce({ ok: true });
+    httpClient.mockResolvedValueOnce({ ok: true });
+    httpClient.mockResolvedValueOnce({ ok: true });
+    parseJsonResponse.mockResolvedValueOnce([]);
+    parseJsonResponse.mockResolvedValueOnce({ id: 3, message: "Product added successfully" });
+    parseJsonResponse.mockResolvedValueOnce([]);
+
+    renderWithProvider();
+
+    await waitFor(() => expect(screen.getByTestId("count")).toHaveTextContent("0"));
+
+    await act(async () => {
+      await handlers.addProduct({
+        productSKU: "KIT-1",
+        productName: "Starter Kit",
+        productDescription: "",
+        productImage: null,
+        productImageUrl: null,
+        productPrice: 25,
+        productCategories: [],
+        isBundle: true,
+        hasVariants: true,
+        bundleComponents: [{ productId: "prod-shirt", variantId: "variant-red", quantity: 2 }],
+        productStock: 9,
+        productMinStock: 1,
+        productMaxStock: 5,
+      });
+    });
+
+    expect(httpClient).toHaveBeenCalledWith("/products", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        SKU: "KIT-1",
+        name: "Starter Kit",
+        description: null,
+        imageUrl: null,
+        costCents: 2500,
+        categoryIds: [],
+        quantity: 0,
+        minStockThreshold: 1,
+        maxStockThreshold: 5,
+        hasVariants: false,
+        trackStock: true,
+        priceCents: 2500,
+        isBundle: true,
+        bundleComponents: [{ componentId: "prod-shirt", variantId: "variant-red", quantity: 2 }],
       }),
       notShowError: false,
     });
   });
 
   it("updates a product without uploading when no file is provided", async () => {
-    const upload = jest.fn();
-    useUpload.mockReturnValue({ upload, isUploading: false });
+    const uploadFile = jest.fn();
+    useUpload.mockReturnValue({ upload: uploadFile, isUploading: false });
 
     httpClient.mockResolvedValueOnce({ ok: true });
     httpClient.mockResolvedValueOnce({ ok: true });
@@ -234,7 +309,7 @@ describe("useProducts", () => {
       });
     });
 
-    expect(upload).not.toHaveBeenCalled();
+    expect(uploadFile).not.toHaveBeenCalled();
     expect(httpClient).toHaveBeenCalledWith("/products/22", {
       method: "PUT",
       headers: {
@@ -251,15 +326,19 @@ describe("useProducts", () => {
         quantity: 1,
         minStockThreshold: 0,
         maxStockThreshold: 0,
+        hasVariants: false,
+        trackStock: true,
         priceCents: 425,
+        isBundle: false,
+        bundleComponents: [],
       }),
       notShowError: false,
     });
   });
 
   it("uploads a file when updating a product with a new image", async () => {
-    const upload = jest.fn().mockResolvedValue([{ path: "/files/tea.png" }]);
-    useUpload.mockReturnValue({ upload, isUploading: false });
+    const uploadFile = jest.fn().mockResolvedValue([{ path: "/files/tea.png" }]);
+    useUpload.mockReturnValue({ upload: uploadFile, isUploading: false });
 
     httpClient.mockResolvedValueOnce({ ok: true });
     httpClient.mockResolvedValueOnce({ ok: true });
@@ -289,7 +368,7 @@ describe("useProducts", () => {
       });
     });
 
-    expect(upload).toHaveBeenCalledWith([imageFile]);
+    expect(uploadFile).toHaveBeenCalledWith([imageFile]);
     expect(httpClient).toHaveBeenCalledWith("/products/30", {
       method: "PUT",
       headers: {
@@ -306,7 +385,11 @@ describe("useProducts", () => {
         quantity: 8,
         minStockThreshold: 0,
         maxStockThreshold: 0,
+        hasVariants: false,
+        trackStock: true,
         priceCents: 350,
+        isBundle: false,
+        bundleComponents: [],
       }),
       notShowError: false,
     });
@@ -315,7 +398,7 @@ describe("useProducts", () => {
   it("deletes a product and refetches", async () => {
     useUpload.mockReturnValue({ upload: jest.fn(), isUploading: false });
 
-    httpClient.mockResolvedValue({});
+    httpClient.mockResolvedValue({ ok: true });
     parseJsonResponse.mockResolvedValueOnce([]);
     parseJsonResponse.mockResolvedValueOnce([]);
 
@@ -330,6 +413,48 @@ describe("useProducts", () => {
     expect(httpClient).toHaveBeenCalledWith("/products/44", {
       method: "DELETE",
       notShowError: false,
+    });
+  });
+
+  it("shows bundle component toast and returns false when delete fails with 409", async () => {
+    useUpload.mockReturnValue({ upload: jest.fn(), isUploading: false });
+
+    httpClient.mockResolvedValueOnce({ ok: true });
+    httpClient.mockResolvedValueOnce({ ok: false, status: 409 });
+    parseJsonResponse.mockResolvedValueOnce([]);
+    parseJsonResponse.mockResolvedValueOnce({ message: "Product is used in bundle" });
+
+    renderWithProvider();
+
+    await waitFor(() => expect(screen.getByTestId("count")).toHaveTextContent("0"));
+
+    await expect(handlers.deleteProduct({ id: 44 })).resolves.toBe(false);
+
+    expect(addToast).toHaveBeenCalledWith({
+      title: "toasts.bundleComponentErrorTitle",
+      description: "toasts.bundleComponentErrorDescription",
+      color: "danger",
+    });
+  });
+
+  it("shows generic error toast and returns false when delete fails without a conflict status", async () => {
+    useUpload.mockReturnValue({ upload: jest.fn(), isUploading: false });
+
+    httpClient.mockResolvedValueOnce({ ok: true });
+    httpClient.mockResolvedValueOnce({ ok: false, status: 500 });
+    parseJsonResponse.mockResolvedValueOnce([]);
+    parseJsonResponse.mockResolvedValueOnce({ message: "Server error" });
+
+    renderWithProvider();
+
+    await waitFor(() => expect(screen.getByTestId("count")).toHaveTextContent("0"));
+
+    await expect(handlers.deleteProduct({ id: 44 })).resolves.toBe(false);
+
+    expect(addToast).toHaveBeenCalledWith({
+      title: "toasts.genericErrorTitle",
+      description: "toasts.genericErrorDescription",
+      color: "danger",
     });
   });
 
