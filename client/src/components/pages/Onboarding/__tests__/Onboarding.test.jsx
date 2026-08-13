@@ -419,6 +419,25 @@ describe("Onboarding Wizard", () => {
     });
   });
 
+  describe("timezone", () => {
+    it("sends the browser-detected timezone in the setup payload", async () => {
+      await act(async () => {
+        renderOnboarding();
+      });
+      await completeOnboardingWithPhoenixd();
+
+      await act(async () => {
+        fireEvent.click(screen.getByText("buttons.finish"));
+      });
+
+      await waitFor(() => {
+        expect(submitInitialSetup).toHaveBeenCalledWith(
+          expect.objectContaining({ timezone: Intl.DateTimeFormat().resolvedOptions().timeZone }),
+        );
+      });
+    });
+  });
+
   describe("setup submit feedback", () => {
     it("shows a localized error toast when setup submission fails", async () => {
       submitInitialSetup.mockRejectedValueOnce(new Error("Server unavailable"));
