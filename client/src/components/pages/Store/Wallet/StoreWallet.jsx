@@ -23,6 +23,7 @@ import { usePaymentWebsocket } from "@hooks/usePaymentWebsocket";
 import { useInvoiceState } from "./hooks/useInvoiceState";
 import { NodeError, NodeInfo } from "./NodeInfo";
 import { InvoiceModal, Transactions } from "./Transactions";
+import { WalletPasswordCard } from "./WalletPassword";
 
 export function StoreWallet() {
   const walletTranslations = useTranslations("wallet");
@@ -163,6 +164,8 @@ export function StoreWallet() {
               currentRate={currentRate}
             />
           </div>
+
+          <WalletPasswordCard />
 
           <InvoiceModal
             invoiceState={invoiceState}
