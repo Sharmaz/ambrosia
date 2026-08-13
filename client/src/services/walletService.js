@@ -53,6 +53,7 @@ export const logoutWallet = async () => {
 export async function changeWalletPassword({ currentPassword, newPassword }) {
   const passwordChangeResponse = await httpClient("/wallet/password", {
     method: "POST",
+    skipRefresh: true,
     headers: {
       "Content-Type": "application/json",
     },

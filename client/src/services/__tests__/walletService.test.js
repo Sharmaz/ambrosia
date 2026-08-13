@@ -80,6 +80,7 @@ describe("walletService", () => {
 
       expect(httpClient).toHaveBeenCalledWith("/wallet/password", {
         method: "POST",
+        skipRefresh: true,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           currentPassword: "old-secret",
