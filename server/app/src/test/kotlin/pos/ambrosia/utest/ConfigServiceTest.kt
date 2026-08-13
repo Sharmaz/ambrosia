@@ -84,4 +84,23 @@ class ConfigServiceTest {
             assertTrue(updated)
             assertEquals(newConfig, service.getConfig())
         }
+
+    @Test
+    fun `updateConfig persists a non-default timezone`() =
+        runBlocking {
+            service.updateConfig(
+                Config(
+                    businessType = "store",
+                    businessName = "Test Store",
+                    businessAddress = null,
+                    businessPhone = null,
+                    businessEmail = null,
+                    businessTaxId = null,
+                    businessLogoUrl = null,
+                    timezone = "Europe/Madrid",
+                ),
+            )
+
+            assertEquals("Europe/Madrid", service.getConfig()?.timezone)
+        }
 }
