@@ -16,6 +16,7 @@ class ConfigService {
             businessTaxId = entity.businessTaxId,
             businessLogoUrl = entity.businessLogoUrl,
             businessTypeConfirmed = entity.businessTypeConfirmed,
+            timezone = entity.timezone,
         )
 
     fun getConfig(): Config? =
@@ -34,6 +35,7 @@ class ConfigService {
             entity.businessTaxId = config.businessTaxId
             entity.businessLogoUrl = config.businessLogoUrl
             entity.businessTypeConfirmed = config.businessTypeConfirmed
+            entity.timezone = config.timezone
             true
         }
 }
