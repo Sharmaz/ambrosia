@@ -6,6 +6,8 @@ import { Button, Input, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter
 import { useTranslations } from "next-intl";
 
 import { ImageUploader } from "@components/shared/ImageUploader";
+import { TimezoneInput } from "@components/shared/TimezoneInput";
+import { TIMEZONES } from "@components/utils/timezones";
 
 export function EditStoreInfoModal({ data, setData, onChange, onSubmit, isOpen, setIsOpen }) {
   const t = useTranslations("settings");
@@ -78,6 +80,14 @@ export function EditStoreInfoModal({ data, setData, onChange, onSubmit, isOpen, 
               placeholder={t("modal.addressPlaceholder")}
               value={data.businessAddress ?? ""}
               onChange={(e) => onChange({ ...data, businessAddress: e.target.value })}
+            />
+            <TimezoneInput
+              label={t("modal.timezone")}
+              timezones={TIMEZONES}
+              selectedKey={data.timezone ?? null}
+              onSelectionChange={(zoneId) => {
+                if (zoneId) onChange({ ...data, timezone: zoneId });
+              }}
             />
             <Input
               label={t("modal.email")}

@@ -47,6 +47,11 @@ export function StoreInfoCard({ data, onEdit }) {
             </div>
           </div>
 
+          <div>
+            <div className="text-xs sm:text-sm xl:text-base font-semibold text-gray-600">{t("cardInfo.timezone")}</div>
+            <div className="text-sm sm:text-base xl:text-lg font-medium text-green-800">{data.timezone}</div>
+          </div>
+
           <div className="flex flex-col sm:flex-row sm:justify-between gap-2 sm:gap-3">
             <div className="sm:w-1/2">
               <div className="text-xs sm:text-sm xl:text-base font-semibold text-gray-600">{t("cardInfo.email")}</div>
