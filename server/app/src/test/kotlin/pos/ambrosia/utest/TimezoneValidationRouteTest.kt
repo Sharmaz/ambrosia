@@ -47,7 +47,7 @@ class TimezoneValidationRouteTest {
                 configureConfig()
             }
 
-            val response =
+            val updateConfigResponse =
                 client.put("/config") {
                     withAuthCookies(auth)
                     header(HttpHeaders.ContentType, "application/json")
@@ -66,7 +66,7 @@ class TimezoneValidationRouteTest {
                     )
                 }
 
-            assertEquals(HttpStatusCode.BadRequest, response.status)
+            assertEquals(HttpStatusCode.BadRequest, updateConfigResponse.status)
         }
 
     @Test
@@ -80,7 +80,7 @@ class TimezoneValidationRouteTest {
                 configureConfig()
             }
 
-            val response =
+            val updateConfigResponse =
                 client.put("/config") {
                     withAuthCookies(auth)
                     header(HttpHeaders.ContentType, "application/json")
@@ -99,7 +99,7 @@ class TimezoneValidationRouteTest {
                     )
                 }
 
-            assertEquals(HttpStatusCode.OK, response.status)
+            assertEquals(HttpStatusCode.OK, updateConfigResponse.status)
         }
 
     @Test
@@ -112,7 +112,7 @@ class TimezoneValidationRouteTest {
                 configureInitialSetup()
             }
 
-            val response =
+            val initialSetupResponse =
                 client.post("/initial-setup") {
                     header(HttpHeaders.ContentType, "application/json")
                     setBody(
@@ -128,6 +128,6 @@ class TimezoneValidationRouteTest {
                     )
                 }
 
-            assertEquals(HttpStatusCode.BadRequest, response.status)
+            assertEquals(HttpStatusCode.BadRequest, initialSetupResponse.status)
         }
 }
