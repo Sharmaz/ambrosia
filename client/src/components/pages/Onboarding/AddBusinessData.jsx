@@ -7,6 +7,8 @@ import { useTranslations, useLocale } from "next-intl";
 
 import { CurrencyInput } from "@components/shared/CurrencyInput";
 import { ImageUploader } from "@components/shared/ImageUploader";
+import { TimezoneInput } from "@components/shared/TimezoneInput";
+import { TIMEZONES } from "@components/utils/timezones";
 
 import { CURRENCIES_EN } from "./utils/currencies_en";
 import { CURRENCIES_ES } from "./utils/currencies_es";
@@ -36,6 +38,12 @@ export function BusinessDetailsStep({ data, onChange }) {
   const handleCurrencyChange = (key) => {
     if (key) {
       onChange({ ...data, businessCurrency: key });
+    }
+  };
+
+  const handleTimezoneChange = (key) => {
+    if (key) {
+      onChange({ ...data, timezone: key });
     }
   };
 
@@ -102,6 +110,15 @@ export function BusinessDetailsStep({ data, onChange }) {
           isInvalid={!data.businessCurrency}
           errorMessage={t("step3.fields.businessCurrencyError")}
           onSelectionChange={handleCurrencyChange}
+        />
+
+        <TimezoneInput
+          timezones={TIMEZONES}
+          label={t("step3.fields.businessTimezone")}
+          defaultSelectedKey={data.timezone}
+          isInvalid={!data.timezone}
+          errorMessage={t("step3.fields.businessTimezoneError")}
+          onSelectionChange={handleTimezoneChange}
         />
 
         <ImageUploader
