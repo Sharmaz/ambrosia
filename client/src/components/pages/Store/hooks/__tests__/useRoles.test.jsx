@@ -16,8 +16,8 @@ jest.mock("@heroui/react", () => ({
 }));
 
 jest.mock("next-intl", () => {
-  const t = (key) => key;
-  return { useTranslations: () => t };
+  const mockTranslations = (key) => key;
+  return { useTranslations: () => mockTranslations };
 });
 
 jest.mock("@/hooks/usePermission", () => ({
@@ -175,8 +175,8 @@ describe("useRoles", () => {
     await act(async () => {
       try {
         await handlers.deleteRole("1");
-      } catch (error) {
-        thrown = error;
+      } catch (deleteRoleError) {
+        thrown = deleteRoleError;
       }
     });
 
@@ -191,13 +191,13 @@ describe("useRoles", () => {
     render(<TestComponent />);
     await waitFor(() => expect(screen.getByTestId("loading")).toHaveTextContent("no"));
 
-    let result;
+    let rolePermissions;
     await act(async () => {
-      result = await handlers.getRolePermissions("1");
+      rolePermissions = await handlers.getRolePermissions("1");
     });
 
     expect(httpClient).toHaveBeenCalledWith("/roles/1/permissions");
-    expect(result).toEqual([{ name: "orders_read" }, { name: "products_read" }]);
+    expect(rolePermissions).toEqual([{ name: "orders_read" }, { name: "products_read" }]);
   });
 
   it("returns empty array when getRolePermissions called with no id", async () => {
@@ -207,12 +207,12 @@ describe("useRoles", () => {
     render(<TestComponent />);
     await waitFor(() => expect(screen.getByTestId("loading")).toHaveTextContent("no"));
 
-    let result;
+    let rolePermissions;
     await act(async () => {
-      result = await handlers.getRolePermissions(null);
+      rolePermissions = await handlers.getRolePermissions(null);
     });
 
-    expect(result).toEqual([]);
+    expect(rolePermissions).toEqual([]);
   });
 
   it("does nothing when assignPermissions called with no roleId", async () => {
