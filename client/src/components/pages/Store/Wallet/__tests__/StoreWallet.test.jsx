@@ -296,6 +296,14 @@ describe("StoreWallet Component", () => {
       });
     });
 
+    it("shows the wallet password management card after authentication", async () => {
+      await authenticateAndWait();
+
+      expect(screen.getByRole("button", {
+        name: (buttonName) => buttonName === "Change password" || buttonName === "submitButton",
+      })).toBeInTheDocument();
+    });
+
     it("fetches incoming and outgoing transactions concurrently, not sequentially", async () => {
       let resolveIncoming;
       jest.spyOn(walletService, "getIncomingTransactions").mockImplementation(
