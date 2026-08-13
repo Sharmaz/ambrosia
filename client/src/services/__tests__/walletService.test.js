@@ -12,6 +12,7 @@ import { parseJsonResponse } from "@/lib/http/parseJsonResponse";
 import {
   loginWallet,
   logoutWallet,
+  changeWalletPassword,
   getInfo,
   createInvoiceForCart,
   createInvoice,
@@ -64,6 +65,40 @@ describe("walletService", () => {
       await logoutWallet();
 
       expect(httpClient).toHaveBeenCalledWith("/wallet/logout", { method: "POST" });
+    });
+  });
+
+  describe("changeWalletPassword", () => {
+    it("calls /wallet/password with current and new password", async () => {
+      httpClient.mockResolvedValue(makeResponse(200));
+      parseJsonResponse.mockResolvedValue({ message: "Wallet password updated" });
+
+      await changeWalletPassword({
+        currentPassword: "old-secret",
+        newPassword: "new-secret",
+      });
+
+      expect(httpClient).toHaveBeenCalledWith("/wallet/password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          currentPassword: "old-secret",
+          newPassword: "new-secret",
+        }),
+      });
+    });
+
+    it("throws when password change response is not ok", async () => {
+      httpClient.mockResolvedValue(makeResponse(401, false));
+      parseJsonResponse.mockResolvedValue({ message: "Current password is incorrect" });
+
+      await expect(changeWalletPassword({
+        currentPassword: "wrong-secret",
+        newPassword: "new-secret",
+      })).rejects.toMatchObject({
+        message: "Current password is incorrect",
+        status: 401,
+      });
     });
   });
 

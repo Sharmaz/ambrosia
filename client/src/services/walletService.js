@@ -50,6 +50,21 @@ export const logoutWallet = async () => {
   return await parseJsonResponse(response, null);
 };
 
+export async function changeWalletPassword({ currentPassword, newPassword }) {
+  const passwordChangeResponse = await httpClient("/wallet/password", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ currentPassword, newPassword }),
+  });
+  return await parseWalletResponseOrThrow(
+    passwordChangeResponse,
+    null,
+    "Could not update wallet password",
+  );
+}
+
 export async function getInfo() {
   const walletInfoResponse = await httpClient("/wallet/getinfo");
   return await parseWalletResponseOrThrow(
