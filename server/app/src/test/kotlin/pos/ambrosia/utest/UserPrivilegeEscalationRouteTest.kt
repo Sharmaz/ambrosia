@@ -16,8 +16,8 @@ import org.junit.Before
 import pos.ambrosia.api.configureRoles
 import pos.ambrosia.api.configureUsers
 import pos.ambrosia.api.handler
-import pos.ambrosia.services.PermissionsService
 import pos.ambrosia.utils.ExposedTestDb
+import pos.ambrosia.utils.grantPermission
 import pos.ambrosia.utils.installAdminAuth
 import pos.ambrosia.utils.installNonAdminAuth
 import pos.ambrosia.utils.withAuthCookies
@@ -141,13 +141,4 @@ class UserPrivilegeEscalationRouteTest {
 
             assertEquals(HttpStatusCode.Forbidden, response.status)
         }
-
-    private fun grantPermission(
-        roleName: String,
-        permission: String,
-    ) {
-        val roleId = ExposedTestDb.seedRole(roleName)
-        ExposedTestDb.seedPermission(permission)
-        PermissionsService().replaceRolePermissions(roleId, listOf(permission))
-    }
 }
