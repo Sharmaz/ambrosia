@@ -79,6 +79,8 @@ class ReportService {
             """
     }
 
+    private val configService = ConfigService()
+
     private val validStatuses = setOf("open", "closed", "paid", "refunded")
     private val validSortByColumns =
         mapOf(
@@ -171,9 +173,11 @@ class ReportService {
         endDate: String?,
     ): Pair<String, String>? {
         if (period != null) {
-            val today = LocalDate.now(ZoneOffset.UTC)
+            val today = LocalDate.now(configService.getConfiguredZoneId())
             val start =
                 when (period) {
+                    "day" -> today
+
                     "week" -> today.with(DayOfWeek.MONDAY)
 
                     "month" -> today.withDayOfMonth(1)
@@ -181,7 +185,7 @@ class ReportService {
                     "year" -> today.withDayOfYear(1)
 
                     else -> throw IllegalArgumentException(
-                        "Invalid period: $period. Must be week, month, or year",
+                        "Invalid period: $period. Must be day, week, month, or year",
                     )
                 }
             return Pair(start.toString(), today.toString())
@@ -201,14 +205,14 @@ class ReportService {
             LocalDate
                 .parse(startDate)
                 .atStartOfDay(localZoneOffset)
-                .withZoneSameInstant(ZoneOffset.UTC)
+                .withZoneSameInstant(configService.getConfiguredZoneId())
                 .toLocalDateTime()
         val end =
             LocalDate
                 .parse(endDate)
                 .plusDays(1)
                 .atStartOfDay(localZoneOffset)
-                .withZoneSameInstant(ZoneOffset.UTC)
+                .withZoneSameInstant(configService.getConfiguredZoneId())
                 .toLocalDateTime()
         return Pair(start.toString(), end.toString())
     }
