@@ -28,6 +28,7 @@ const walletEs = {
       confirmPasswordLabel: "Confirmar nueva contraseña",
       requiredError: "Este campo es obligatorio",
       mismatchError: "Las contraseñas no coinciden",
+      currentPasswordIncorrectError: "La contraseña actual es incorrecta",
       submitButton: "Cambiar contraseña",
       successToast: "Contraseña de wallet actualizada",
       errorToast: "No se pudo actualizar la contraseña de wallet",

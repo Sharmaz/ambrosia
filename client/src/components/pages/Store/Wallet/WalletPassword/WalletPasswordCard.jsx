@@ -38,6 +38,7 @@ export function WalletPasswordCard() {
   const [passwordForm, setPasswordForm] = useState(EMPTY_PASSWORD_FORM);
   const [visiblePasswords, setVisiblePasswords] = useState(PASSWORD_VISIBILITY_DEFAULTS);
   const [submitAttempted, setSubmitAttempted] = useState(false);
+  const [currentPasswordServerError, setCurrentPasswordServerError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const submitInFlightRef = useRef(false);
 
@@ -52,6 +53,9 @@ export function WalletPasswordCard() {
     !passwordForm.confirmPassword.trim();
 
   const updatePasswordField = (fieldName, fieldValue) => {
+    if (fieldName === "currentPassword") {
+      setCurrentPasswordServerError("");
+    }
     setPasswordForm((currentPasswordForm) => ({
       ...currentPasswordForm,
       [fieldName]: fieldValue,
@@ -69,6 +73,9 @@ export function WalletPasswordCard() {
     if (submitAttempted && !passwordForm[fieldName].trim()) {
       return walletPasswordTranslations("requiredError");
     }
+    if (fieldName === "currentPassword" && currentPasswordServerError) {
+      return currentPasswordServerError;
+    }
     if (fieldName === "confirmPassword" && passwordsDoNotMatch) {
       return walletPasswordTranslations("mismatchError");
     }
@@ -80,6 +87,7 @@ export function WalletPasswordCard() {
     if (submitInFlightRef.current) return;
 
     setSubmitAttempted(true);
+    setCurrentPasswordServerError("");
     if (passwordFieldsAreBlank || passwordsDoNotMatch) return;
 
     submitInFlightRef.current = true;
@@ -95,7 +103,11 @@ export function WalletPasswordCard() {
         color: "success",
         description: walletPasswordTranslations("successToast"),
       });
-    } catch {
+    } catch (passwordChangeError) {
+      if (passwordChangeError.status === 401) {
+        setCurrentPasswordServerError(walletPasswordTranslations("currentPasswordIncorrectError"));
+        return;
+      }
       addToast({
         color: "danger",
         description: walletPasswordTranslations("errorToast"),

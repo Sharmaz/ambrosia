@@ -28,6 +28,7 @@ const walletEn = {
       confirmPasswordLabel: "Confirm new password",
       requiredError: "This field is required",
       mismatchError: "Passwords do not match",
+      currentPasswordIncorrectError: "Current password is incorrect",
       submitButton: "Change password",
       successToast: "Wallet password updated",
       errorToast: "Could not update wallet password",

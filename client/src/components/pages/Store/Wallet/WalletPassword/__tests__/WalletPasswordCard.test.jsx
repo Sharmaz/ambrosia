@@ -135,6 +135,37 @@ describe("WalletPasswordCard", () => {
     });
   });
 
+  it("shows an inline error when current password is incorrect", async () => {
+    const incorrectCurrentPasswordError = new Error("Current password is incorrect");
+    incorrectCurrentPasswordError.status = 401;
+    walletService.changeWalletPassword.mockRejectedValue(incorrectCurrentPasswordError);
+    render(<WalletPasswordCard />);
+
+    fillPasswordForm({ currentPassword: "wrong-secret" });
+    fireEvent.click(screen.getByText("submitButton"));
+
+    expect(await screen.findByText("currentPasswordIncorrectError")).toBeInTheDocument();
+    expect(addToast).not.toHaveBeenCalled();
+  });
+
+  it("clears incorrect current password error when current password changes", async () => {
+    const incorrectCurrentPasswordError = new Error("Current password is incorrect");
+    incorrectCurrentPasswordError.status = 401;
+    walletService.changeWalletPassword.mockRejectedValue(incorrectCurrentPasswordError);
+    render(<WalletPasswordCard />);
+
+    fillPasswordForm({ currentPassword: "wrong-secret" });
+    fireEvent.click(screen.getByText("submitButton"));
+
+    expect(await screen.findByText("currentPasswordIncorrectError")).toBeInTheDocument();
+
+    fireEvent.change(screen.getByDisplayValue("wrong-secret"), {
+      target: { value: "old-secret" },
+    });
+
+    expect(screen.queryByText("currentPasswordIncorrectError")).not.toBeInTheDocument();
+  });
+
   it("does not submit twice while password change is pending", async () => {
     const { passwordChangePromise, resolvePasswordChange } = createDeferredPasswordChange();
     walletService.changeWalletPassword.mockReturnValue(passwordChangePromise);
