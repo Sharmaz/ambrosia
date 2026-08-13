@@ -30,7 +30,6 @@ import pos.ambrosia.models.StoreCheckoutItem
 import pos.ambrosia.models.StoreCheckoutRequest
 import pos.ambrosia.models.StoreCheckoutResponse
 import java.time.LocalDateTime
-import java.time.ZoneOffset
 import java.util.UUID
 
 private class CheckoutRejectedException : Exception()
@@ -52,6 +51,8 @@ class CheckoutService(
     companion object {
         private val checkoutMutex = Mutex()
     }
+
+    private val configService = ConfigService()
 
     private fun firstActiveVariantId(productEntityId: EntityID<UUID>): UUID? =
         ProductVariantsTable
@@ -287,7 +288,7 @@ class CheckoutService(
 
         return try {
             transaction {
-                val now = LocalDateTime.now(ZoneOffset.UTC).toString()
+                val now = LocalDateTime.now(configService.getConfiguredZoneId()).toString()
                 val userEntityId = EntityID(UUID.fromString(request.userId), UsersTable)
                 val order =
                     OrderEntity.new(UUID.randomUUID()) {
