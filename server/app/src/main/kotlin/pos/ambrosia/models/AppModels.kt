@@ -303,6 +303,12 @@ data class CloseShiftRequest(
 )
 
 @Serializable
+data class WalletPasswordChangeRequest(
+    val currentPassword: String,
+    val newPassword: String,
+)
+
+@Serializable
 data class Permission(
     val id: String? = null,
     val name: String,

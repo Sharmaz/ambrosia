@@ -28,6 +28,7 @@ import pos.ambrosia.models.RolePassword
 import pos.ambrosia.models.UpdateNwcUriRequest
 import pos.ambrosia.models.WalletAuthResponse
 import pos.ambrosia.models.WalletInvoiceRate
+import pos.ambrosia.models.WalletPasswordChangeRequest
 import pos.ambrosia.models.phoenix.CloseChannelRequest
 import pos.ambrosia.models.phoenix.CreateInvoiceRequest
 import pos.ambrosia.models.phoenix.CsvExport
@@ -42,6 +43,7 @@ import pos.ambrosia.services.NwcService
 import pos.ambrosia.services.PaymentService
 import pos.ambrosia.services.PhoenixService
 import pos.ambrosia.services.RefundService
+import pos.ambrosia.services.RolesService
 import pos.ambrosia.services.TokenService
 import pos.ambrosia.services.WalletAdminNotificationService
 import pos.ambrosia.services.WalletRateService
@@ -70,6 +72,7 @@ fun Application.configureWallet() {
 
     val authService = AuthService(environment)
     val tokenService = TokenService(environment)
+    val rolesService = RolesService(environment)
     val walletRateService = WalletRateService()
     val paymentService = PaymentService()
     val refundService = RefundService(ActiveLightningBackend)
@@ -79,6 +82,7 @@ fun Application.configureWallet() {
             wallet(
                 tokenService,
                 authService,
+                rolesService,
                 paymentService,
                 walletRateService,
                 refundService,
@@ -91,6 +95,7 @@ fun Application.configureWallet() {
 fun Route.wallet(
     tokenService: TokenService,
     authService: AuthService,
+    rolesService: RolesService,
     paymentService: PaymentService,
     walletRateService: WalletRateService,
     refundService: RefundService,
@@ -137,6 +142,27 @@ fun Route.wallet(
         }
     }
     authenticate("auth-jwt-wallet") {
+        post("/password") {
+            val passwordChangeRequest = call.receive<WalletPasswordChangeRequest>()
+            if (passwordChangeRequest.currentPassword.isBlank() || passwordChangeRequest.newPassword.isBlank()) {
+                call.respond(HttpStatusCode.BadRequest, Message("Current and new passwords are required"))
+                return@post
+            }
+            val actorUserId = call.walletActorUserId() ?: throw InvalidCredentialsException()
+            val currentPasswordIsValid =
+                authService.authenticateByRole(actorUserId, passwordChangeRequest.currentPassword.toCharArray())
+            if (!currentPasswordIsValid) {
+                call.respond(HttpStatusCode.Unauthorized, Message("Current password is incorrect"))
+                return@post
+            }
+            val passwordWasUpdated =
+                rolesService.updateWalletPasswordForUser(actorUserId, passwordChangeRequest.newPassword.toCharArray())
+            if (!passwordWasUpdated) {
+                call.respond(HttpStatusCode.BadRequest, Message("Unable to update wallet password"))
+                return@post
+            }
+            call.respond(HttpStatusCode.OK, Message("Wallet password updated"))
+        }
         post("/updatenwcuri") {
             val updateNwcUriRequest = call.receive<UpdateNwcUriRequest>()
             val trimmedNwcUri = updateNwcUriRequest.nwcUri.trim()
