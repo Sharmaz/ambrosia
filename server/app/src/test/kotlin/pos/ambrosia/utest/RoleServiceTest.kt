@@ -8,6 +8,7 @@ import org.junit.After
 import org.junit.Before
 import pos.ambrosia.db.tables.UserEntity
 import pos.ambrosia.models.Role
+import pos.ambrosia.services.AuthService
 import pos.ambrosia.services.PermissionsService
 import pos.ambrosia.services.RolesService
 import pos.ambrosia.utils.ExposedTestDb
@@ -25,6 +26,7 @@ import kotlin.test.assertTrue
 class RoleServiceTest {
     private val env = applicationEnvironment { config = MapApplicationConfig("secret" to "test-secret") }
     private val service = RolesService(env)
+    private val authService = AuthService(env)
     private val permissionsService = PermissionsService()
     private lateinit var dbFile: File
 
@@ -132,6 +134,51 @@ class RoleServiceTest {
 
             val updated = service.getRoleById(roleId)
             assertEquals("Manager", updated?.role)
+        }
+    }
+
+    @Test
+    fun `updateRole does not change role password`() {
+        runBlocking {
+            val roleId = service.addRole(Role(role = "Cashier", password = "old-password", isAdmin = false))
+            assertNotNull(roleId)
+            val userId = ExposedTestDb.seedUser("cashier-user", roleId)
+
+            val roleUpdateSucceeded =
+                service.updateRole(roleId, Role(role = "Manager", password = "new-password", isAdmin = false))
+
+            assertTrue(roleUpdateSucceeded)
+            assertTrue(authService.authenticateByRole(userId, "old-password".toCharArray()))
+            assertFalse(authService.authenticateByRole(userId, "new-password".toCharArray()))
+        }
+    }
+
+    @Test
+    fun `updateWalletPasswordForUser changes the current user's role password`() {
+        runBlocking {
+            val roleId = service.addRole(Role(role = "Cashier", password = "old-password", isAdmin = false))
+            assertNotNull(roleId)
+            val userId = ExposedTestDb.seedUser("cashier-user", roleId)
+
+            val walletPasswordWasUpdated = service.updateWalletPasswordForUser(userId, "new-password".toCharArray())
+
+            assertTrue(walletPasswordWasUpdated)
+            assertFalse(authService.authenticateByRole(userId, "old-password".toCharArray()))
+            assertTrue(authService.authenticateByRole(userId, "new-password".toCharArray()))
+        }
+    }
+
+    @Test
+    fun `updateWalletPasswordForUser rejects blank passwords`() {
+        runBlocking {
+            val roleId = service.addRole(Role(role = "Cashier", password = "old-password", isAdmin = false))
+            assertNotNull(roleId)
+            val userId = ExposedTestDb.seedUser("cashier-user", roleId)
+
+            val blankPasswordWasRejected = service.updateWalletPasswordForUser(userId, charArrayOf())
+
+            assertFalse(blankPasswordWasRejected)
+            assertTrue(authService.authenticateByRole(userId, "old-password".toCharArray()))
         }
     }
 

@@ -94,7 +94,7 @@ describe("useRoles", () => {
     await waitFor(() => expect(screen.getByTestId("first-role")).toHaveTextContent("seller"));
   });
 
-  it("creates a role with password and permissions", async () => {
+  it("creates a role with permissions without sending password data", async () => {
     httpClient.mockResolvedValue({ ok: true });
     parseJsonResponse.mockResolvedValueOnce([]);
     parseJsonResponse.mockResolvedValueOnce({ id: "xyz" });
@@ -110,7 +110,7 @@ describe("useRoles", () => {
     expect(httpClient).toHaveBeenCalledWith("/roles", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ role: "manager", isAdmin: false, password: "secret" }),
+      body: JSON.stringify({ role: "manager", isAdmin: false }),
     });
     expect(httpClient).toHaveBeenCalledWith("/roles/xyz/permissions", {
       method: "PUT",
