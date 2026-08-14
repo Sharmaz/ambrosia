@@ -96,6 +96,7 @@ export function useCategories(type = "product") {
     deleteCategory,
     loading,
     error,
+    forbidden: !canRead,
     refetch: fetchCategories,
   };
 }
