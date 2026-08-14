@@ -132,7 +132,6 @@ describe("Roles", () => {
 
     await waitFor(() => expect(createRole).toHaveBeenCalledWith({
       name: "cashier",
-      password: undefined,
       isAdmin: false,
       permissions: [],
     }));
@@ -157,7 +156,6 @@ describe("Roles", () => {
 
     await waitFor(() => expect(createRole).toHaveBeenCalledWith({
       name: "cashier",
-      password: undefined,
       isAdmin: false,
       permissions: [],
     }));
@@ -185,7 +183,6 @@ describe("Roles", () => {
 
     await waitFor(() => expect(createRole).toHaveBeenCalledWith({
       name: "cashier",
-      password: undefined,
       isAdmin: false,
       permissions: [],
     }));
@@ -296,6 +293,30 @@ describe("Roles", () => {
     resolveUpdateRole();
 
     await waitFor(() => expect(screen.queryByText("roles.edit.title")).not.toBeInTheDocument());
+  });
+
+  it("updates a role without sending password data", async () => {
+    const updateRoleWithPermissions = jest.fn(() => Promise.resolve());
+    const getRolePermissions = jest.fn(() => Promise.resolve([]));
+
+    renderRoles({
+      roles: [{ id: "role-id", role: "cashier", isAdmin: false }],
+      updateRoleWithPermissions,
+      getRolePermissions,
+    });
+
+    fireEvent.click(screen.getByText("edit role"));
+
+    await waitFor(() => expect(screen.getByText("roles.edit.title")).toBeInTheDocument());
+
+    fireEvent.click(screen.getByText("set edit role name"));
+    fireEvent.click(screen.getByText("roles.actions.save"));
+
+    await waitFor(() => expect(updateRoleWithPermissions).toHaveBeenCalledWith("role-id", {
+      name: "manager",
+      isAdmin: false,
+      permissions: [],
+    }));
   });
 
   it("does not delete a role twice while deletion is pending", async () => {

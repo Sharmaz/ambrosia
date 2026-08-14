@@ -10,6 +10,7 @@ import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.jetbrains.exposed.v1.jdbc.update
 import pos.ambrosia.db.tables.RoleEntity
 import pos.ambrosia.db.tables.RolesTable
+import pos.ambrosia.db.tables.UserEntity
 import pos.ambrosia.db.tables.UsersTable
 import pos.ambrosia.logger
 import pos.ambrosia.models.Role
@@ -126,13 +127,41 @@ class RolesService(
             } else {
                 entity.role = role.role
                 entity.isAdmin = isAdmin
-                if (role.password != null) {
-                    val encryptedPin = SecurePinProcessor.hashPinForStorage(role.password.toCharArray(), id, env)
-                    entity.password = SecurePinProcessor.byteArrayToBase64(encryptedPin)
-                }
                 grantAllPermissionsIfAdmin(id, isAdmin)
                 logger.info("Role updated successfully: ${role.id}")
                 true
+            }
+        }
+
+    fun updateWalletPasswordForUser(
+        userId: String,
+        newPassword: CharArray,
+    ): Boolean =
+        transaction {
+            if (newPassword.isEmpty()) return@transaction false
+            try {
+                val user =
+                    UserEntity
+                        .findById(UUID.fromString(userId))
+                        ?.takeIf { !it.isDeleted }
+                        ?: return@transaction false
+                val role =
+                    user.roleId
+                        ?.let { RoleEntity.findById(it.value) }
+                        ?.takeIf { !it.isDeleted }
+                        ?: return@transaction false
+                val encryptedPin =
+                    SecurePinProcessor.hashPinForStorage(
+                        pin = newPassword,
+                        id = role.id.value.toString(),
+                        env = env,
+                    )
+                role.password = SecurePinProcessor.byteArrayToBase64(encryptedPin)
+                true
+            } catch (_: IllegalArgumentException) {
+                false
+            } finally {
+                newPassword.fill('\u0000')
             }
         }
 

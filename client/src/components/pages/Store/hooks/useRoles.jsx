@@ -67,10 +67,9 @@ export function useRoles() {
   }, []);
 
   const createRole = useCallback(
-    async ({ name, password, isAdmin = false, permissions = [] }) => {
+    async ({ name, isAdmin = false, permissions = [] }) => {
       try {
         const roleRequestBody = { role: name, isAdmin };
-        if (password) roleRequestBody.password = password;
         const createRoleRequest = await httpClient("/roles", {
           method: "POST",
           headers: {
@@ -97,12 +96,11 @@ export function useRoles() {
   );
 
   const updateRoleWithPermissions = useCallback(
-    async (roleId, { name, isAdmin = false, password, permissions = [] }) => {
+    async (roleId, { name, isAdmin = false, permissions = [] }) => {
       if (!roleId) return;
       await updateRole(roleId, {
         role: name,
         isAdmin,
-        ...(password ? { password } : {}),
       });
       await assignPermissions(roleId, permissions);
       await fetchRoles();

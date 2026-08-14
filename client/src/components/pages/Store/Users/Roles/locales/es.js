@@ -32,8 +32,6 @@ const rolesEs = {
       title: "Crear rol",
       roleName: "Nombre del rol",
       roleNamePlaceholder: "Ej. Cajero",
-      password: "Contraseña para acciones críticas",
-      passwordPlaceholder: "Opcional",
       isAdmin: "Con privilegios de administrador",
       templateLegend: "Elige una plantilla de rol para comenzar, o usa el modo avanzado para configurarlo manualmente.",
       advanced: "Modo avanzado",
@@ -68,8 +66,6 @@ const rolesEs = {
       title: "Editar rol",
       roleName: "Nombre del rol",
       roleNamePlaceholder: "Ej. Cajero",
-      password: "Actualizar contraseña (opcional)",
-      passwordPlaceholder: "Dejar vacío para mantener",
       isAdmin: "Con privilegios de administrador",
     },
     permissions: {

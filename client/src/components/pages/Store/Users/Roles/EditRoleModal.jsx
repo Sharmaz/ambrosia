@@ -47,20 +47,13 @@ export function EditRoleModal({
           {roleTranslations("roles.edit.title")} {roleName ? `(${roleName})` : ""}
         </ModalHeader>
         <ModalBody className="max-h-[70vh] overflow-y-auto space-y-4">
-          <div className="grid md:grid-cols-2 gap-4">
+          <div className="grid gap-4">
             <Input
               label={roleTranslations("roles.edit.roleName")}
               placeholder={roleTranslations("roles.edit.roleNamePlaceholder")}
               value={form.name}
               onChange={(event) => setForm((previousForm) => ({ ...previousForm, name: event.target.value }))}
               isRequired
-            />
-            <Input
-              label={roleTranslations("roles.edit.password")}
-              placeholder={roleTranslations("roles.edit.passwordPlaceholder")}
-              type="password"
-              value={form.password}
-              onChange={(event) => setForm((previousForm) => ({ ...previousForm, password: event.target.value }))}
             />
           </div>
 
