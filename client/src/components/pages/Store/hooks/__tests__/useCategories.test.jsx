@@ -11,6 +11,11 @@ jest.mock("@/lib/http", () => ({
   parseJsonResponse: jest.fn(),
 }));
 
+let mockCanReadCategories = true;
+jest.mock("@/hooks/usePermission", () => ({
+  usePermission: () => mockCanReadCategories,
+}));
+
 jest.mock("@heroui/react", () => ({
   addToast: jest.fn(),
 }));
@@ -52,6 +57,7 @@ describe("useCategories", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     jest.spyOn(console, "error").mockImplementation(() => {});
+    mockCanReadCategories = true;
   });
 
   afterEach(() => {
@@ -229,5 +235,15 @@ describe("useCategories", () => {
     });
 
     expect(thrownError?.status).toBe(409);
+  });
+
+  it("does not fetch categories when the user lacks categories_read", async () => {
+    mockCanReadCategories = false;
+
+    render(<TestComponent />);
+
+    await waitFor(() => expect(screen.getByTestId("loading")).toHaveTextContent("no"));
+    expect(screen.getByTestId("count")).toHaveTextContent("0");
+    expect(httpClient).not.toHaveBeenCalled();
   });
 });

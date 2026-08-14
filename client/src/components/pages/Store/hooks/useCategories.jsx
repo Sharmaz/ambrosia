@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback } from "react";
 
 import { toArray } from "@/components/utils/array";
+import { usePermission } from "@/hooks/usePermission";
 import { httpClient, parseJsonResponse } from "@/lib/http";
 import { useFetchList } from "@/lib/http/useFetchList";
 
@@ -9,11 +10,13 @@ import { buildParsedHttpError } from "../utils/buildHttpError";
 
 export function useCategories(type = "product") {
   const { fetchList } = useFetchList();
+  const canRead = usePermission({ allOf: ["categories_read"] });
   const [categories, setCategories] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(canRead);
   const [error, setError] = useState(null);
 
   const fetchCategories = useCallback(async () => {
+    if (!canRead) return;
     setLoading(true);
     setError(null);
 
@@ -27,7 +30,7 @@ export function useCategories(type = "product") {
     } finally {
       setLoading(false);
     }
-  }, [fetchList, type]);
+  }, [canRead, fetchList, type]);
 
   const createCategory = useCallback(
     async (name, categoryType) => {
