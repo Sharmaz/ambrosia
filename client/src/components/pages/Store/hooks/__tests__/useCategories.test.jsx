@@ -71,7 +71,7 @@ describe("useCategories", () => {
     expect(screen.getByTestId("count")).toHaveTextContent("2");
     expect(screen.getByTestId("first-name")).toHaveTextContent("Hardware");
     expect(screen.getByTestId("error")).toHaveTextContent("no");
-    expect(httpClient).toHaveBeenCalledWith("/categories?type=product");
+    expect(httpClient).toHaveBeenCalledWith("/categories?type=product", {});
   });
 
   it("sets empty categories when api returns non-array", async () => {
