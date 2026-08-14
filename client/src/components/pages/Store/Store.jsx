@@ -13,10 +13,10 @@ import { useProducts } from "./hooks/useProducts";
 import { useUsers } from "./hooks/useUsers";
 
 export function Store() {
-  const t = useTranslations("dashboard");
+  const dashboardTranslations = useTranslations("dashboard");
   const { users } = useUsers();
-  const { products } = useProducts();
-  const { orders } = useOrders();
+  const { products, forbidden: productsForbidden } = useProducts({ skipForbiddenRedirect: true });
+  const { orders, forbidden: ordersForbidden } = useOrders({ skipForbiddenRedirect: true });
   const { formatAmount } = useCurrency();
   const canSeeRevenue = usePermission({ allOf: ["reports_read"] });
 
@@ -26,32 +26,32 @@ export function Store() {
   const netRevenue = paidOrders.reduce((sum, order) => sum + (order.total ?? 0), 0);
 
   const salesStat = canSeeRevenue
-    ? { name: t("stats.revenue"), quantity: formatCurrency(netRevenue) }
-    : { name: t("stats.sales"), quantity: paidOrders.length };
+    ? { name: dashboardTranslations("stats.revenue"), quantity: formatCurrency(netRevenue) }
+    : { name: dashboardTranslations("stats.sales"), quantity: paidOrders.length };
 
   const STATS = [
     {
       id: 1,
-      name: t("stats.users"),
+      name: dashboardTranslations("stats.users"),
       quantity: users?.length,
       icon: Users,
     },
-    {
+    ...(productsForbidden ? [] : [{
       id: 2,
-      name: t("stats.products"),
+      name: dashboardTranslations("stats.products"),
       quantity: products?.length,
       icon: Package,
-    },
-    {
+    }]),
+    ...(ordersForbidden ? [] : [{
       id: 3,
       ...salesStat,
       icon: ShoppingCart,
-    },
+    }]),
   ];
 
   return (
     <>
-      <PageHeader title={t("title")} subtitle={t("subtitle")} />
+      <PageHeader title={dashboardTranslations("title")} subtitle={dashboardTranslations("subtitle")} />
 
       <div className="bg-white rounded-lg shadow-lg p-4 lg:p-8">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

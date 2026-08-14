@@ -292,4 +292,88 @@ describe("Store Dashboard", () => {
     expect(screen.queryByText("stats.sales")).not.toBeInTheDocument();
     expect(screen.getByText("$150.00")).toBeInTheDocument();
   });
+
+  it("calls useProducts and useOrders with skipForbiddenRedirect: true", async () => {
+    const productsSpy = jest.spyOn(useProductsHook, "useProducts").mockReturnValue({
+      products: mockProducts,
+      loading: false,
+      error: null,
+      forbidden: false,
+      refetch: jest.fn(),
+    });
+    const ordersSpy = jest.spyOn(useOrdersHook, "useOrders").mockReturnValue({
+      orders: mockOrders,
+      loading: false,
+      error: null,
+      forbidden: false,
+      refetch: jest.fn(),
+    });
+
+    await act(async () => {
+      renderStore();
+    });
+
+    expect(productsSpy).toHaveBeenCalledWith({ skipForbiddenRedirect: true });
+    expect(ordersSpy).toHaveBeenCalledWith({ skipForbiddenRedirect: true });
+  });
+
+  it("excludes the products card when useProducts reports forbidden", async () => {
+    jest.spyOn(useProductsHook, "useProducts").mockReturnValue({
+      products: [],
+      loading: false,
+      error: null,
+      forbidden: true,
+      refetch: jest.fn(),
+    });
+
+    await act(async () => {
+      renderStore();
+    });
+
+    expect(screen.getByText("stats.users")).toBeInTheDocument();
+    expect(screen.queryByText("stats.products")).not.toBeInTheDocument();
+    expect(screen.getByText("stats.sales")).toBeInTheDocument();
+  });
+
+  it("excludes the revenue/sales card when useOrders reports forbidden", async () => {
+    jest.spyOn(useOrdersHook, "useOrders").mockReturnValue({
+      orders: [],
+      loading: false,
+      error: null,
+      forbidden: true,
+      refetch: jest.fn(),
+    });
+
+    await act(async () => {
+      renderStore();
+    });
+
+    expect(screen.getByText("stats.users")).toBeInTheDocument();
+    expect(screen.getByText("stats.products")).toBeInTheDocument();
+    expect(screen.queryByText("stats.sales")).not.toBeInTheDocument();
+    expect(screen.queryByText("stats.revenue")).not.toBeInTheDocument();
+  });
+
+  it("never excludes the users card, since listing users has no permission to check", async () => {
+    jest.spyOn(useProductsHook, "useProducts").mockReturnValue({
+      products: [],
+      loading: false,
+      error: null,
+      forbidden: true,
+      refetch: jest.fn(),
+    });
+    jest.spyOn(useOrdersHook, "useOrders").mockReturnValue({
+      orders: [],
+      loading: false,
+      error: null,
+      forbidden: true,
+      refetch: jest.fn(),
+    });
+
+    await act(async () => {
+      renderStore();
+    });
+
+    expect(screen.getByText("stats.users")).toBeInTheDocument();
+  });
 });
