@@ -53,7 +53,7 @@ export function useShiftTicketMetrics(openShiftData) {
 
       const refundedCashRunningTotal = orders
         .filter((order) => order.refund?.refundedAt)
-        .filter((order) => new Date(`${order.refund.refundedAt.replace(" ", "T")}Z`).getTime() >= shiftStartMilliseconds)
+        .filter((order) => new Date(order.refund.refundedAt.replace(" ", "T")).getTime() >= shiftStartMilliseconds)
         .filter((order) => classifyPaymentMethod(order.paymentMethod) === PAYMENT_METHODS.CASH)
         .reduce((runningTotal, order) => runningTotal + (order.total - order.discountAmount), 0);
 
@@ -78,7 +78,7 @@ export function useShiftTicketMetrics(openShiftData) {
 
       const tickets = await getTickets();
       const shiftTickets = tickets.filter(
-        (ticket) => new Date(`${ticket.ticketDate.replace(" ", "T")}Z`).getTime() >= shiftStartMilliseconds,
+        (ticket) => new Date(ticket.ticketDate.replace(" ", "T")).getTime() >= shiftStartMilliseconds,
       );
 
       setTotalBalance(shiftTickets.reduce((runningTotal, ticket) => runningTotal + ticket.totalAmount, 0));

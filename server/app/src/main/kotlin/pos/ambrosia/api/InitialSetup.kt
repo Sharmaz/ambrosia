@@ -27,6 +27,7 @@ import pos.ambrosia.services.UsersService
 import pos.ambrosia.services.WalletAdminNotificationService
 import pos.ambrosia.utils.InitialSetupException
 import java.io.File
+import java.time.ZoneId
 
 fun Application.configureInitialSetup() {
     routing {
@@ -80,6 +81,7 @@ private fun Route.initialSetupRoutes() {
         val userPin = initialSetupRequest.userPin
         val businessName = initialSetupRequest.businessName?.trim()
         val businessCurrency = initialSetupRequest.businessCurrency
+        val timezone = initialSetupRequest.timezone
 
         if (
             businessType != "store" &&
@@ -92,8 +94,12 @@ private fun Route.initialSetupRoutes() {
             call.respond(HttpStatusCode.BadRequest, mapOf("message" to "Missing user data"))
             return@post
         }
-        if (businessName.isNullOrEmpty() || businessCurrency.isNullOrEmpty()) {
+        if (businessName.isNullOrEmpty() || businessCurrency.isNullOrEmpty() || timezone.isNullOrEmpty()) {
             call.respond(HttpStatusCode.BadRequest, mapOf("message" to "Missing business data"))
+            return@post
+        }
+        if (timezone !in ZoneId.getAvailableZoneIds()) {
+            call.respond(HttpStatusCode.BadRequest, mapOf("message" to "Invalid timezone: $timezone"))
             return@post
         }
 
@@ -136,6 +142,7 @@ private fun Route.initialSetupRoutes() {
                             businessTaxId = taxId,
                             businessLogoUrl = logoUrl,
                             businessTypeConfirmed = true,
+                            timezone = timezone,
                         ),
                     )
                 if (!saved) throw InitialSetupException("Failed to save config")

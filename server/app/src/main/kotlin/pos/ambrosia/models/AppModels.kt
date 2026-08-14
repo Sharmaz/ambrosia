@@ -477,6 +477,7 @@ data class Config(
     val businessTaxId: String?,
     val businessLogoUrl: String?,
     val businessTypeConfirmed: Boolean = false,
+    val timezone: String = "America/Mexico_City",
 )
 
 @Serializable
@@ -607,6 +608,7 @@ data class InitialSetupRequest(
     val businessRFC: String? = null,
     val businessTaxId: String? = null,
     val businessCurrency: String? = null,
+    val timezone: String? = null,
     val businessLogo: String? = null,
     val businessLogoUrl: String? = null,
     val nwcUri: String? = null,

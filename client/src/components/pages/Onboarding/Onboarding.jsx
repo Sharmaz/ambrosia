@@ -46,6 +46,7 @@ export function Onboarding() {
     businessEmail: "",
     businessRFC: "",
     businessCurrency: "USD",
+    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     businessLogo: null,
   });
   const { upload } = useUpload();
@@ -236,6 +237,7 @@ export function Onboarding() {
                 businessEmail: data.businessEmail,
                 businessRFC: data.businessRFC,
                 businessCurrency: data.businessCurrency,
+                timezone: data.timezone,
                 businessLogo: data.businessLogo,
               }}
               onChange={(businessData) => handleDataChange(businessData)}
@@ -289,7 +291,7 @@ export function Onboarding() {
                       !isPasswordStrong(data.userPassword) ||
                       !isPinValid(data.userPin)
                     )) ||
-                    (step === 3 && (!data.businessName || !data.businessCurrency)) ||
+                    (step === 3 && (!data.businessName || !data.businessCurrency || !data.timezone)) ||
                     (step === 4 && data.walletBackend === "nwc" && (!data.nwcUri || !NWC_URI_REGEX.test(data.nwcUri)))
                   }
                   className="bg-green-800"

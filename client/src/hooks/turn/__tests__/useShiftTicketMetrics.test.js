@@ -22,11 +22,15 @@ const SHIFT_DATE = "2026-03-04";
 const START_TIME = "08:00:00";
 const shiftStartMilliseconds = new Date(`${SHIFT_DATE}T${START_TIME}`).getTime();
 
-const toSqliteUtc = (epochMilliseconds) => new Date(epochMilliseconds).toISOString().replace("T", " ").slice(0, 19);
+const toLocalNaive = (epochMilliseconds) => {
+  const date = new Date(epochMilliseconds);
+  const pad = (value) => String(value).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+};
 
-const ticketAfter1 = { id: 1, ticketDate: toSqliteUtc(shiftStartMilliseconds + 1000), totalAmount: 5.0 };
-const ticketAfter2 = { id: 2, ticketDate: toSqliteUtc(shiftStartMilliseconds + 2000), totalAmount: 3.0 };
-const ticketBefore = { id: 3, ticketDate: toSqliteUtc(shiftStartMilliseconds - 5000), totalAmount: 10.0 };
+const ticketAfter1 = { id: 1, ticketDate: toLocalNaive(shiftStartMilliseconds + 1000), totalAmount: 5.0 };
+const ticketAfter2 = { id: 2, ticketDate: toLocalNaive(shiftStartMilliseconds + 2000), totalAmount: 3.0 };
+const ticketBefore = { id: 3, ticketDate: toLocalNaive(shiftStartMilliseconds - 5000), totalAmount: 10.0 };
 
 const SHIFT_DATA = { shiftDate: SHIFT_DATE, startTime: START_TIME };
 
@@ -86,7 +90,7 @@ describe("useShiftTicketMetrics", () => {
     });
 
     it("counts ticket at exact shift start boundary", async () => {
-      const ticketAtBoundary = { id: 4, ticketDate: toSqliteUtc(shiftStartMilliseconds), totalAmount: 7.0 };
+      const ticketAtBoundary = { id: 4, ticketDate: toLocalNaive(shiftStartMilliseconds), totalAmount: 7.0 };
       getTickets.mockResolvedValue([ticketAtBoundary]);
 
       const { result } = renderHook(() => useShiftTicketMetrics(SHIFT_DATA));
@@ -96,9 +100,9 @@ describe("useShiftTicketMetrics", () => {
       expect(result.current.totalBalance).toBe(7.0);
     });
 
-    it("filters ticket from previous shift that would appear in new shift due to UTC offset", async () => {
-      const oldShiftTicket = { id: 5, ticketDate: toSqliteUtc(shiftStartMilliseconds - 240000), totalAmount: 3.0 };
-      const newShiftTicket = { id: 6, ticketDate: toSqliteUtc(shiftStartMilliseconds + 60000), totalAmount: 1.0 };
+    it("excludes a ticket from before shift start when a ticket from after shift start is also present", async () => {
+      const oldShiftTicket = { id: 5, ticketDate: toLocalNaive(shiftStartMilliseconds - 240000), totalAmount: 3.0 };
+      const newShiftTicket = { id: 6, ticketDate: toLocalNaive(shiftStartMilliseconds + 60000), totalAmount: 1.0 };
 
       getTickets.mockResolvedValue([oldShiftTicket, newShiftTicket]);
 
@@ -179,8 +183,8 @@ describe("useShiftTicketMetrics", () => {
     it("computes refundedCashTotal summing only cash orders refunded during the shift", async () => {
       getTickets.mockResolvedValue([]);
       getOrdersWithPayments.mockResolvedValue([
-        { paymentMethod: "Cash", total: 15.0, discountAmount: 0, refund: { refundedAt: toSqliteUtc(shiftStartMilliseconds + 1000) } },
-        { paymentMethod: "Cash", total: 8.0, discountAmount: 0, refund: { refundedAt: toSqliteUtc(shiftStartMilliseconds + 2000) } },
+        { paymentMethod: "Cash", total: 15.0, discountAmount: 0, refund: { refundedAt: toLocalNaive(shiftStartMilliseconds + 1000) } },
+        { paymentMethod: "Cash", total: 8.0, discountAmount: 0, refund: { refundedAt: toLocalNaive(shiftStartMilliseconds + 2000) } },
       ]);
 
       const { result } = renderHook(() => useShiftTicketMetrics(SHIFT_DATA));
@@ -193,7 +197,7 @@ describe("useShiftTicketMetrics", () => {
     it("subtracts the discount from the order total when computing refundedCashTotal", async () => {
       getTickets.mockResolvedValue([]);
       getOrdersWithPayments.mockResolvedValue([
-        { paymentMethod: "Cash", total: 15.0, discountAmount: 5.0, refund: { refundedAt: toSqliteUtc(shiftStartMilliseconds + 1000) } },
+        { paymentMethod: "Cash", total: 15.0, discountAmount: 5.0, refund: { refundedAt: toLocalNaive(shiftStartMilliseconds + 1000) } },
       ]);
 
       const { result } = renderHook(() => useShiftTicketMetrics(SHIFT_DATA));
@@ -206,7 +210,7 @@ describe("useShiftTicketMetrics", () => {
     it("excludes refunds on non-cash orders from refundedCashTotal", async () => {
       getTickets.mockResolvedValue([]);
       getOrdersWithPayments.mockResolvedValue([
-        { paymentMethod: "Card", total: 8.0, discountAmount: 0, refund: { refundedAt: toSqliteUtc(shiftStartMilliseconds + 1000) } },
+        { paymentMethod: "Card", total: 8.0, discountAmount: 0, refund: { refundedAt: toLocalNaive(shiftStartMilliseconds + 1000) } },
       ]);
 
       const { result } = renderHook(() => useShiftTicketMetrics(SHIFT_DATA));
@@ -219,7 +223,7 @@ describe("useShiftTicketMetrics", () => {
     it("excludes refunds that happened before the shift started", async () => {
       getTickets.mockResolvedValue([]);
       getOrdersWithPayments.mockResolvedValue([
-        { paymentMethod: "Cash", total: 15.0, discountAmount: 0, refund: { refundedAt: toSqliteUtc(shiftStartMilliseconds - 5000) } },
+        { paymentMethod: "Cash", total: 15.0, discountAmount: 0, refund: { refundedAt: toLocalNaive(shiftStartMilliseconds - 5000) } },
       ]);
 
       const { result } = renderHook(() => useShiftTicketMetrics(SHIFT_DATA));
@@ -236,8 +240,8 @@ describe("useShiftTicketMetrics", () => {
           paymentMethod: "Cash",
           total: 15.0,
           discountAmount: 0,
-          createdAt: toSqliteUtc(shiftStartMilliseconds - 86400000),
-          refund: { refundedAt: toSqliteUtc(shiftStartMilliseconds + 1000) },
+          createdAt: toLocalNaive(shiftStartMilliseconds - 86400000),
+          refund: { refundedAt: toLocalNaive(shiftStartMilliseconds + 1000) },
         },
       ]);
 
@@ -326,7 +330,7 @@ describe("useShiftTicketMetrics", () => {
       getPaymentMethods.mockResolvedValue([{ id: 20, name: "Cash" }]);
       getPaymentByTicketId.mockResolvedValueOnce([{ paymentId: 10 }]);
       getOrdersWithPayments.mockResolvedValue([
-        { paymentMethod: "Cash", total: 15.0, discountAmount: 0, refund: { refundedAt: toSqliteUtc(shiftStartMilliseconds + 1000) } },
+        { paymentMethod: "Cash", total: 15.0, discountAmount: 0, refund: { refundedAt: toLocalNaive(shiftStartMilliseconds + 1000) } },
       ]);
 
       const { result } = renderHook(() => useShiftTicketMetrics(SHIFT_DATA));

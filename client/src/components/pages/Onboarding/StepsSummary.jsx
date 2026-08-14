@@ -86,6 +86,10 @@ export function WizardSummary({ data, onEdit }) {
                   <p className="text-xs text-muted-foreground">{summaryTranslations("step4.sections.businessDetails.businessCurrency")}</p>
                   <p className="font-semibold text-foreground">{data.businessCurrency}</p>
                 </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">{summaryTranslations("step4.sections.businessDetails.businessTimezone")}</p>
+                  <p className="font-semibold text-foreground">{data.timezone}</p>
+                </div>
               </div>
               {data.businessLogo && (
                 <div className="mt-3">

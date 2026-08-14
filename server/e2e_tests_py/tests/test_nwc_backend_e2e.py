@@ -65,6 +65,7 @@ async def nwc_wallet_client(nwc_server: AmbrosiaTestServer):
                 "businessPhone": "1234567890",
                 "businessEmail": "test-nwc@example.com",
                 "businessCurrency": "USD",
+                "timezone": "America/Mexico_City",
             },
         )
         if setup_response.status_code not in (201, 409):
