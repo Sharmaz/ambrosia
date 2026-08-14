@@ -2,15 +2,18 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { toArray } from "@/components/utils/array";
+import { usePermission } from "@/hooks/usePermission";
 import { httpClient, parseJsonResponse } from "@/lib/http";
 
 export function usePermissions({ enabled = true } = {}) {
+  const canReadPermissions = usePermission({ allOf: ["permissions_read"] });
+  const shouldFetch = enabled && canReadPermissions;
   const [permissions, setPermissions] = useState([]);
-  const [loading, setLoading] = useState(enabled);
+  const [loading, setLoading] = useState(shouldFetch);
   const [error, setError] = useState(null);
 
   const fetchPermissions = useCallback(async () => {
-    if (!enabled) {
+    if (!shouldFetch) {
       setPermissions([]);
       setError(null);
       setLoading(false);
@@ -23,13 +26,13 @@ export function usePermissions({ enabled = true } = {}) {
 
       const permissionsData = await parseJsonResponse(permissionsRequest);
       setPermissions(toArray(permissionsData));
-    } catch (error) {
-      console.error("Error fetching permissions:", error);
-      setError(error);
+    } catch (permissionsLoadError) {
+      console.error("Error fetching permissions:", permissionsLoadError);
+      setError(permissionsLoadError);
     } finally {
       setLoading(false);
     }
-  }, [enabled]);
+  }, [shouldFetch]);
 
   useEffect(() => {
     fetchPermissions();

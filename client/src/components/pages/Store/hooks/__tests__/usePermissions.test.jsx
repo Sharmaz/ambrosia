@@ -9,6 +9,11 @@ jest.mock("@/lib/http", () => ({
   parseJsonResponse: jest.fn(),
 }));
 
+let mockCanReadPermissions = true;
+jest.mock("@/hooks/usePermission", () => ({
+  usePermission: () => mockCanReadPermissions,
+}));
+
 function TestComponent({ enabled = true }) {
   const { permissions, loading, error } = usePermissions({ enabled });
 
@@ -26,6 +31,7 @@ describe("usePermissions", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     jest.spyOn(console, "error").mockImplementation(() => {});
+    mockCanReadPermissions = true;
   });
 
   afterEach(() => {
@@ -79,5 +85,15 @@ describe("usePermissions", () => {
     await waitFor(() => expect(screen.getByTestId("loading")).toHaveTextContent("no"));
     expect(httpClient).not.toHaveBeenCalled();
     expect(screen.getByTestId("count")).toHaveTextContent("0");
+  });
+
+  it("does not fetch permissions when the user lacks permissions_read", async () => {
+    mockCanReadPermissions = false;
+
+    render(<TestComponent />);
+
+    await waitFor(() => expect(screen.getByTestId("loading")).toHaveTextContent("no"));
+    expect(screen.getByTestId("count")).toHaveTextContent("0");
+    expect(httpClient).not.toHaveBeenCalled();
   });
 });
