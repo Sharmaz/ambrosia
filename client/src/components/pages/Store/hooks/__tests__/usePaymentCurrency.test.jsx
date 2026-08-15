@@ -44,24 +44,24 @@ describe("usePaymentCurrency", () => {
 
     render(<TestComponent />);
 
-    let result;
+    let paymentCurrency;
     await act(async () => {
-      result = await handlers.getPaymentCurrencyById("c1");
+      paymentCurrency = await handlers.getPaymentCurrencyById("c1");
     });
 
     expect(httpClient).toHaveBeenCalledWith("/payments/currencies/c1");
-    expect(result).toEqual({ id: "c1", acronym: "USD" });
+    expect(paymentCurrency).toEqual({ id: "c1", acronym: "USD" });
   });
 
   it("returns null when called with no id", async () => {
     render(<TestComponent />);
 
-    let result;
+    let paymentCurrency;
     await act(async () => {
-      result = await handlers.getPaymentCurrencyById(null);
+      paymentCurrency = await handlers.getPaymentCurrencyById(null);
     });
 
-    expect(result).toBeNull();
+    expect(paymentCurrency).toBeNull();
     expect(httpClient).not.toHaveBeenCalled();
   });
 
@@ -71,12 +71,12 @@ describe("usePaymentCurrency", () => {
     render(<TestComponent />);
     expect(screen.getByTestId("forbidden")).toHaveTextContent("yes");
 
-    let result;
+    let paymentCurrency;
     await act(async () => {
-      result = await handlers.getPaymentCurrencyById("c1");
+      paymentCurrency = await handlers.getPaymentCurrencyById("c1");
     });
 
-    expect(result).toBeNull();
+    expect(paymentCurrency).toBeNull();
     expect(httpClient).not.toHaveBeenCalled();
   });
 });

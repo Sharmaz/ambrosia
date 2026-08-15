@@ -16,11 +16,6 @@ jest.mock("@heroui/react", () => ({
   addToast: (...args) => mockAddToast(...args),
 }));
 
-jest.mock("next-intl", () => {
-  const t = (key) => key;
-  return { useTranslations: () => t };
-});
-
 const handlers = {};
 
 function TestComponent() {
