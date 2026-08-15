@@ -75,9 +75,14 @@ fun Route.roles(
     }
     authorizeAdminPermission("roles_create") {
         post("") {
-            val payload = call.receive<UpsertRoleRequest>()
-            val role = Role(role = payload.role, password = payload.password, isAdmin = payload.isAdmin)
-            val id = roleService.addRole(role, payload.permissions.orEmpty().distinct())
+            val roleCreateRequest = call.receive<UpsertRoleRequest>()
+            val role =
+                Role(
+                    role = roleCreateRequest.role,
+                    password = roleCreateRequest.password,
+                    isAdmin = roleCreateRequest.isAdmin,
+                )
+            val id = roleService.addRole(role, roleCreateRequest.permissions.orEmpty().distinct())
             if (id == null) {
                 call.respond(HttpStatusCode.BadRequest, "Invalid role data")
                 return@post
@@ -96,13 +101,18 @@ fun Route.roles(
                 return@put
             }
 
-            val payload = call.receive<UpsertRoleRequest>()
-            if (payload.role.isBlank()) {
+            val roleUpdateRequest = call.receive<UpsertRoleRequest>()
+            if (roleUpdateRequest.role.isBlank()) {
                 call.respond(HttpStatusCode.BadRequest, "Invalid role data")
                 return@put
             }
-            val updatedRole = Role(role = payload.role, password = payload.password, isAdmin = payload.isAdmin)
-            val isUpdated = roleService.updateRole(id, updatedRole, payload.permissions?.distinct())
+            val updatedRole =
+                Role(
+                    role = roleUpdateRequest.role,
+                    password = roleUpdateRequest.password,
+                    isAdmin = roleUpdateRequest.isAdmin,
+                )
+            val isUpdated = roleService.updateRole(id, updatedRole, roleUpdateRequest.permissions?.distinct())
 
             if (!isUpdated) {
                 call.respond(HttpStatusCode.NotFound, "Role with ID: $id not found")
@@ -123,8 +133,8 @@ fun Route.roles(
                 return@put
             }
 
-            val payload = call.receive<RolePermissionsUpdateRequest>()
-            val count = permissionsService.replaceRolePermissions(id, payload.permissions.distinct())
+            val permissionsUpdateRequest = call.receive<RolePermissionsUpdateRequest>()
+            val count = permissionsService.replaceRolePermissions(id, permissionsUpdateRequest.permissions.distinct())
             call.respond(HttpStatusCode.OK, RolePermissionsUpdateResult(roleId = id, assigned = count))
         }
     }
