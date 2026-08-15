@@ -31,6 +31,7 @@ export const permissionCatalog = [
   { key: "payments_update", group: "payments", business: "both" },
   { key: "wallet_read", group: "payments", business: "store" },
 
+  { key: "settings_read", group: "settings", business: "both" },
   { key: "settings_update", group: "settings", business: "both" },
   { key: "printer_update", group: "settings", business: "store" },
 
