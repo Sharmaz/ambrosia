@@ -85,7 +85,7 @@ class TestUsersPermissions:
     @pytest.mark.asyncio
     async def test_users_read_required_for_get_list(self, client_factory):
         """GET /users returns 403 without users_read permission."""
-        no_permission = await client_factory(permissions=["permissions_read"])
+        no_permission = await client_factory(permissions=BASELINE_PERMISSIONS)
         response = await no_permission.get("/users")
         assert_status_code(response, 403, "GET /users should require users_read")
 
@@ -97,7 +97,7 @@ class TestUsersPermissions:
     @pytest.mark.asyncio
     async def test_users_read_required_for_get_by_id(self, client_factory):
         """GET /users/{id} returns 403 without users_read permission."""
-        no_permission = await client_factory(permissions=["permissions_read"])
+        no_permission = await client_factory(permissions=BASELINE_PERMISSIONS)
         response = await no_permission.get(f"/users/{DUMMY_ID}")
         assert_status_code(response, 403, "GET /users/{id} should require users_read")
 
