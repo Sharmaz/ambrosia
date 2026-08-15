@@ -107,6 +107,14 @@ data class Role(
     val isAdmin: Boolean? = false,
 )
 
+@Serializable
+data class UpsertRoleRequest(
+    val role: String,
+    val password: String? = null,
+    val isAdmin: Boolean? = false,
+    val permissions: List<String>? = null,
+)
+
 @Serializable data class Space(
     val id: String? = null,
     val name: String,
@@ -314,6 +322,7 @@ data class Permission(
     val name: String,
     val description: String? = null,
     val enabled: Boolean = true,
+    val adminOnly: Boolean = false,
 )
 
 @Serializable

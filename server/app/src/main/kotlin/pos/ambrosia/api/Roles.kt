@@ -15,10 +15,11 @@ import pos.ambrosia.logger
 import pos.ambrosia.models.Role
 import pos.ambrosia.models.RolePermissionsUpdateRequest
 import pos.ambrosia.models.RolePermissionsUpdateResult
+import pos.ambrosia.models.UpsertRoleRequest
 import pos.ambrosia.services.PermissionsService
 import pos.ambrosia.services.RolesService
+import pos.ambrosia.utils.authorizeAdminPermission
 import pos.ambrosia.utils.authorizePermission
-import pos.ambrosia.utils.requireAdmin
 
 fun Application.configureRoles() {
     val roleService = RolesService(environment)
@@ -72,13 +73,11 @@ fun Route.roles(
             call.respond(HttpStatusCode.OK, perms)
         }
     }
-    authorizePermission("roles_create") {
+    authorizeAdminPermission("roles_create") {
         post("") {
-            val user = call.receive<Role>()
-            if (user.isAdmin == true) {
-                call.requireAdmin()
-            }
-            val id = roleService.addRole(user)
+            val payload = call.receive<UpsertRoleRequest>()
+            val role = Role(role = payload.role, password = payload.password, isAdmin = payload.isAdmin)
+            val id = roleService.addRole(role, payload.permissions.orEmpty().distinct())
             if (id == null) {
                 call.respond(HttpStatusCode.BadRequest, "Invalid role data")
                 return@post
@@ -89,7 +88,7 @@ fun Route.roles(
             )
         }
     }
-    authorizePermission("roles_update") {
+    authorizeAdminPermission("roles_update") {
         put("/{id}") {
             val id = call.parameters["id"]
             if (id == null) {
@@ -97,15 +96,13 @@ fun Route.roles(
                 return@put
             }
 
-            val updatedRole = call.receive<Role>()
-            if (updatedRole.role.isBlank()) {
+            val payload = call.receive<UpsertRoleRequest>()
+            if (payload.role.isBlank()) {
                 call.respond(HttpStatusCode.BadRequest, "Invalid role data")
                 return@put
             }
-            if (updatedRole.isAdmin == true) {
-                call.requireAdmin()
-            }
-            val isUpdated = roleService.updateRole(id, updatedRole)
+            val updatedRole = Role(role = payload.role, password = payload.password, isAdmin = payload.isAdmin)
+            val isUpdated = roleService.updateRole(id, updatedRole, payload.permissions?.distinct())
 
             if (!isUpdated) {
                 call.respond(HttpStatusCode.NotFound, "Role with ID: $id not found")
@@ -131,7 +128,7 @@ fun Route.roles(
             call.respond(HttpStatusCode.OK, RolePermissionsUpdateResult(roleId = id, assigned = count))
         }
     }
-    authorizePermission("roles_delete") {
+    authorizeAdminPermission("roles_delete") {
         delete("/{id}") {
             val id = call.parameters["id"]
             if (id == null) {
