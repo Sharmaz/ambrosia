@@ -14,7 +14,7 @@ import { useUsers } from "./hooks/useUsers";
 
 export function Store() {
   const dashboardTranslations = useTranslations("dashboard");
-  const { users } = useUsers();
+  const { users, forbidden: usersForbidden } = useUsers({ skipForbiddenRedirect: true });
   const { products, forbidden: productsForbidden } = useProducts({ skipForbiddenRedirect: true });
   const { orders, forbidden: ordersForbidden } = useOrders({ skipForbiddenRedirect: true });
   const { formatAmount } = useCurrency();
@@ -30,12 +30,12 @@ export function Store() {
     : { name: dashboardTranslations("stats.sales"), quantity: paidOrders.length };
 
   const STATS = [
-    {
+    ...(usersForbidden ? [] : [{
       id: 1,
       name: dashboardTranslations("stats.users"),
       quantity: users?.length,
       icon: Users,
-    },
+    }]),
     ...(productsForbidden ? [] : [{
       id: 2,
       name: dashboardTranslations("stats.products"),

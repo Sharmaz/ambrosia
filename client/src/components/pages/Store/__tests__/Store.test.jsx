@@ -293,7 +293,14 @@ describe("Store Dashboard", () => {
     expect(screen.getByText("$150.00")).toBeInTheDocument();
   });
 
-  it("calls useProducts and useOrders with skipForbiddenRedirect: true", async () => {
+  it("calls useUsers, useProducts, and useOrders with skipForbiddenRedirect: true", async () => {
+    const usersSpy = jest.spyOn(useUsersHook, "useUsers").mockReturnValue({
+      users: mockUsers,
+      loading: false,
+      error: null,
+      forbidden: false,
+      refetch: jest.fn(),
+    });
     const productsSpy = jest.spyOn(useProductsHook, "useProducts").mockReturnValue({
       products: mockProducts,
       loading: false,
@@ -313,8 +320,27 @@ describe("Store Dashboard", () => {
       renderStore();
     });
 
+    expect(usersSpy).toHaveBeenCalledWith({ skipForbiddenRedirect: true });
     expect(productsSpy).toHaveBeenCalledWith({ skipForbiddenRedirect: true });
     expect(ordersSpy).toHaveBeenCalledWith({ skipForbiddenRedirect: true });
+  });
+
+  it("excludes the users card when useUsers reports forbidden", async () => {
+    jest.spyOn(useUsersHook, "useUsers").mockReturnValue({
+      users: [],
+      loading: false,
+      error: null,
+      forbidden: true,
+      refetch: jest.fn(),
+    });
+
+    await act(async () => {
+      renderStore();
+    });
+
+    expect(screen.queryByText("stats.users")).not.toBeInTheDocument();
+    expect(screen.getByText("stats.products")).toBeInTheDocument();
+    expect(screen.getByText("stats.sales")).toBeInTheDocument();
   });
 
   it("excludes the products card when useProducts reports forbidden", async () => {
@@ -354,7 +380,7 @@ describe("Store Dashboard", () => {
     expect(screen.queryByText("stats.revenue")).not.toBeInTheDocument();
   });
 
-  it("never excludes the users card, since listing users has no permission to check", async () => {
+  it("keeps the users card when only products and orders are forbidden", async () => {
     jest.spyOn(useProductsHook, "useProducts").mockReturnValue({
       products: [],
       loading: false,
