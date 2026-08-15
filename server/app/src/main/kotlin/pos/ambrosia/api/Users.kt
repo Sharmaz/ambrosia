@@ -61,6 +61,10 @@ fun Route.users(
         }
     }
 
+    get("/public") {
+        call.respond(HttpStatusCode.OK, userService.getUserIdentities())
+    }
+
     authenticate("auth-jwt") {
         get("/me") {
             val refreshToken =

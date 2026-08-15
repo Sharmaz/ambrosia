@@ -57,6 +57,21 @@ class UserPrivilegeEscalationRouteTest {
         }
 
     @Test
+    fun `user public listing does not require authentication`() =
+        testApplication {
+            installAdminAuth()
+            val targetRoleId = ExposedTestDb.seedRole("target-role")
+            ExposedTestDb.seedUser("target-user", targetRoleId)
+            application {
+                install(ContentNegotiation) { json() }
+                handler()
+                configureUsers()
+            }
+
+            assertEquals(HttpStatusCode.OK, client.get("/users/public").status)
+        }
+
+    @Test
     fun `non admin with users update cannot assign an admin role`() =
         testApplication {
             val auth = installNonAdminAuth()
