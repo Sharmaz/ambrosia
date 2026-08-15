@@ -9,7 +9,7 @@ import { useTranslations } from "next-intl";
 
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useConfigurations } from "@/providers/configurations/configurationsProvider";
-import { getUsers } from "@/services/authService";
+import { getPublicUsers } from "@/services/authService";
 
 import { BusinessHeader } from "./BusinessHeader";
 import { EmployeeSelect } from "./EmployeeSelect";
@@ -45,9 +45,9 @@ export default function PinLogin() {
   useEffect(() => {
     async function fetchEmployees() {
       try {
-        const users = await getUsers({ silentAuth: true });
+        const publicUsers = await getPublicUsers();
         setEmployees(
-          users.map((user) => ({
+          publicUsers.map((user) => ({
             ...user,
             avatar: user.name.slice(0, 2),
           })),
