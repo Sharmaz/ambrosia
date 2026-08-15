@@ -2,6 +2,8 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 
 import { Roles } from "../Roles";
 
+let mockIsAdmin = true;
+
 jest.mock("@heroui/react", () => {
   const actual = jest.requireActual("@heroui/react");
   return { ...actual, addToast: jest.fn() };
@@ -16,6 +18,10 @@ jest.mock("@/hooks/usePermission", () => ({
   RequirePermission: ({ children }) => children,
 }));
 
+jest.mock("@/hooks/useNavigation", () => ({
+  useNavigation: () => ({ isAdmin: mockIsAdmin }),
+}));
+
 jest.mock("@/providers/configurations/configurationsProvider", () => ({
   useConfigurations: () => ({ businessType: "store" }),
 }));
@@ -25,18 +31,22 @@ jest.mock("@/components/pages/Store/hooks/usePermissions", () => ({
 }));
 
 jest.mock("../RolesList", () => ({
-  RolesList: ({ roles, onEdit, onDelete }) => (
+  RolesList: ({ roles, canManageRoles, onEdit, onDelete }) => (
     <div>
       roles list
       {roles.map((role) => (
         <div key={role.id}>
           <span>{role.role}</span>
-          <button type="button" onClick={() => onEdit(role)}>
-            edit role
-          </button>
-          <button type="button" onClick={() => onDelete(role)}>
-            delete role
-          </button>
+          {canManageRoles && (
+            <>
+              <button type="button" onClick={() => onEdit(role)}>
+                edit role
+              </button>
+              <button type="button" onClick={() => onDelete(role)}>
+                delete role
+              </button>
+            </>
+          )}
         </div>
       ))}
     </div>
@@ -116,6 +126,19 @@ const renderRoles = (props = {}) => render(
 describe("Roles", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockIsAdmin = true;
+  });
+
+  it("shows a read-only notice and hides management controls for non-admin users", () => {
+    mockIsAdmin = false;
+
+    renderRoles({ roles: [{ id: "role-id", role: "cashier", isAdmin: false }] });
+
+    expect(screen.getByText("roles.state.readOnlyTitle")).toBeInTheDocument();
+    expect(screen.getByText("roles.state.readOnlyDescription")).toBeInTheDocument();
+    expect(screen.queryByText("roles.actions.new")).not.toBeInTheDocument();
+    expect(screen.queryByText("edit role")).not.toBeInTheDocument();
+    expect(screen.queryByText("delete role")).not.toBeInTheDocument();
   });
 
   it("shows a success toast after creating a role", async () => {

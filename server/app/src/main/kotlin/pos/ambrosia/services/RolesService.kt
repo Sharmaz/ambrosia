@@ -18,13 +18,17 @@ import pos.ambrosia.utils.LastAdminRemovalException
 import pos.ambrosia.utils.SecurePinProcessor
 import java.util.UUID
 
-class RolesService(
+class RolesService internal constructor(
     private val env: ApplicationEnvironment,
+    private val writeRolePermissions: (String, List<String>) -> Int =
+        PermissionsService()::replaceRolePermissionsInCurrentTransaction,
 ) {
     private val adminGuard = AdminGuardService()
-    private val permissionsService = PermissionsService()
 
-    fun addRole(role: Role): String? =
+    fun addRole(
+        role: Role,
+        permissionKeys: List<String> = emptyList(),
+    ): String? =
         transaction {
             if (role.role.isBlank()) return@transaction null
             if (roleNameExists(role.role)) {
@@ -50,7 +54,7 @@ class RolesService(
                     }.id.value
                     .toString()
 
-            grantAllPermissionsIfAdmin(generatedId, isAdmin)
+            writeRolePermissions(generatedId, permissionKeys.distinct())
 
             logger.info("Role created successfully with ID: $generatedId")
             generatedId
@@ -109,6 +113,7 @@ class RolesService(
     fun updateRole(
         id: String?,
         role: Role,
+        permissionKeys: List<String>? = null,
     ): Boolean =
         transaction {
             if (id == null) return@transaction false
@@ -127,7 +132,11 @@ class RolesService(
             } else {
                 entity.role = role.role
                 entity.isAdmin = isAdmin
-                grantAllPermissionsIfAdmin(id, isAdmin)
+                if (permissionKeys == null) {
+                    if (isAdmin) writeRolePermissions(id, emptyList())
+                } else {
+                    writeRolePermissions(id, permissionKeys.distinct())
+                }
                 logger.info("Role updated successfully: ${role.id}")
                 true
             }
@@ -164,13 +173,6 @@ class RolesService(
                 newPassword.fill('\u0000')
             }
         }
-
-    private fun grantAllPermissionsIfAdmin(
-        roleId: String,
-        isAdmin: Boolean,
-    ) {
-        if (isAdmin) permissionsService.assignAllEnabledToRole(roleId)
-    }
 
     fun deleteRole(id: String): Boolean =
         transaction {

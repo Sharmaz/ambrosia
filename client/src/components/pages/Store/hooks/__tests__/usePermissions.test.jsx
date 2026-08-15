@@ -9,8 +9,8 @@ jest.mock("@/lib/http", () => ({
   parseJsonResponse: jest.fn(),
 }));
 
-function TestComponent() {
-  const { permissions, loading, error } = usePermissions();
+function TestComponent({ enabled = true }) {
+  const { permissions, loading, error } = usePermissions({ enabled });
 
   return (
     <div>
@@ -71,5 +71,13 @@ describe("usePermissions", () => {
 
     await waitFor(() => expect(screen.getByTestId("loading")).toHaveTextContent("no"));
     expect(httpClient).toHaveBeenCalledWith("/permissions");
+  });
+
+  it("does not request permissions when disabled", async () => {
+    render(<TestComponent enabled={false} />);
+
+    await waitFor(() => expect(screen.getByTestId("loading")).toHaveTextContent("no"));
+    expect(httpClient).not.toHaveBeenCalled();
+    expect(screen.getByTestId("count")).toHaveTextContent("0");
   });
 });

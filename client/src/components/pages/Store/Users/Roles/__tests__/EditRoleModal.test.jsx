@@ -66,6 +66,21 @@ describe("EditRoleModal", () => {
     expect(result.name).toBe("supervisor");
   });
 
+  it("clears inherited permissions when admin privileges are removed", () => {
+    const adminForm = { ...baseForm, isAdmin: true };
+    const setForm = jest.fn((updater) => updater(adminForm));
+    renderModal({ form: adminForm, setForm });
+
+    fireEvent.click(screen.getByText("roles.edit.isAdmin"));
+
+    expect(setForm).toHaveBeenCalled();
+    expect(setForm.mock.results[0].value).toEqual({
+      ...adminForm,
+      isAdmin: false,
+      permissions: [],
+    });
+  });
+
   it("save button is disabled when name is empty", () => {
     renderModal({ form: { ...baseForm, name: "" } });
     const saveBtn = screen.getByText("roles.actions.save").closest("button");
