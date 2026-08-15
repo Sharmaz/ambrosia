@@ -73,18 +73,6 @@ const rolesEn = {
       subtitle: "Catalog filtered by business type",
       legend: "Select the permissions for this role. Only those that apply to the current business type are shown.",
       adminNotice: "Admin roles automatically get every permission.",
-      affects: "Affects:",
-      related: {
-        Users: "Users",
-        Products: "Products",
-        Orders: "Orders",
-        Sale: "Sale",
-        Wallet: "Wallet",
-        Settings: "Settings",
-        Dishes: "Dishes",
-        Tables: "Tables",
-        Spaces: "Spaces",
-      },
       scope: {
         store: "Store",
         restaurant: "Restaurant",
@@ -179,6 +167,8 @@ const rolesEn = {
       loading: "Loading roles...",
       empty: "No roles created.",
       loadingPerms: "Loading permissions...",
+      readOnlyTitle: "Read-only view",
+      readOnlyDescription: "Only administrators can create, edit, delete roles, or change their permissions.",
     },
   },
 };

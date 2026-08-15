@@ -50,26 +50,10 @@ export function useRoles() {
     }
   }, []);
 
-  const assignPermissions = useCallback(async (roleId, permissions = []) => {
-    if (!roleId) return;
-    try {
-      await httpClient(`/roles/${roleId}/permissions`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ permissions }),
-      });
-    } catch (assignPermissionsError) {
-      console.error("Error assigning permissions:", assignPermissionsError);
-      throw assignPermissionsError;
-    }
-  }, []);
-
   const createRole = useCallback(
     async ({ name, isAdmin = false, permissions = [] }) => {
       try {
-        const roleRequestBody = { role: name, isAdmin };
+        const roleRequestBody = { role: name, isAdmin, permissions };
         const createRoleRequest = await httpClient("/roles", {
           method: "POST",
           headers: {
@@ -82,9 +66,6 @@ export function useRoles() {
         }
         const createdRoleData = await parseJsonResponse(createRoleRequest, []);
         const createdRoleId = createdRoleData?.id || createdRoleData?.roleId;
-        if (permissions.length > 0) {
-          await assignPermissions(createdRoleId, permissions);
-        }
         await fetchRoles();
         return createdRoleId;
       } catch (createRoleError) {
@@ -92,7 +73,7 @@ export function useRoles() {
         throw createRoleError;
       }
     },
-    [assignPermissions, fetchRoles],
+    [fetchRoles],
   );
 
   const updateRoleWithPermissions = useCallback(
@@ -101,11 +82,11 @@ export function useRoles() {
       await updateRole(roleId, {
         role: name,
         isAdmin,
+        permissions,
       });
-      await assignPermissions(roleId, permissions);
       await fetchRoles();
     },
-    [assignPermissions, fetchRoles, updateRole],
+    [fetchRoles, updateRole],
   );
 
   const deleteRole = useCallback(async (roleId) => {
@@ -138,7 +119,6 @@ export function useRoles() {
     roles,
     createRole,
     deleteRole,
-    assignPermissions,
     updateRoleWithPermissions,
     getRolePermissions,
     loading,

@@ -59,7 +59,11 @@ export function EditRoleModal({
 
           <Checkbox
             isSelected={form.isAdmin}
-            onValueChange={(isSelected) => setForm((previousForm) => ({ ...previousForm, isAdmin: isSelected }))}
+            onValueChange={(isSelected) => setForm((previousForm) => ({
+              ...previousForm,
+              isAdmin: isSelected,
+              permissions: isSelected ? previousForm.permissions : [],
+            }))}
           >
             {roleTranslations("roles.edit.isAdmin")}
           </Checkbox>

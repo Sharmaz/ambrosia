@@ -73,18 +73,6 @@ const rolesEs = {
       subtitle: "Catálogo filtrado según el tipo de negocio",
       legend: "Selecciona los permisos que tendrá este rol. Solo se muestran los que aplican al tipo de negocio actual.",
       adminNotice: "Los roles admin reciben automáticamente todos los permisos.",
-      affects: "Afecta a:",
-      related: {
-        Users: "Usuarios",
-        Products: "Productos",
-        Orders: "Órdenes",
-        Sale: "Venta",
-        Wallet: "Wallet",
-        Settings: "Configuración",
-        Dishes: "Platillos",
-        Tables: "Mesas",
-        Spaces: "Espacios",
-      },
       scope: {
         store: "Tienda",
         restaurant: "Restaurante",
@@ -179,6 +167,8 @@ const rolesEs = {
       loading: "Cargando roles...",
       empty: "No hay roles creados.",
       loadingPerms: "Cargando permisos...",
+      readOnlyTitle: "Vista de solo lectura",
+      readOnlyDescription: "Solo los administradores pueden crear, editar, eliminar roles o cambiar sus permisos.",
     },
   },
 };

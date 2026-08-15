@@ -4,12 +4,18 @@ import { useCallback, useEffect, useState } from "react";
 import { toArray } from "@/components/utils/array";
 import { httpClient, parseJsonResponse } from "@/lib/http";
 
-export function usePermissions() {
+export function usePermissions({ enabled = true } = {}) {
   const [permissions, setPermissions] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(enabled);
   const [error, setError] = useState(null);
 
   const fetchPermissions = useCallback(async () => {
+    if (!enabled) {
+      setPermissions([]);
+      setError(null);
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
@@ -23,7 +29,7 @@ export function usePermissions() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [enabled]);
 
   useEffect(() => {
     fetchPermissions();
