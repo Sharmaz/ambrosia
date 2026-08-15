@@ -40,7 +40,7 @@ jest.mock("@/hooks/auth/useAuth", () => ({
 jest.mock("@/components/hooks/useCurrency", () => ({
   useCurrency: () => ({
     currency: { id: "cur-1", acronym: "MXN" },
-    formatAmount: (value) => `fmt-${value}`,
+    formatAmount: (amount) => `fmt-${amount}`,
   }),
 }));
 

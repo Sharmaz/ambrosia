@@ -294,7 +294,7 @@ describe("Cart page", () => {
     expect(mockClearCart).toHaveBeenCalled();
   });
 
-  it("shows the permission-blocked message instead of the cart when products are forbidden", async () => {
+  it("shows the permission-blocked message when products are forbidden", async () => {
     mockProductsForbidden = true;
 
     await act(async () => {
