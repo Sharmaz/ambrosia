@@ -46,7 +46,9 @@ class TestRolesPermissions:
     async def test_roles_update_requires_admin(self, client_factory, admin_client):
         """PUT /roles/{id} requires admin even when roles_update is requested."""
         no_permission = await client_factory(permissions=BASELINE_PERMISSIONS)
-        response = await no_permission.put(f"/roles/{DUMMY_ID}", json={"role": "updated"})
+        response = await no_permission.put(
+            f"/roles/{DUMMY_ID}", json={"role": "updated"}
+        )
         assert_status_code(response, 403, "PUT /roles/{id} should require roles_update")
 
         non_admin = await client_factory(permissions=["roles_update", "wallet_read"])
