@@ -15,8 +15,8 @@ jest.mock("@heroui/react", () => ({
 }));
 
 jest.mock("next-intl", () => {
-  const t = (key) => key;
-  return { useTranslations: () => t };
+  const errorsTranslations = (key) => key;
+  return { useTranslations: () => errorsTranslations };
 });
 
 describe("useFetchList", () => {
