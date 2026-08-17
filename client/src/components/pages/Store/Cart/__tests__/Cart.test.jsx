@@ -306,15 +306,15 @@ describe("Cart page", () => {
     expect(screen.queryByText("add-existing")).not.toBeInTheDocument();
   });
 
-  it("shows the permission-blocked message when categories are forbidden", async () => {
+  it("still renders the sale normally when categories are forbidden", async () => {
     mockCategoriesForbidden = true;
 
     await act(async () => {
       renderCart();
     });
 
-    expect(screen.getByText("permissionBlocked.title")).toBeInTheDocument();
-    expect(screen.getByText("permissionBlocked.categories")).toBeInTheDocument();
+    expect(screen.queryByText("permissionBlocked.title")).not.toBeInTheDocument();
+    expect(screen.getByText("add-existing")).toBeInTheDocument();
   });
 
   it("shows the permission-blocked message when payments are forbidden", async () => {
