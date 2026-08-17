@@ -32,6 +32,7 @@ export async function openTurn(userId, initialAmount = 0) {
       notes: "",
       initialAmount,
     }),
+    skipForbiddenRedirect: true,
   });
   if (openShiftResponse.status === 409) throw new Error("shift_already_open");
   if (!openShiftResponse.ok) {
@@ -46,6 +47,7 @@ export async function closeTurn(openTurnId, finalAmount = null, difference = nul
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body,
+    skipForbiddenRedirect: true,
   });
   if (!closeShiftResponse.ok) {
     throw await buildParsedHttpError(closeShiftResponse, "Failed to close shift");
