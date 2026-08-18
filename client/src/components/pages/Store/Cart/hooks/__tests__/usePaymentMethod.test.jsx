@@ -65,6 +65,18 @@ describe("usePaymentMethods", () => {
     console.error.mockRestore();
   });
 
+  it("sets error when the response is not ok", async () => {
+    jest.spyOn(console, "error").mockImplementation(() => {});
+    httpClient.mockResolvedValueOnce({ ok: false, status: 500 });
+    parseJsonResponse.mockResolvedValueOnce(null);
+    render(<TestComponent />);
+
+    await waitFor(() => expect(screen.getByTestId("loading")).toHaveTextContent("no"));
+    expect(screen.getByTestId("error")).toHaveTextContent("yes");
+    expect(screen.getByTestId("count")).toHaveTextContent("0");
+    console.error.mockRestore();
+  });
+
   it("does not fetch payment methods when the user lacks payments_read", async () => {
     mockCanReadPaymentMethods = false;
 

@@ -19,7 +19,6 @@ export function usePrinters() {
 
     try {
       const printersData = await fetchList("/printers/available");
-      if (printersData === null) return;
       setAvailablePrinters(toArray(printersData));
     } catch (error) {
       console.error("Error fetching printers:", error);
@@ -35,7 +34,6 @@ export function usePrinters() {
 
     try {
       const printerDataConfigs = await fetchList("/printers/configs");
-      if (printerDataConfigs === null) return;
       setPrinterConfigs(toArray(printerDataConfigs));
     } catch (error) {
       console.error("Error fetching printer configs:", error);

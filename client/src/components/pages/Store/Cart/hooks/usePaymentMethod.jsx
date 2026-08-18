@@ -18,7 +18,6 @@ export function usePaymentMethods() {
 
     try {
       const paymentMethodsData = await fetchList("/payments/methods");
-      if (paymentMethodsData === null) return;
       if (Array.isArray(paymentMethodsData)) {
         const sorted = [...paymentMethodsData].sort((a, b) => {
           const nameA = a?.name || "";

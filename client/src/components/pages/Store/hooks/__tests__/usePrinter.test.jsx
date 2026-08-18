@@ -130,6 +130,36 @@ describe("usePrinters", () => {
     expect(screen.getByTestId("error")).toHaveTextContent("yes");
   });
 
+  it("sets error when the available printers response is not ok", async () => {
+    httpClient.mockImplementation((requestedUrl) => Promise.resolve(
+      requestedUrl === "/printers/available" ? { ok: false, status: 500 } : { ok: true },
+    ));
+    parseJsonResponse.mockResolvedValue([]);
+
+    render(<TestComponent />);
+
+    await waitFor(() => expect(screen.getByTestId("loading-available")).toHaveTextContent("no"),
+    );
+    await waitFor(() => expect(screen.getByTestId("loading-configs")).toHaveTextContent("no"),
+    );
+    expect(screen.getByTestId("error")).toHaveTextContent("yes");
+  });
+
+  it("sets error when the printer configs response is not ok", async () => {
+    httpClient.mockImplementation((requestedUrl) => Promise.resolve(
+      requestedUrl === "/printers/configs" ? { ok: false, status: 500 } : { ok: true },
+    ));
+    parseJsonResponse.mockResolvedValue([]);
+
+    render(<TestComponent />);
+
+    await waitFor(() => expect(screen.getByTestId("loading-available")).toHaveTextContent("no"),
+    );
+    await waitFor(() => expect(screen.getByTestId("loading-configs")).toHaveTextContent("no"),
+    );
+    expect(screen.getByTestId("error")).toHaveTextContent("yes");
+  });
+
   it("creates a printer config and appends it", async () => {
     httpClient.mockResolvedValue({ ok: true });
     parseJsonResponse.mockResolvedValueOnce([]);

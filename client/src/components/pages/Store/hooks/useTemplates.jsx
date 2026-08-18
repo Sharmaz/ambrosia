@@ -16,7 +16,6 @@ export function useTemplates() {
     setError(null);
     try {
       const templatesData = await fetchList("/templates");
-      if (templatesData === null) return;
       setTemplates(toArray(templatesData));
     } catch (error) {
       console.error("Error fetching templates:", error);

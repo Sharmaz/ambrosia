@@ -91,6 +91,17 @@ describe("useTemplates", () => {
     expect(screen.getByTestId("error")).toHaveTextContent("yes");
   });
 
+  it("sets error when the templates response is not ok", async () => {
+    httpClient.mockResolvedValueOnce({ ok: false, status: 500 });
+    parseJsonResponse.mockResolvedValueOnce(null);
+
+    render(<TestComponent />);
+
+    await waitFor(() => expect(screen.getByTestId("loading")).toHaveTextContent("no"),
+    );
+    expect(screen.getByTestId("error")).toHaveTextContent("yes");
+  });
+
   it("creates a template and appends it", async () => {
     httpClient.mockResolvedValue({ ok: true });
     parseJsonResponse.mockResolvedValueOnce([]);

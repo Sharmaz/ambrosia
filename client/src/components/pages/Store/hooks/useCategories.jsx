@@ -22,7 +22,6 @@ export function useCategories(type = "product") {
 
     try {
       const categoryList = await fetchList(`/categories?type=${type}`);
-      if (categoryList === null) return;
       setCategories(toArray(categoryList));
     } catch (categoryLoadError) {
       console.error("Error fetching categories:", categoryLoadError);

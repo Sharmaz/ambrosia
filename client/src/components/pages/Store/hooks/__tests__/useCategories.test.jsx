@@ -101,6 +101,16 @@ describe("useCategories", () => {
     expect(screen.getByTestId("error")).toHaveTextContent("yes");
   });
 
+  it("sets error when the categories response is not ok", async () => {
+    httpClient.mockResolvedValueOnce({ ok: false, status: 500 });
+    parseJsonResponse.mockResolvedValueOnce(null);
+
+    render(<TestComponent />);
+
+    await waitFor(() => expect(screen.getByTestId("loading")).toHaveTextContent("no"));
+    expect(screen.getByTestId("error")).toHaveTextContent("yes");
+  });
+
   it("creates a category, refetches, and returns the new id", async () => {
     httpClient.mockResolvedValue({ ok: true });
     parseJsonResponse.mockResolvedValueOnce([]);
