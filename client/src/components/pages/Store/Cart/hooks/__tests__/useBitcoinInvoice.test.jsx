@@ -26,7 +26,6 @@ function TestComponent(props) {
   return (
     <div>
       <span data-testid="loading">{state.loading ? "yes" : "no"}</span>
-      <span data-testid="error">{state.error}</span>
       <span data-testid="invoice">{state.invoice ? "yes" : "no"}</span>
       <span data-testid="sats">{state.satsAmount ?? ""}</span>
     </div>
@@ -77,13 +76,16 @@ describe("useBitcoinInvoice", () => {
     );
   });
 
-  it("captures errors when invoice creation fails", async () => {
+  it("stops loading without an invoice when invoice creation fails", async () => {
+    jest.spyOn(console, "error").mockImplementation(() => {});
     mockGetBitcoinPrice.mockResolvedValue(50000);
     mockCreateInvoice.mockRejectedValue(new Error("invoice-error"));
 
     render(<TestComponent amountFiat={10} currencyAcronym="mxn" paymentId="pay-1" />);
 
-    await waitFor(() => expect(screen.getByTestId("error")).toHaveTextContent("invoice-error"));
+    await waitFor(() => expect(screen.getByTestId("loading")).toHaveTextContent("no"));
+    expect(screen.getByTestId("invoice")).toHaveTextContent("no");
+    console.error.mockRestore();
   });
 
   it("returns null when amountFiat is missing", async () => {
@@ -125,6 +127,5 @@ describe("useBitcoinInvoice", () => {
     });
 
     expect(screen.getByTestId("invoice")).toHaveTextContent("no");
-    expect(screen.getByTestId("error")).toHaveTextContent("");
   });
 });
