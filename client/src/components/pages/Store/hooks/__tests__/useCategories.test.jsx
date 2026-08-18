@@ -130,6 +130,7 @@ describe("useCategories", () => {
       body: JSON.stringify({ name: "Electronics", type: "product" }),
       headers: { "Content-Type": "application/json" },
       notShowError: false,
+      skipForbiddenRedirect: true,
     });
     expect(createdCategoryId).toBe("cat-3");
     await waitFor(() => expect(screen.getByTestId("count")).toHaveTextContent("1"));
@@ -187,6 +188,7 @@ describe("useCategories", () => {
       method: "PUT",
       body: JSON.stringify({ name: "Hardware Updated", type: "product" }),
       headers: { "Content-Type": "application/json" },
+      skipForbiddenRedirect: true,
     });
     await waitFor(() => expect(screen.getByTestId("first-name")).toHaveTextContent("Hardware Updated"));
   });
@@ -225,6 +227,7 @@ describe("useCategories", () => {
 
     expect(httpClient).toHaveBeenCalledWith("/categories/cat-1?type=product", {
       method: "DELETE",
+      skipForbiddenRedirect: true,
     });
     await waitFor(() => expect(screen.getByTestId("count")).toHaveTextContent("0"));
   });
