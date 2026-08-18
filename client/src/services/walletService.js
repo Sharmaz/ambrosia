@@ -37,6 +37,7 @@ export const loginWallet = async (password) => {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({ password }),
+    skipForbiddenRedirect: true,
   });
   const walletLoginBody = await parseJsonResponse(walletLoginResponse, null);
   if (!walletLoginResponse.ok) {

@@ -89,6 +89,7 @@ export function useUsers({ skipForbiddenRedirect = false } = {}) {
           "Content-Type": "application/json",
         },
         body: JSON.stringify(updateUserPayload),
+        skipForbiddenRedirect: true,
       });
 
       if (updateUserResponse.ok === false) {
@@ -133,6 +134,7 @@ export function useUsers({ skipForbiddenRedirect = false } = {}) {
           email: user.userEmail,
           phone: user.userPhone,
         }),
+        skipForbiddenRedirect: true,
       });
 
       if (createUserResponse.ok === false) {
@@ -164,6 +166,7 @@ export function useUsers({ skipForbiddenRedirect = false } = {}) {
     try {
       const deleteUserResponse = await httpClient(`/users/${userId}`, {
         method: "DELETE",
+        skipForbiddenRedirect: true,
       });
 
       if (deleteUserResponse.ok === false) {

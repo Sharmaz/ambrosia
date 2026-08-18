@@ -2,6 +2,10 @@ const ordersEn = {
   orders: {
     title: "Orders",
     subtitle: "Manage your orders",
+    permissionBlocked: {
+      title: "You can't view orders",
+      subtitle: "Ask an administrator to grant you the View orders permission.",
+    },
     header: {
       paid: "Paid Orders ({count})",
     },

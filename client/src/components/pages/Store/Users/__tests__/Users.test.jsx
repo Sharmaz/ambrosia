@@ -13,6 +13,7 @@ let mockRoles = [
   { id: "admin", role: "Admin" },
   { id: "seller", role: "Seller" },
 ];
+let mockUsersForbidden = false;
 
 jest.mock("@heroui/react", () => {
   const actual = jest.requireActual("@heroui/react");
@@ -136,6 +137,7 @@ jest.mock("../../hooks/useUsers", () => ({
         roleId: undefined,
       },
     ],
+    forbidden: mockUsersForbidden,
     updateUser: mockUpdateUser,
     addUser: mockAddUser,
     deleteUser: mockDeleteUser,
@@ -185,6 +187,7 @@ beforeEach(() => {
     { id: "admin", role: "Admin" },
     { id: "seller", role: "Seller" },
   ];
+  mockUsersForbidden = false;
 
   jest.spyOn(useNavigationHook, "useNavigation").mockReturnValue({
     availableFeatures: {},
@@ -220,6 +223,17 @@ describe("Users page", () => {
     expect(screen.getByText("addUser")).toBeInTheDocument();
     expect(screen.getByText("Jordano Anaya")).toBeInTheDocument();
     expect(screen.getByText("Carlos Ruz")).toBeInTheDocument();
+  });
+
+  it("shows the permission-blocked message instead of the table when forbidden", async () => {
+    mockUsersForbidden = true;
+
+    await act(async () => {
+      renderUsers();
+    });
+
+    expect(screen.getByText("permissionBlocked.title")).toBeInTheDocument();
+    expect(screen.queryByText("Jordano Anaya")).not.toBeInTheDocument();
   });
 
   it("opens AddUsersModal when clicking Add User", async () => {

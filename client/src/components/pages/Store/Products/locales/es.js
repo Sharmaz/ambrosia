@@ -5,6 +5,10 @@ const productsEs = {
   products: {
     title: "Productos",
     subtitle: "Gestiona tu catálogo de productos e inventario",
+    permissionBlocked: {
+      title: "No puedes ver los productos",
+      subtitle: "Pídele a un administrador que te otorgue el permiso de ver productos.",
+    },
     addProduct: "Agregar Producto",
     tableAriaLabel: "Tabla de productos",
     edit: "Editar",

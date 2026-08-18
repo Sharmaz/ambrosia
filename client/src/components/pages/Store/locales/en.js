@@ -11,6 +11,8 @@ const storeEn = {
   errors: {
     connectionErrorTitle: "Connection error",
     connectionErrorDescription: "Could not reach the server. Please check your connection.",
+    requestErrorTitle: "Request failed",
+    requestErrorDescription: "Something went wrong. Please try again.",
   },
   navbar: {
     users: "Users",

@@ -13,16 +13,13 @@ export function useRoles() {
   const [roles, setRoles] = useState([]);
   const canRead = usePermission({ allOf: ["roles_read"] });
   const [loading, setLoading] = useState(canRead);
-  const [error, setError] = useState(null);
 
   const fetchRoles = useCallback(async () => {
     if (!canRead) return;
     setLoading(true);
-    setError(null);
 
     try {
       const rolesData = await fetchList("/roles");
-      if (rolesData === null) return;
       setRoles(toArray(rolesData));
     } catch (roleLoadError) {
       console.error("Error fetching roles:", roleLoadError);
@@ -39,6 +36,7 @@ export function useRoles() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify(role),
+        skipForbiddenRedirect: true,
       });
       if (updateRoleRequest.ok === false) {
         throw buildHttpError(updateRoleRequest, "Error updating role");
@@ -60,6 +58,7 @@ export function useRoles() {
             "Content-Type": "application/json",
           },
           body: JSON.stringify(roleRequestBody),
+          skipForbiddenRedirect: true,
         });
         if (createRoleRequest.ok === false) {
           throw buildHttpError(createRoleRequest, "Error creating role");
@@ -90,7 +89,7 @@ export function useRoles() {
   );
 
   const deleteRole = useCallback(async (roleId) => {
-    const deleteRoleResponse = await httpClient(`/roles/${roleId}`, { method: "DELETE" });
+    const deleteRoleResponse = await httpClient(`/roles/${roleId}`, { method: "DELETE", skipForbiddenRedirect: true });
     if (deleteRoleResponse.ok === false) {
       throw buildHttpError(deleteRoleResponse, "Error deleting role");
     }
@@ -100,7 +99,7 @@ export function useRoles() {
   const getRolePermissions = useCallback(async (roleId) => {
     if (!roleId) return [];
     try {
-      const rolePermissionsResponse = await httpClient(`/roles/${roleId}/permissions`);
+      const rolePermissionsResponse = await httpClient(`/roles/${roleId}/permissions`, { skipForbiddenRedirect: true });
 
       const rolePermissionsData = await parseJsonResponse(rolePermissionsResponse);
 
@@ -122,7 +121,6 @@ export function useRoles() {
     updateRoleWithPermissions,
     getRolePermissions,
     loading,
-    error,
     refetch: fetchRoles,
   };
 }

@@ -252,7 +252,7 @@ describe("useCartPayment", () => {
         expect(deleteCheckout).toHaveBeenCalledWith("hash-2");
       });
 
-      expect(httpClient).toHaveBeenCalledWith("store/orders/payment-status/hash-2");
+      expect(httpClient).toHaveBeenCalledWith("store/orders/payment-status/hash-2", { skipForbiddenRedirect: true });
       expect(markCheckoutCompleted).toHaveBeenCalledWith("hash-2", {
         status: "completed",
         orderId: "order-2",
@@ -281,11 +281,12 @@ describe("useCartPayment", () => {
         expect(deleteCheckout).toHaveBeenCalledWith("hash-3");
       });
 
-      expect(httpClient).toHaveBeenCalledWith("store/orders/payment-status/hash-3");
+      expect(httpClient).toHaveBeenCalledWith("store/orders/payment-status/hash-3", { skipForbiddenRedirect: true });
       expect(httpClient).toHaveBeenCalledWith("store/orders/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(checkoutPayload),
+        skipForbiddenRedirect: true,
       });
       expect(markCheckoutCompleted).toHaveBeenCalledWith("hash-3", { orderId: "order-3" });
       expect(addToast).toHaveBeenCalledWith({
