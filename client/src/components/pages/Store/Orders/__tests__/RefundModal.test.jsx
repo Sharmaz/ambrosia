@@ -72,6 +72,7 @@ describe("RefundModal", () => {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ invoice: "" }),
+      skipForbiddenRedirect: true,
     }));
 
     await waitFor(() => expect(addToast).toHaveBeenCalledWith(
@@ -103,6 +104,7 @@ describe("RefundModal", () => {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ invoice: "lnbc1000n1pj9h8uqpp5test" }),
+      skipForbiddenRedirect: true,
     }));
     expect(onRefunded).toHaveBeenCalled();
   });
@@ -304,6 +306,7 @@ describe("RefundModal", () => {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ invoice: "" }),
+      skipForbiddenRedirect: true,
     }));
     expect(onRefunded).toHaveBeenCalled();
   });
@@ -335,6 +338,7 @@ describe("RefundModal", () => {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ invoice: "" }),
+      skipForbiddenRedirect: true,
     }));
     expect(onRefunded).toHaveBeenCalled();
   });
