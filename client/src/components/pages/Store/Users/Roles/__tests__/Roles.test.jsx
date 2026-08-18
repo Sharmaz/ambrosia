@@ -54,7 +54,7 @@ jest.mock("../RolesList", () => ({
 }));
 
 jest.mock("../CreateRoleModal", () => ({
-  CreateRoleModal: ({ isOpen, onSubmit, form, setForm, creating }) => (
+  CreateRoleModal: ({ isOpen, onSubmit, form, setForm, creating, togglePermission }) => (
     isOpen ? (
       <div>
         <span>roles.create.title</span>
@@ -65,6 +65,12 @@ jest.mock("../CreateRoleModal", () => ({
         </button>
         <button type="button" onClick={() => setForm((currentForm) => ({ ...currentForm, isAdmin: true }))}>
           set admin role
+        </button>
+        <button type="button" onClick={() => togglePermission("orders_create")}>
+          toggle orders_create
+        </button>
+        <button type="button" onClick={() => togglePermission("products_read")}>
+          toggle products_read
         </button>
         <button type="button" onClick={onSubmit}>
           roles.actions.create
@@ -163,6 +169,43 @@ describe("Roles", () => {
       color: "success",
     });
     expect(screen.queryByText("roles.create.title")).not.toBeInTheDocument();
+  });
+
+  it("autocompletes the suggested permissions when orders_create is toggled on", async () => {
+    const createRole = jest.fn(() => Promise.resolve("role-id"));
+
+    renderRoles({ createRole });
+
+    fireEvent.click(screen.getByText("roles.actions.new"));
+    fireEvent.click(screen.getByText("set role name"));
+    fireEvent.click(screen.getByText("toggle orders_create"));
+
+    fireEvent.click(screen.getByText("roles.actions.create"));
+
+    await waitFor(() => expect(createRole).toHaveBeenCalledWith({
+      name: "cashier",
+      isAdmin: false,
+      permissions: ["orders_create", "products_read", "categories_read", "payments_read"],
+    }));
+  });
+
+  it("lets the admin untoggle one suggested permission without affecting the others", async () => {
+    const createRole = jest.fn(() => Promise.resolve("role-id"));
+
+    renderRoles({ createRole });
+
+    fireEvent.click(screen.getByText("roles.actions.new"));
+    fireEvent.click(screen.getByText("set role name"));
+    fireEvent.click(screen.getByText("toggle orders_create"));
+    fireEvent.click(screen.getByText("toggle products_read"));
+
+    fireEvent.click(screen.getByText("roles.actions.create"));
+
+    await waitFor(() => expect(createRole).toHaveBeenCalledWith({
+      name: "cashier",
+      isAdmin: false,
+      permissions: ["orders_create", "categories_read", "payments_read"],
+    }));
   });
 
   it("shows an error toast and keeps the create modal open when role creation fails", async () => {

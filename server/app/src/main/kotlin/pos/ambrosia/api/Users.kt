@@ -35,15 +35,15 @@ fun Route.users(
     tokenService: TokenService,
     permissionsService: PermissionsService,
 ) {
-    get("") {
-        val users = userService.getUsers()
-        if (users.isEmpty()) {
-            call.respond(HttpStatusCode.OK, "No users found")
-            return@get
-        }
-        call.respond(HttpStatusCode.OK, users)
-    }
     authorizePermission("users_read") {
+        get("") {
+            val users = userService.getUsers()
+            if (users.isEmpty()) {
+                call.respond(HttpStatusCode.OK, "No users found")
+                return@get
+            }
+            call.respond(HttpStatusCode.OK, users)
+        }
         get("/{id}") {
             val id = call.parameters["id"]
             if (id == null) {
@@ -59,6 +59,10 @@ fun Route.users(
 
             call.respond(HttpStatusCode.OK, user)
         }
+    }
+
+    get("/public") {
+        call.respond(HttpStatusCode.OK, userService.getUserIdentities())
     }
 
     authenticate("auth-jwt") {

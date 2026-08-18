@@ -90,6 +90,13 @@ data class User(
 )
 
 @Serializable
+data class UserIdentity(
+    val id: String,
+    val name: String,
+    val role: String? = null,
+)
+
+@Serializable
 data class UpdateUserRequest(
     val name: String? = null,
     val pin: String? = null,

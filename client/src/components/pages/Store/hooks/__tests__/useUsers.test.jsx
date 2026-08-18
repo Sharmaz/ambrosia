@@ -23,8 +23,8 @@ jest.mock("next-intl", () => {
 
 const handlers = {};
 
-function TestComponent() {
-  const { users, loading, error, addUser, updateUser, deleteUser } = useUsers();
+function TestComponent({ skipForbiddenRedirect } = {}) {
+  const { users, loading, error, forbidden, addUser, updateUser, deleteUser } = useUsers({ skipForbiddenRedirect });
 
   useEffect(() => {
     handlers.addUser = addUser;
@@ -38,6 +38,7 @@ function TestComponent() {
       <span data-testid="count">{users.length}</span>
       <span data-testid="first-name">{users[0]?.name ?? ""}</span>
       <span data-testid="error">{error ? "yes" : "no"}</span>
+      <span data-testid="forbidden">{forbidden ? "yes" : "no"}</span>
     </div>
   );
 }
@@ -64,6 +65,24 @@ describe("useUsers", () => {
 
     await waitFor(() => expect(screen.getByTestId("loading")).toHaveTextContent("no"));
     expect(screen.getByTestId("count")).toHaveTextContent("0");
+  });
+
+  it("sets forbidden when the response is 403", async () => {
+    httpClient.mockResolvedValueOnce({ ok: false, status: 403 });
+    render(<TestComponent skipForbiddenRedirect />);
+
+    await waitFor(() => expect(screen.getByTestId("loading")).toHaveTextContent("no"));
+    expect(screen.getByTestId("forbidden")).toHaveTextContent("yes");
+    expect(screen.getByTestId("count")).toHaveTextContent("0");
+  });
+
+  it("passes skipForbiddenRedirect through to httpClient", async () => {
+    httpClient.mockResolvedValueOnce({ ok: true });
+    parseJsonResponse.mockResolvedValueOnce([]);
+    render(<TestComponent skipForbiddenRedirect />);
+
+    await waitFor(() => expect(screen.getByTestId("loading")).toHaveTextContent("no"));
+    expect(httpClient).toHaveBeenCalledWith("/users", { skipForbiddenRedirect: true });
   });
 
   it("adds a user and refetches", async () => {

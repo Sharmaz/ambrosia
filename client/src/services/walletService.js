@@ -46,7 +46,7 @@ export const loginWallet = async (password) => {
 };
 
 export const logoutWallet = async () => {
-  const walletLogoutResponse = await httpClient("/wallet/logout", { method: "POST" });
+  const walletLogoutResponse = await httpClient("/wallet/logout", { method: "POST", skipForbiddenRedirect: true });
   return await parseJsonResponse(walletLogoutResponse, null);
 };
 

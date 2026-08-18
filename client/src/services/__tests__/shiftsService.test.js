@@ -34,7 +34,7 @@ describe("shiftsService", () => {
       const result = await getTurnOpen();
 
       expect(result).toEqual(shift);
-      expect(httpClient).toHaveBeenCalledWith("/shifts/open");
+      expect(httpClient).toHaveBeenCalledWith("/shifts/open", { skipForbiddenRedirect: true });
     });
 
     it("returns null when parseJsonResponse returns null", async () => {

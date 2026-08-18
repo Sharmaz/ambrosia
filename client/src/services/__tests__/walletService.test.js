@@ -64,7 +64,7 @@ describe("walletService", () => {
 
       await logoutWallet();
 
-      expect(httpClient).toHaveBeenCalledWith("/wallet/logout", { method: "POST" });
+      expect(httpClient).toHaveBeenCalledWith("/wallet/logout", { method: "POST", skipForbiddenRedirect: true });
     });
   });
 

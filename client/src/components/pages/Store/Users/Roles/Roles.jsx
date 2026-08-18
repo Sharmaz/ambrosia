@@ -16,7 +16,7 @@ import { CreateRoleModal } from "./CreateRoleModal";
 import { DeleteRoleModal } from "./DeleteRoleModal";
 import { EditRoleModal } from "./EditRoleModal";
 import { RolesList } from "./RolesList";
-import { getVisiblePermissionCatalog } from "./utils/permissionCatalog";
+import { getVisiblePermissionCatalog, permissionCatalog } from "./utils/permissionCatalog";
 
 export function Roles({ roles, createRole, deleteRole, loading: loadingRoles, updateRoleWithPermissions, getRolePermissions }) {
   const roleTranslations = useTranslations();
@@ -48,11 +48,19 @@ export function Roles({ roles, createRole, deleteRole, loading: loadingRoles, up
   const togglePermission = (name) => {
     setForm((previousForm) => {
       const permissionExists = previousForm.permissions.includes(name);
+      if (permissionExists) {
+        return {
+          ...previousForm,
+          permissions: previousForm.permissions.filter((permissionName) => permissionName !== name),
+        };
+      }
+      const suggestedPermissions = permissionCatalog.find((permission) => permission.key === name)?.suggests ?? [];
+      const permissionsToAdd = [name, ...suggestedPermissions].filter(
+        (permissionName) => !previousForm.permissions.includes(permissionName),
+      );
       return {
         ...previousForm,
-        permissions: permissionExists
-          ? previousForm.permissions.filter((permissionName) => permissionName !== name)
-          : [...previousForm.permissions, name],
+        permissions: [...previousForm.permissions, ...permissionsToAdd],
       };
     });
   };

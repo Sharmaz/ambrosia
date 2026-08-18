@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 
 import * as usePrintersHook from "@/components/pages/Store/hooks/usePrinter";
 import * as useTemplatesHook from "@/components/pages/Store/hooks/useTemplates";
+import * as useAuthHook from "@/hooks/auth/useAuth";
 import * as useAdminWebPushHook from "@/hooks/useAdminWebPush";
 import * as useAutoLiquidityHook from "@/hooks/useAutoLiquidity";
 import * as adminNotificationsService from "@/services/adminNotificationsService";
@@ -117,6 +118,14 @@ beforeEach(() => {
     isLoading: false,
     user: { userName: "testuser" },
     logout: mockLogout,
+  });
+
+  jest.spyOn(useAuthHook, "useAuth").mockReturnValue({
+    isAuth: true,
+    isLoading: false,
+    user: { userId: "user-1", name: "Tester" },
+    permissions: [],
+    logout: jest.fn(),
   });
 
   jest.spyOn(configurationsProvider, "useConfigurations").mockReturnValue({

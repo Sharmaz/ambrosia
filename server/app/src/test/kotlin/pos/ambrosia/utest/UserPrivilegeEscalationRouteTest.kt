@@ -41,7 +41,7 @@ class UserPrivilegeEscalationRouteTest {
     }
 
     @Test
-    fun `user list remains public while user by id requires authentication`() =
+    fun `user list and user by id both require authentication`() =
         testApplication {
             installAdminAuth()
             val targetRoleId = ExposedTestDb.seedRole("target-role")
@@ -52,8 +52,23 @@ class UserPrivilegeEscalationRouteTest {
                 configureUsers()
             }
 
-            assertEquals(HttpStatusCode.OK, client.get("/users").status)
+            assertEquals(HttpStatusCode.Unauthorized, client.get("/users").status)
             assertEquals(HttpStatusCode.Unauthorized, client.get("/users/$targetUserId").status)
+        }
+
+    @Test
+    fun `user public listing does not require authentication`() =
+        testApplication {
+            installAdminAuth()
+            val targetRoleId = ExposedTestDb.seedRole("target-role")
+            ExposedTestDb.seedUser("target-user", targetRoleId)
+            application {
+                install(ContentNegotiation) { json() }
+                handler()
+                configureUsers()
+            }
+
+            assertEquals(HttpStatusCode.OK, client.get("/users/public").status)
         }
 
     @Test

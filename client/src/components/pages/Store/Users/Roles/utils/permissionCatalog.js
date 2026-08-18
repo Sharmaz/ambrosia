@@ -19,7 +19,7 @@ export const permissionCatalog = [
   { key: "categories_delete", group: "catalog", business: "store" },
 
   { key: "orders_read", group: "sales", business: "store" },
-  { key: "orders_create", group: "sales", business: "store" },
+  { key: "orders_create", group: "sales", business: "store", suggests: ["products_read", "categories_read", "payments_read"] },
   { key: "orders_update", group: "sales", business: "store" },
   { key: "orders_delete", group: "sales", business: "store" },
   { key: "orders_export", group: "sales", business: "store" },
@@ -31,6 +31,7 @@ export const permissionCatalog = [
   { key: "payments_update", group: "payments", business: "both" },
   { key: "wallet_read", group: "payments", business: "store" },
 
+  { key: "settings_read", group: "settings", business: "both" },
   { key: "settings_update", group: "settings", business: "both" },
   { key: "printer_update", group: "settings", business: "store" },
 

@@ -81,6 +81,13 @@ const cartEn = {
     errors: {
       outOfStock: "Not enough stock available for this product.",
     },
+    permissionBlocked: {
+      title: "You can't complete the sale",
+      subtitle: "Ask an administrator to grant you the missing permissions:",
+      products: "View products",
+      categories: "View categories",
+      payments: "View payment methods",
+    },
     paymentModal: {
       bitcoin: {
         title: "Pay with Bitcoin (Lightning)",

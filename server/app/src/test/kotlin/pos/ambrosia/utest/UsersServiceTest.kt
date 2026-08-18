@@ -83,4 +83,17 @@ class UsersServiceTest {
             assertEquals("****", user.refreshToken)
         }
     }
+
+    @Test
+    fun `getUserIdentities returns id, name and role`() {
+        runBlocking {
+            val roleId = ExposedTestDb.seedRole("Cashier", isAdmin = false)
+            val userId = ExposedTestDb.seedUser("cashier-user", roleId = roleId)
+
+            val identity = service.getUserIdentities().single { it.id == userId }
+
+            assertEquals("cashier-user", identity.name)
+            assertEquals("Cashier", identity.role)
+        }
+    }
 }

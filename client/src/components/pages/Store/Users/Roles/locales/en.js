@@ -119,6 +119,7 @@ const rolesEn = {
         payments_create: { label: "Register payments", description: "Add payments to orders." },
         payments_update: { label: "Edit payments", description: "Adjust existing payments." },
         wallet_read: { label: "Access wallet", description: "Use wallet/cash UI." },
+        settings_read: { label: "View settings", description: "Read business data and currencies." },
         settings_update: { label: "Edit settings", description: "Update business data." },
         printer_update: { label: "Configure printer", description: "Update ticket printer settings." },
         dish_read: { label: "View dishes", description: "List menu dishes." },
