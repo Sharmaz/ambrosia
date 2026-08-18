@@ -11,6 +11,8 @@ const storeEs = {
   errors: {
     connectionErrorTitle: "Error de conexión",
     connectionErrorDescription: "No se pudo conectar al servidor. Verifica tu conexión.",
+    requestErrorTitle: "Error en la solicitud",
+    requestErrorDescription: "Algo salió mal. Intenta de nuevo.",
   },
   navbar: {
     users: "Usuarios",
