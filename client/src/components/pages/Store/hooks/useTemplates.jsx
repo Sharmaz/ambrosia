@@ -33,6 +33,7 @@ export function useTemplates() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify(templateBody),
+        skipForbiddenRedirect: true,
       });
 
       const createdDataTemplate = await parseJsonResponse(createTemplate, null);
@@ -60,6 +61,7 @@ export function useTemplates() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify(templateBody),
+        skipForbiddenRedirect: true,
       });
       setTemplates((prev) => (Array.isArray(prev)
         ? prev.map((template) => (template.id === templateId ? { ...template, ...templateBody } : template),
@@ -77,7 +79,7 @@ export function useTemplates() {
   const deleteTemplate = useCallback(async (templateId) => {
     if (!templateId) throw new Error("templateId is required");
     try {
-      await httpClient(`/templates/${templateId}`, { method: "DELETE" });
+      await httpClient(`/templates/${templateId}`, { method: "DELETE", skipForbiddenRedirect: true });
       setTemplates((prev) => (Array.isArray(prev) ? prev.filter((template) => template.id !== templateId) : prev),
       );
       return true;

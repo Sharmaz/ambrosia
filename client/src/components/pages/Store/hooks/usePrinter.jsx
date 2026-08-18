@@ -51,6 +51,7 @@ export function usePrinters() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify(configBody),
+        skipForbiddenRedirect: true,
       });
 
       const createdPrinterDataConfig = await parseJsonResponse(createPrinterConfig, null);
@@ -78,6 +79,7 @@ export function usePrinters() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify(configBody),
+        skipForbiddenRedirect: true,
       });
       setPrinterConfigs((prev) => (Array.isArray(prev)
         ? prev.map((config) => (config.id === configId ? { ...config, ...configBody } : config),
@@ -95,7 +97,7 @@ export function usePrinters() {
   const deletePrinterConfig = useCallback(async (configId) => {
     if (!configId) throw new Error("config Id is required");
     try {
-      await httpClient(`/printers/configs/${configId}`, { method: "DELETE" });
+      await httpClient(`/printers/configs/${configId}`, { method: "DELETE", skipForbiddenRedirect: true });
       setPrinterConfigs((prev) => (Array.isArray(prev) ? prev.filter((config) => config.id !== configId) : prev),
       );
       return true;
@@ -109,7 +111,7 @@ export function usePrinters() {
   const setDefaultPrinterConfig = useCallback(async (configId) => {
     if (!configId) throw new Error("configId is required");
     try {
-      await httpClient(`/printers/configs/${configId}/default`, { method: "POST" });
+      await httpClient(`/printers/configs/${configId}/default`, { method: "POST", skipForbiddenRedirect: true });
       setPrinterConfigs((prev) => {
         if (!Array.isArray(prev)) return prev;
         const target = prev.find((config) => config.id === configId);
@@ -139,6 +141,7 @@ export function usePrinters() {
         },
 
         body: JSON.stringify({ printerType, printerName }),
+        skipForbiddenRedirect: true,
       });
     } catch (error) {
       console.error("Error setting default printer by name:", error);
@@ -155,6 +158,7 @@ export function usePrinters() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify(printBody),
+        skipForbiddenRedirect: true,
       });
     } catch (error) {
       console.error("Error printing ticket:", error);

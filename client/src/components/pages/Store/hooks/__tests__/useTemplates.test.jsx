@@ -122,6 +122,7 @@ describe("useTemplates", () => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({ name: "Ticket A" }),
+      skipForbiddenRedirect: true,
     });
     expect(screen.getByTestId("count")).toHaveTextContent("1");
   });
@@ -145,6 +146,7 @@ describe("useTemplates", () => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({ name: "New" }),
+      skipForbiddenRedirect: true,
     });
     expect(screen.getByTestId("first-name")).toHaveTextContent("New");
   });
@@ -167,6 +169,7 @@ describe("useTemplates", () => {
 
     expect(httpClient).toHaveBeenCalledWith("/templates/t-1", {
       method: "DELETE",
+      skipForbiddenRedirect: true,
     });
     expect(screen.getByTestId("count")).toHaveTextContent("1");
   });

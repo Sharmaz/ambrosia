@@ -184,6 +184,7 @@ describe("usePrinters", () => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({ printerName: "Front", printerType: "KITCHEN" }),
+      skipForbiddenRedirect: true,
     });
     expect(screen.getByTestId("config-count")).toHaveTextContent("1");
   });
@@ -210,6 +211,7 @@ describe("usePrinters", () => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({ printerName: "New" }),
+      skipForbiddenRedirect: true,
     });
     expect(screen.getByTestId("first-config-name")).toHaveTextContent("New");
   });
@@ -233,6 +235,7 @@ describe("usePrinters", () => {
 
     expect(httpClient).toHaveBeenCalledWith("/printers/configs/cfg-1", {
       method: "DELETE",
+      skipForbiddenRedirect: true,
     });
     expect(screen.getByTestId("config-count")).toHaveTextContent("1");
   });
@@ -256,6 +259,7 @@ describe("usePrinters", () => {
 
     expect(httpClient).toHaveBeenCalledWith("/printers/configs/cfg-2/default", {
       method: "POST",
+      skipForbiddenRedirect: true,
     });
     expect(screen.getByTestId("default-kitchen")).toHaveTextContent("cfg-2");
   });
@@ -295,6 +299,7 @@ describe("usePrinters", () => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({ ticketId: "t-1" }),
+      skipForbiddenRedirect: true,
     });
   });
 
