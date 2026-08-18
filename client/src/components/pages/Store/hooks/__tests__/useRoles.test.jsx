@@ -27,7 +27,7 @@ jest.mock("@/hooks/usePermission", () => ({
 const handlers = {};
 
 function TestComponent() {
-  const { roles, loading, error, createRole, updateRoleWithPermissions, deleteRole, getRolePermissions } = useRoles();
+  const { roles, loading, createRole, updateRoleWithPermissions, deleteRole, getRolePermissions } = useRoles();
 
   useEffect(() => {
     handlers.createRole = createRole;
@@ -41,7 +41,6 @@ function TestComponent() {
       <span data-testid="loading">{loading ? "yes" : "no"}</span>
       <span data-testid="count">{roles.length}</span>
       <span data-testid="first-role">{roles[0]?.role ?? ""}</span>
-      <span data-testid="error">{error ? "yes" : "no"}</span>
     </div>
   );
 }
@@ -70,6 +69,18 @@ describe("useRoles", () => {
 
     await waitFor(() => expect(screen.getByTestId("loading")).toHaveTextContent("no"));
     expect(screen.getByTestId("count")).toHaveTextContent("0");
+  });
+
+  it("keeps roles empty and stops loading when the roles response is not ok", async () => {
+    jest.spyOn(console, "error").mockImplementation(() => {});
+    httpClient.mockResolvedValueOnce({ ok: false, status: 500 });
+    parseJsonResponse.mockResolvedValueOnce(null);
+
+    render(<TestComponent />);
+
+    await waitFor(() => expect(screen.getByTestId("loading")).toHaveTextContent("no"));
+    expect(screen.getByTestId("count")).toHaveTextContent("0");
+    console.error.mockRestore();
   });
 
   it("creates a role without permissions and refetches", async () => {

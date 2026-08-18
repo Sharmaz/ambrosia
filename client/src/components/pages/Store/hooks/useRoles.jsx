@@ -13,16 +13,13 @@ export function useRoles() {
   const [roles, setRoles] = useState([]);
   const canRead = usePermission({ allOf: ["roles_read"] });
   const [loading, setLoading] = useState(canRead);
-  const [error, setError] = useState(null);
 
   const fetchRoles = useCallback(async () => {
     if (!canRead) return;
     setLoading(true);
-    setError(null);
 
     try {
       const rolesData = await fetchList("/roles");
-      if (rolesData === null) return;
       setRoles(toArray(rolesData));
     } catch (roleLoadError) {
       console.error("Error fetching roles:", roleLoadError);
@@ -122,7 +119,6 @@ export function useRoles() {
     updateRoleWithPermissions,
     getRolePermissions,
     loading,
-    error,
     refetch: fetchRoles,
   };
 }
