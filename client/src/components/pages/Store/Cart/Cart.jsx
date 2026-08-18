@@ -60,7 +60,7 @@ export function Cart() {
     [setDiscount, setDiscountType],
   );
   const { products, forbidden: productsForbidden, refetch: refetchProducts } = useProducts({ skipForbiddenRedirect: true });
-  const { categories, forbidden: categoriesForbidden } = useCategories();
+  const { categories } = useCategories();
 
   useEffect(() => {
     if (!isCartRestored || products.length === 0) return;
@@ -144,7 +144,6 @@ export function Cart() {
 
   const missingPermissions = [
     ...(productsForbidden ? ["products_read"] : []),
-    ...(categoriesForbidden ? ["categories_read"] : []),
     ...(paymentsForbidden ? ["payments_read"] : []),
   ];
 
