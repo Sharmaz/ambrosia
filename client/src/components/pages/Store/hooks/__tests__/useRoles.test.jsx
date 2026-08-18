@@ -100,6 +100,7 @@ describe("useRoles", () => {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ role: "seller", isAdmin: false, permissions: [] }),
+      skipForbiddenRedirect: true,
     });
     await waitFor(() => expect(screen.getByTestId("first-role")).toHaveTextContent("seller"));
   });
@@ -125,6 +126,7 @@ describe("useRoles", () => {
         isAdmin: false,
         permissions: ["orders_read"],
       }),
+      skipForbiddenRedirect: true,
     });
   });
 
@@ -152,6 +154,7 @@ describe("useRoles", () => {
         isAdmin: false,
         permissions: ["products_read"],
       }),
+      skipForbiddenRedirect: true,
     });
   });
 
@@ -167,7 +170,7 @@ describe("useRoles", () => {
       await handlers.deleteRole("1");
     });
 
-    expect(httpClient).toHaveBeenCalledWith("/roles/1", { method: "DELETE" });
+    expect(httpClient).toHaveBeenCalledWith("/roles/1", { method: "DELETE", skipForbiddenRedirect: true });
     await waitFor(() => expect(screen.getByTestId("count")).toHaveTextContent("0"));
   });
 
@@ -204,7 +207,7 @@ describe("useRoles", () => {
       rolePermissions = await handlers.getRolePermissions("1");
     });
 
-    expect(httpClient).toHaveBeenCalledWith("/roles/1/permissions");
+    expect(httpClient).toHaveBeenCalledWith("/roles/1/permissions", { skipForbiddenRedirect: true });
     expect(rolePermissions).toEqual([{ name: "orders_read" }, { name: "products_read" }]);
   });
 

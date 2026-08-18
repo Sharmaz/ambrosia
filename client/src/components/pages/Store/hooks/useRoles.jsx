@@ -36,6 +36,7 @@ export function useRoles() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify(role),
+        skipForbiddenRedirect: true,
       });
       if (updateRoleRequest.ok === false) {
         throw buildHttpError(updateRoleRequest, "Error updating role");
@@ -57,6 +58,7 @@ export function useRoles() {
             "Content-Type": "application/json",
           },
           body: JSON.stringify(roleRequestBody),
+          skipForbiddenRedirect: true,
         });
         if (createRoleRequest.ok === false) {
           throw buildHttpError(createRoleRequest, "Error creating role");
@@ -87,7 +89,7 @@ export function useRoles() {
   );
 
   const deleteRole = useCallback(async (roleId) => {
-    const deleteRoleResponse = await httpClient(`/roles/${roleId}`, { method: "DELETE" });
+    const deleteRoleResponse = await httpClient(`/roles/${roleId}`, { method: "DELETE", skipForbiddenRedirect: true });
     if (deleteRoleResponse.ok === false) {
       throw buildHttpError(deleteRoleResponse, "Error deleting role");
     }
@@ -97,7 +99,7 @@ export function useRoles() {
   const getRolePermissions = useCallback(async (roleId) => {
     if (!roleId) return [];
     try {
-      const rolePermissionsResponse = await httpClient(`/roles/${roleId}/permissions`);
+      const rolePermissionsResponse = await httpClient(`/roles/${roleId}/permissions`, { skipForbiddenRedirect: true });
 
       const rolePermissionsData = await parseJsonResponse(rolePermissionsResponse);
 

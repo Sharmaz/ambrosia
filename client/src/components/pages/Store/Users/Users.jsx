@@ -6,6 +6,7 @@ import { addToast, Button } from "@heroui/react";
 import { useTranslations } from "next-intl";
 
 import { PageHeader } from "@/components/shared/PageHeader";
+import { PermissionBlockedMessage } from "@/components/shared/PermissionBlockedMessage";
 import { RequirePermission } from "@/hooks/usePermission";
 
 import { useRoles } from "./../hooks/useRoles";
@@ -22,7 +23,7 @@ export function Users() {
   const [deleteUsersShowModal, setDeleteUsersShowModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
   const [userToDelete, setUserToDelete] = useState(null);
-  const { users, updateUser, addUser, deleteUser, refetch: refetchUsers } = useUsers();
+  const { users, forbidden: usersForbidden, updateUser, addUser, deleteUser, refetch: refetchUsers } = useUsers({ skipForbiddenRedirect: true });
   const { roles, createRole, deleteRole: deleteRoleBase, loading: loadingRoles, updateRoleWithPermissions, getRolePermissions } = useRoles();
 
   const deleteRole = useCallback(async (roleId) => {
@@ -64,6 +65,18 @@ export function Users() {
   };
 
   const userTranslations = useTranslations("users");
+
+  if (usersForbidden) {
+    return (
+      <>
+        <PageHeader title={userTranslations("title")} subtitle={userTranslations("subtitle")} />
+        <PermissionBlockedMessage
+          title={userTranslations("permissionBlocked.title")}
+          subtitle={userTranslations("permissionBlocked.subtitle")}
+        />
+      </>
+    );
+  }
 
   return (
     <>

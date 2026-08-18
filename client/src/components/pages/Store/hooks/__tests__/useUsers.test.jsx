@@ -118,6 +118,7 @@ describe("useUsers", () => {
         email: "luis@example.com",
         phone: "555-0101",
       }),
+      skipForbiddenRedirect: true,
     });
 
     await waitFor(() => expect(screen.getByTestId("first-name")).toHaveTextContent("Luis"));
@@ -156,6 +157,7 @@ describe("useUsers", () => {
         phone: "555-0202",
         pin: "7777",
       }),
+      skipForbiddenRedirect: true,
     });
   });
 
@@ -191,6 +193,7 @@ describe("useUsers", () => {
         email: "rosa@example.com",
         phone: "555-0303",
       }),
+      skipForbiddenRedirect: true,
     });
   });
 
@@ -209,6 +212,7 @@ describe("useUsers", () => {
 
     expect(httpClient).toHaveBeenCalledWith("/users/6", {
       method: "DELETE",
+      skipForbiddenRedirect: true,
     });
   });
 
