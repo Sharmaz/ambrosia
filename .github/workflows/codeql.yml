@@ -61,9 +61,15 @@ jobs:
       - name: Build server
         if: matrix.language == 'java-kotlin'
         working-directory: server
+        # The Kotlin compile daemon OOMs under the CodeQL tracer on a stock
+        # runner. Compiling in-process keeps it in the Gradle JVM, where the
+        # heap below applies and the extractor reliably sees the compilation.
+        env:
+          GRADLE_OPTS: -Dorg.gradle.jvmargs=-Xmx5g
         run: |
           chmod +x ./gradlew
-          ./gradlew :app:jar --no-daemon
+          ./gradlew :app:jar --no-daemon \
+            -Dkotlin.compiler.execution.strategy=in-process
 
       - name: Perform CodeQL analysis
         uses: github/codeql-action/analyze@ff2f1c621b7f889edc0d3c761ac2e6a3f8cdb0dd # v4.37.7

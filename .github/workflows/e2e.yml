@@ -59,10 +59,14 @@ jobs:
         source .venv/bin/activate
         uv pip install -e '.[dev]'
 
+    # Warm the build so the first test does not time out waiting on compilation
+    # (the suite starts the server itself with `./gradlew run`). shadowJar stays
+    # off the `check` lifecycle, so it skips ktlint — covered by server_linter —
+    # and koverVerify, which would verify an empty artifact here and fail at 0%.
     - name: Build server
       run: |
         cd server
-        ./gradlew build -x test
+        ./gradlew :app:shadowJar
 
     - name: Run ruff checks (format & lint)
       run: |

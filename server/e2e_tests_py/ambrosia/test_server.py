@@ -37,7 +37,7 @@ class AmbrosiaTestServer:
     )
 
     # Timeout settings
-    STARTUP_TIMEOUT = 30  # seconds
+    STARTUP_TIMEOUT = 120  # seconds
     HEALTH_CHECK_INTERVAL = 1  # seconds
 
     def __init__(
