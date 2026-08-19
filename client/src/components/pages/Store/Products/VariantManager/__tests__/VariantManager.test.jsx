@@ -23,8 +23,8 @@ jest.mock("../OptionTypeManager", () => ({
 jest.mock("../VariantCard", () => ({
   VariantCard: ({ variant, onSave, onDelete }) => (
     <div data-testid={`variant-card-${variant.id}`}>
-      <button onClick={() => onSave(variant.id, { priceCents: 999 })}>save-{variant.id}</button>
-      <button onClick={() => onDelete(variant.id)}>delete-{variant.id}</button>
+      <button onClick={() => onSave(variant.id, { priceCents: 999 }).catch(() => {})}>save-{variant.id}</button>
+      <button onClick={() => onDelete(variant.id).catch(() => {})}>delete-{variant.id}</button>
     </div>
   ),
 }));
@@ -32,7 +32,7 @@ jest.mock("../VariantCard", () => ({
 jest.mock("../VariantForm", () => ({
   VariantForm: ({ onSave, onCancel }) => (
     <div data-testid="variant-form">
-      <button onClick={() => onSave({ priceCents: 500, quantity: 1, optionValueIds: [] })}>
+      <button onClick={() => onSave({ priceCents: 500, quantity: 1, optionValueIds: [] }).catch(() => {})}>
         form-save
       </button>
       <button onClick={onCancel}>form-cancel</button>
@@ -198,5 +198,21 @@ describe("VariantManager", () => {
       color: "success",
     });
     expect(onRefresh).toHaveBeenCalled();
+  });
+
+  it("shows a generic error toast and does not refresh when updateVariant rejects", async () => {
+    const updateVariant = jest.fn().mockRejectedValue(new Error("network error"));
+    const onRefresh = jest.fn().mockResolvedValue(undefined);
+    renderManager({ product: { options, variants }, variantActions: { update: updateVariant }, onRefresh });
+
+    fireEvent.click(screen.getByText("save-v1"));
+
+    await waitFor(() => expect(updateVariant).toHaveBeenCalledWith("p1", "v1", expect.anything()));
+    expect(mockAddToast).toHaveBeenCalledWith({
+      title: "toasts.genericErrorTitle",
+      description: "toasts.genericErrorDescription",
+      color: "danger",
+    });
+    expect(onRefresh).not.toHaveBeenCalled();
   });
 });
