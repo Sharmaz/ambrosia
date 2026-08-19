@@ -5,9 +5,8 @@ import Image from "next/image";
 import { Button, Card, CardBody, CardFooter, CardHeader } from "@heroui/react";
 import { useTranslations } from "next-intl";
 
+import { storedAssetUrl } from "@/components/utils/storedAssetUrl";
 import { RequirePermission } from "@/hooks/usePermission";
-
-import { storedAssetUrl } from "../../../../utils/storedAssetUrl";
 
 export function StoreInfoCard({ data, onEdit }) {
   const settingsTranslations = useTranslations("settings");
