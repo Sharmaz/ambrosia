@@ -5,6 +5,8 @@ import Image from "next/image";
 import { Button, Card, CardBody, CardFooter, CardHeader } from "@heroui/react";
 import { useTranslations } from "next-intl";
 
+import { RequirePermission } from "@/hooks/usePermission";
+
 import { storedAssetUrl } from "../../../../utils/storedAssetUrl";
 
 export function StoreInfoCard({ data, onEdit }) {
@@ -94,13 +96,15 @@ export function StoreInfoCard({ data, onEdit }) {
       </CardBody>
 
       <CardFooter className="flex justify-end">
-        <Button
-          color="primary"
-          className="h-8 min-w-16 px-3 rounded-small sm:h-10 sm:min-w-20 sm:px-4 sm:rounded-medium"
-          onPress={onEdit}
-        >
-          {settingsTranslations("cardInfo.edit")}
-        </Button>
+        <RequirePermission allOf={["settings_update"]}>
+          <Button
+            color="primary"
+            className="h-8 min-w-16 px-3 rounded-small sm:h-10 sm:min-w-20 sm:px-4 sm:rounded-medium"
+            onPress={onEdit}
+          >
+            {settingsTranslations("cardInfo.edit")}
+          </Button>
+        </RequirePermission>
       </CardFooter>
     </Card>
   );
