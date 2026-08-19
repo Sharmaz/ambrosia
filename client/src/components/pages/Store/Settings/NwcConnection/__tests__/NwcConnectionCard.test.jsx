@@ -2,6 +2,10 @@ import { render, screen, fireEvent } from "@testing-library/react";
 
 import { NwcConnectionCard } from "../NwcConnectionCard";
 
+jest.mock("@/hooks/usePermission", () => ({
+  RequirePermission: ({ children }) => children,
+}));
+
 jest.mock("@heroui/react", () => ({
   addToast: jest.fn(),
   Button: ({ onPress, children, ...props }) => (

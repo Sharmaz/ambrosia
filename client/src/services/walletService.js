@@ -217,6 +217,7 @@ export async function updateNwcUri(nwcUri) {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({ nwcUri: nwcUri.trim() }),
+    skipForbiddenRedirect: true,
   });
   const nwcUriUpdateBody = await parseJsonResponse(nwcUriUpdateResponse, null);
   if (!nwcUriUpdateResponse.ok) {
@@ -230,7 +231,7 @@ export async function updateNwcUri(nwcUri) {
 }
 
 export async function getSeed() {
-  const seedResponse = await httpClient("/wallet/seed");
+  const seedResponse = await httpClient("/wallet/seed", { skipForbiddenRedirect: true });
   const seedResponseBody = await parseJsonResponse(seedResponse, null);
   if (!seedResponse.ok) {
     throw createWalletServiceError(seedResponseBody?.message || "Seed not available", {

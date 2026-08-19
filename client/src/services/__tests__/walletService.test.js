@@ -20,6 +20,7 @@ import {
   getIncomingTransactions,
   getOutgoingTransactions,
   getSeed,
+  updateNwcUri,
   closeChannel,
 } from "../walletService";
 
@@ -353,7 +354,7 @@ describe("walletService", () => {
 
       await getSeed();
 
-      expect(httpClient).toHaveBeenCalledWith("/wallet/seed");
+      expect(httpClient).toHaveBeenCalledWith("/wallet/seed", { skipForbiddenRedirect: true });
     });
 
     it("throws with the server code when the backend does not support seed export", async () => {
@@ -368,6 +369,46 @@ describe("walletService", () => {
         message: "Seed export is not available with NWC backend",
         status: 501,
         code: "unsupported_operation",
+      });
+    });
+  });
+
+  describe("updateNwcUri", () => {
+    it("calls /wallet/updatenwcuri with trimmed nwcUri in body", async () => {
+      httpClient.mockResolvedValue(makeResponse(200));
+      parseJsonResponse.mockResolvedValue({ message: "NWC backend reconfigured" });
+
+      await updateNwcUri("  nostr+walletconnect://abc  ");
+
+      expect(httpClient).toHaveBeenCalledWith("/wallet/updatenwcuri", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ nwcUri: "nostr+walletconnect://abc" }),
+        skipForbiddenRedirect: true,
+      });
+    });
+
+    it("returns the parsed response body", async () => {
+      httpClient.mockResolvedValue(makeResponse(200));
+      parseJsonResponse.mockResolvedValue({ message: "NWC backend reconfigured" });
+
+      const updateNwcUriResult = await updateNwcUri("nostr+walletconnect://abc");
+
+      expect(updateNwcUriResult).toEqual({ message: "NWC backend reconfigured" });
+    });
+
+    it("throws structured error when response is not ok", async () => {
+      httpClient.mockResolvedValue(makeResponse(400, false));
+      parseJsonResponse.mockResolvedValue({
+        message: "Invalid NWC URI",
+        code: "nwc_connection_failed",
+        source: "ambrosia",
+      });
+
+      await expect(updateNwcUri("nostr+walletconnect://abc")).rejects.toMatchObject({
+        message: "Invalid NWC URI",
+        status: 400,
+        code: "nwc_connection_failed",
       });
     });
   });
