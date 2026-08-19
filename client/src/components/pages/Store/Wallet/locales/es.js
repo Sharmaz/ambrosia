@@ -20,6 +20,10 @@ const walletEs = {
       confirmText: "Entrar",
       cancelText: "Cancelar",
     },
+    permissionBlocked: {
+      title: "No puedes acceder a la billetera",
+      subtitle: "Pídele a un administrador que te otorgue el permiso de acceder a billetera.",
+    },
     passwordChange: {
       title: "Contraseña de Wallet",
       description: "Cambia la contraseña usada para desbloquear acciones de la wallet.",

@@ -54,6 +54,7 @@ function renderStoreWallet() {
   const mockAuthContext = {
     user: { userName: "testuser", userId: 1 },
     isAuth: true,
+    permissions: [{ name: "wallet_read" }],
   };
 
   return render(
