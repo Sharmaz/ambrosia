@@ -15,7 +15,7 @@ export function useTemplates() {
     setLoading(true);
     setError(null);
     try {
-      const templatesData = await fetchList("/templates");
+      const templatesData = await fetchList("/templates", [], { skipForbiddenRedirect: true });
       setTemplates(toArray(templatesData));
     } catch (error) {
       console.error("Error fetching templates:", error);
