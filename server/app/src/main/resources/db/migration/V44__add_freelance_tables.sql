@@ -1,106 +1,129 @@
 PRAGMA foreign_keys = OFF;
 
 CREATE TABLE clients (
-	"id" BLOB NOT NULL,
-	"name" TEXT,
-	"currency_id (FK)" BLOB,
-	"hourly_rate_cents" INTEGER,
-	"billing_cycle" TEXT,
-	"payment_method" TEXT,
-	"payment_account_id (FK)" BLOB,
-	"is_deleted" INTEGER,
-	PRIMARY KEY("id")
+	id BLOB NOT NULL,
+	name TEXT NOT NULL,
+	currency_id BLOB NOT NULL,
+	hourly_rate_cents INTEGER NOT NULL CHECK (hourly_rate_cents >= 0),
+	billing_cycle TEXT NOT NULL CHECK (billing_cycle IN ('weekly', 'biweekly', 'monthly')),
+	payment_method TEXT NOT NULL CHECK (payment_method IN ('bank', 'lightning')),
+	payout_account_id BLOB,
+	is_deleted BOOLEAN NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+	PRIMARY KEY(id),
+	FOREIGN KEY (currency_id) REFERENCES currency(id) ON DELETE RESTRICT,
+	FOREIGN KEY (payout_account_id) REFERENCES payout_accounts(id) ON DELETE RESTRICT
 );
 
 CREATE TABLE projects (
-	"id" BLOB NOT NULL,
-	"client_id" BLOB,
-	"name" TEXT,
-	"status" TEXT,
-	"hourly_rate_cents" INTEGER,
-	"is_billable" INTEGER,
-	"is_deleted" INTEGER,
-	PRIMARY KEY("id"),
-	FOREIGN KEY ("client_id") REFERENCES "clients"("id")
-	ON UPDATE NO ACTION ON DELETE NO ACTION
+	id BLOB NOT NULL,
+	client_id BLOB NOT NULL,
+	name TEXT NOT NULL,
+	status TEXT NOT NULL DEFAULT 'pending'
+		CHECK (status IN ('pending', 'in_progress', 'done', 'paid', 'cancelled')),
+	hourly_rate_cents INTEGER CHECK (hourly_rate_cents >= 0),
+	is_billable BOOLEAN NOT NULL DEFAULT 1,
+	is_deleted BOOLEAN NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+	PRIMARY KEY(id),
+	FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE RESTRICT
 );
 
 CREATE TABLE tasks (
-	"id" BLOB NOT NULL,
-	"name" TEXT,
-	"is_nullable" INTEGER,
-	"is_deleted" INTEGER,
-	PRIMARY KEY("id")
+	id BLOB NOT NULL,
+	name TEXT NOT NULL,
+	is_billable BOOLEAN NOT NULL DEFAULT 1,
+	is_deleted BOOLEAN NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+	PRIMARY KEY(id)
 );
 
 CREATE TABLE time_entries (
-	"id" BLOB NOT NULL,
-	"project_id" BLOB,
-	"task_id" BLOB,
-	"user_id (FK)" BLOB,
-	"entry_date" TEXT,
-	"description" TEXT,
-	"duration_minutes" INTEGER,
-	"rate_cents" INTEGER,
-	"invoice_id" BLOB,
-	"is_locked" INTEGER,
-	PRIMARY KEY("id"),
-	FOREIGN KEY ("project_id") REFERENCES "projects"("id")
-	ON UPDATE NO ACTION ON DELETE NO ACTION,
-	FOREIGN KEY ("task_id") REFERENCES "tasks"("id")
-	ON UPDATE NO ACTION ON DELETE NO ACTION,
-	FOREIGN KEY ("invoice_id") REFERENCES "invoices"("id")
-	ON UPDATE NO ACTION ON DELETE NO ACTION
+	id BLOB NOT NULL,
+	project_id BLOB NOT NULL,
+	task_id BLOB NOT NULL,
+	user_id BLOB NOT NULL,
+	entry_date TEXT NOT NULL,
+  start_time TEXT,
+  end_time TEXT,
+	description TEXT,
+	duration_minutes INTEGER NOT NULL CHECK (duration_minutes >= 0),
+	rate_cents INTEGER CHECK (rate_cents >= 0),
+	invoice_id BLOB,
+	is_locked BOOLEAN NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+	PRIMARY KEY(id),
+	FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE RESTRICT,
+	FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE RESTRICT,
+	FOREIGN KEY (invoice_id) REFERENCES invoices(id) ON DELETE RESTRICT,
+	FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE RESTRICT
 );
 
 CREATE TABLE payout_accounts (
-	"id" BLOB NOT NULL,
-	"type" TEXT,
-	"swift" TEXT,
-	"iban" TEXT,
-	"clabe" TEXT,
-	"lightning_address" TEXT,
-	"is_deleted" INTEGER,
-	PRIMARY KEY("id")
+    id BLOB NOT NULL,
+    type TEXT NOT NULL CHECK (type IN ('bank', 'lightning')),
+    account_holder TEXT,
+    bank_name TEXT,
+    account_number TEXT,
+    currency_id BLOB,
+    swift TEXT,
+    iban TEXT,
+    clabe TEXT,
+    lightning_address TEXT,
+    is_deleted BOOLEAN NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    PRIMARY KEY (id),
+    FOREIGN KEY (currency_id)
+        REFERENCES currency(id)
+        ON DELETE RESTRICT
 );
 
 CREATE TABLE invoices (
-	"id" BLOB NOT NULL,
-	"invoice_number" TEXT,
-	"client_id" BLOB,
-	"status" TEXT,
-	"currency_id (FK)" BLOB,
-	"period_start" TEXT,
-	"period_end" TEXT,
-	"total_cents" INTEGER,
-	"payment_method (FK)" TEXT,
-	"payment_hash" TEXT,
-	"bolt11" TEXT,
-	PRIMARY KEY("id"),
-	FOREIGN KEY ("client_id") REFERENCES "clients"("id")
-	ON UPDATE NO ACTION ON DELETE NO ACTION
+	id BLOB NOT NULL,
+	invoice_year INTEGER NOT NULL CHECK (invoice_year >= 0),
+  invoice_number TEXT NOT NULL UNIQUE,
+	client_id BLOB NOT NULL,
+	status TEXT NOT NULL DEFAULT 'pending'
+		CHECK (status IN ('pending', 'generated', 'sent', 'paid', 'expired')),
+	currency_id BLOB NOT NULL,
+	period_start TEXT NOT NULL,
+	period_end TEXT NOT NULL,
+	total_cents INTEGER NOT NULL CHECK (total_cents >= 0),
+  payout_snapshot TEXT
+    CHECK (
+        payout_snapshot IS NULL
+        OR json_valid(payout_snapshot)
+    ),
+	payment_method TEXT NOT NULL CHECK (payment_method IN ('bank', 'lightning')),
+	payment_hash TEXT,
+	bolt11 TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+	PRIMARY KEY(id),
+	FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE RESTRICT,
+	FOREIGN KEY (currency_id) REFERENCES currency(id) ON DELETE RESTRICT
 );
 
 CREATE TABLE invoice_line_items (
-	"id" BLOB NOT NULL,
-	"invoice_id" BLOB,
-	"project_id" BLOB,
-	"quantity_minutes" INTEGER,
-	"rate_cents" INTEGER,
-	"amount_cents" INTEGER,
-	PRIMARY KEY("id"),
-	FOREIGN KEY ("invoice_id") REFERENCES "invoices"("id")
-	ON UPDATE NO ACTION ON DELETE NO ACTION,
-	FOREIGN KEY ("project_id") REFERENCES "projects"("id")
-	ON UPDATE NO ACTION ON DELETE NO ACTION
+	id BLOB NOT NULL,
+	invoice_id BLOB NOT NULL,
+	project_id BLOB NOT NULL,
+	task_id BLOB NOT NULL,
+	quantity_minutes INTEGER NOT NULL CHECK (quantity_minutes >= 0),
+	rate_cents INTEGER NOT NULL CHECK (rate_cents >= 0),
+	amount_cents INTEGER NOT NULL CHECK (amount_cents >= 0),
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+	PRIMARY KEY(id),
+	FOREIGN KEY (invoice_id) REFERENCES invoices(id) ON DELETE RESTRICT,
+	FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE RESTRICT,
+	FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE RESTRICT
 );
 
 CREATE TABLE invoice_payments (
-	"payment_id (FK)" BLOB NOT NULL,
-	"invoice_id" BLOB,
-	PRIMARY KEY("payment_id (FK)"),
-	FOREIGN KEY ("invoice_id") REFERENCES "invoices"("id")
-	ON UPDATE NO ACTION ON DELETE NO ACTION
+	payment_id BLOB NOT NULL,
+	invoice_id BLOB NOT NULL,
+	PRIMARY KEY(payment_id, invoice_id),
+	FOREIGN KEY (invoice_id) REFERENCES invoices(id) ON DELETE RESTRICT,
+	FOREIGN KEY (payment_id) REFERENCES payments(id) ON DELETE RESTRICT
 );
 
 PRAGMA foreign_keys = ON;
