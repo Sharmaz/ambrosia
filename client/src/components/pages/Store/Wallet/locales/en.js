@@ -20,6 +20,10 @@ const walletEn = {
       confirmText: "Access",
       cancelText: "Cancel",
     },
+    permissionBlocked: {
+      title: "You can't access the wallet",
+      subtitle: "Ask an administrator to grant you the Access wallet permission.",
+    },
     passwordChange: {
       title: "Wallet password",
       description: "Change the password used to unlock wallet actions.",
