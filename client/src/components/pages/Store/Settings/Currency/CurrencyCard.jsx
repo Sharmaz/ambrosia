@@ -3,10 +3,12 @@
 import { Card, CardBody, CardHeader } from "@heroui/react";
 import { useTranslations } from "next-intl";
 
+import { usePermission } from "@/hooks/usePermission";
 import { CurrencyInput } from "@components/shared/CurrencyInput";
 
 export function CurrencyCard({ selectedCurrency, currencies, onCurrencyChange }) {
   const settingsTranslations = useTranslations("settings");
+  const canUpdateSettings = usePermission({ allOf: ["settings_update"] });
 
   return (
     <Card shadow="none" className="rounded-lg p-6 shadow-lg">
@@ -23,6 +25,7 @@ export function CurrencyCard({ selectedCurrency, currencies, onCurrencyChange })
           label={settingsTranslations("cardCurrency.currencyLabel")}
           selectedKey={selectedCurrency}
           onSelectionChange={onCurrencyChange}
+          isDisabled={!canUpdateSettings}
         />
       </CardBody>
     </Card>

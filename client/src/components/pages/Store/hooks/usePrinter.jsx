@@ -18,7 +18,7 @@ export function usePrinters() {
     setError(null);
 
     try {
-      const printersData = await fetchList("/printers/available");
+      const printersData = await fetchList("/printers/available", [], { skipForbiddenRedirect: true });
       setAvailablePrinters(toArray(printersData));
     } catch (error) {
       console.error("Error fetching printers:", error);
@@ -33,7 +33,7 @@ export function usePrinters() {
     setError(null);
 
     try {
-      const printerDataConfigs = await fetchList("/printers/configs");
+      const printerDataConfigs = await fetchList("/printers/configs", [], { skipForbiddenRedirect: true });
       setPrinterConfigs(toArray(printerDataConfigs));
     } catch (error) {
       console.error("Error fetching printer configs:", error);

@@ -33,9 +33,13 @@ export function Settings() {
           <Currency />
           <Language />
           <Display />
-          <Seed />
-          <NwcConnectionCard />
-          <Tutorials />
+          {isAdmin && (
+            <>
+              <Seed />
+              <NwcConnectionCard />
+              <Tutorials />
+            </>
+          )}
         </div>
 
         <div className="flex flex-col gap-6">

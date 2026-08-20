@@ -70,6 +70,16 @@ describe("useTemplates", () => {
     expect(screen.getByTestId("first-name")).toHaveTextContent("Default");
   });
 
+  it("loads templates with skipForbiddenRedirect so a 403 does not force a global redirect", async () => {
+    httpClient.mockResolvedValueOnce({ ok: true });
+    parseJsonResponse.mockResolvedValueOnce([]);
+
+    render(<TestComponent />);
+
+    await waitFor(() => expect(screen.getByTestId("loading")).toHaveTextContent("no"));
+    expect(httpClient).toHaveBeenCalledWith("/templates", { skipForbiddenRedirect: true });
+  });
+
   it("sets empty templates when apiClient returns non-array", async () => {
     httpClient.mockResolvedValueOnce({ ok: true });
     parseJsonResponse.mockResolvedValueOnce({ ok: true });

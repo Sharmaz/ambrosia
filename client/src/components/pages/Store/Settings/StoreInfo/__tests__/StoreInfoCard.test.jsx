@@ -5,6 +5,10 @@ import { I18nProvider } from "@i18n/I18nProvider";
 
 import { StoreInfoCard } from "../StoreInfoCard";
 
+jest.mock("@/hooks/usePermission", () => ({
+  RequirePermission: ({ children }) => children,
+}));
+
 const mockData = {
   businessName: "Mi Tienda Test",
   businessType: "store",

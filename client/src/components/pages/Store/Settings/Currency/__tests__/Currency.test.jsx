@@ -5,6 +5,10 @@ import { I18nProvider } from "@i18n/I18nProvider";
 
 import { Currency } from "../Currency";
 
+jest.mock("@/hooks/usePermission", () => ({
+  usePermission: () => true,
+}));
+
 jest.mock("@heroui/react", () => {
   const actual = jest.requireActual("@heroui/react");
   const Autocomplete = ({
