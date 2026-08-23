@@ -37,6 +37,10 @@ const storeEs = {
       sales: "Ventas",
       revenue: "Ingresos",
     },
+    permissionBlocked: {
+      title: "No puedes ver ninguna estadística del panel",
+      subtitle: "Pídele a un administrador que te otorgue permiso para ver usuarios, productos o ventas.",
+    },
   },
   ...usersEs,
   ...productsEs,
