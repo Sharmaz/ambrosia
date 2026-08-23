@@ -36,6 +36,17 @@ const config = {
   transformIgnorePatterns: [
     "/node_modules/(?!next-intl|@formatjs|react-intl|intl-messageformat)/",
   ],
+  // Ratchet, not a target. Set just below the measured baseline
+  // (88.36 / 79.35 / 88.36 / 90.11) so a real regression fails the build
+  // without normal churn tripping it. Raise these as coverage improves.
+  coverageThreshold: {
+    global: {
+      statements: 85,
+      branches: 76,
+      functions: 85,
+      lines: 87,
+    },
+  },
 };
 
 export default config;
