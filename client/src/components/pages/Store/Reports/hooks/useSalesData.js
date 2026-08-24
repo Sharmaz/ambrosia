@@ -7,6 +7,7 @@ import { useTranslations } from "next-intl";
 import formatDate from "@lib/formatDate";
 
 import { downloadCsv } from "../utils/downloadCsv";
+import { formatLocalDateStamp } from "../utils/formatLocalDateStamp";
 import { refundedToStatus } from "../utils/refundedToStatus";
 
 const DEFAULT_ROWS_PER_PAGE = 10;
@@ -67,7 +68,7 @@ export function useSalesData(sales, formatCurrency) {
       const csv = [headers, ...rows, ...summaryRows]
         .map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(","))
         .join("\n");
-      downloadCsv(csv, `sales-report-${new Date().toISOString().slice(0, 10)}.csv`);
+      downloadCsv(csv, `sales-report-${formatLocalDateStamp()}.csv`);
     } catch {
       addToast({ color: "danger", description: reportsTranslations("export.error") });
     }

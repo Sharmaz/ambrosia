@@ -15,6 +15,7 @@ okio-version = "3.9.0"
 zxing-version = "3.5.3"
 escpos-coffee-version = "4.1.0"
 ktlint-plugin-version = "14.0.1"
+kover-version = "0.9.9"
 web-push-java-version = "5.1.2"
 bouncycastle-version = "1.84"
 jose4j-version = "0.9.6"
@@ -64,3 +65,4 @@ ktor = { id = "io.ktor.plugin", version.ref = "ktor-version" }
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin-version" }
 kotlin-plugin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin-version" }
 ktlint = { id = "org.jlleitschuh.gradle.ktlint", version.ref = "ktlint-plugin-version" }
+kover = { id = "org.jetbrains.kotlinx.kover", version.ref = "kover-version" }

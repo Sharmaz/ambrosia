@@ -4,6 +4,10 @@ const usersEn = {
   users: {
     title: "Users",
     subtitle: "Manage your store staff",
+    permissionBlocked: {
+      title: "You can't view users",
+      subtitle: "Ask an administrator to grant you the View users permission.",
+    },
     addUser: "Add User",
     tableAriaLabel: "Users table",
     noRole: "No role assigned",
@@ -45,6 +49,8 @@ const usersEn = {
       duplicateNameDescription: "A user with that name already exists.",
       genericErrorTitle: "Error",
       genericErrorDescription: "Could not complete the operation.",
+      adminRequiredTitle: "Admin privileges required",
+      adminRequiredDescription: "Only an administrator can assign an admin role.",
       lastUserTitle: "Not allowed",
       lastUserDescription: "You cannot delete the only existing user.",
       lastAdminTitle: "Not allowed",

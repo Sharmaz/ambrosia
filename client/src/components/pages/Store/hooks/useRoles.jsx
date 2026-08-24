@@ -13,16 +13,13 @@ export function useRoles() {
   const [roles, setRoles] = useState([]);
   const canRead = usePermission({ allOf: ["roles_read"] });
   const [loading, setLoading] = useState(canRead);
-  const [error, setError] = useState(null);
 
   const fetchRoles = useCallback(async () => {
     if (!canRead) return;
     setLoading(true);
-    setError(null);
 
     try {
       const rolesData = await fetchList("/roles");
-      if (rolesData === null) return;
       setRoles(toArray(rolesData));
     } catch (roleLoadError) {
       console.error("Error fetching roles:", roleLoadError);
@@ -39,6 +36,7 @@ export function useRoles() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify(role),
+        skipForbiddenRedirect: true,
       });
       if (updateRoleRequest.ok === false) {
         throw buildHttpError(updateRoleRequest, "Error updating role");
@@ -50,42 +48,23 @@ export function useRoles() {
     }
   }, []);
 
-  const assignPermissions = useCallback(async (roleId, permissions = []) => {
-    if (!roleId) return;
-    try {
-      await httpClient(`/roles/${roleId}/permissions`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ permissions }),
-      });
-    } catch (assignPermissionsError) {
-      console.error("Error assigning permissions:", assignPermissionsError);
-      throw assignPermissionsError;
-    }
-  }, []);
-
   const createRole = useCallback(
-    async ({ name, password, isAdmin = false, permissions = [] }) => {
+    async ({ name, isAdmin = false, permissions = [] }) => {
       try {
-        const roleRequestBody = { role: name, isAdmin };
-        if (password) roleRequestBody.password = password;
+        const roleRequestBody = { role: name, isAdmin, permissions };
         const createRoleRequest = await httpClient("/roles", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
           body: JSON.stringify(roleRequestBody),
+          skipForbiddenRedirect: true,
         });
         if (createRoleRequest.ok === false) {
           throw buildHttpError(createRoleRequest, "Error creating role");
         }
         const createdRoleData = await parseJsonResponse(createRoleRequest, []);
         const createdRoleId = createdRoleData?.id || createdRoleData?.roleId;
-        if (permissions.length > 0) {
-          await assignPermissions(createdRoleId, permissions);
-        }
         await fetchRoles();
         return createdRoleId;
       } catch (createRoleError) {
@@ -93,25 +72,24 @@ export function useRoles() {
         throw createRoleError;
       }
     },
-    [assignPermissions, fetchRoles],
+    [fetchRoles],
   );
 
   const updateRoleWithPermissions = useCallback(
-    async (roleId, { name, isAdmin = false, password, permissions = [] }) => {
+    async (roleId, { name, isAdmin = false, permissions = [] }) => {
       if (!roleId) return;
       await updateRole(roleId, {
         role: name,
         isAdmin,
-        ...(password ? { password } : {}),
+        permissions,
       });
-      await assignPermissions(roleId, permissions);
       await fetchRoles();
     },
-    [assignPermissions, fetchRoles, updateRole],
+    [fetchRoles, updateRole],
   );
 
   const deleteRole = useCallback(async (roleId) => {
-    const deleteRoleResponse = await httpClient(`/roles/${roleId}`, { method: "DELETE" });
+    const deleteRoleResponse = await httpClient(`/roles/${roleId}`, { method: "DELETE", skipForbiddenRedirect: true });
     if (deleteRoleResponse.ok === false) {
       throw buildHttpError(deleteRoleResponse, "Error deleting role");
     }
@@ -121,7 +99,7 @@ export function useRoles() {
   const getRolePermissions = useCallback(async (roleId) => {
     if (!roleId) return [];
     try {
-      const rolePermissionsResponse = await httpClient(`/roles/${roleId}/permissions`);
+      const rolePermissionsResponse = await httpClient(`/roles/${roleId}/permissions`, { skipForbiddenRedirect: true });
 
       const rolePermissionsData = await parseJsonResponse(rolePermissionsResponse);
 
@@ -140,11 +118,9 @@ export function useRoles() {
     roles,
     createRole,
     deleteRole,
-    assignPermissions,
     updateRoleWithPermissions,
     getRolePermissions,
     loading,
-    error,
     refetch: fetchRoles,
   };
 }

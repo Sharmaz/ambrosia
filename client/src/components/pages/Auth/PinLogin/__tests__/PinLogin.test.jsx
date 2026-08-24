@@ -6,7 +6,7 @@ import { act, render, screen, fireEvent } from "@testing-library/react";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { I18nProvider } from "@/i18n/I18nProvider";
 import { useConfigurations } from "@/providers/configurations/configurationsProvider";
-import { getUsers } from "@/services/authService";
+import { getPublicUsers } from "@/services/authService";
 
 import PinLogin from "../PinLogin";
 
@@ -29,7 +29,7 @@ jest.mock("@heroui/react", () => ({
   addToast: jest.fn(),
 }));
 
-jest.mock("@/services/authService", () => ({ getUsers: jest.fn() }));
+jest.mock("@/services/authService", () => ({ getPublicUsers: jest.fn() }));
 jest.mock("@/hooks/auth/useAuth", () => ({ useAuth: jest.fn() }));
 jest.mock("@/providers/configurations/configurationsProvider", () => ({ useConfigurations: jest.fn() }));
 jest.mock("next/navigation", () => ({ useRouter: jest.fn() }));
@@ -58,7 +58,7 @@ beforeEach(() => {
   useRouter.mockReturnValue({ push: jest.fn(), replace: mockReplace });
   useAuth.mockReturnValue({ login: mockLogin, isAuth: false, isLoading: false });
   useConfigurations.mockReturnValue({ config: { businessName: "Test Store", businessLogoUrl: null } });
-  getUsers.mockResolvedValue(employees);
+  getPublicUsers.mockResolvedValue(employees);
 });
 
 describe("PinLogin", () => {
@@ -71,19 +71,19 @@ describe("PinLogin", () => {
 
   it("loads and displays employees from the API", async () => {
     await renderPinLogin();
-    expect(getUsers).toHaveBeenCalledWith({ silentAuth: true });
+    expect(getPublicUsers).toHaveBeenCalledWith();
     expect(screen.getByText("Alice")).toBeInTheDocument();
     expect(screen.getByText("Bob")).toBeInTheDocument();
   });
 
   it("shows no-employees message when API returns empty array", async () => {
-    getUsers.mockResolvedValue([]);
+    getPublicUsers.mockResolvedValue([]);
     await renderPinLogin();
     expect(screen.getByText("noEmployees")).toBeInTheDocument();
   });
 
   it("shows an error toast when employees cannot be loaded", async () => {
-    getUsers.mockRejectedValueOnce(new Error("Users unavailable"));
+    getPublicUsers.mockRejectedValueOnce(new Error("Users unavailable"));
 
     await renderPinLogin();
 

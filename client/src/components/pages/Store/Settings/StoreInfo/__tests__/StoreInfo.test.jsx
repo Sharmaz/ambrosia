@@ -7,6 +7,10 @@ import * as configurationsProvider from "@providers/configurations/configuration
 
 import { StoreInfo } from "../StoreInfo";
 
+jest.mock("@/hooks/usePermission", () => ({
+  RequirePermission: ({ children }) => children,
+}));
+
 const mockUpdateConfig = jest.fn();
 const mockUpload = jest.fn();
 
@@ -15,6 +19,7 @@ const mockConfig = {
   businessType: "store",
   businessTaxId: "RFC123456789",
   businessAddress: "Calle Principal 123",
+  timezone: "America/Mexico_City",
   businessEmail: "tienda@test.com",
   businessPhone: "5551234567",
   businessLogoUrl: "http://localhost:9154/api/assets/logo.png",
@@ -73,6 +78,7 @@ describe("StoreInfo", () => {
       expect(screen.getByText("Mi Tienda Test")).toBeInTheDocument();
       expect(screen.getByText("RFC123456789")).toBeInTheDocument();
       expect(screen.getByText("Calle Principal 123")).toBeInTheDocument();
+      expect(screen.getByText("America/Mexico_City")).toBeInTheDocument();
     });
 
     it("does not show modal initially", async () => {
@@ -120,7 +126,7 @@ describe("StoreInfo", () => {
 
       await waitFor(() => {
         expect(mockUpdateConfig).toHaveBeenCalledWith(
-          expect.objectContaining({ businessName: "Mi Tienda Test" }),
+          expect.objectContaining({ businessName: "Mi Tienda Test", timezone: "America/Mexico_City" }),
         );
       });
       await waitFor(() => {

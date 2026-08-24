@@ -2,6 +2,8 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 
 import { Roles } from "../Roles";
 
+let mockIsAdmin = true;
+
 jest.mock("@heroui/react", () => {
   const actual = jest.requireActual("@heroui/react");
   return { ...actual, addToast: jest.fn() };
@@ -16,6 +18,10 @@ jest.mock("@/hooks/usePermission", () => ({
   RequirePermission: ({ children }) => children,
 }));
 
+jest.mock("@/hooks/useNavigation", () => ({
+  useNavigation: () => ({ isAdmin: mockIsAdmin }),
+}));
+
 jest.mock("@/providers/configurations/configurationsProvider", () => ({
   useConfigurations: () => ({ businessType: "store" }),
 }));
@@ -25,18 +31,22 @@ jest.mock("@/components/pages/Store/hooks/usePermissions", () => ({
 }));
 
 jest.mock("../RolesList", () => ({
-  RolesList: ({ roles, onEdit, onDelete }) => (
+  RolesList: ({ roles, canManageRoles, onEdit, onDelete }) => (
     <div>
       roles list
       {roles.map((role) => (
         <div key={role.id}>
           <span>{role.role}</span>
-          <button type="button" onClick={() => onEdit(role)}>
-            edit role
-          </button>
-          <button type="button" onClick={() => onDelete(role)}>
-            delete role
-          </button>
+          {canManageRoles && (
+            <>
+              <button type="button" onClick={() => onEdit(role)}>
+                edit role
+              </button>
+              <button type="button" onClick={() => onDelete(role)}>
+                delete role
+              </button>
+            </>
+          )}
         </div>
       ))}
     </div>
@@ -44,7 +54,7 @@ jest.mock("../RolesList", () => ({
 }));
 
 jest.mock("../CreateRoleModal", () => ({
-  CreateRoleModal: ({ isOpen, onSubmit, form, setForm, creating }) => (
+  CreateRoleModal: ({ isOpen, onSubmit, form, setForm, creating, togglePermission }) => (
     isOpen ? (
       <div>
         <span>roles.create.title</span>
@@ -52,6 +62,15 @@ jest.mock("../CreateRoleModal", () => ({
         <span data-testid="role-name">{form.name}</span>
         <button type="button" onClick={() => setForm((currentForm) => ({ ...currentForm, name: "cashier" }))}>
           set role name
+        </button>
+        <button type="button" onClick={() => setForm((currentForm) => ({ ...currentForm, isAdmin: true }))}>
+          set admin role
+        </button>
+        <button type="button" onClick={() => togglePermission("orders_create")}>
+          toggle orders_create
+        </button>
+        <button type="button" onClick={() => togglePermission("products_read")}>
+          toggle products_read
         </button>
         <button type="button" onClick={onSubmit}>
           roles.actions.create
@@ -85,6 +104,9 @@ jest.mock("../EditRoleModal", () => ({
         <button type="button" onClick={() => setForm((currentForm) => ({ ...currentForm, name: "manager" }))}>
           set edit role name
         </button>
+        <button type="button" onClick={() => setForm((currentForm) => ({ ...currentForm, isAdmin: true }))}>
+          set edit admin role
+        </button>
         <button type="button" onClick={onSubmit}>
           roles.actions.save
         </button>
@@ -110,6 +132,19 @@ const renderRoles = (props = {}) => render(
 describe("Roles", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockIsAdmin = true;
+  });
+
+  it("shows a read-only notice and hides management controls for non-admin users", () => {
+    mockIsAdmin = false;
+
+    renderRoles({ roles: [{ id: "role-id", role: "cashier", isAdmin: false }] });
+
+    expect(screen.getByText("roles.state.readOnlyTitle")).toBeInTheDocument();
+    expect(screen.getByText("roles.state.readOnlyDescription")).toBeInTheDocument();
+    expect(screen.queryByText("roles.actions.new")).not.toBeInTheDocument();
+    expect(screen.queryByText("edit role")).not.toBeInTheDocument();
+    expect(screen.queryByText("delete role")).not.toBeInTheDocument();
   });
 
   it("shows a success toast after creating a role", async () => {
@@ -126,7 +161,6 @@ describe("Roles", () => {
 
     await waitFor(() => expect(createRole).toHaveBeenCalledWith({
       name: "cashier",
-      password: undefined,
       isAdmin: false,
       permissions: [],
     }));
@@ -135,6 +169,43 @@ describe("Roles", () => {
       color: "success",
     });
     expect(screen.queryByText("roles.create.title")).not.toBeInTheDocument();
+  });
+
+  it("autocompletes the suggested permissions when orders_create is toggled on", async () => {
+    const createRole = jest.fn(() => Promise.resolve("role-id"));
+
+    renderRoles({ createRole });
+
+    fireEvent.click(screen.getByText("roles.actions.new"));
+    fireEvent.click(screen.getByText("set role name"));
+    fireEvent.click(screen.getByText("toggle orders_create"));
+
+    fireEvent.click(screen.getByText("roles.actions.create"));
+
+    await waitFor(() => expect(createRole).toHaveBeenCalledWith({
+      name: "cashier",
+      isAdmin: false,
+      permissions: ["orders_create", "products_read", "categories_read", "payments_read"],
+    }));
+  });
+
+  it("lets the admin untoggle one suggested permission without affecting the others", async () => {
+    const createRole = jest.fn(() => Promise.resolve("role-id"));
+
+    renderRoles({ createRole });
+
+    fireEvent.click(screen.getByText("roles.actions.new"));
+    fireEvent.click(screen.getByText("set role name"));
+    fireEvent.click(screen.getByText("toggle orders_create"));
+    fireEvent.click(screen.getByText("toggle products_read"));
+
+    fireEvent.click(screen.getByText("roles.actions.create"));
+
+    await waitFor(() => expect(createRole).toHaveBeenCalledWith({
+      name: "cashier",
+      isAdmin: false,
+      permissions: ["orders_create", "categories_read", "payments_read"],
+    }));
   });
 
   it("shows an error toast and keeps the create modal open when role creation fails", async () => {
@@ -151,7 +222,6 @@ describe("Roles", () => {
 
     await waitFor(() => expect(createRole).toHaveBeenCalledWith({
       name: "cashier",
-      password: undefined,
       isAdmin: false,
       permissions: [],
     }));
@@ -179,7 +249,6 @@ describe("Roles", () => {
 
     await waitFor(() => expect(createRole).toHaveBeenCalledWith({
       name: "cashier",
-      password: undefined,
       isAdmin: false,
       permissions: [],
     }));
@@ -189,6 +258,53 @@ describe("Roles", () => {
       color: "warning",
     });
     expect(screen.getByText("roles.create.title")).toBeInTheDocument();
+  });
+
+  it("shows admin-required feedback when admin role creation is forbidden", async () => {
+    const adminRequiredError = new Error("admin required");
+    adminRequiredError.status = 403;
+    const createRole = jest.fn(() => Promise.reject(adminRequiredError));
+
+    renderRoles({ createRole });
+
+    fireEvent.click(screen.getByText("roles.actions.new"));
+    fireEvent.click(screen.getByText("set role name"));
+    fireEvent.click(screen.getByText("set admin role"));
+    fireEvent.click(screen.getByText("roles.actions.create"));
+
+    await waitFor(() => expect(createRole).toHaveBeenCalledWith(expect.objectContaining({ isAdmin: true })));
+    expect(addToast).toHaveBeenCalledWith({
+      title: "roles.actions.adminRequiredTitle",
+      description: "roles.actions.adminRequiredDescription",
+      color: "warning",
+    });
+  });
+
+  it("shows admin-required feedback when admin role promotion is forbidden", async () => {
+    const adminRequiredError = new Error("admin required");
+    adminRequiredError.status = 403;
+    const updateRoleWithPermissions = jest.fn(() => Promise.reject(adminRequiredError));
+
+    renderRoles({
+      roles: [{ id: "role-id", role: "cashier", isAdmin: false }],
+      updateRoleWithPermissions,
+      getRolePermissions: jest.fn(() => Promise.resolve([])),
+    });
+
+    fireEvent.click(screen.getByText("edit role"));
+    await waitFor(() => expect(screen.getByText("roles.edit.title")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("set edit admin role"));
+    fireEvent.click(screen.getByText("roles.actions.save"));
+
+    await waitFor(() => expect(updateRoleWithPermissions).toHaveBeenCalledWith(
+      "role-id",
+      expect.objectContaining({ isAdmin: true }),
+    ));
+    expect(addToast).toHaveBeenCalledWith({
+      title: "roles.actions.adminRequiredTitle",
+      description: "roles.actions.adminRequiredDescription",
+      color: "warning",
+    });
   });
 
   it("does not create a role twice while creation is pending", async () => {
@@ -243,6 +359,30 @@ describe("Roles", () => {
     resolveUpdateRole();
 
     await waitFor(() => expect(screen.queryByText("roles.edit.title")).not.toBeInTheDocument());
+  });
+
+  it("updates a role without sending password data", async () => {
+    const updateRoleWithPermissions = jest.fn(() => Promise.resolve());
+    const getRolePermissions = jest.fn(() => Promise.resolve([]));
+
+    renderRoles({
+      roles: [{ id: "role-id", role: "cashier", isAdmin: false }],
+      updateRoleWithPermissions,
+      getRolePermissions,
+    });
+
+    fireEvent.click(screen.getByText("edit role"));
+
+    await waitFor(() => expect(screen.getByText("roles.edit.title")).toBeInTheDocument());
+
+    fireEvent.click(screen.getByText("set edit role name"));
+    fireEvent.click(screen.getByText("roles.actions.save"));
+
+    await waitFor(() => expect(updateRoleWithPermissions).toHaveBeenCalledWith("role-id", {
+      name: "manager",
+      isAdmin: false,
+      permissions: [],
+    }));
   });
 
   it("does not delete a role twice while deletion is pending", async () => {

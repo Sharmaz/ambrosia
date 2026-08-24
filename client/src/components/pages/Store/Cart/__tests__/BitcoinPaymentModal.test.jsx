@@ -21,7 +21,6 @@ let mockInvoiceState = {
   invoice: null,
   satsAmount: null,
   loading: false,
-  error: "",
   generateInvoice: jest.fn(),
   reset: jest.fn(),
 };
@@ -61,7 +60,6 @@ describe("BitcoinPaymentModal", () => {
       invoice: null,
       satsAmount: null,
       loading: false,
-      error: "",
       generateInvoice: jest.fn(),
       reset: jest.fn(),
     };
@@ -87,16 +85,14 @@ describe("BitcoinPaymentModal", () => {
     });
   });
 
-  describe("Error state", () => {
+  describe("No invoice available", () => {
     it("shows service unavailable message when invoice is missing", () => {
-      mockInvoiceState = { ...mockInvoiceState, error: "invoice-error" };
       renderModal();
 
       expect(screen.getByText("serviceUnavailable")).toBeInTheDocument();
     });
 
     it("calls generateInvoice on retry", () => {
-      mockInvoiceState = { ...mockInvoiceState, error: "invoice-error" };
       renderModal();
 
       fireEvent.click(screen.getByText("retry"));

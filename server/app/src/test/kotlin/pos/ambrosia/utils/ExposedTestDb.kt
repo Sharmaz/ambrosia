@@ -13,6 +13,7 @@ import pos.ambrosia.db.tables.AdminNotificationsTable
 import pos.ambrosia.db.tables.BaseCurrencyTable
 import pos.ambrosia.db.tables.CategoriesTable
 import pos.ambrosia.db.tables.CategoryEntity
+import pos.ambrosia.db.tables.ConfigEntity
 import pos.ambrosia.db.tables.ConfigTable
 import pos.ambrosia.db.tables.CurrencyEntity
 import pos.ambrosia.db.tables.CurrencyTable
@@ -284,6 +285,15 @@ object ExposedTestDb {
                     }.id.value
                     .toString()
         }
+
+    fun seedConfig(timezone: String) {
+        transaction {
+            val config = ConfigEntity.findById(1) ?: ConfigEntity.new(1) {}
+            config.businessType = "store"
+            config.businessName = "Test Store"
+            config.timezone = timezone
+        }
+    }
 
     fun seedSpace(name: String = "Patio"): String =
         transaction {

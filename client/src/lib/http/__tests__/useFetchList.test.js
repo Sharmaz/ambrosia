@@ -15,8 +15,8 @@ jest.mock("@heroui/react", () => ({
 }));
 
 jest.mock("next-intl", () => {
-  const t = (key) => key;
-  return { useTranslations: () => t };
+  const errorsTranslations = (key) => key;
+  return { useTranslations: () => errorsTranslations };
 });
 
 describe("useFetchList", () => {
@@ -28,69 +28,110 @@ describe("useFetchList", () => {
     httpClient.mockResolvedValueOnce({ ok: true });
     parseJsonResponse.mockResolvedValueOnce([{ id: 1 }]);
 
-    const { result } = renderHook(() => useFetchList());
+    const { result: fetchListHook } = renderHook(() => useFetchList());
 
-    let data;
+    let fetchedList;
     await act(async () => {
-      data = await result.current.fetchList("/items");
+      fetchedList = await fetchListHook.current.fetchList("/items");
     });
 
-    expect(httpClient).toHaveBeenCalledWith("/items");
-    expect(data).toEqual([{ id: 1 }]);
+    expect(httpClient).toHaveBeenCalledWith("/items", {});
+    expect(fetchedList).toEqual([{ id: 1 }]);
     expect(mockAddToast).not.toHaveBeenCalled();
   });
 
-  it("returns null and shows toast when response is not ok", async () => {
-    httpClient.mockResolvedValueOnce({ ok: false });
+  it("throws without showing a toast when the response is 403", async () => {
+    httpClient.mockResolvedValueOnce({ ok: false, status: 403 });
+    parseJsonResponse.mockResolvedValueOnce(null);
 
-    const { result } = renderHook(() => useFetchList());
+    const { result: fetchListHook } = renderHook(() => useFetchList());
 
-    let data;
     await act(async () => {
-      data = await result.current.fetchList("/items");
+      await expect(fetchListHook.current.fetchList("/items")).rejects.toMatchObject({ status: 403 });
     });
 
-    expect(data).toBeNull();
+    expect(mockAddToast).not.toHaveBeenCalled();
+  });
+
+  it("throws and shows a toast with the server's message for a non-403 error", async () => {
+    httpClient.mockResolvedValueOnce({ ok: false, status: 500 });
+    parseJsonResponse.mockResolvedValueOnce({ message: "Database unavailable" });
+
+    const { result: fetchListHook } = renderHook(() => useFetchList());
+
+    await act(async () => {
+      await expect(fetchListHook.current.fetchList("/items")).rejects.toMatchObject({ status: 500 });
+    });
+
     expect(mockAddToast).toHaveBeenCalledWith({
-      title: "connectionErrorTitle",
-      description: "connectionErrorDescription",
+      title: "requestErrorTitle",
+      description: "Database unavailable",
       color: "danger",
     });
-    expect(parseJsonResponse).not.toHaveBeenCalled();
+  });
+
+  it("shows the fallback toast description when a non-403 error has no server message", async () => {
+    httpClient.mockResolvedValueOnce({ ok: false, status: 500 });
+    parseJsonResponse.mockResolvedValueOnce(null);
+
+    const { result: fetchListHook } = renderHook(() => useFetchList());
+
+    await act(async () => {
+      await expect(fetchListHook.current.fetchList("/items")).rejects.toThrow();
+    });
+
+    expect(mockAddToast).toHaveBeenCalledWith({
+      title: "requestErrorTitle",
+      description: "requestErrorDescription",
+      color: "danger",
+    });
   });
 
   it("uses the provided fallback when response is ok but data is empty", async () => {
     httpClient.mockResolvedValueOnce({ ok: true });
     parseJsonResponse.mockResolvedValueOnce(null);
 
-    const { result } = renderHook(() => useFetchList());
+    const { result: fetchListHook } = renderHook(() => useFetchList());
 
-    let data;
+    let fetchedList;
     await act(async () => {
-      data = await result.current.fetchList("/items", []);
+      fetchedList = await fetchListHook.current.fetchList("/items", []);
     });
 
     expect(parseJsonResponse).toHaveBeenCalledWith({ ok: true }, []);
-    expect(data).toBeNull();
+    expect(fetchedList).toBeNull();
   });
 
   it("defaults fallback to empty array", async () => {
     httpClient.mockResolvedValueOnce({ ok: true });
     parseJsonResponse.mockResolvedValueOnce([]);
 
-    const { result } = renderHook(() => useFetchList());
+    const { result: fetchListHook } = renderHook(() => useFetchList());
 
     await act(async () => {
-      await result.current.fetchList("/items");
+      await fetchListHook.current.fetchList("/items");
     });
 
     expect(parseJsonResponse).toHaveBeenCalledWith({ ok: true }, []);
   });
 
+  it("forwards options to httpClient, e.g. skipForbiddenRedirect", async () => {
+    httpClient.mockResolvedValueOnce({ ok: true });
+    parseJsonResponse.mockResolvedValueOnce([]);
+
+    const { result: fetchListHook } = renderHook(() => useFetchList());
+
+    await act(async () => {
+      await fetchListHook.current.fetchList("/items", [], { skipForbiddenRedirect: true });
+    });
+
+    expect(httpClient).toHaveBeenCalledWith("/items", { skipForbiddenRedirect: true });
+  });
+
   it("returns a stable fetchList reference between renders", () => {
-    const { result, rerender } = renderHook(() => useFetchList());
-    const first = result.current.fetchList;
+    const { result: fetchListHook, rerender } = renderHook(() => useFetchList());
+    const fetchListBeforeRerender = fetchListHook.current.fetchList;
     rerender();
-    expect(result.current.fetchList).toBe(first);
+    expect(fetchListHook.current.fetchList).toBe(fetchListBeforeRerender);
   });
 });

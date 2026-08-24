@@ -23,8 +23,8 @@ jest.mock("next-intl", () => {
 
 const handlers = {};
 
-function TestComponent() {
-  const { users, loading, error, addUser, updateUser, deleteUser } = useUsers();
+function TestComponent({ skipForbiddenRedirect } = {}) {
+  const { users, loading, error, forbidden, addUser, updateUser, deleteUser } = useUsers({ skipForbiddenRedirect });
 
   useEffect(() => {
     handlers.addUser = addUser;
@@ -38,6 +38,7 @@ function TestComponent() {
       <span data-testid="count">{users.length}</span>
       <span data-testid="first-name">{users[0]?.name ?? ""}</span>
       <span data-testid="error">{error ? "yes" : "no"}</span>
+      <span data-testid="forbidden">{forbidden ? "yes" : "no"}</span>
     </div>
   );
 }
@@ -64,6 +65,24 @@ describe("useUsers", () => {
 
     await waitFor(() => expect(screen.getByTestId("loading")).toHaveTextContent("no"));
     expect(screen.getByTestId("count")).toHaveTextContent("0");
+  });
+
+  it("sets forbidden when the response is 403", async () => {
+    httpClient.mockResolvedValueOnce({ ok: false, status: 403 });
+    render(<TestComponent skipForbiddenRedirect />);
+
+    await waitFor(() => expect(screen.getByTestId("loading")).toHaveTextContent("no"));
+    expect(screen.getByTestId("forbidden")).toHaveTextContent("yes");
+    expect(screen.getByTestId("count")).toHaveTextContent("0");
+  });
+
+  it("passes skipForbiddenRedirect through to httpClient", async () => {
+    httpClient.mockResolvedValueOnce({ ok: true });
+    parseJsonResponse.mockResolvedValueOnce([]);
+    render(<TestComponent skipForbiddenRedirect />);
+
+    await waitFor(() => expect(screen.getByTestId("loading")).toHaveTextContent("no"));
+    expect(httpClient).toHaveBeenCalledWith("/users", { skipForbiddenRedirect: true });
   });
 
   it("adds a user and refetches", async () => {
@@ -99,6 +118,7 @@ describe("useUsers", () => {
         email: "luis@example.com",
         phone: "555-0101",
       }),
+      skipForbiddenRedirect: true,
     });
 
     await waitFor(() => expect(screen.getByTestId("first-name")).toHaveTextContent("Luis"));
@@ -137,6 +157,7 @@ describe("useUsers", () => {
         phone: "555-0202",
         pin: "7777",
       }),
+      skipForbiddenRedirect: true,
     });
   });
 
@@ -172,6 +193,7 @@ describe("useUsers", () => {
         email: "rosa@example.com",
         phone: "555-0303",
       }),
+      skipForbiddenRedirect: true,
     });
   });
 
@@ -190,6 +212,7 @@ describe("useUsers", () => {
 
     expect(httpClient).toHaveBeenCalledWith("/users/6", {
       method: "DELETE",
+      skipForbiddenRedirect: true,
     });
   });
 
@@ -260,6 +283,32 @@ describe("useUsers", () => {
       title: "toasts.genericErrorTitle",
       description: "toasts.genericErrorDescription",
       color: "danger",
+    });
+  });
+
+  it("shows admin-required toast when assigning an admin role is forbidden", async () => {
+    httpClient.mockResolvedValueOnce({ ok: true });
+    parseJsonResponse.mockResolvedValueOnce([{ id: 3, name: "Paula" }]);
+    httpClient.mockResolvedValueOnce({ ok: false, status: 403 });
+    parseJsonResponse.mockResolvedValueOnce({ message: "Admin privileges required" });
+
+    render(<TestComponent />);
+
+    await waitFor(() => expect(screen.getByTestId("count")).toHaveTextContent("1"));
+
+    await expect(handlers.updateUser({
+      userId: 3,
+      userName: "Paula",
+      userRole: "admin-role-id",
+      userEmail: "paula@example.com",
+      userPhone: "555-0202",
+      userPin: "",
+    })).rejects.toMatchObject({ status: 403 });
+
+    expect(addToast).toHaveBeenCalledWith({
+      title: "toasts.adminRequiredTitle",
+      description: "toasts.adminRequiredDescription",
+      color: "warning",
     });
   });
 });

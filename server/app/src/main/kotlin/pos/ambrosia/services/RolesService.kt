@@ -10,6 +10,7 @@ import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.jetbrains.exposed.v1.jdbc.update
 import pos.ambrosia.db.tables.RoleEntity
 import pos.ambrosia.db.tables.RolesTable
+import pos.ambrosia.db.tables.UserEntity
 import pos.ambrosia.db.tables.UsersTable
 import pos.ambrosia.logger
 import pos.ambrosia.models.Role
@@ -17,13 +18,17 @@ import pos.ambrosia.utils.LastAdminRemovalException
 import pos.ambrosia.utils.SecurePinProcessor
 import java.util.UUID
 
-class RolesService(
+class RolesService internal constructor(
     private val env: ApplicationEnvironment,
+    private val writeRolePermissions: (String, List<String>) -> Int =
+        PermissionsService()::replaceRolePermissionsInCurrentTransaction,
 ) {
     private val adminGuard = AdminGuardService()
-    private val permissionsService = PermissionsService()
 
-    fun addRole(role: Role): String? =
+    fun addRole(
+        role: Role,
+        permissionKeys: List<String> = emptyList(),
+    ): String? =
         transaction {
             if (role.role.isBlank()) return@transaction null
             if (roleNameExists(role.role)) {
@@ -49,7 +54,7 @@ class RolesService(
                     }.id.value
                     .toString()
 
-            grantAllPermissionsIfAdmin(generatedId, isAdmin)
+            writeRolePermissions(generatedId, permissionKeys.distinct())
 
             logger.info("Role created successfully with ID: $generatedId")
             generatedId
@@ -108,6 +113,7 @@ class RolesService(
     fun updateRole(
         id: String?,
         role: Role,
+        permissionKeys: List<String>? = null,
     ): Boolean =
         transaction {
             if (id == null) return@transaction false
@@ -126,22 +132,47 @@ class RolesService(
             } else {
                 entity.role = role.role
                 entity.isAdmin = isAdmin
-                if (role.password != null) {
-                    val encryptedPin = SecurePinProcessor.hashPinForStorage(role.password.toCharArray(), id, env)
-                    entity.password = SecurePinProcessor.byteArrayToBase64(encryptedPin)
+                if (permissionKeys == null) {
+                    if (isAdmin) writeRolePermissions(id, emptyList())
+                } else {
+                    writeRolePermissions(id, permissionKeys.distinct())
                 }
-                grantAllPermissionsIfAdmin(id, isAdmin)
                 logger.info("Role updated successfully: ${role.id}")
                 true
             }
         }
 
-    private fun grantAllPermissionsIfAdmin(
-        roleId: String,
-        isAdmin: Boolean,
-    ) {
-        if (isAdmin) permissionsService.assignAllEnabledToRole(roleId)
-    }
+    fun updateWalletPasswordForUser(
+        userId: String,
+        newPassword: CharArray,
+    ): Boolean =
+        transaction {
+            if (newPassword.isEmpty()) return@transaction false
+            try {
+                val user =
+                    UserEntity
+                        .findById(UUID.fromString(userId))
+                        ?.takeIf { !it.isDeleted }
+                        ?: return@transaction false
+                val role =
+                    user.roleId
+                        ?.let { RoleEntity.findById(it.value) }
+                        ?.takeIf { !it.isDeleted }
+                        ?: return@transaction false
+                val encryptedPin =
+                    SecurePinProcessor.hashPinForStorage(
+                        pin = newPassword,
+                        id = role.id.value.toString(),
+                        env = env,
+                    )
+                role.password = SecurePinProcessor.byteArrayToBase64(encryptedPin)
+                true
+            } catch (_: IllegalArgumentException) {
+                false
+            } finally {
+                newPassword.fill('\u0000')
+            }
+        }
 
     fun deleteRole(id: String): Boolean =
         transaction {

@@ -90,6 +90,13 @@ data class User(
 )
 
 @Serializable
+data class UserIdentity(
+    val id: String,
+    val name: String,
+    val role: String? = null,
+)
+
+@Serializable
 data class UpdateUserRequest(
     val name: String? = null,
     val pin: String? = null,
@@ -105,6 +112,14 @@ data class Role(
     val role: String,
     val password: String? = null,
     val isAdmin: Boolean? = false,
+)
+
+@Serializable
+data class UpsertRoleRequest(
+    val role: String,
+    val password: String? = null,
+    val isAdmin: Boolean? = false,
+    val permissions: List<String>? = null,
 )
 
 @Serializable data class Space(
@@ -303,11 +318,18 @@ data class CloseShiftRequest(
 )
 
 @Serializable
+data class WalletPasswordChangeRequest(
+    val currentPassword: String,
+    val newPassword: String,
+)
+
+@Serializable
 data class Permission(
     val id: String? = null,
     val name: String,
     val description: String? = null,
     val enabled: Boolean = true,
+    val adminOnly: Boolean = false,
 )
 
 @Serializable
@@ -477,6 +499,7 @@ data class Config(
     val businessTaxId: String?,
     val businessLogoUrl: String?,
     val businessTypeConfirmed: Boolean = false,
+    val timezone: String = "America/Mexico_City",
 )
 
 @Serializable
@@ -607,6 +630,7 @@ data class InitialSetupRequest(
     val businessRFC: String? = null,
     val businessTaxId: String? = null,
     val businessCurrency: String? = null,
+    val timezone: String? = null,
     val businessLogo: String? = null,
     val businessLogoUrl: String? = null,
     val nwcUri: String? = null,

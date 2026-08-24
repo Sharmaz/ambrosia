@@ -1,7 +1,7 @@
 "use client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { getLocalTimeZone, parseDate, startOfMonth, startOfWeek, startOfYear, today } from "@internationalized/date";
+import { parseDate } from "@internationalized/date";
 
 export const defaultFilters = {
   activePeriod: "month",
@@ -13,15 +13,12 @@ function getUtcOffsetMinutes() {
   return new Date().getTimezoneOffset();
 }
 
-function resolvePeriodRange(period) {
-  const endDate = today(getLocalTimeZone());
-  const startDateByPeriod = {
-    day: endDate,
-    week: startOfWeek(endDate, "en-US", "mon"),
-    month: startOfMonth(endDate),
-    year: startOfYear(endDate),
-  };
-  return { startDate: startDateByPeriod[period].toString(), endDate: endDate.toString() };
+function buildReportQuery(filters) {
+  if (filters.activePeriod) return { period: filters.activePeriod };
+  if (filters.startDate && filters.endDate) {
+    return { startDate: filters.startDate, endDate: filters.endDate, utcOffsetMinutes: getUtcOffsetMinutes() };
+  }
+  return null;
 }
 
 export function useDateRangeFilters(filters, onFiltersChange) {
@@ -30,7 +27,7 @@ export function useDateRangeFilters(filters, onFiltersChange) {
     return { start: parseDate(filters.startDate), end: parseDate(filters.endDate) };
   }, [filters.activePeriod, filters.startDate, filters.endDate]);
 
-  const handlePeriodChange = (period) => onFiltersChange({ activePeriod: period, ...resolvePeriodRange(period) });
+  const handlePeriodChange = (period) => onFiltersChange({ activePeriod: period, startDate: "", endDate: "" });
 
   const handleDateRangeChange = (range) => onFiltersChange({
     startDate: range?.start?.toString() ?? "",
@@ -48,7 +45,7 @@ export function useFiltersState(fetchReport) {
   useEffect(() => { latestFiltersRef.current = filters; }, [filters]);
 
   useEffect(() => {
-    fetchReport({ ...resolvePeriodRange(defaultFilters.activePeriod), utcOffsetMinutes: getUtcOffsetMinutes() });
+    fetchReport(buildReportQuery(defaultFilters));
   }, [fetchReport]);
 
   const handleFiltersChange = useCallback(
@@ -57,24 +54,17 @@ export function useFiltersState(fetchReport) {
       const next = { ...prev, ...patch };
       setFilters(next);
 
-      if (!next.startDate || !next.endDate) return;
-      return fetchReport({
-        startDate: next.startDate,
-        endDate: next.endDate,
-        utcOffsetMinutes: getUtcOffsetMinutes(),
-      });
+      const query = buildReportQuery(next);
+      if (!query) return;
+      return fetchReport(query);
     },
     [fetchReport],
   );
 
   const refetch = useCallback(() => {
-    const snapshotFilters = latestFiltersRef.current;
-    if (!snapshotFilters.startDate || !snapshotFilters.endDate) return;
-    return fetchReport({
-      startDate: snapshotFilters.startDate,
-      endDate: snapshotFilters.endDate,
-      utcOffsetMinutes: getUtcOffsetMinutes(),
-    });
+    const query = buildReportQuery(latestFiltersRef.current);
+    if (!query) return;
+    return fetchReport(query);
   }, [fetchReport]);
 
   return { filters, handleFilters: handleFiltersChange, refetch };

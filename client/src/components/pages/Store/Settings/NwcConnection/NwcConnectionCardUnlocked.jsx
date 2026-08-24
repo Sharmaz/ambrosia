@@ -4,6 +4,7 @@ import { useState } from "react";
 
 import { addToast, Button, Card, CardBody, CardHeader, Input } from "@heroui/react";
 
+import { RequirePermission } from "@/hooks/usePermission";
 import { NWC_URI_REGEX } from "@/lib/nwcUri";
 import { updateNwcUri } from "@/services/walletService";
 import WalletGuard from "@components/auth/WalletGuard";
@@ -62,26 +63,30 @@ export function NwcConnectionCardUnlocked({ onHide, nwcConnectionTranslations })
               {nwcConnectionTranslations("nwcConnection.description")}
             </p>
 
-            <Input
-              label={nwcConnectionTranslations("nwcConnection.uriLabel")}
-              placeholder="nostr+walletconnect://..."
-              value={nwcUri}
-              onValueChange={handleUriChange}
-              isInvalid={!!uriError}
-              errorMessage={uriError}
-              classNames={{ input: "font-mono text-xs" }}
-            />
+            <RequirePermission allOf={["settings_update"]}>
+              <Input
+                label={nwcConnectionTranslations("nwcConnection.uriLabel")}
+                placeholder="nostr+walletconnect://..."
+                value={nwcUri}
+                onValueChange={handleUriChange}
+                isInvalid={!!uriError}
+                errorMessage={uriError}
+                classNames={{ input: "font-mono text-xs" }}
+              />
+            </RequirePermission>
 
             <div className="flex gap-2">
-              <Button
-                color="primary"
-                className="bg-green-800 h-8 min-w-16 px-3 rounded-small sm:h-10 sm:min-w-20 sm:px-4 sm:rounded-medium"
-                isDisabled={!nwcUri || submitting}
-                isLoading={submitting}
-                onPress={handleSubmit}
-              >
-                {nwcConnectionTranslations("nwcConnection.submitButton")}
-              </Button>
+              <RequirePermission allOf={["settings_update"]}>
+                <Button
+                  color="primary"
+                  className="bg-green-800 h-8 min-w-16 px-3 rounded-small sm:h-10 sm:min-w-20 sm:px-4 sm:rounded-medium"
+                  isDisabled={!nwcUri || submitting}
+                  isLoading={submitting}
+                  onPress={handleSubmit}
+                >
+                  {nwcConnectionTranslations("nwcConnection.submitButton")}
+                </Button>
+              </RequirePermission>
               <Button
                 variant="bordered"
                 isDisabled={submitting}

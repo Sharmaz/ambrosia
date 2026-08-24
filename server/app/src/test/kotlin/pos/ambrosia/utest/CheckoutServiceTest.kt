@@ -16,6 +16,8 @@ import pos.ambrosia.services.PaymentVerifier
 import pos.ambrosia.services.ProductVariantService
 import pos.ambrosia.utils.ExposedTestDb
 import java.io.File
+import java.time.LocalDateTime
+import java.time.ZoneId
 import java.util.UUID
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -94,6 +96,7 @@ class CheckoutServiceTest {
             val userId = seedUser()
             val result = service.checkout(validStoreRequest(userId, items = emptyList()))
             assertTrue(result is CheckoutResult.Invalid)
+            assertEquals("checkout_empty", result.code)
         }
     }
 
@@ -105,6 +108,7 @@ class CheckoutServiceTest {
             val items = listOf(StoreCheckoutItem(productId = productId, quantity = 0, priceAtOrder = 500))
             val result = service.checkout(validStoreRequest(userId, items = items))
             assertTrue(result is CheckoutResult.Invalid)
+            assertEquals("checkout_invalid_quantity", result.code)
         }
     }
 
@@ -137,6 +141,7 @@ class CheckoutServiceTest {
             val result = service.checkout(validStoreRequest(userId, items = checkoutItems))
 
             assertTrue(result is CheckoutResult.Invalid)
+            assertEquals("checkout_invalid_reference", result.code)
             assertTrue(transaction { OrderEntity.all().toList() }.isEmpty())
         }
     }
@@ -190,6 +195,29 @@ class CheckoutServiceTest {
             assertTrue(result is CheckoutResult.Success)
             assertEquals(0, productQuantity(productId))
             assertEquals(1, transaction { OrderEntity.all().toList() }.size)
+        }
+    }
+
+    @Test
+    fun `checkout stamps the order's createdAt using the configured timezone`() {
+        runBlocking {
+            ExposedTestDb.seedConfig("Pacific/Kiritimati")
+            val zoneId = ZoneId.of("Pacific/Kiritimati")
+            val userId = seedUser()
+            val productId = ExposedTestDb.seedProduct(quantity = 10)
+            val items = listOf(StoreCheckoutItem(productId = productId, quantity = 1, priceAtOrder = 100))
+
+            val before = LocalDateTime.now(zoneId)
+            val result = service.checkout(validStoreRequest(userId, items = items))
+            val after = LocalDateTime.now(zoneId)
+
+            assertTrue(result is CheckoutResult.Success)
+            val storedCreatedAt =
+                transaction {
+                    LocalDateTime.parse(OrderEntity.findById(UUID.fromString(result.response.orderId))!!.createdAt)
+                }
+            assertFalse(storedCreatedAt.isBefore(before))
+            assertFalse(storedCreatedAt.isAfter(after))
         }
     }
 
@@ -265,6 +293,7 @@ class CheckoutServiceTest {
             val result = service.checkout(validStoreRequest(userId, items = items))
 
             assertTrue(result is CheckoutResult.Invalid)
+            assertEquals("checkout_insufficient_stock", result.code)
             assertEquals(1, productQuantity(productId))
             assertTrue(transaction { OrderEntity.all().toList() }.isEmpty())
         }

@@ -17,19 +17,16 @@ export function useBitcoinInvoice({
   const [invoice, setInvoice] = useState(null);
   const [satsAmount, setSatsAmount] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
 
   const reset = useCallback(() => {
     setInvoice(null);
     setSatsAmount(null);
-    setError("");
   }, []);
 
   const generateInvoice = useCallback(async () => {
     if (!amountFiat) return null;
 
     setLoading(true);
-    setError("");
 
     try {
       const btcPrice = await priceService.getBitcoinPrice(currencyAcronym.toLowerCase());
@@ -46,7 +43,7 @@ export function useBitcoinInvoice({
 
       return createdInvoice;
     } catch (caughtError) {
-      setError(caughtError?.message);
+      console.error("Error generating BTC invoice:", caughtError);
       return null;
     } finally {
       setLoading(false);
@@ -66,7 +63,6 @@ export function useBitcoinInvoice({
     invoice,
     satsAmount,
     loading,
-    error,
     generateInvoice,
     reset,
   };

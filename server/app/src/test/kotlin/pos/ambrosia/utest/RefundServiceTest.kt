@@ -45,10 +45,13 @@ import pos.ambrosia.utils.OrderNotRefundableException
 import pos.ambrosia.utils.ResourceNotFoundException
 import pos.ambrosia.utils.UnsupportedBackendOperationException
 import java.io.File
+import java.time.LocalDateTime
+import java.time.ZoneId
 import java.util.UUID
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class RefundServiceTest {
@@ -251,6 +254,25 @@ class RefundServiceTest {
 
             assertEquals(0L, refund.satoshiAmount)
             assertEquals("refunded", orderStatus(orderId))
+        }
+
+    @Test
+    fun `processRefund stamps refundedAt using the configured timezone`() =
+        runBlocking {
+            ExposedTestDb.seedConfig("Pacific/Kiritimati")
+            val zoneId = ZoneId.of("Pacific/Kiritimati")
+            val userId = seedUser()
+            val productId = ExposedTestDb.seedProduct(name = "Widget", quantity = 5)
+            val variantId = defaultVariantId(productId)
+            val orderId = seedPaidOrderWithLine(userId, productId, variantId, quantity = 2, priceAtOrder = 500)
+
+            val before = LocalDateTime.now(zoneId)
+            val refund = refundServiceWithNoPhoenixCallExpected().processRefund(orderId, RefundRequest(invoice = ""))
+            val after = LocalDateTime.now(zoneId)
+
+            val storedRefundedAt = LocalDateTime.parse(refund.refundedAt)
+            assertFalse(storedRefundedAt.isBefore(before))
+            assertFalse(storedRefundedAt.isAfter(after))
         }
 
     @Test

@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-TAG="0.7.1-beta"
+TAG="0.8.0-beta"
 PACKAGE_NAME="ambrosia-client-dist"
 CLIENT_DIST_DIR="${CLIENT_DIST_DIR:-/tmp/$PACKAGE_NAME}"
 

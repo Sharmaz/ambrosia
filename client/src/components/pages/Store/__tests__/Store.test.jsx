@@ -26,6 +26,7 @@ jest.mock("lucide-react", () => ({
   ClipboardClock: () => <div>ClipboardClock Icon</div>,
   Box: () => <div>Box Icon</div>,
   Wallet: () => <div>Wallet Icon</div>,
+  ShieldAlert: () => <div>ShieldAlert Icon</div>,
 }));
 
 jest.mock("@/lib/http", () => ({
@@ -291,5 +292,149 @@ describe("Store Dashboard", () => {
     expect(screen.getByText("stats.revenue")).toBeInTheDocument();
     expect(screen.queryByText("stats.sales")).not.toBeInTheDocument();
     expect(screen.getByText("$150.00")).toBeInTheDocument();
+  });
+
+  it("calls useUsers, useProducts, and useOrders with skipForbiddenRedirect: true", async () => {
+    const usersSpy = jest.spyOn(useUsersHook, "useUsers").mockReturnValue({
+      users: mockUsers,
+      loading: false,
+      error: null,
+      forbidden: false,
+      refetch: jest.fn(),
+    });
+    const productsSpy = jest.spyOn(useProductsHook, "useProducts").mockReturnValue({
+      products: mockProducts,
+      loading: false,
+      error: null,
+      forbidden: false,
+      refetch: jest.fn(),
+    });
+    const ordersSpy = jest.spyOn(useOrdersHook, "useOrders").mockReturnValue({
+      orders: mockOrders,
+      loading: false,
+      error: null,
+      forbidden: false,
+      refetch: jest.fn(),
+    });
+
+    await act(async () => {
+      renderStore();
+    });
+
+    expect(usersSpy).toHaveBeenCalledWith({ skipForbiddenRedirect: true });
+    expect(productsSpy).toHaveBeenCalledWith({ skipForbiddenRedirect: true });
+    expect(ordersSpy).toHaveBeenCalledWith({ skipForbiddenRedirect: true });
+  });
+
+  it("excludes the users card when useUsers reports forbidden", async () => {
+    jest.spyOn(useUsersHook, "useUsers").mockReturnValue({
+      users: [],
+      loading: false,
+      error: null,
+      forbidden: true,
+      refetch: jest.fn(),
+    });
+
+    await act(async () => {
+      renderStore();
+    });
+
+    expect(screen.queryByText("stats.users")).not.toBeInTheDocument();
+    expect(screen.getByText("stats.products")).toBeInTheDocument();
+    expect(screen.getByText("stats.sales")).toBeInTheDocument();
+  });
+
+  it("excludes the products card when useProducts reports forbidden", async () => {
+    jest.spyOn(useProductsHook, "useProducts").mockReturnValue({
+      products: [],
+      loading: false,
+      error: null,
+      forbidden: true,
+      refetch: jest.fn(),
+    });
+
+    await act(async () => {
+      renderStore();
+    });
+
+    expect(screen.getByText("stats.users")).toBeInTheDocument();
+    expect(screen.queryByText("stats.products")).not.toBeInTheDocument();
+    expect(screen.getByText("stats.sales")).toBeInTheDocument();
+  });
+
+  it("excludes the revenue/sales card when useOrders reports forbidden", async () => {
+    jest.spyOn(useOrdersHook, "useOrders").mockReturnValue({
+      orders: [],
+      loading: false,
+      error: null,
+      forbidden: true,
+      refetch: jest.fn(),
+    });
+
+    await act(async () => {
+      renderStore();
+    });
+
+    expect(screen.getByText("stats.users")).toBeInTheDocument();
+    expect(screen.getByText("stats.products")).toBeInTheDocument();
+    expect(screen.queryByText("stats.sales")).not.toBeInTheDocument();
+    expect(screen.queryByText("stats.revenue")).not.toBeInTheDocument();
+  });
+
+  it("keeps the users card when only products and orders are forbidden", async () => {
+    jest.spyOn(useProductsHook, "useProducts").mockReturnValue({
+      products: [],
+      loading: false,
+      error: null,
+      forbidden: true,
+      refetch: jest.fn(),
+    });
+    jest.spyOn(useOrdersHook, "useOrders").mockReturnValue({
+      orders: [],
+      loading: false,
+      error: null,
+      forbidden: true,
+      refetch: jest.fn(),
+    });
+
+    await act(async () => {
+      renderStore();
+    });
+
+    expect(screen.getByText("stats.users")).toBeInTheDocument();
+  });
+
+  it("shows the permission blocked message when users, products, and orders are all forbidden", async () => {
+    jest.spyOn(useUsersHook, "useUsers").mockReturnValue({
+      users: [],
+      loading: false,
+      error: null,
+      forbidden: true,
+      refetch: jest.fn(),
+    });
+    jest.spyOn(useProductsHook, "useProducts").mockReturnValue({
+      products: [],
+      loading: false,
+      error: null,
+      forbidden: true,
+      refetch: jest.fn(),
+    });
+    jest.spyOn(useOrdersHook, "useOrders").mockReturnValue({
+      orders: [],
+      loading: false,
+      error: null,
+      forbidden: true,
+      refetch: jest.fn(),
+    });
+
+    await act(async () => {
+      renderStore();
+    });
+
+    expect(screen.getByText("permissionBlocked.title")).toBeInTheDocument();
+    expect(screen.getByText("permissionBlocked.subtitle")).toBeInTheDocument();
+    expect(screen.queryByText("stats.users")).not.toBeInTheDocument();
+    expect(screen.queryByText("stats.products")).not.toBeInTheDocument();
+    expect(screen.queryByText("stats.sales")).not.toBeInTheDocument();
   });
 });

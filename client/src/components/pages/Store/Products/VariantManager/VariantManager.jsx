@@ -48,6 +48,9 @@ export function VariantManager({
       const mutationResult = await variantMutation();
       if (mutationResult !== false && mutationResult !== null) await onRefresh?.();
       return mutationResult;
+    } catch (variantMutationError) {
+      notifyVariantError();
+      throw variantMutationError;
     } finally {
       setVariantMutating(variantId, false);
     }
@@ -57,6 +60,14 @@ export function VariantManager({
     addToast({
       description: productsTranslations(toastDescriptionKey),
       color: "success",
+    });
+  };
+
+  const notifyVariantError = () => {
+    addToast({
+      title: productsTranslations("toasts.genericErrorTitle"),
+      description: productsTranslations("toasts.genericErrorDescription"),
+      color: "danger",
     });
   };
 

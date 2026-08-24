@@ -4,6 +4,10 @@ const usersEs = {
   users: {
     title: "Usuarios",
     subtitle: "Gestiona el personal de tu tienda",
+    permissionBlocked: {
+      title: "No puedes ver los usuarios",
+      subtitle: "Pídele a un administrador que te otorgue el permiso de ver usuarios.",
+    },
     addUser: "Agregar Usuario",
     tableAriaLabel: "Tabla de usuarios",
     noRole: "Sin rol asignado",
@@ -45,6 +49,8 @@ const usersEs = {
       duplicateNameDescription: "Ya existe un usuario con ese nombre.",
       genericErrorTitle: "Error",
       genericErrorDescription: "No se pudo completar la operación.",
+      adminRequiredTitle: "Se requieren privilegios de administrador",
+      adminRequiredDescription: "Solo un administrador puede asignar un rol de administrador.",
       lastUserTitle: "No permitido",
       lastUserDescription: "No puedes eliminar el único usuario existente.",
       lastAdminTitle: "No permitido",

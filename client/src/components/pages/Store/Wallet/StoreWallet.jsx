@@ -23,6 +23,7 @@ import { usePaymentWebsocket } from "@hooks/usePaymentWebsocket";
 import { useInvoiceState } from "./hooks/useInvoiceState";
 import { NodeError, NodeInfo } from "./NodeInfo";
 import { InvoiceModal, Transactions } from "./Transactions";
+import { WalletPasswordCard } from "./WalletPassword";
 
 export function StoreWallet() {
   const walletTranslations = useTranslations("wallet");
@@ -47,8 +48,8 @@ export function StoreWallet() {
       setInfo(infoResponse);
       setBalance(balanceResponse);
       setError("");
-    } catch (err) {
-      console.error(err);
+    } catch (walletInfoError) {
+      console.error(walletInfoError);
       setError(walletTranslations("nodeInfo.fetchInfoError"));
       addToast({
         title: walletTranslations("errorTitle"),
@@ -72,10 +73,12 @@ export function StoreWallet() {
           filter === "outgoing" || filter === "all" ? getOutgoingTransactions() : [],
         ]);
 
-        const allTx = [...incoming, ...outgoing].sort(
-          (a, b) => b.completedAt - a.completedAt,
+        const sortedTransactions = [...incoming, ...outgoing].sort(
+          (firstTransaction, secondTransaction) => (
+            secondTransaction.completedAt - firstTransaction.completedAt
+          ),
         );
-        setTransactions(allTx);
+        setTransactions(sortedTransactions);
       } catch {
         addToast({
           title: walletTranslations("errorTitle"),
@@ -107,16 +110,16 @@ export function StoreWallet() {
   }, [invoiceState.created, setInvoiceHash]);
 
   useEffect(() => {
-    const off = onPayment((data) => {
+    const unsubscribePaymentListener = onPayment((paymentEvent) => {
       if (
         invoiceHashRef.current &&
-        data.paymentHash &&
-        data.paymentHash === invoiceHashRef.current
+        paymentEvent.paymentHash &&
+        paymentEvent.paymentHash === invoiceHashRef.current
       ) {
         invoiceActions.markAsPaid(Date.now());
       }
     });
-    return () => off?.();
+    return () => unsubscribePaymentListener?.();
   }, [onPayment, invoiceActions]);
 
   if (infoLoading) {
@@ -163,6 +166,8 @@ export function StoreWallet() {
               currentRate={currentRate}
             />
           </div>
+
+          <WalletPasswordCard />
 
           <InvoiceModal
             invoiceState={invoiceState}

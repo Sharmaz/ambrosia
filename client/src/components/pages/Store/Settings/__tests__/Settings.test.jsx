@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 
 import * as usePrintersHook from "@/components/pages/Store/hooks/usePrinter";
 import * as useTemplatesHook from "@/components/pages/Store/hooks/useTemplates";
+import * as useAuthHook from "@/hooks/auth/useAuth";
 import * as useAdminWebPushHook from "@/hooks/useAdminWebPush";
 import * as useAutoLiquidityHook from "@/hooks/useAutoLiquidity";
 import * as adminNotificationsService from "@/services/adminNotificationsService";
@@ -119,6 +120,14 @@ beforeEach(() => {
     logout: mockLogout,
   });
 
+  jest.spyOn(useAuthHook, "useAuth").mockReturnValue({
+    isAuth: true,
+    isLoading: false,
+    user: { userId: "user-1", name: "Tester" },
+    permissions: [],
+    logout: jest.fn(),
+  });
+
   jest.spyOn(configurationsProvider, "useConfigurations").mockReturnValue({
     config: mockConfig,
     isLoading: false,
@@ -199,14 +208,13 @@ afterEach(() => {
 
 describe("Settings page", () => {
   describe("Rendering", () => {
-    it("renders store info, currency, languages, and tutorials cards", async () => {
+    it("renders store info, currency, and language cards", async () => {
       await act(async () => {
         renderSettings();
       });
       expect(screen.getByText("cardInfo.title")).toBeInTheDocument();
       expect(screen.getByText("cardCurrency.title")).toBeInTheDocument();
       expect(screen.getByText("cardLanguage.title")).toBeInTheDocument();
-      expect(screen.getByText("cardTours.title")).toBeInTheDocument();
     });
 
     it("renders notification preferences card only for admins", async () => {
@@ -412,7 +420,76 @@ describe("Settings page", () => {
     });
   });
 
+  describe("Permission gating", () => {
+    it("hides the StoreInfo edit button and disables the Currency selector for a role without settings_update", async () => {
+      await act(async () => {
+        renderSettings();
+      });
+
+      expect(screen.queryByText("cardInfo.edit")).not.toBeInTheDocument();
+      expect(screen.getByText("cardCurrency.currencyLabel")).toBeInTheDocument();
+      expect(screen.getByRole("combobox", { name: "cardCurrency.currencyLabel" })).toBeDisabled();
+    });
+
+    it("shows the StoreInfo edit button and enables the Currency selector for a role with settings_update", async () => {
+      jest.spyOn(useAuthHook, "useAuth").mockReturnValue({
+        isAuth: true,
+        isLoading: false,
+        user: { userId: "user-1", name: "Tester" },
+        permissions: [{ name: "settings_update" }],
+        logout: jest.fn(),
+      });
+
+      await act(async () => {
+        renderSettings();
+      });
+
+      expect(screen.getByText("cardInfo.edit")).toBeInTheDocument();
+      expect(screen.getByRole("combobox", { name: "cardCurrency.currencyLabel" })).not.toBeDisabled();
+    });
+
+    it("hides Seed, NwcConnection, and Tutorials for a non-admin role", async () => {
+      await act(async () => {
+        renderSettings();
+      });
+
+      expect(screen.queryByText("cardSeed.title")).not.toBeInTheDocument();
+      expect(screen.queryByText("nwcConnection.manageButton")).not.toBeInTheDocument();
+      expect(screen.queryByText("cardTours.title")).not.toBeInTheDocument();
+    });
+
+    it("shows Seed, NwcConnection, and Tutorials for an admin role", async () => {
+      jest.spyOn(useNavigationHook, "useNavigation").mockReturnValue({
+        availableFeatures: {},
+        availableNavigation: defaultNavigation,
+        isAuth: true,
+        isAdmin: true,
+        isLoading: false,
+        user: { userName: "admin", isAdmin: true },
+        logout: mockLogout,
+      });
+
+      await act(async () => {
+        renderSettings();
+      });
+
+      expect(screen.getByText("cardSeed.title")).toBeInTheDocument();
+      expect(screen.getByText("nwcConnection.manageButton")).toBeInTheDocument();
+      expect(screen.getByText("cardTours.title")).toBeInTheDocument();
+    });
+  });
+
   describe("User Interactions", () => {
+    beforeEach(() => {
+      jest.spyOn(useAuthHook, "useAuth").mockReturnValue({
+        isAuth: true,
+        isLoading: false,
+        user: { userId: "user-1", name: "Tester" },
+        permissions: [{ name: "settings_update" }],
+        logout: jest.fn(),
+      });
+    });
+
     it("opens edit modal when edit button is clicked", async () => {
       const user = userEvent.setup();
 

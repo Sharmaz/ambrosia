@@ -1,10 +1,13 @@
-version = "0.7.1-beta"
+import kotlinx.kover.gradle.plugin.dsl.CoverageUnit
+
+version = "0.8.0-beta"
 
 plugins {
     alias(libs.plugins.kotlin.jvm)
     alias(libs.plugins.ktor)
     alias(libs.plugins.kotlin.plugin.serialization)
     alias(libs.plugins.ktlint)
+    alias(libs.plugins.kover)
     application
 }
 
@@ -101,4 +104,26 @@ application {
 
 ktlint {
     version.set("1.8.0")
+}
+
+// Coverage ratchet. Bounds sit just below the measured baseline
+// (62.5% line / 26.9% branch) so a regression fails `koverVerify`
+// without normal churn tripping it. Raise them as coverage improves.
+kover {
+    reports {
+        verify {
+            rule {
+                bound {
+                    minValue = 58
+                    coverageUnits = CoverageUnit.LINE
+                }
+            }
+            rule {
+                bound {
+                    minValue = 23
+                    coverageUnits = CoverageUnit.BRANCH
+                }
+            }
+        }
+    }
 }
