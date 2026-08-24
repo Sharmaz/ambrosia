@@ -24,6 +24,7 @@ import pos.ambrosia.api.configureAdminNotificationsWebsocket
 import pos.ambrosia.api.configureAuth
 import pos.ambrosia.api.configureCategories
 import pos.ambrosia.api.configureCheckout
+import pos.ambrosia.api.configureClients
 import pos.ambrosia.api.configureConfig
 import pos.ambrosia.api.configureCurrency
 import pos.ambrosia.api.configureDishes
@@ -38,6 +39,7 @@ import pos.ambrosia.api.configurePhoenixWebhook
 import pos.ambrosia.api.configurePrinters
 import pos.ambrosia.api.configureProductVariants
 import pos.ambrosia.api.configureProducts
+import pos.ambrosia.api.configureProjects
 import pos.ambrosia.api.configureReports
 import pos.ambrosia.api.configureRoles
 import pos.ambrosia.api.configureRouting
@@ -106,6 +108,8 @@ class Api {
         configureStoreOrders()
         configureCheckout()
         configureCategories()
+        configureClients()
+        configureProjects()
         configureCurrency()
         configureInitialSetup()
         if (environment.config.propertyOrNull("nwc-uri") == null) {
