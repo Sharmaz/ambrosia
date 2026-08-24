@@ -13,6 +13,8 @@ import pos.ambrosia.db.tables.AdminNotificationsTable
 import pos.ambrosia.db.tables.BaseCurrencyTable
 import pos.ambrosia.db.tables.CategoriesTable
 import pos.ambrosia.db.tables.CategoryEntity
+import pos.ambrosia.db.tables.ClientEntity
+import pos.ambrosia.db.tables.ClientsTable
 import pos.ambrosia.db.tables.ConfigEntity
 import pos.ambrosia.db.tables.ConfigTable
 import pos.ambrosia.db.tables.CurrencyEntity
@@ -25,11 +27,16 @@ import pos.ambrosia.db.tables.DishesTable
 import pos.ambrosia.db.tables.IngredientEntity
 import pos.ambrosia.db.tables.IngredientSuppliersTable
 import pos.ambrosia.db.tables.IngredientsTable
+import pos.ambrosia.db.tables.InvoiceLineItemsTable
+import pos.ambrosia.db.tables.InvoicePaymentsTable
+import pos.ambrosia.db.tables.InvoicesTable
 import pos.ambrosia.db.tables.OrderDishEntity
 import pos.ambrosia.db.tables.OrderEntity
 import pos.ambrosia.db.tables.OrderProductsTable
 import pos.ambrosia.db.tables.OrdersDishesTable
 import pos.ambrosia.db.tables.OrdersTable
+import pos.ambrosia.db.tables.PayoutAccountEntity
+import pos.ambrosia.db.tables.PayoutAccountsTable
 import pos.ambrosia.db.tables.PaymentEntity
 import pos.ambrosia.db.tables.PaymentMethodEntity
 import pos.ambrosia.db.tables.PaymentMethodsTable
@@ -46,6 +53,8 @@ import pos.ambrosia.db.tables.ProductOptionValuesTable
 import pos.ambrosia.db.tables.ProductVariantEntity
 import pos.ambrosia.db.tables.ProductVariantsTable
 import pos.ambrosia.db.tables.ProductsTable
+import pos.ambrosia.db.tables.ProjectEntity
+import pos.ambrosia.db.tables.ProjectsTable
 import pos.ambrosia.db.tables.PushSubscriptionsTable
 import pos.ambrosia.db.tables.RefundEntity
 import pos.ambrosia.db.tables.RefundsTable
@@ -58,6 +67,8 @@ import pos.ambrosia.db.tables.SpaceEntity
 import pos.ambrosia.db.tables.SpacesTable
 import pos.ambrosia.db.tables.SupplierEntity
 import pos.ambrosia.db.tables.SuppliersTable
+import pos.ambrosia.db.tables.TasksTable
+import pos.ambrosia.db.tables.TimeEntriesTable
 import pos.ambrosia.db.tables.TicketEntity
 import pos.ambrosia.db.tables.TicketPaymentsTable
 import pos.ambrosia.db.tables.TicketTemplateElementEntity
@@ -120,6 +131,14 @@ object ExposedTestDb {
                 AdminNotificationReceiptsTable,
                 AdminNotificationPreferencesTable,
                 PushSubscriptionsTable,
+                PayoutAccountsTable,
+                ClientsTable,
+                ProjectsTable,
+                TasksTable,
+                InvoicesTable,
+                TimeEntriesTable,
+                InvoiceLineItemsTable,
+                InvoicePaymentsTable,
             )
         }
         return file
@@ -128,6 +147,14 @@ object ExposedTestDb {
     fun cleanup(file: File) {
         transaction {
             SchemaUtils.drop(
+                InvoicePaymentsTable,
+                InvoiceLineItemsTable,
+                TimeEntriesTable,
+                InvoicesTable,
+                TasksTable,
+                ProjectsTable,
+                ClientsTable,
+                PayoutAccountsTable,
                 RefundsTable,
                 OrderProductsTable,
                 TicketTemplateElementsTable,
@@ -460,6 +487,68 @@ object ExposedTestDb {
                     this.exchangeRateAtPayment = exchangeRateAtPayment
                     this.exchangeRateCurrency = exchangeRateCurrency
                     this.fiatAmountAtPayment = fiatAmountAtPayment
+                }.id.value
+                .toString()
+        }
+
+    fun seedPayoutAccount(
+        type: String = "bank",
+        currencyId: String? = seedCurrency("USD"),
+        isDeleted: Boolean = false,
+    ): String =
+        transaction {
+            PayoutAccountEntity
+                .new(UUID.randomUUID()) {
+                    this.type = type
+                    this.currencyId = currencyId?.let { EntityID(UUID.fromString(it), CurrencyTable) }
+                    this.isDeleted = isDeleted
+                    this.createdAt = "2024-01-01T00:00:00"
+                }.id.value
+                .toString()
+        }
+
+    fun seedFreelanceClient(
+        name: String = "Client",
+        currencyId: String = seedCurrency("USD"),
+        hourlyRateCents: Int = 5000,
+        billingCycle: String = "monthly",
+        paymentMethod: String = "bank",
+        payoutAccountId: String? = null,
+        isDeleted: Boolean = false,
+    ): String =
+        transaction {
+            ClientEntity
+                .new(UUID.randomUUID()) {
+                    this.name = name
+                    this.currencyId = EntityID(UUID.fromString(currencyId), CurrencyTable)
+                    this.hourlyRateCents = hourlyRateCents
+                    this.billingCycle = billingCycle
+                    this.paymentMethod = paymentMethod
+                    this.payoutAccountId = payoutAccountId?.let { EntityID(UUID.fromString(it), PayoutAccountsTable) }
+                    this.isDeleted = isDeleted
+                    this.createdAt = "2024-01-01T00:00:00"
+                }.id.value
+                .toString()
+        }
+
+    fun seedFreelanceProject(
+        clientId: String = seedFreelanceClient(),
+        name: String = "Project",
+        status: String = "pending",
+        hourlyRateCents: Int? = null,
+        isBillable: Boolean = true,
+        isDeleted: Boolean = false,
+    ): String =
+        transaction {
+            ProjectEntity
+                .new(UUID.randomUUID()) {
+                    this.clientId = EntityID(UUID.fromString(clientId), ClientsTable)
+                    this.name = name
+                    this.status = status
+                    this.hourlyRateCents = hourlyRateCents
+                    this.isBillable = isBillable
+                    this.isDeleted = isDeleted
+                    this.createdAt = "2024-01-01T00:00:00"
                 }.id.value
                 .toString()
         }
