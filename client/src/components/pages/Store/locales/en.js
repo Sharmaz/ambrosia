@@ -37,6 +37,10 @@ const storeEn = {
       sales: "Sales",
       revenue: "Revenue",
     },
+    permissionBlocked: {
+      title: "You can't view any dashboard stats",
+      subtitle: "Ask an administrator to grant you permission to view users, products, or sales.",
+    },
   },
   ...usersEn,
   ...productsEn,
