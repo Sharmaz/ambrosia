@@ -35,12 +35,12 @@ import pos.ambrosia.db.tables.OrderEntity
 import pos.ambrosia.db.tables.OrderProductsTable
 import pos.ambrosia.db.tables.OrdersDishesTable
 import pos.ambrosia.db.tables.OrdersTable
-import pos.ambrosia.db.tables.PayoutAccountEntity
-import pos.ambrosia.db.tables.PayoutAccountsTable
 import pos.ambrosia.db.tables.PaymentEntity
 import pos.ambrosia.db.tables.PaymentMethodEntity
 import pos.ambrosia.db.tables.PaymentMethodsTable
 import pos.ambrosia.db.tables.PaymentsTable
+import pos.ambrosia.db.tables.PayoutAccountEntity
+import pos.ambrosia.db.tables.PayoutAccountsTable
 import pos.ambrosia.db.tables.PermissionEntity
 import pos.ambrosia.db.tables.PermissionsTable
 import pos.ambrosia.db.tables.PrinterConfigEntity
@@ -68,7 +68,6 @@ import pos.ambrosia.db.tables.SpacesTable
 import pos.ambrosia.db.tables.SupplierEntity
 import pos.ambrosia.db.tables.SuppliersTable
 import pos.ambrosia.db.tables.TasksTable
-import pos.ambrosia.db.tables.TimeEntriesTable
 import pos.ambrosia.db.tables.TicketEntity
 import pos.ambrosia.db.tables.TicketPaymentsTable
 import pos.ambrosia.db.tables.TicketTemplateElementEntity
@@ -77,6 +76,7 @@ import pos.ambrosia.db.tables.TicketTemplateEntity
 import pos.ambrosia.db.tables.TicketTemplatesTable
 import pos.ambrosia.db.tables.TicketsDishTable
 import pos.ambrosia.db.tables.TicketsTable
+import pos.ambrosia.db.tables.TimeEntriesTable
 import pos.ambrosia.db.tables.UserEntity
 import pos.ambrosia.db.tables.UsersTable
 import pos.ambrosia.db.tables.VariantOptionValuesTable
