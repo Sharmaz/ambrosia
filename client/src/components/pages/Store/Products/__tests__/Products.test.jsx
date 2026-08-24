@@ -22,10 +22,7 @@ jest.mock("@/components/utils/storedAssetUrl", () => ({
   storedAssetUrl: (url) => url,
 }));
 
-jest.mock("@/hooks/usePermission", () => ({
-  usePermission: () => true,
-  RequirePermission: ({ children }) => children,
-}));
+jest.mock("@/hooks/usePermission");
 
 jest.mock("../AddProductsModal", () => ({
   AddProductsModal: ({ addProductsShowModal, productForm, onChange, onProductCreated, addProduct, onClose }) => (
