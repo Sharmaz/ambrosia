@@ -8,6 +8,7 @@ import { isElectron } from "@lib/isElectron";
 
 import { Currency } from "./Currency";
 import { Display } from "./Display";
+import { ExportData } from "./ExportData";
 import { InstallPWA } from "./InstallPWA";
 import { Language } from "./Language";
 import { LightningCard } from "./Lightning/LightningCard";
@@ -37,6 +38,7 @@ export function Settings() {
           {isAdmin && (
             <>
               <Seed />
+              <ExportData />
               <NwcConnectionCard />
               <Tutorials />
             </>
