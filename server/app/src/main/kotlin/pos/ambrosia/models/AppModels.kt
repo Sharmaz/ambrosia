@@ -503,6 +503,49 @@ data class Config(
 )
 
 @Serializable
+data class FreelanceClient(
+    val id: String,
+    val name: String,
+    val currencyId: String,
+    val hourlyRateCents: Int,
+    val billingCycle: String,
+    val paymentMethod: String,
+    val payoutAccountId: String? = null,
+    val isDeleted: Boolean = false,
+    val createdAt: String,
+)
+
+@Serializable
+data class FreelanceClientUpsert(
+    val name: String,
+    val currencyId: String,
+    val hourlyRateCents: Int,
+    val billingCycle: String,
+    val paymentMethod: String,
+    val payoutAccountId: String? = null,
+)
+
+@Serializable
+data class FreelanceProject(
+    val id: String,
+    val clientId: String,
+    val name: String,
+    val status: String,
+    val hourlyRateCents: Int? = null,
+    val isBillable: Boolean = true,
+    val isDeleted: Boolean = false,
+    val createdAt: String,
+)
+
+@Serializable
+data class FreelanceProjectUpsert(
+    val name: String,
+    val status: String = "pending",
+    val hourlyRateCents: Int? = null,
+    val isBillable: Boolean = true,
+)
+
+@Serializable
 data class ProductOptionValue(
     val id: String? = null,
     val optionTypeId: String? = null,
