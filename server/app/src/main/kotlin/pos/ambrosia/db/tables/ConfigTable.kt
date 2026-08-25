@@ -9,6 +9,7 @@ import org.jetbrains.exposed.v1.dao.IntEntityClass
 object ConfigTable : IntIdTable("config") {
     val businessType = varchar("business_type", 20).default("restaurant")
     val businessName = varchar("business_name", 255)
+    val businessProfession = varchar("business_profession", 255).nullable()
     val businessAddress = text("business_address").nullable()
     val businessPhone = varchar("business_phone", 50).nullable()
     val businessEmail = varchar("business_email", 255).nullable()
@@ -25,6 +26,7 @@ class ConfigEntity(
 
     var businessType by ConfigTable.businessType
     var businessName by ConfigTable.businessName
+    var businessProfession by ConfigTable.businessProfession
     var businessAddress by ConfigTable.businessAddress
     var businessPhone by ConfigTable.businessPhone
     var businessEmail by ConfigTable.businessEmail
