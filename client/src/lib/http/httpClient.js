@@ -19,7 +19,7 @@ async function refreshToken() {
 export async function httpClient(endpoint, options = {}) {
   const { skipRefresh = false, skipForbiddenRedirect = false, ...httpOptions } = options;
 
-  const AUTH_EXCLUDED_PATHS = ["/auth", "/wallet"];
+  const AUTH_EXCLUDED_PATHS = ["/auth", "/wallet", "/backup"];
 
   const shouldRefreshToken = (status, endpoint, skipRefresh) => {
     if (status !== 401 || skipRefresh) return false;
@@ -39,7 +39,7 @@ export async function httpClient(endpoint, options = {}) {
   }
 
   if (initialResponse.status === 401 && !skipRefresh) {
-    const event = endpoint.startsWith("/wallet") ? "wallet:unauthorized" : "auth:expired";
+    const event = endpoint.startsWith("/wallet") || endpoint.startsWith("/backup") ? "wallet:unauthorized" : "auth:expired";
     dispatchAuthEvent(event);
   }
   if (initialResponse.status === 403 && !skipForbiddenRedirect)
