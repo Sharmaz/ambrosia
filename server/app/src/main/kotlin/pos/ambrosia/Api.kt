@@ -58,6 +58,7 @@ import pos.ambrosia.api.configureWallet
 import pos.ambrosia.api.handler
 import pos.ambrosia.config.AppConfig
 import pos.ambrosia.db.DatabaseConnection
+import pos.ambrosia.services.AdminNotificationService
 import pos.ambrosia.services.TokenService
 import pos.ambrosia.utils.UnauthorizedApiException
 import kotlin.time.Duration.Companion.seconds
@@ -67,6 +68,9 @@ public val logger = LoggerFactory.getLogger("Server")
 class Api {
     fun Application.module() {
         AppConfig.loadConfig() // Load the configuration
+        if (pendingDataImportWasApplied) {
+            configurePendingImportCleanup()
+        }
         handler() // Install exception handlers
         install(ContentNegotiation) { json() }
         install(CORS) {
@@ -194,4 +198,12 @@ fun Application.configureAuthentication() {
             }
         }
     }
+}
+
+fun Application.configurePendingImportCleanup() {
+    val tokenService = TokenService(environment)
+    tokenService.revokeAllRefreshTokens()
+    tokenService.revokeAllWalletTokens()
+    AdminNotificationService().revokeAllPushSubscriptions()
+    logger.info("Cleared device sessions and push subscriptions after a data import")
 }

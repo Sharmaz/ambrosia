@@ -50,8 +50,11 @@ val phoenixDatadir: Path =
     System.getenv()[EnvVars.PHOENIX_DATADIR]?.let { Path(it) }
         ?: Path(Path(userHome), ".phoenix")
 
+var pendingDataImportWasApplied: Boolean = false
+    private set
+
 fun main(args: Array<String>) {
-    BackupService().applyPendingImport()
+    pendingDataImportWasApplied = BackupService().applyPendingImport()
     Ambrosia().main(args)
 }
 
