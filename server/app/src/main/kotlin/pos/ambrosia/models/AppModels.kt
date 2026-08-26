@@ -881,4 +881,5 @@ data class BackupManifest(
     val schemaInstalledRank: Int?,
     val exportedAt: String = Instant.now().toString(),
     val businessName: String,
+    val secret: String,
 )
