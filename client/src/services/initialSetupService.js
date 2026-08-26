@@ -17,3 +17,15 @@ export async function submitInitialSetup(payload) {
     skipRefresh: true,
   });
 }
+
+export async function restoreFromBackup(password, backupFile) {
+  const restoreFormData = new FormData();
+  restoreFormData.append("password", password);
+  restoreFormData.append("backup", backupFile);
+
+  return await httpClient("/initial-setup/restore", {
+    method: "POST",
+    body: restoreFormData,
+    skipRefresh: true,
+  });
+}
