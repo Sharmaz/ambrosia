@@ -40,13 +40,17 @@ class BackupService(
     companion object {
         // PBKDF2 turns the plain-text password into an actual AES key.
         private const val KEY_DERIVATION_ALGORITHM = "PBKDF2WithHmacSHA256"
+
         // Deliberately slow: makes guessing passwords against a stolen backup file expensive.
         private const val KEY_DERIVATION_ITERATIONS = 10000
         private const val KEY_LENGTH_BITS = 256
+
         // Random per export, so the same password never derives the same key twice.
         private const val SALT_LENGTH_BYTES = 16
+
         // Must never repeat for the same key — regenerated on every export.
         private const val INITIALIZATION_VECTOR_LENGTH_BYTES = 12
+
         // GCM's built-in tamper check: a wrong password or an altered file both fail to decrypt.
         private const val AUTHENTICATION_TAG_LENGTH_BITS = 128
         private val MAGIC_HEADER = "AMBROSIA-BACKUP-1".toByteArray(Charsets.UTF_8)
