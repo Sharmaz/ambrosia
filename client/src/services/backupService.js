@@ -39,3 +39,25 @@ export async function exportBackup(password) {
   );
   downloadBlob(backupBlob, filename);
 }
+
+export async function importBackup(password, backupFile) {
+  const importFormData = new FormData();
+  importFormData.append("password", password);
+  importFormData.append("backup", backupFile);
+
+  const backupImportResponse = await httpClient("/backup/import", {
+    method: "POST",
+    body: importFormData,
+    skipForbiddenRedirect: true,
+  });
+
+  const backupImportBody = await parseJsonResponse(backupImportResponse, null);
+  if (!backupImportResponse.ok) {
+    throw createBackupServiceError(
+      backupImportBody?.message ?? "Could not import the backup",
+      { status: backupImportResponse.status },
+    );
+  }
+
+  return backupImportBody;
+}

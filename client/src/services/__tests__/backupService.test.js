@@ -14,7 +14,7 @@ import { httpClient } from "@/lib/http/httpClient";
 import { parseJsonResponse } from "@/lib/http/parseJsonResponse";
 import { downloadBlob } from "@/utils/downloadBlob";
 
-import { exportBackup } from "../backupService";
+import { exportBackup, importBackup } from "../backupService";
 
 function makeResponse({ ok, status, contentDisposition, blob }) {
   return {
@@ -98,6 +98,58 @@ describe("backupService", () => {
       await expect(exportBackup("wrong-password")).rejects.toMatchObject({
         message: "Could not export the backup",
         status: 401,
+      });
+    });
+  });
+
+  describe("importBackup", () => {
+    function makeJsonResponse({ ok, status }) {
+      return { ok, status };
+    }
+
+    it("calls /backup/import with a multipart body and skipForbiddenRedirect", async () => {
+      httpClient.mockResolvedValue(makeJsonResponse({ ok: true, status: 200 }));
+      parseJsonResponse.mockResolvedValue({ message: "Backup imported", businessName: "Awesome Store" });
+      const backupFile = new File(["zip-content"], "backup.zip", { type: "application/zip" });
+
+      await importBackup("wallet-password", backupFile);
+
+      expect(httpClient).toHaveBeenCalledWith("/backup/import", expect.objectContaining({
+        method: "POST",
+        skipForbiddenRedirect: true,
+      }));
+      const [, requestOptions] = httpClient.mock.calls[0];
+      expect(requestOptions.body).toBeInstanceOf(FormData);
+      expect(requestOptions.body.get("password")).toBe("wallet-password");
+      expect(requestOptions.body.get("backup")).toBe(backupFile);
+    });
+
+    it("returns the parsed response body on success", async () => {
+      httpClient.mockResolvedValue(makeJsonResponse({ ok: true, status: 200 }));
+      parseJsonResponse.mockResolvedValue({ message: "Backup imported", businessName: "Awesome Store" });
+
+      const importedManifest = await importBackup("wallet-password", new File(["zip"], "backup.zip"));
+
+      expect(importedManifest).toEqual({ message: "Backup imported", businessName: "Awesome Store" });
+    });
+
+    it("throws with the server message when the response is not ok", async () => {
+      httpClient.mockResolvedValue(makeJsonResponse({ ok: false, status: 400 }));
+      parseJsonResponse.mockResolvedValue({ message: "Incorrect password or corrupted backup file" });
+
+      await expect(importBackup("wrong-password", new File(["zip"], "backup.zip"))).rejects.toMatchObject({
+        message: "Incorrect password or corrupted backup file",
+        status: 400,
+      });
+    });
+
+    it("throws a fallback message when the error response has no body", async () => {
+      httpClient.mockResolvedValue(makeJsonResponse({ ok: false, status: 400 }));
+      parseJsonResponse.mockResolvedValue(null);
+
+      await expect(importBackup("wrong-password", new File(["zip"], "backup.zip"))).rejects.toMatchObject({
+        message: "Could not import the backup",
+        status: 400,
       });
     });
   });
