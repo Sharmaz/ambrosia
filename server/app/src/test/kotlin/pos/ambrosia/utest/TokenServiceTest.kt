@@ -88,4 +88,19 @@ class TokenServiceTest {
         val stored = transaction { UserEntity.findById(UUID.fromString(userId))?.walletToken }
         assertNull(stored)
     }
+
+    @Test
+    fun `revokeAllWalletTokens clears wallet tokens for every user`() {
+        val firstUserId = ExposedTestDb.seedUser("wallet-user-1")
+        val secondUserId = ExposedTestDb.seedUser("wallet-user-2")
+        service.generateWalletAccessToken(firstUserId)
+        service.generateWalletAccessToken(secondUserId)
+
+        service.revokeAllWalletTokens()
+
+        val firstStored = transaction { UserEntity.findById(UUID.fromString(firstUserId))?.walletToken }
+        val secondStored = transaction { UserEntity.findById(UUID.fromString(secondUserId))?.walletToken }
+        assertNull(firstStored)
+        assertNull(secondStored)
+    }
 }
