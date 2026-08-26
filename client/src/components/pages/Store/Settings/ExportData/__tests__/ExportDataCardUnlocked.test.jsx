@@ -24,11 +24,11 @@ jest.mock("@components/auth/WalletGuard", () => function MockWalletGuard({ child
 },
 );
 
-const t = (key) => key;
+const exportDataTranslations = (key) => key;
 
 function renderUnlocked(props = {}) {
   return render(
-    <ExportDataCardUnlocked exportDataTranslations={t} onAuthorized={jest.fn()} onHide={jest.fn()} {...props} />,
+    <ExportDataCardUnlocked exportDataTranslations={exportDataTranslations} onAuthorized={jest.fn()} onHide={jest.fn()} {...props} />,
   );
 }
 
