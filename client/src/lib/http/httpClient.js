@@ -1,6 +1,6 @@
 import { httpWrapper } from "./httpWrapper";
 
-function dispatchAuthEvent(name) {
+export function dispatchAuthEvent(name) {
   if (typeof window !== "undefined") {
     window.dispatchEvent(new Event(name));
   }
