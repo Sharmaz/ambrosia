@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-import { Button, Card, CardBody, CardHeader, Spinner } from "@heroui/react";
+import { Button, Card, CardBody, CardHeader, Progress, Spinner } from "@heroui/react";
 
 import WalletGuard from "@components/auth/WalletGuard";
 
@@ -13,6 +13,7 @@ export function ImportDataCardUnlocked({ onImport, onHide, importDataTranslation
   const [backupFile, setBackupFile] = useState(null);
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
+  const [importProgress, setImportProgress] = useState(null);
   const [errorMessage, setErrorMessage] = useState("");
 
   const handleFileChange = (event) => {
@@ -31,12 +32,14 @@ export function ImportDataCardUnlocked({ onImport, onHide, importDataTranslation
   const handleConfirmImport = async () => {
     setIsConfirmModalOpen(false);
     setIsImporting(true);
+    setImportProgress(null);
     setErrorMessage("");
     try {
-      await onImport(password, backupFile);
+      await onImport(password, backupFile, setImportProgress);
     } catch {
       setErrorMessage(importDataTranslations("cardImportData.errorDescription"));
       setIsImporting(false);
+      setImportProgress(null);
     }
   };
 
@@ -58,11 +61,30 @@ export function ImportDataCardUnlocked({ onImport, onHide, importDataTranslation
 
         <CardBody>
           {isImporting ? (
-            <div className="flex flex-col items-center gap-2 py-6">
-              <Spinner size="lg" color="success" />
-              <p className="text-sm text-gray-500">
-                {importDataTranslations("cardImportData.importing")}
-              </p>
+            <div className="flex flex-col items-center gap-2 py-6 w-full">
+              {typeof importProgress === "number" ? (
+                <>
+                  <Progress
+                    aria-label={importDataTranslations("cardImportData.importing")}
+                    value={importProgress}
+                    className="max-w-full"
+                    color="success"
+                    size="sm"
+                  />
+                  <p className="text-sm text-gray-500">
+                    {importProgress < 100
+                      ? importDataTranslations("cardImportData.uploadingProgress", { percent: importProgress })
+                      : importDataTranslations("cardImportData.processing")}
+                  </p>
+                </>
+              ) : (
+                <>
+                  <Spinner size="lg" color="success" />
+                  <p className="text-sm text-gray-500">
+                    {importDataTranslations("cardImportData.importing")}
+                  </p>
+                </>
+              )}
             </div>
           ) : (
             <div className="flex flex-col gap-4">

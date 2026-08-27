@@ -2,6 +2,7 @@ import { render, screen, fireEvent, act } from "@testing-library/react";
 
 import * as backupService from "@/services/backupService";
 import { restartBackendAfterImport } from "@/utils/restartBackendAfterImport";
+import { MockHeroUIProgress } from "@test-utils/mockHeroUIProgress";
 import { selectBackupFile } from "@test-utils/selectBackupFile";
 
 import { ImportData } from "../ImportData";
@@ -16,6 +17,7 @@ jest.mock("@heroui/react", () => ({
   CardBody: ({ children }) => <div>{children}</div>,
   CardFooter: ({ children }) => <div>{children}</div>,
   Spinner: () => <div data-testid="spinner" />,
+  Progress: MockHeroUIProgress,
   Modal: ({ isOpen, children }) => (isOpen ? <div>{children}</div> : null),
   ModalContent: ({ children }) => <div>{children}</div>,
   ModalHeader: ({ children }) => <div>{children}</div>,
@@ -90,7 +92,23 @@ describe("ImportData", () => {
 
       await unlockSelectFileAndImport();
 
-      expect(backupService.importBackup).toHaveBeenCalledWith("wallet-password", expect.any(File));
+      expect(backupService.importBackup).toHaveBeenCalledWith("wallet-password", expect.any(File), expect.any(Function));
+    });
+
+    it("threads progress reported by importBackup into the rendered card", async () => {
+      let reportProgress;
+      jest.spyOn(backupService, "importBackup").mockImplementation((password, backupFile, onProgress) => {
+        reportProgress = onProgress;
+        return new Promise(() => {});
+      });
+      render(<ImportData />);
+
+      await unlockSelectFileAndImport();
+      act(() => {
+        reportProgress(63);
+      });
+
+      expect(screen.getByTestId("progress")).toHaveAttribute("data-value", "63");
     });
 
     it("shows a success toast", async () => {

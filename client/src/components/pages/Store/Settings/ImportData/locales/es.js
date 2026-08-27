@@ -12,6 +12,8 @@ const importDataEs = {
     missingFields: "Selecciona un archivo de respaldo para continuar.",
     continueButton: "Continuar",
     importing: "Importando tu respaldo...",
+    uploadingProgress: "Subiendo... {percent}%",
+    processing: "Procesando tu respaldo...",
     success: "Respaldo importado con éxito.",
     errorDescription: "No se pudo importar el respaldo. Verifica el archivo e intenta de nuevo.",
     restartRequiredElectron: "Reiniciando la aplicación...",

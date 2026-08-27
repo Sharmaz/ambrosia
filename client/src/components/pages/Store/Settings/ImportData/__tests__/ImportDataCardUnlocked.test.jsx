@@ -1,5 +1,6 @@
 import { render, screen, fireEvent, act } from "@testing-library/react";
 
+import { MockHeroUIProgress } from "@test-utils/mockHeroUIProgress";
 import { selectBackupFile } from "@test-utils/selectBackupFile";
 
 import { ImportDataCardUnlocked } from "../ImportDataCardUnlocked";
@@ -9,6 +10,7 @@ jest.mock("@heroui/react", () => ({
   CardHeader: ({ children }) => <div>{children}</div>,
   CardBody: ({ children }) => <div>{children}</div>,
   Spinner: () => <div data-testid="spinner" />,
+  Progress: MockHeroUIProgress,
   Button: ({ onPress, children, ...props }) => (
     <button type="button" onClick={onPress} {...props}>{children}</button>
   ),
@@ -100,7 +102,7 @@ describe("ImportDataCardUnlocked", () => {
         fireEvent.click(screen.getByTestId("modal-confirm"));
       });
 
-      expect(onImport).toHaveBeenCalledWith("wallet-password", expect.any(File));
+      expect(onImport).toHaveBeenCalledWith("wallet-password", expect.any(File), expect.any(Function));
     });
 
     it("shows a spinner while importing", async () => {
@@ -118,6 +120,45 @@ describe("ImportDataCardUnlocked", () => {
       await act(async () => {
         resolveImport();
       });
+    });
+
+    it("shows a progress bar once onImport reports an upload percent", async () => {
+      let reportProgress;
+      const onImport = jest.fn((password, backupFile, onProgress) => {
+        reportProgress = onProgress;
+        return new Promise(() => {});
+      });
+      renderUnlocked({ onImport });
+      fireEvent.click(screen.getByTestId("guard-confirm"));
+      selectBackupFile();
+      fireEvent.click(screen.getByText("cardImportData.continueButton"));
+
+      fireEvent.click(screen.getByTestId("modal-confirm"));
+      await act(async () => {
+        reportProgress(37);
+      });
+
+      expect(screen.getByTestId("progress")).toHaveAttribute("data-value", "37");
+      expect(screen.getByText("cardImportData.uploadingProgress")).toBeInTheDocument();
+    });
+
+    it("shows the processing message once the upload reaches 100 percent", async () => {
+      let reportProgress;
+      const onImport = jest.fn((password, backupFile, onProgress) => {
+        reportProgress = onProgress;
+        return new Promise(() => {});
+      });
+      renderUnlocked({ onImport });
+      fireEvent.click(screen.getByTestId("guard-confirm"));
+      selectBackupFile();
+      fireEvent.click(screen.getByText("cardImportData.continueButton"));
+
+      fireEvent.click(screen.getByTestId("modal-confirm"));
+      await act(async () => {
+        reportProgress(100);
+      });
+
+      expect(screen.getByText("cardImportData.processing")).toBeInTheDocument();
     });
 
     it("shows a generic error when onImport throws", async () => {

@@ -12,6 +12,8 @@ const importDataEn = {
     missingFields: "Select a backup file to continue.",
     continueButton: "Continue",
     importing: "Importing your backup...",
+    uploadingProgress: "Uploading... {percent}%",
+    processing: "Processing your backup...",
     success: "Backup imported successfully.",
     errorDescription: "Could not import the backup. Check the file and try again.",
     restartRequiredElectron: "Restarting the app now...",
