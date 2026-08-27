@@ -95,11 +95,47 @@ class BackupServiceTest {
     }
 
     @Test
+    fun `prepareExportSnapshot creates a readable database snapshot file`() {
+        val backupService = BackupService(uploadsRoot, databaseFile.absolutePath, configFile.absolutePath)
+
+        val databaseSnapshot = backupService.prepareExportSnapshot()
+
+        assertTrue(Files.exists(databaseSnapshot))
+        assertTrue(Files.size(databaseSnapshot) > 0)
+        Files.deleteIfExists(databaseSnapshot)
+    }
+
+    @Test
+    fun `calculateExportTotalBytes sums the database snapshot size and every file under uploads`() {
+        val backupService = BackupService(uploadsRoot, databaseFile.absolutePath, configFile.absolutePath)
+        Files.write(uploadsRoot.resolve("product-1.jpg"), ByteArray(100))
+        val nestedDirectory = Files.createDirectory(uploadsRoot.resolve("nested"))
+        Files.write(nestedDirectory.resolve("product-2.jpg"), ByteArray(50))
+
+        val databaseSnapshot = backupService.prepareExportSnapshot()
+        val totalExportBytes = backupService.calculateExportTotalBytes(databaseSnapshot)
+
+        assertEquals(Files.size(databaseSnapshot) + 150, totalExportBytes)
+        Files.deleteIfExists(databaseSnapshot)
+    }
+
+    @Test
+    fun `calculateExportTotalBytes counts only the database snapshot when uploads is empty`() {
+        val backupService = BackupService(uploadsRoot, databaseFile.absolutePath, configFile.absolutePath)
+
+        val databaseSnapshot = backupService.prepareExportSnapshot()
+        val totalExportBytes = backupService.calculateExportTotalBytes(databaseSnapshot)
+
+        assertEquals(Files.size(databaseSnapshot), totalExportBytes)
+        Files.deleteIfExists(databaseSnapshot)
+    }
+
+    @Test
     fun `exportBackup produces a zip decryptable with the same password, containing manifest and db snapshot`() {
         val backupService = BackupService(uploadsRoot, databaseFile.absolutePath, configFile.absolutePath)
         val output = ByteArrayOutputStream()
 
-        backupService.exportBackup("My Test Store", "correct-password".toCharArray(), output)
+        backupService.exportBackup("My Test Store", "correct-password".toCharArray(), backupService.prepareExportSnapshot(), output)
 
         val decryptedZip = decryptBackup(output.toByteArray(), "correct-password".toCharArray())
         val entries = zipEntryNames(decryptedZip)
@@ -113,7 +149,7 @@ class BackupServiceTest {
         val backupService = BackupService(uploadsRoot, databaseFile.absolutePath, configFile.absolutePath)
         val output = ByteArrayOutputStream()
 
-        backupService.exportBackup("My Test Store", "correct-password".toCharArray(), output)
+        backupService.exportBackup("My Test Store", "correct-password".toCharArray(), backupService.prepareExportSnapshot(), output)
 
         val decryptedZip = decryptBackup(output.toByteArray(), "correct-password".toCharArray())
         val manifestJson = readZipEntry(decryptedZip, "manifest.json")
@@ -126,7 +162,7 @@ class BackupServiceTest {
         val backupService = BackupService(uploadsRoot, databaseFile.absolutePath, configFile.absolutePath)
         val output = ByteArrayOutputStream()
 
-        backupService.exportBackup("My Test Store", "correct-password".toCharArray(), output)
+        backupService.exportBackup("My Test Store", "correct-password".toCharArray(), backupService.prepareExportSnapshot(), output)
 
         val decryptedZip = decryptBackup(output.toByteArray(), "correct-password".toCharArray())
         val manifestJson = readZipEntry(decryptedZip, "manifest.json")
@@ -141,7 +177,7 @@ class BackupServiceTest {
         val output = ByteArrayOutputStream()
 
         assertFailsWith<IllegalStateException> {
-            backupService.exportBackup("My Test Store", "correct-password".toCharArray(), output)
+            backupService.exportBackup("My Test Store", "correct-password".toCharArray(), backupService.prepareExportSnapshot(), output)
         }
     }
 
@@ -152,7 +188,7 @@ class BackupServiceTest {
         val backupService = BackupService(uploadsRoot, databaseFile.absolutePath, configFile.absolutePath)
         val output = ByteArrayOutputStream()
 
-        backupService.exportBackup("My Test Store", "correct-password".toCharArray(), output)
+        backupService.exportBackup("My Test Store", "correct-password".toCharArray(), backupService.prepareExportSnapshot(), output)
 
         val decryptedZip = decryptBackup(output.toByteArray(), "correct-password".toCharArray())
         val entries = zipEntryNames(decryptedZip)
@@ -166,7 +202,7 @@ class BackupServiceTest {
             BackupService(uploadsRoot.resolve("does-not-exist"), databaseFile.absolutePath, configFile.absolutePath)
         val output = ByteArrayOutputStream()
 
-        backupService.exportBackup("My Test Store", "correct-password".toCharArray(), output)
+        backupService.exportBackup("My Test Store", "correct-password".toCharArray(), backupService.prepareExportSnapshot(), output)
 
         val decryptedZip = decryptBackup(output.toByteArray(), "correct-password".toCharArray())
         val entries = zipEntryNames(decryptedZip)
@@ -179,7 +215,7 @@ class BackupServiceTest {
         val backupService = BackupService(uploadsRoot, databaseFile.absolutePath, configFile.absolutePath)
         val output = ByteArrayOutputStream()
 
-        backupService.exportBackup("My Test Store", "correct-password".toCharArray(), output)
+        backupService.exportBackup("My Test Store", "correct-password".toCharArray(), backupService.prepareExportSnapshot(), output)
 
         assertFailsWith<BadPaddingException> {
             decryptBackup(output.toByteArray(), "wrong-password".toCharArray())
@@ -192,7 +228,7 @@ class BackupServiceTest {
         val output = ByteArrayOutputStream()
         val password = "correct-password".toCharArray()
 
-        backupService.exportBackup("My Test Store", password, output)
+        backupService.exportBackup("My Test Store", password, backupService.prepareExportSnapshot(), output)
 
         assertTrue(password.all { it == Char(0) })
     }
@@ -203,8 +239,8 @@ class BackupServiceTest {
         val firstOutput = ByteArrayOutputStream()
         val secondOutput = ByteArrayOutputStream()
 
-        backupService.exportBackup("My Test Store", "correct-password".toCharArray(), firstOutput)
-        backupService.exportBackup("My Test Store", "correct-password".toCharArray(), secondOutput)
+        backupService.exportBackup("My Test Store", "correct-password".toCharArray(), backupService.prepareExportSnapshot(), firstOutput)
+        backupService.exportBackup("My Test Store", "correct-password".toCharArray(), backupService.prepareExportSnapshot(), secondOutput)
 
         val magicHeaderSize = "AMBROSIA-BACKUP-1".toByteArray(Charsets.UTF_8).size
         val firstSaltAndInitializationVector =
@@ -270,7 +306,7 @@ class BackupServiceTest {
         val backupService =
             BackupService(uploadsRoot, databaseFile.absolutePath, configFile.absolutePath, importStagingRoot)
         val exportedBackup = ByteArrayOutputStream()
-        backupService.exportBackup("My Test Store", "correct-password".toCharArray(), exportedBackup)
+        backupService.exportBackup("My Test Store", "correct-password".toCharArray(), backupService.prepareExportSnapshot(), exportedBackup)
 
         val importedManifest =
             backupService.importBackup(
@@ -287,7 +323,7 @@ class BackupServiceTest {
         val backupService =
             BackupService(uploadsRoot, databaseFile.absolutePath, configFile.absolutePath, importStagingRoot)
         val exportedBackup = ByteArrayOutputStream()
-        backupService.exportBackup("My Test Store", "correct-password".toCharArray(), exportedBackup)
+        backupService.exportBackup("My Test Store", "correct-password".toCharArray(), backupService.prepareExportSnapshot(), exportedBackup)
 
         backupService.importBackup(
             exportedBackup.toByteArray().inputStream(),
@@ -304,7 +340,7 @@ class BackupServiceTest {
         val backupService =
             BackupService(uploadsRoot, databaseFile.absolutePath, configFile.absolutePath, importStagingRoot)
         val exportedBackup = ByteArrayOutputStream()
-        backupService.exportBackup("My Test Store", "correct-password".toCharArray(), exportedBackup)
+        backupService.exportBackup("My Test Store", "correct-password".toCharArray(), backupService.prepareExportSnapshot(), exportedBackup)
 
         backupService.importBackup(
             exportedBackup.toByteArray().inputStream(),
@@ -319,7 +355,7 @@ class BackupServiceTest {
         val backupService =
             BackupService(uploadsRoot, databaseFile.absolutePath, configFile.absolutePath, importStagingRoot)
         val exportedBackup = ByteArrayOutputStream()
-        backupService.exportBackup("My Test Store", "correct-password".toCharArray(), exportedBackup)
+        backupService.exportBackup("My Test Store", "correct-password".toCharArray(), backupService.prepareExportSnapshot(), exportedBackup)
 
         backupService.importBackup(
             exportedBackup.toByteArray().inputStream(),
@@ -335,7 +371,7 @@ class BackupServiceTest {
         val backupService =
             BackupService(uploadsRoot, databaseFile.absolutePath, configFile.absolutePath, importStagingRoot)
         val exportedBackup = ByteArrayOutputStream()
-        backupService.exportBackup("My Test Store", "correct-password".toCharArray(), exportedBackup)
+        backupService.exportBackup("My Test Store", "correct-password".toCharArray(), backupService.prepareExportSnapshot(), exportedBackup)
 
         assertFailsWith<IllegalArgumentException> {
             backupService.importBackup(
@@ -361,7 +397,7 @@ class BackupServiceTest {
         val backupService =
             BackupService(uploadsRoot, databaseFile.absolutePath, configFile.absolutePath, importStagingRoot)
         val exportedBackup = ByteArrayOutputStream()
-        backupService.exportBackup("My Test Store", "correct-password".toCharArray(), exportedBackup)
+        backupService.exportBackup("My Test Store", "correct-password".toCharArray(), backupService.prepareExportSnapshot(), exportedBackup)
         val truncatedBackup = exportedBackup.toByteArray().copyOfRange(0, 10)
 
         assertFailsWith<IllegalArgumentException> {
@@ -454,7 +490,7 @@ class BackupServiceTest {
         val backupService =
             BackupService(uploadsRoot, databaseFile.absolutePath, configFile.absolutePath, importStagingRoot)
         val firstExport = ByteArrayOutputStream()
-        backupService.exportBackup("First Store", "correct-password".toCharArray(), firstExport)
+        backupService.exportBackup("First Store", "correct-password".toCharArray(), backupService.prepareExportSnapshot(), firstExport)
         backupService.importBackup(
             firstExport.toByteArray().inputStream(),
             "correct-password".toCharArray(),
@@ -462,7 +498,7 @@ class BackupServiceTest {
         Files.write(importStagingRoot.resolve("leftover-from-previous-import"), "stale".toByteArray())
 
         val secondExport = ByteArrayOutputStream()
-        backupService.exportBackup("Second Store", "correct-password".toCharArray(), secondExport)
+        backupService.exportBackup("Second Store", "correct-password".toCharArray(), backupService.prepareExportSnapshot(), secondExport)
         val importedManifest =
             backupService.importBackup(
                 secondExport.toByteArray().inputStream(),
@@ -478,7 +514,7 @@ class BackupServiceTest {
         val backupService =
             BackupService(uploadsRoot, databaseFile.absolutePath, configFile.absolutePath, importStagingRoot)
         val exportedBackup = ByteArrayOutputStream()
-        backupService.exportBackup("My Test Store", "correct-password".toCharArray(), exportedBackup)
+        backupService.exportBackup("My Test Store", "correct-password".toCharArray(), backupService.prepareExportSnapshot(), exportedBackup)
         val password = "correct-password".toCharArray()
 
         backupService.importBackup(exportedBackup.toByteArray().inputStream(), password)
@@ -494,7 +530,12 @@ class BackupServiceTest {
         val exportingService =
             BackupService(uploadsRoot, databaseFile.absolutePath, configFile.absolutePath, importStagingRoot)
         val exportedBackup = ByteArrayOutputStream()
-        exportingService.exportBackup("My Test Store", "correct-password".toCharArray(), exportedBackup)
+        exportingService.exportBackup(
+            "My Test Store",
+            "correct-password".toCharArray(),
+            exportingService.prepareExportSnapshot(),
+            exportedBackup,
+        )
 
         val destinationService =
             BackupService(

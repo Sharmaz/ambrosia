@@ -59,15 +59,21 @@ class BackupService(
         const val STAGED_UPLOADS_DIR_NAME = "uploads"
     }
 
+    fun prepareExportSnapshot(): Path {
+        val databaseSnapshot = Files.createTempFile("ambrosia-backup-db-", ".sqlite")
+        snapshotDatabase(databaseSnapshot)
+        return databaseSnapshot
+    }
+
+    fun calculateExportTotalBytes(databaseSnapshot: Path): Long = Files.size(databaseSnapshot) + totalUploadsBytes()
+
     fun exportBackup(
         businessName: String,
         rolePassword: CharArray,
+        databaseSnapshot: Path,
         backupOutputStream: OutputStream,
     ) {
-        val databaseSnapshot = Files.createTempFile("ambrosia-backup-db-", ".sqlite")
         try {
-            snapshotDatabase(databaseSnapshot)
-
             val salt = ByteArray(SALT_LENGTH_BYTES).also { SecureRandom().nextBytes(it) }
             val initializationVector =
                 ByteArray(INITIALIZATION_VECTOR_LENGTH_BYTES).also { SecureRandom().nextBytes(it) }
@@ -302,6 +308,14 @@ class BackupService(
                     val relativeUploadPath = uploadsRoot.relativize(file).toString().replace('\\', '/')
                     writeFileEntry(zip, file, "uploads/$relativeUploadPath")
                 }
+        }
+    }
+
+    private fun totalUploadsBytes(): Long {
+        if (!uploadsRoot.exists()) return 0
+
+        return Files.walk(uploadsRoot).use { paths ->
+            paths.asSequence().filter { it.isRegularFile() }.sumOf { Files.size(it) }
         }
     }
 
