@@ -63,13 +63,16 @@ fun Route.backup(
 
             val businessName = configService.getConfig()?.businessName ?: "ambrosia"
             val fileName = buildBackupFileName(businessName)
+            val databaseSnapshot = backupService.prepareExportSnapshot()
+            val totalExportBytes = backupService.calculateExportTotalBytes(databaseSnapshot)
 
             call.response.header(
                 HttpHeaders.ContentDisposition,
                 ContentDisposition.Attachment.withParameter(ContentDisposition.Parameters.FileName, fileName).toString(),
             )
+            call.response.header("X-Backup-Total-Bytes", totalExportBytes.toString())
             call.respondOutputStream(ContentType.Application.OctetStream, HttpStatusCode.OK) {
-                backupService.exportBackup(businessName, rolePassword.password.toCharArray(), this)
+                backupService.exportBackup(businessName, rolePassword.password.toCharArray(), databaseSnapshot, this)
             }
         }
 
