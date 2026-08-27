@@ -23,8 +23,10 @@ export async function POST(request) {
   const headers = new Headers();
   const contentDisposition = backendResponse.headers.get("content-disposition");
   const contentType = backendResponse.headers.get("content-type");
+  const totalExportBytes = backendResponse.headers.get("x-backup-total-bytes");
   if (contentDisposition) headers.set("Content-Disposition", contentDisposition);
   if (contentType) headers.set("Content-Type", contentType);
+  if (totalExportBytes) headers.set("X-Backup-Total-Bytes", totalExportBytes);
 
   return new Response(backendResponse.body, { status: backendResponse.status, headers });
 }
