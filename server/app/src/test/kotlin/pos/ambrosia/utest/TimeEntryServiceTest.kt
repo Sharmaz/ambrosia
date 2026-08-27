@@ -15,7 +15,9 @@ import java.util.UUID
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 class TimeEntryServiceTest {
     private lateinit var databaseFile: File
@@ -210,6 +212,89 @@ class TimeEntryServiceTest {
                 createRequest(fixture).copy(taskId = UUID.randomUUID().toString()),
             )
         }
+    }
+
+    @Test
+    fun `non-billable task produces zero rate and amount and is flagged as not billable`() {
+        val roleId = ExposedTestDb.seedRole("freelancer-nb")
+        val userId = ExposedTestDb.seedUser("Freelancer", roleId)
+        val currencyId = ExposedTestDb.seedCurrency("USD")
+        val clientId = ExposedTestDb.seedClient("Client", currencyId, 10_000)
+        val projectId = ExposedTestDb.seedProject(clientId, hourlyRateCents = 12_000)
+        val taskId = ExposedTestDb.seedTask("Internal", isBillable = false)
+
+        val result = service.createTimeEntry(userId, CreateTimeEntryRequest(
+            projectId = projectId,
+            taskId = taskId,
+            entryDate = "2026-08-19",
+            durationMinutes = 60,
+        ))
+
+        assertFalse(result.isBillable)
+        assertEquals(0, result.rateCents)
+        assertEquals(0, result.amountCents)
+        assertNull(result.invoiceId)
+    }
+
+    @Test
+    fun `non-billable project produces zero rate and amount regardless of task billability`() {
+        val roleId = ExposedTestDb.seedRole("freelancer-np")
+        val userId = ExposedTestDb.seedUser("Freelancer", roleId)
+        val currencyId = ExposedTestDb.seedCurrency("USD")
+        val clientId = ExposedTestDb.seedClient("Client", currencyId, 10_000)
+        val projectId = ExposedTestDb.seedProject(clientId, hourlyRateCents = 12_000, isBillable = false)
+        val taskId = ExposedTestDb.seedTask("Development", isBillable = true)
+
+        val result = service.createTimeEntry(userId, CreateTimeEntryRequest(
+            projectId = projectId,
+            taskId = taskId,
+            entryDate = "2026-08-19",
+            durationMinutes = 60,
+        ))
+
+        assertFalse(result.isBillable)
+        assertEquals(0, result.rateCents)
+        assertEquals(0, result.amountCents)
+        assertNull(result.invoiceId)
+    }
+
+    @Test
+    fun `billable task in billable project exposes isBillable true with correct amount`() {
+        val fixture = seedFixture(projectRateCents = 12_000, clientRateCents = 10_000)
+
+        val result = service.createTimeEntry(fixture.userId, createRequest(fixture, durationMinutes = 60))
+
+        assertTrue(result.isBillable)
+        assertEquals(12_000, result.rateCents)
+        assertEquals(12_000, result.amountCents)
+    }
+
+    @Test
+    fun `non-billable entry update preserves zero rate and amount`() {
+        val roleId = ExposedTestDb.seedRole("freelancer-nu")
+        val userId = ExposedTestDb.seedUser("Freelancer", roleId)
+        val currencyId = ExposedTestDb.seedCurrency("USD")
+        val clientId = ExposedTestDb.seedClient("Client", currencyId, 10_000)
+        val projectId = ExposedTestDb.seedProject(clientId, hourlyRateCents = 12_000)
+        val taskId = ExposedTestDb.seedTask("Internal", isBillable = false)
+
+        val created = service.createTimeEntry(userId, CreateTimeEntryRequest(
+            projectId = projectId,
+            taskId = taskId,
+            entryDate = "2026-08-19",
+            durationMinutes = 60,
+        ))
+        val updated = service.updateTimeEntry(userId, created.id, UpdateTimeEntryRequest(
+            projectId = projectId,
+            taskId = taskId,
+            entryDate = "2026-08-20",
+            durationMinutes = 90,
+            rateCents = 99_999,
+        ))
+
+        assertFalse(updated.isBillable)
+        assertEquals(0, updated.rateCents)
+        assertEquals(0, updated.amountCents)
     }
 
     private fun seedFixture(

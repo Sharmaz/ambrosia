@@ -862,6 +862,7 @@ data class TimeEntryResponse(
     val projectName: String,
     val taskId: String,
     val taskName: String,
+    val isBillable: Boolean,
     val clientId: String,
     val clientName: String,
     val currencyId: String,

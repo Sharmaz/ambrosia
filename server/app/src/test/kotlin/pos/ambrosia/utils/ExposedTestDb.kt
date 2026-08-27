@@ -346,23 +346,27 @@ object ExposedTestDb {
         clientId: String = seedClient(),
         name: String = "Project",
         hourlyRateCents: Int? = null,
+        isBillable: Boolean = true,
     ): String =
         transaction {
             ProjectEntity
                 .new(UUID.randomUUID()) {
                     this.clientId = EntityID(UUID.fromString(clientId), ClientsTable)
                     this.name = name
+                    this.status = "in_progress"
                     this.hourlyRateCents = hourlyRateCents
+                    this.isBillable = isBillable
                     createdAt = "2026-08-24 12:00:00"
                 }.id.value
                 .toString()
         }
 
-    fun seedTask(name: String = "Development"): String =
+    fun seedTask(name: String = "Development", isBillable: Boolean = true): String =
         transaction {
             TaskEntity
                 .new(UUID.randomUUID()) {
                     this.name = name
+                    this.isBillable = isBillable
                     createdAt = "2026-08-24 12:00:00"
                 }.id.value
                 .toString()

@@ -54,17 +54,17 @@ class TimeEntryService {
 
             var condition: Op<Boolean> =
                 (TimeEntriesTable.userId eq EntityID(userUuid, UsersTable)) and
-                    (TimeEntriesTable.entryDate greaterEq fromDate.toString()) and
-                    (TimeEntriesTable.entryDate lessEq toDate.toString())
+                        (TimeEntriesTable.entryDate greaterEq fromDate.toString()) and
+                        (TimeEntriesTable.entryDate lessEq toDate.toString())
             projectId?.let {
                 condition =
                     condition and
-                    (TimeEntriesTable.projectId eq EntityID(parseUuid(it, "project_id"), ProjectsTable))
+                            (TimeEntriesTable.projectId eq EntityID(parseUuid(it, "project_id"), ProjectsTable))
             }
             taskId?.let {
                 condition =
                     condition and
-                    (TimeEntriesTable.taskId eq EntityID(parseUuid(it, "task_id"), TasksTable))
+                            (TimeEntriesTable.taskId eq EntityID(parseUuid(it, "task_id"), TasksTable))
             }
 
             val entries =
@@ -174,7 +174,7 @@ class TimeEntryService {
         return TimeEntryEntity
             .find {
                 (TimeEntriesTable.id eq EntityID(entryUuid, TimeEntriesTable)) and
-                    (TimeEntriesTable.userId eq EntityID(userUuid, UsersTable))
+                        (TimeEntriesTable.userId eq EntityID(userUuid, UsersTable))
             }.firstOrNull()
     }
 
@@ -200,13 +200,24 @@ class TimeEntryService {
         val project =
             ProjectEntity.findById(parseUuid(projectId, "projectId"))?.takeIf { !it.isDeleted }
                 ?: throw ResourceNotFoundException("Project not found")
+
+        if (project.status != "in_progress") {
+            throw InvalidTimeEntryException("Invalid project status. Time tracking is only allowed in the 'in_progress' state.")
+        }
+
         val client =
             ClientEntity.findById(project.clientId)?.takeIf { !it.isDeleted }
                 ?: throw ResourceNotFoundException("Client not found")
         val task =
             TaskEntity.findById(parseUuid(taskId, "taskId"))?.takeIf { !it.isDeleted }
                 ?: throw ResourceNotFoundException("Task not found")
-        val resolvedRate = resolveRateCents(requestedRateCents, project.hourlyRateCents, client.hourlyRateCents)
+        val isBillable = task.isBillable && project.isBillable
+        val resolvedRate =
+            if (!isBillable) {
+                0
+            } else {
+                resolveRateCents(requestedRateCents, project.hourlyRateCents, client.hourlyRateCents)
+            }
 
         return ValidatedTimeEntry(
             user = user,
@@ -217,6 +228,7 @@ class TimeEntryService {
             endTime = parseTime(endTime, "endTime"),
             description = description,
             durationMinutes = durationMinutes,
+            isBillable = isBillable,
             rateCents = resolvedRate,
         )
     }
@@ -245,13 +257,21 @@ class TimeEntryService {
             references?.currencies?.get(client.currencyId)
                 ?: CurrencyEntity.findById(client.currencyId)
                 ?: throw ResourceNotFoundException("Currency not found")
-        val rate = resolveRateCents(entity.rateCents, project.hourlyRateCents, client.hourlyRateCents)
+        val isBillable = task.isBillable && project.isBillable
+        val (rate, amount) =
+            if (!isBillable) {
+                Pair(0, 0)
+            } else {
+                val r = resolveRateCents(entity.rateCents, project.hourlyRateCents, client.hourlyRateCents)
+                Pair(r, calculateAmountCents(r, entity.durationMinutes))
+            }
         return TimeEntryResponse(
             id = entity.id.value.toString(),
             projectId = project.id.value.toString(),
             projectName = project.name,
             taskId = task.id.value.toString(),
             taskName = task.name,
+            isBillable = isBillable,
             clientId = client.id.value.toString(),
             clientName = client.name,
             currencyId = currency.id.value.toString(),
@@ -263,7 +283,7 @@ class TimeEntryService {
             description = entity.description,
             durationMinutes = entity.durationMinutes,
             rateCents = rate,
-            amountCents = calculateAmountCents(rate, entity.durationMinutes),
+            amountCents = amount,
             invoiceId = entity.invoiceId?.value?.toString(),
             isLocked = entity.isLocked || entity.invoiceId != null,
             createdAt = entity.createdAt,
@@ -308,6 +328,7 @@ class TimeEntryService {
         val endTime: String?,
         val description: String?,
         val durationMinutes: Int,
+        val isBillable: Boolean,
         val rateCents: Int,
     )
 
