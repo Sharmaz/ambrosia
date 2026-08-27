@@ -19,6 +19,11 @@ object TimeEntriesTable : SQLiteUUIDTable("time_entries") {
     val invoiceId = optReference("invoice_id", InvoicesTable)
     val isLocked = bool("is_locked").default(false)
     val createdAt = varchar("created_at", 50)
+
+    init {
+        index(false, projectId, entryDate)
+        index(false, invoiceId)
+    }
 }
 
 class TimeEntryEntity(

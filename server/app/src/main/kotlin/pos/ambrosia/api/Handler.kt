@@ -17,6 +17,7 @@ import pos.ambrosia.utils.DatabaseException
 import pos.ambrosia.utils.DuplicateUserNameException
 import pos.ambrosia.utils.InitialSetupException
 import pos.ambrosia.utils.InvalidCredentialsException
+import pos.ambrosia.utils.InvalidTimeEntryException
 import pos.ambrosia.utils.InvalidTokenException
 import pos.ambrosia.utils.LastAdminRemovalException
 import pos.ambrosia.utils.LastUserDeletionException
@@ -34,6 +35,8 @@ import pos.ambrosia.utils.PhoenixServiceException
 import pos.ambrosia.utils.PrintTicketException
 import pos.ambrosia.utils.ProductIsBundleComponentException
 import pos.ambrosia.utils.ResourceNotFoundException
+import pos.ambrosia.utils.TimeEntryLockedException
+import pos.ambrosia.utils.TimeEntryRateNotFoundException
 import pos.ambrosia.utils.UnauthorizedApiException
 import pos.ambrosia.utils.UnsupportedBackendOperationException
 import pos.ambrosia.utils.WalletOnlyException
@@ -52,6 +55,18 @@ fun Application.handler() {
         exception<ResourceNotFoundException> { call, cause ->
             logger.warn("Resource not found: ${cause.message}")
             call.respond(HttpStatusCode.NotFound, Message(cause.message ?: "Resource not found"))
+        }
+        exception<InvalidTimeEntryException> { call, cause ->
+            logger.warn("Invalid time entry: ${cause.message}")
+            call.respond(HttpStatusCode.BadRequest, Message(cause.message ?: "Invalid time entry"))
+        }
+        exception<TimeEntryRateNotFoundException> { call, cause ->
+            logger.warn("Time entry rate not found: ${cause.message}")
+            call.respond(HttpStatusCode.BadRequest, Message(cause.message ?: "No billing rate is available"))
+        }
+        exception<TimeEntryLockedException> { call, cause ->
+            logger.warn("Locked time entry mutation rejected: ${cause.message}")
+            call.respond(HttpStatusCode.Conflict, Message(cause.message ?: "Time entry is locked"))
         }
         exception<InvalidCredentialsException> { call, cause ->
             logger.warn("Invalid login attempt: ${cause.message}")

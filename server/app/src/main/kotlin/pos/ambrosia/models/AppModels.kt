@@ -830,3 +830,51 @@ data class IncomingPaymentWithRate(
     val fiatAmountAtPayment: Double? = null,
     val refunded: Boolean,
 )
+
+@Serializable
+data class CreateTimeEntryRequest(
+    val projectId: String,
+    val taskId: String,
+    val entryDate: String,
+    val startTime: String? = null,
+    val endTime: String? = null,
+    val description: String? = null,
+    val durationMinutes: Int,
+    val rateCents: Int? = null,
+)
+
+@Serializable
+data class UpdateTimeEntryRequest(
+    val projectId: String,
+    val taskId: String,
+    val entryDate: String,
+    val startTime: String? = null,
+    val endTime: String? = null,
+    val description: String? = null,
+    val durationMinutes: Int,
+    val rateCents: Int? = null,
+)
+
+@Serializable
+data class TimeEntryResponse(
+    val id: String,
+    val projectId: String,
+    val projectName: String,
+    val taskId: String,
+    val taskName: String,
+    val clientId: String,
+    val clientName: String,
+    val currencyId: String,
+    val currencyAcronym: String,
+    val userId: String,
+    val entryDate: String,
+    val startTime: String?,
+    val endTime: String?,
+    val description: String?,
+    val durationMinutes: Int,
+    val rateCents: Int,
+    val amountCents: Int,
+    val invoiceId: String?,
+    val isLocked: Boolean,
+    val createdAt: String,
+)

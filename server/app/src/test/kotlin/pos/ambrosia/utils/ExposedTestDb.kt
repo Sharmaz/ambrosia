@@ -27,6 +27,7 @@ import pos.ambrosia.db.tables.DishesTable
 import pos.ambrosia.db.tables.IngredientEntity
 import pos.ambrosia.db.tables.IngredientSuppliersTable
 import pos.ambrosia.db.tables.IngredientsTable
+import pos.ambrosia.db.tables.InvoiceEntity
 import pos.ambrosia.db.tables.InvoiceLineItemsTable
 import pos.ambrosia.db.tables.InvoicePaymentsTable
 import pos.ambrosia.db.tables.InvoicesTable
@@ -67,6 +68,7 @@ import pos.ambrosia.db.tables.SpaceEntity
 import pos.ambrosia.db.tables.SpacesTable
 import pos.ambrosia.db.tables.SupplierEntity
 import pos.ambrosia.db.tables.SuppliersTable
+import pos.ambrosia.db.tables.TaskEntity
 import pos.ambrosia.db.tables.TasksTable
 import pos.ambrosia.db.tables.TicketEntity
 import pos.ambrosia.db.tables.TicketPaymentsTable
@@ -77,6 +79,7 @@ import pos.ambrosia.db.tables.TicketTemplatesTable
 import pos.ambrosia.db.tables.TicketsDishTable
 import pos.ambrosia.db.tables.TicketsTable
 import pos.ambrosia.db.tables.TimeEntriesTable
+import pos.ambrosia.db.tables.TimeEntryEntity
 import pos.ambrosia.db.tables.UserEntity
 import pos.ambrosia.db.tables.UsersTable
 import pos.ambrosia.db.tables.VariantOptionValuesTable
@@ -161,6 +164,14 @@ object ExposedTestDb {
                 TicketTemplatesTable,
                 PrinterConfigsTable,
                 PushSubscriptionsTable,
+                InvoicePaymentsTable,
+                InvoiceLineItemsTable,
+                TimeEntriesTable,
+                InvoicesTable,
+                TasksTable,
+                ProjectsTable,
+                ClientsTable,
+                PayoutAccountsTable,
                 AdminNotificationPreferencesTable,
                 AdminNotificationReceiptsTable,
                 AdminNotificationsTable,
@@ -311,6 +322,98 @@ object ExposedTestDb {
                         this.countryCode = countryCode
                     }.id.value
                     .toString()
+        }
+
+    fun seedClient(
+        name: String = "Client",
+        currencyId: String = seedCurrency("USD"),
+        hourlyRateCents: Int = 10_000,
+    ): String =
+        transaction {
+            ClientEntity
+                .new(UUID.randomUUID()) {
+                    this.name = name
+                    this.currencyId = EntityID(UUID.fromString(currencyId), CurrencyTable)
+                    this.hourlyRateCents = hourlyRateCents
+                    billingCycle = "weekly"
+                    paymentMethod = "bank"
+                    createdAt = "2026-08-24 12:00:00"
+                }.id.value
+                .toString()
+        }
+
+    fun seedProject(
+        clientId: String = seedClient(),
+        name: String = "Project",
+        hourlyRateCents: Int? = null,
+    ): String =
+        transaction {
+            ProjectEntity
+                .new(UUID.randomUUID()) {
+                    this.clientId = EntityID(UUID.fromString(clientId), ClientsTable)
+                    this.name = name
+                    this.hourlyRateCents = hourlyRateCents
+                    createdAt = "2026-08-24 12:00:00"
+                }.id.value
+                .toString()
+        }
+
+    fun seedTask(name: String = "Development"): String =
+        transaction {
+            TaskEntity
+                .new(UUID.randomUUID()) {
+                    this.name = name
+                    createdAt = "2026-08-24 12:00:00"
+                }.id.value
+                .toString()
+        }
+
+    fun seedTimeEntry(
+        userId: String,
+        projectId: String = seedProject(),
+        taskId: String = seedTask(),
+        entryDate: String = "2026-08-24",
+        durationMinutes: Int = 60,
+        rateCents: Int? = 10_000,
+        invoiceId: String? = null,
+        isLocked: Boolean = false,
+    ): String =
+        transaction {
+            TimeEntryEntity
+                .new(UUID.randomUUID()) {
+                    this.projectId = EntityID(UUID.fromString(projectId), ProjectsTable)
+                    this.taskId = EntityID(UUID.fromString(taskId), TasksTable)
+                    this.userId = EntityID(UUID.fromString(userId), UsersTable)
+                    this.entryDate = entryDate
+                    this.durationMinutes = durationMinutes
+                    this.rateCents = rateCents
+                    this.invoiceId = invoiceId?.let { EntityID(UUID.fromString(it), InvoicesTable) }
+                    this.isLocked = isLocked
+                    createdAt = "2026-08-24 12:00:00"
+                }.id.value
+                .toString()
+        }
+
+    fun seedInvoice(
+        clientId: String,
+        currencyId: String,
+        invoiceNumber: String = "2026-${UUID.randomUUID().toString().take(8)}",
+    ): String =
+        transaction {
+            InvoiceEntity
+                .new(UUID.randomUUID()) {
+                    invoiceYear = 2026
+                    this.invoiceNumber = invoiceNumber
+                    this.clientId = EntityID(UUID.fromString(clientId), ClientsTable)
+                    status = "generated"
+                    this.currencyId = EntityID(UUID.fromString(currencyId), CurrencyTable)
+                    periodStart = "2026-08-01"
+                    periodEnd = "2026-08-31"
+                    totalCents = 10_000
+                    paymentMethod = "bank"
+                    createdAt = "2026-08-24 12:00:00"
+                }.id.value
+                .toString()
         }
 
     fun seedConfig(timezone: String) {
