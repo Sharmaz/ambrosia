@@ -36,6 +36,7 @@ class BackupService(
     private val databasePath: String = Paths.get(datadir.toString(), "ambrosia.db").toString(),
     private val configFilePath: String = Paths.get(datadir.toString(), "ambrosia.conf").toString(),
     private val importStagingRoot: Path = Paths.get(datadir.toString(), "import-staging"),
+    private val keyStoreFilePath: Path = Paths.get(datadir.toString(), "keystore.jks"),
 ) {
     companion object {
         // PBKDF2 turns the plain-text password into an actual AES key.
@@ -173,6 +174,7 @@ class BackupService(
         }
 
         replaceConfFileProperty(KotlinIoPath(configFilePath), "secret", stagedSecret)
+        Files.deleteIfExists(keyStoreFilePath)
         importStagingRoot.toFile().deleteRecursively()
 
         logger.info("Applied a pending data import staged at $importStagingRoot")

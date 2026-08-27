@@ -526,6 +526,7 @@ class BackupServiceTest {
         destinationUploadsRoot: Path,
         destinationDatabaseFile: Path,
         destinationConfigFile: File,
+        destinationKeyStoreFile: Path = Files.createTempDirectory("backupServiceTestDestinationKeyStoreParent").resolve("keystore.jks"),
     ): BackupService {
         val exportingService =
             BackupService(uploadsRoot, databaseFile.absolutePath, configFile.absolutePath, importStagingRoot)
@@ -543,6 +544,7 @@ class BackupServiceTest {
                 destinationDatabaseFile.toString(),
                 destinationConfigFile.absolutePath,
                 importStagingRoot,
+                destinationKeyStoreFile,
             )
         destinationService.importBackup(
             exportedBackup.toByteArray().inputStream(),
@@ -632,6 +634,26 @@ class BackupServiceTest {
         destinationService.applyPendingImport()
 
         assertEquals("secret=$TEST_SECRET", destinationConfigFile.readText().trim())
+    }
+
+    @Test
+    fun `applyPendingImport deletes the live keystore so it gets regenerated with the new secret`() {
+        val destinationDatabaseFile = Files.createTempFile("backupServiceTestDestinationDb", ".db")
+        val destinationUploadsRoot = Files.createTempDirectory("backupServiceTestDestinationUploads")
+        val destinationConfigFile = Files.createTempFile("backupServiceTestDestinationConfig", ".conf").toFile()
+        destinationConfigFile.writeText("secret=old-destination-secret\n")
+        val destinationKeyStoreFile = Files.createTempFile("backupServiceTestDestinationKeyStore", ".jks")
+        val destinationService =
+            prepareStagedImport(
+                destinationUploadsRoot,
+                destinationDatabaseFile,
+                destinationConfigFile,
+                destinationKeyStoreFile,
+            )
+
+        destinationService.applyPendingImport()
+
+        assertFalse(Files.exists(destinationKeyStoreFile))
     }
 
     @Test
