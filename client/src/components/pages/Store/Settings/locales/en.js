@@ -18,6 +18,12 @@ const settingsEn = {
       errorTitle: "Currency update failed",
       errorDescription: "Could not update the store currency.",
     },
+    cardQRUrl: {
+      title: "Open on another device",
+      subtitle: "Scan this QR code to open Ambrosia.",
+      helper: "Use your phone or another device's camera to scan it.",
+      qrLabel: "QR code to open Ambrosia on another device",
+    },
     cardLanguage: {
       title: "Language",
     },

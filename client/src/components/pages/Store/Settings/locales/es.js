@@ -18,6 +18,12 @@ const settingsEs = {
       errorTitle: "Error al actualizar moneda",
       errorDescription: "No se pudo actualizar la moneda de la tienda.",
     },
+    cardQRUrl: {
+      title: "Abrir en otro dispositivo",
+      subtitle: "Escanea este código QR para abrir Ambrosia.",
+      helper: "Usa la cámara de tu teléfono u otro dispositivo para escanearlo.",
+      qrLabel: "Código QR para abrir Ambrosia en otro dispositivo",
+    },
     cardLanguage: {
       title: "Idioma",
     },
