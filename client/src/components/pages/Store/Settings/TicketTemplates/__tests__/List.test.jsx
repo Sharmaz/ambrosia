@@ -2,9 +2,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 
 import { TemplateList } from "../List";
 
-jest.mock("@/hooks/usePermission", () => ({
-  RequirePermission: ({ children }) => children,
-}));
+jest.mock("@/hooks/usePermission");
 
 jest.mock("@heroui/react", () => ({
   Button: ({ onPress, children, ...props }) => (
