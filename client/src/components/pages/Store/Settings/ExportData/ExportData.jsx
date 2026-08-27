@@ -13,15 +13,18 @@ import { ExportDataCardUnlocked } from "./ExportDataCardUnlocked";
 export function ExportData() {
   const exportDataTranslations = useTranslations("settings");
   const [showAccess, setShowAccess] = useState(false);
+  const [exportProgress, setExportProgress] = useState(null);
 
   const handleAuthorized = async (password) => {
+    setExportProgress(null);
     try {
-      await exportBackup(password);
+      await exportBackup(password, setExportProgress);
       addToast({ color: "success", description: exportDataTranslations("cardExportData.success") });
     } catch {
       addToast({ color: "danger", description: exportDataTranslations("cardExportData.errorDescription") });
     } finally {
       setShowAccess(false);
+      setExportProgress(null);
     }
   };
 
@@ -31,6 +34,7 @@ export function ExportData() {
         onAuthorized={handleAuthorized}
         onHide={() => setShowAccess(false)}
         exportDataTranslations={exportDataTranslations}
+        exportProgress={exportProgress}
       />
     );
   }

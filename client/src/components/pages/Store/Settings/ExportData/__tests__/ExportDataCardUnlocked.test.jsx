@@ -1,5 +1,7 @@
 import { render, screen, fireEvent } from "@testing-library/react";
 
+import { MockHeroUIProgress } from "@test-utils/mockHeroUIProgress";
+
 import { ExportDataCardUnlocked } from "../ExportDataCardUnlocked";
 
 jest.mock("@heroui/react", () => ({
@@ -7,6 +9,7 @@ jest.mock("@heroui/react", () => ({
   CardHeader: ({ children }) => <div>{children}</div>,
   CardBody: ({ children }) => <div>{children}</div>,
   Spinner: () => <div data-testid="spinner" />,
+  Progress: MockHeroUIProgress,
 }));
 
 jest.mock("@components/auth/WalletGuard", () => function MockWalletGuard({ children, onAuthorized, onCancel, title, passwordLabel, confirmText, cancelText }) {
@@ -69,6 +72,25 @@ describe("ExportDataCardUnlocked", () => {
     it("renders a spinner", () => {
       renderUnlocked();
       expect(screen.getByTestId("spinner")).toBeInTheDocument();
+    });
+  });
+
+  describe("Progress", () => {
+    it("shows a spinner when no progress value is provided", () => {
+      renderUnlocked();
+      expect(screen.getByTestId("spinner")).toBeInTheDocument();
+      expect(screen.queryByTestId("progress")).not.toBeInTheDocument();
+    });
+
+    it("shows a progress bar with the given percent instead of the spinner", () => {
+      renderUnlocked({ exportProgress: 42 });
+      expect(screen.queryByTestId("spinner")).not.toBeInTheDocument();
+      expect(screen.getByTestId("progress")).toHaveAttribute("data-value", "42");
+    });
+
+    it("shows the progress translation key while a percent is known", () => {
+      renderUnlocked({ exportProgress: 42 });
+      expect(screen.getByText("cardExportData.exportingProgress")).toBeInTheDocument();
     });
   });
 

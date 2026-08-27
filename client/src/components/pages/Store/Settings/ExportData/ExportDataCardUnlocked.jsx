@@ -1,10 +1,10 @@
 "use client";
 
-import { Card, CardBody, CardHeader, Spinner } from "@heroui/react";
+import { Card, CardBody, CardHeader, Progress, Spinner } from "@heroui/react";
 
 import WalletGuard from "@components/auth/WalletGuard";
 
-export function ExportDataCardUnlocked({ onAuthorized, onHide, exportDataTranslations }) {
+export function ExportDataCardUnlocked({ onAuthorized, onHide, exportDataTranslations, exportProgress }) {
   return (
     <WalletGuard
       onAuthorized={onAuthorized}
@@ -22,11 +22,28 @@ export function ExportDataCardUnlocked({ onAuthorized, onHide, exportDataTransla
         </CardHeader>
 
         <CardBody>
-          <div className="flex flex-col items-center gap-2 py-6">
-            <Spinner size="lg" color="success" />
-            <p className="text-sm text-gray-500">
-              {exportDataTranslations("cardExportData.exporting")}
-            </p>
+          <div className="flex flex-col items-center gap-2 py-6 w-full">
+            {typeof exportProgress === "number" ? (
+              <>
+                <Progress
+                  aria-label={exportDataTranslations("cardExportData.exporting")}
+                  value={exportProgress}
+                  className="max-w-full"
+                  color="success"
+                  size="sm"
+                />
+                <p className="text-sm text-gray-500">
+                  {exportDataTranslations("cardExportData.exportingProgress", { percent: exportProgress })}
+                </p>
+              </>
+            ) : (
+              <>
+                <Spinner size="lg" color="success" />
+                <p className="text-sm text-gray-500">
+                  {exportDataTranslations("cardExportData.exporting")}
+                </p>
+              </>
+            )}
           </div>
         </CardBody>
       </Card>

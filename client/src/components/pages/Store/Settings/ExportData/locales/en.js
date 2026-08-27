@@ -4,6 +4,7 @@ const exportDataEn = {
     description: "Download a backup of your business data (products, orders, users, and configuration) to restore later or migrate to another device.",
     exportButton: "Export data",
     exporting: "Preparing your backup...",
+    exportingProgress: "Exporting... {percent}%",
     modalTitle: "Confirm access",
     passwordLabel: "Wallet password",
     cancelButton: "Cancel",

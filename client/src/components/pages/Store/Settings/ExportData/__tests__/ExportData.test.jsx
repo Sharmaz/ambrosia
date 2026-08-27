@@ -1,6 +1,7 @@
 import { render, screen, fireEvent, act } from "@testing-library/react";
 
 import * as backupService from "@/services/backupService";
+import { MockHeroUIProgress } from "@test-utils/mockHeroUIProgress";
 
 import { ExportData } from "../ExportData";
 
@@ -14,6 +15,7 @@ jest.mock("@heroui/react", () => ({
   CardBody: ({ children }) => <div>{children}</div>,
   CardFooter: ({ children }) => <div>{children}</div>,
   Spinner: () => <div data-testid="spinner" />,
+  Progress: MockHeroUIProgress,
 }));
 
 jest.mock("next-intl", () => ({
@@ -70,7 +72,26 @@ describe("ExportData", () => {
         fireEvent.click(screen.getByTestId("guard-confirm"));
       });
 
-      expect(backupService.exportBackup).toHaveBeenCalledWith("wallet-password");
+      expect(backupService.exportBackup).toHaveBeenCalledWith("wallet-password", expect.any(Function));
+    });
+
+    it("threads progress reported by exportBackup into the rendered card", async () => {
+      let reportProgress;
+      jest.spyOn(backupService, "exportBackup").mockImplementation((password, onProgress) => {
+        reportProgress = onProgress;
+        return new Promise(() => {});
+      });
+      render(<ExportData />);
+      fireEvent.click(screen.getByText("cardExportData.exportButton"));
+
+      await act(async () => {
+        fireEvent.click(screen.getByTestId("guard-confirm"));
+      });
+      act(() => {
+        reportProgress(55);
+      });
+
+      expect(screen.getByTestId("progress")).toHaveAttribute("data-value", "55");
     });
 
     it("shows a success toast", async () => {
