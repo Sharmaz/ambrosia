@@ -470,7 +470,7 @@ describe("Onboarding Wizard", () => {
         fireEvent.click(screen.getByText("restore.toggleLink"));
       });
       await act(async () => {
-        fireEvent.click(screen.getByText("restore.backToSetup"));
+        fireEvent.click(screen.getByText("buttons.back"));
       });
 
       expect(screen.getByText("buttons.next")).toBeInTheDocument();

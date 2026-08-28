@@ -48,7 +48,7 @@ describe("RestoreFromBackupStep", () => {
       renderStep(onBack);
     });
 
-    fireEvent.click(screen.getByText("restore.backToSetup"));
+    fireEvent.click(screen.getByText("buttons.back"));
 
     expect(onBack).toHaveBeenCalledTimes(1);
   });
@@ -98,7 +98,51 @@ describe("RestoreFromBackupStep", () => {
     expect(await screen.findByText("restore.genericError")).toBeInTheDocument();
   });
 
-  it("shows the manual restart message outside Electron on success", async () => {
+  it("shows a progress bar once restoreFromBackup reports an upload percent", async () => {
+    let reportProgress;
+    restoreFromBackup.mockImplementation((password, backupFile, onProgress) => {
+      reportProgress = onProgress;
+      return new Promise(() => {});
+    });
+
+    await act(async () => {
+      renderStep();
+    });
+
+    fireEvent.change(screen.getByLabelText("hide-show-backup-password"), { target: { value: "secret" } });
+    selectBackupFile();
+    fireEvent.click(screen.getByText("restore.submitButton"));
+
+    await act(async () => {
+      reportProgress(37);
+    });
+
+    expect(screen.getByText("restore.uploadingProgress 37%")).toBeInTheDocument();
+  });
+
+  it("shows the processing message once the upload reaches 100 percent", async () => {
+    let reportProgress;
+    restoreFromBackup.mockImplementation((password, backupFile, onProgress) => {
+      reportProgress = onProgress;
+      return new Promise(() => {});
+    });
+
+    await act(async () => {
+      renderStep();
+    });
+
+    fireEvent.change(screen.getByLabelText("hide-show-backup-password"), { target: { value: "secret" } });
+    selectBackupFile();
+    fireEvent.click(screen.getByText("restore.submitButton"));
+
+    await act(async () => {
+      reportProgress(100);
+    });
+
+    expect(screen.getByText("restore.processing")).toBeInTheDocument();
+  });
+
+  it("shows a blocking restart-required modal outside Electron on success", async () => {
     restoreFromBackup.mockResolvedValue({ ok: true });
 
     await act(async () => {
@@ -112,11 +156,10 @@ describe("RestoreFromBackupStep", () => {
       fireEvent.click(screen.getByText("restore.submitButton"));
     });
 
-    await waitFor(() => {
-      expect(mockAddToast).toHaveBeenCalledWith(
-        expect.objectContaining({ description: "restore.restartRequiredManual" }),
-      );
-    });
+    expect(await screen.findByText("acknowledgeButton")).toBeInTheDocument();
+    expect(mockAddToast).not.toHaveBeenCalledWith(
+      expect.objectContaining({ description: "restore.restartRequiredElectron" }),
+    );
   });
 
   it("shows the Electron restart message on success when the backend restarts automatically", async () => {
