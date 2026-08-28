@@ -11,9 +11,12 @@ export function ExportDataCardLocked({ onReveal, exportDataTranslations }) {
         </h2>
       </CardHeader>
 
-      <CardBody>
+      <CardBody className="flex flex-col gap-2">
         <p className="text-sm text-gray-500">
           {exportDataTranslations("cardExportData.description")}
+        </p>
+        <p className="text-sm text-gray-500">
+          {exportDataTranslations("cardExportData.passwordNotice")}
         </p>
       </CardBody>
 

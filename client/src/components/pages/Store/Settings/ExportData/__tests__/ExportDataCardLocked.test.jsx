@@ -30,6 +30,11 @@ describe("ExportDataCardLocked", () => {
       expect(screen.getByText("cardExportData.description")).toBeInTheDocument();
     });
 
+    it("renders the password notice", () => {
+      renderLocked();
+      expect(screen.getByText("cardExportData.passwordNotice")).toBeInTheDocument();
+    });
+
     it("renders the export button", () => {
       renderLocked();
       expect(screen.getByText("cardExportData.exportButton")).toBeInTheDocument();
