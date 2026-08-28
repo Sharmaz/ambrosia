@@ -15,8 +15,8 @@ export function ImportData() {
   const importDataTranslations = useTranslations("settings");
   const [showAccess, setShowAccess] = useState(false);
 
-  const handleImport = async (password, backupFile, onProgress) => {
-    await importBackup(password, backupFile, onProgress);
+  const handleImport = async (rolePassword, backupPassword, backupFile, onProgress) => {
+    await importBackup(rolePassword, backupPassword, backupFile, onProgress);
     addToast({ color: "success", description: importDataTranslations("cardImportData.success") });
 
     const restartTriggeredAutomatically = await restartBackendAfterImport();

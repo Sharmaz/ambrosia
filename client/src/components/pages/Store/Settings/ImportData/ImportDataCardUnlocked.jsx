@@ -5,24 +5,26 @@ import { useState } from "react";
 import { Button, Card, CardBody, CardHeader, Progress, Spinner } from "@heroui/react";
 
 import WalletGuard from "@components/auth/WalletGuard";
+import { BackupPasswordAndFileFields } from "@components/shared/BackupPasswordAndFileFields";
 
 import { ImportBackupConfirmModal } from "./ImportBackupConfirmModal";
 
 export function ImportDataCardUnlocked({ onImport, onHide, importDataTranslations }) {
-  const [password, setPassword] = useState(null);
+  const [rolePassword, setRolePassword] = useState(null);
+  const [backupPassword, setBackupPassword] = useState("");
   const [backupFile, setBackupFile] = useState(null);
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const [importProgress, setImportProgress] = useState(null);
   const [errorMessage, setErrorMessage] = useState("");
 
-  const handleFileChange = (event) => {
-    setBackupFile(event.target.files?.[0] ?? null);
+  const handleFileChange = (file) => {
+    setBackupFile(file);
     setErrorMessage("");
   };
 
   const handleContinue = () => {
-    if (!backupFile) {
+    if (!backupPassword || !backupFile) {
       setErrorMessage(importDataTranslations("cardImportData.missingFields"));
       return;
     }
@@ -35,7 +37,7 @@ export function ImportDataCardUnlocked({ onImport, onHide, importDataTranslation
     setImportProgress(null);
     setErrorMessage("");
     try {
-      await onImport(password, backupFile, setImportProgress);
+      await onImport(rolePassword, backupPassword, backupFile, setImportProgress);
     } catch {
       setErrorMessage(importDataTranslations("cardImportData.errorDescription"));
       setIsImporting(false);
@@ -45,7 +47,7 @@ export function ImportDataCardUnlocked({ onImport, onHide, importDataTranslation
 
   return (
     <WalletGuard
-      onAuthorized={setPassword}
+      onAuthorized={setRolePassword}
       onCancel={onHide}
       title={importDataTranslations("cardImportData.modalTitle")}
       passwordLabel={importDataTranslations("cardImportData.passwordLabel")}
@@ -88,15 +90,11 @@ export function ImportDataCardUnlocked({ onImport, onHide, importDataTranslation
             </div>
           ) : (
             <div className="flex flex-col gap-4">
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-1">
-                  {importDataTranslations("cardImportData.fileLabel")}
-                </label>
-                <input type="file" accept=".zip,application/zip" onChange={handleFileChange} />
-                <p className="text-sm text-gray-500 mt-1">
-                  {importDataTranslations("cardImportData.fileHint")}
-                </p>
-              </div>
+              <BackupPasswordAndFileFields
+                backupPassword={backupPassword}
+                onBackupPasswordChange={setBackupPassword}
+                onFileChange={handleFileChange}
+              />
 
               {errorMessage && <p className="text-sm text-danger">{errorMessage}</p>}
 

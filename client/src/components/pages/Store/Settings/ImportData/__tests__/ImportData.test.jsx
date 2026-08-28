@@ -3,7 +3,6 @@ import { render, screen, fireEvent, act } from "@testing-library/react";
 import * as backupService from "@/services/backupService";
 import { restartBackendAfterImport } from "@/utils/restartBackendAfterImport";
 import { MockHeroUIProgress } from "@test-utils/mockHeroUIProgress";
-import { selectBackupFile } from "@test-utils/selectBackupFile";
 
 import { ImportData } from "../ImportData";
 
@@ -23,6 +22,21 @@ jest.mock("@heroui/react", () => ({
   ModalHeader: ({ children }) => <div>{children}</div>,
   ModalBody: ({ children }) => <div>{children}</div>,
   ModalFooter: ({ children }) => <div>{children}</div>,
+}));
+
+jest.mock("@components/shared/BackupPasswordAndFileFields", () => ({
+  BackupPasswordAndFileFields: ({ onBackupPasswordChange, onFileChange }) => (
+    <div>
+      <button type="button" data-testid="fill-backup-password" onClick={() => onBackupPasswordChange("backup-password")}>fill-backup-password</button>
+      <button
+        type="button"
+        data-testid="select-backup-file"
+        onClick={() => onFileChange(new File(["zip-content"], "backup.zip", { type: "application/zip" }))}
+      >
+        select-backup-file
+      </button>
+    </div>
+  ),
 }));
 
 jest.mock("next-intl", () => ({
@@ -47,7 +61,8 @@ jest.mock("@/utils/restartBackendAfterImport", () => ({
 async function unlockSelectFileAndImport() {
   fireEvent.click(screen.getByText("cardImportData.importButton"));
   fireEvent.click(screen.getByTestId("guard-confirm"));
-  selectBackupFile();
+  fireEvent.click(screen.getByTestId("select-backup-file"));
+  fireEvent.click(screen.getByTestId("fill-backup-password"));
   fireEvent.click(screen.getByText("cardImportData.continueButton"));
 
   await act(async () => {
@@ -86,18 +101,23 @@ describe("ImportData", () => {
   });
 
   describe("Successful import", () => {
-    it("calls importBackup with the wallet password and the selected file", async () => {
+    it("calls importBackup with the wallet password, backup password, and the selected file", async () => {
       jest.spyOn(backupService, "importBackup").mockResolvedValue({ businessName: "Awesome Store" });
       render(<ImportData />);
 
       await unlockSelectFileAndImport();
 
-      expect(backupService.importBackup).toHaveBeenCalledWith("wallet-password", expect.any(File), expect.any(Function));
+      expect(backupService.importBackup).toHaveBeenCalledWith(
+        "wallet-password",
+        "backup-password",
+        expect.any(File),
+        expect.any(Function),
+      );
     });
 
     it("threads progress reported by importBackup into the rendered card", async () => {
       let reportProgress;
-      jest.spyOn(backupService, "importBackup").mockImplementation((password, backupFile, onProgress) => {
+      jest.spyOn(backupService, "importBackup").mockImplementation((rolePassword, backupPassword, backupFile, onProgress) => {
         reportProgress = onProgress;
         return new Promise(() => {});
       });

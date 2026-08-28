@@ -1,7 +1,6 @@
 import { render, screen, fireEvent, act } from "@testing-library/react";
 
 import { MockHeroUIProgress } from "@test-utils/mockHeroUIProgress";
-import { selectBackupFile } from "@test-utils/selectBackupFile";
 
 import { ImportDataCardUnlocked } from "../ImportDataCardUnlocked";
 
@@ -13,6 +12,21 @@ jest.mock("@heroui/react", () => ({
   Progress: MockHeroUIProgress,
   Button: ({ onPress, children, ...props }) => (
     <button type="button" onClick={onPress} {...props}>{children}</button>
+  ),
+}));
+
+jest.mock("@components/shared/BackupPasswordAndFileFields", () => ({
+  BackupPasswordAndFileFields: ({ onBackupPasswordChange, onFileChange }) => (
+    <div>
+      <button type="button" data-testid="fill-backup-password" onClick={() => onBackupPasswordChange("backup-password")}>fill-backup-password</button>
+      <button
+        type="button"
+        data-testid="select-backup-file"
+        onClick={() => onFileChange(new File(["zip-content"], "backup.zip", { type: "application/zip" }))}
+      >
+        select-backup-file
+      </button>
+    </div>
   ),
 }));
 
@@ -69,7 +83,7 @@ describe("ImportDataCardUnlocked", () => {
   });
 
   describe("File selection", () => {
-    it("shows a missing-fields error when continuing without a file", () => {
+    it("shows a missing-fields error when continuing without a file or backup password", () => {
       renderUnlocked();
       fireEvent.click(screen.getByTestId("guard-confirm"));
 
@@ -79,10 +93,22 @@ describe("ImportDataCardUnlocked", () => {
       expect(screen.queryByTestId("confirm-modal")).not.toBeInTheDocument();
     });
 
-    it("opens the confirm modal when a file is selected and continue is pressed", () => {
+    it("shows a missing-fields error when a file is selected but the backup password is empty", () => {
       renderUnlocked();
       fireEvent.click(screen.getByTestId("guard-confirm"));
-      selectBackupFile();
+      fireEvent.click(screen.getByTestId("select-backup-file"));
+
+      fireEvent.click(screen.getByText("cardImportData.continueButton"));
+
+      expect(screen.getByText("cardImportData.missingFields")).toBeInTheDocument();
+      expect(screen.queryByTestId("confirm-modal")).not.toBeInTheDocument();
+    });
+
+    it("opens the confirm modal when a file and backup password are entered and continue is pressed", () => {
+      renderUnlocked();
+      fireEvent.click(screen.getByTestId("guard-confirm"));
+      fireEvent.click(screen.getByTestId("select-backup-file"));
+      fireEvent.click(screen.getByTestId("fill-backup-password"));
 
       fireEvent.click(screen.getByText("cardImportData.continueButton"));
 
@@ -91,18 +117,19 @@ describe("ImportDataCardUnlocked", () => {
   });
 
   describe("Confirming the import", () => {
-    it("calls onImport with the wallet password and the selected file", async () => {
+    it("calls onImport with the wallet password, backup password, and the selected file", async () => {
       const onImport = jest.fn().mockResolvedValue(undefined);
       renderUnlocked({ onImport });
       fireEvent.click(screen.getByTestId("guard-confirm"));
-      selectBackupFile();
+      fireEvent.click(screen.getByTestId("select-backup-file"));
+      fireEvent.click(screen.getByTestId("fill-backup-password"));
       fireEvent.click(screen.getByText("cardImportData.continueButton"));
 
       await act(async () => {
         fireEvent.click(screen.getByTestId("modal-confirm"));
       });
 
-      expect(onImport).toHaveBeenCalledWith("wallet-password", expect.any(File), expect.any(Function));
+      expect(onImport).toHaveBeenCalledWith("wallet-password", "backup-password", expect.any(File), expect.any(Function));
     });
 
     it("shows a spinner while importing", async () => {
@@ -110,7 +137,8 @@ describe("ImportDataCardUnlocked", () => {
       const onImport = jest.fn(() => new Promise((resolve) => { resolveImport = resolve; }));
       renderUnlocked({ onImport });
       fireEvent.click(screen.getByTestId("guard-confirm"));
-      selectBackupFile();
+      fireEvent.click(screen.getByTestId("select-backup-file"));
+      fireEvent.click(screen.getByTestId("fill-backup-password"));
       fireEvent.click(screen.getByText("cardImportData.continueButton"));
 
       fireEvent.click(screen.getByTestId("modal-confirm"));
@@ -124,13 +152,14 @@ describe("ImportDataCardUnlocked", () => {
 
     it("shows a progress bar once onImport reports an upload percent", async () => {
       let reportProgress;
-      const onImport = jest.fn((password, backupFile, onProgress) => {
+      const onImport = jest.fn((rolePassword, backupPassword, backupFile, onProgress) => {
         reportProgress = onProgress;
         return new Promise(() => {});
       });
       renderUnlocked({ onImport });
       fireEvent.click(screen.getByTestId("guard-confirm"));
-      selectBackupFile();
+      fireEvent.click(screen.getByTestId("select-backup-file"));
+      fireEvent.click(screen.getByTestId("fill-backup-password"));
       fireEvent.click(screen.getByText("cardImportData.continueButton"));
 
       fireEvent.click(screen.getByTestId("modal-confirm"));
@@ -144,13 +173,14 @@ describe("ImportDataCardUnlocked", () => {
 
     it("shows the processing message once the upload reaches 100 percent", async () => {
       let reportProgress;
-      const onImport = jest.fn((password, backupFile, onProgress) => {
+      const onImport = jest.fn((rolePassword, backupPassword, backupFile, onProgress) => {
         reportProgress = onProgress;
         return new Promise(() => {});
       });
       renderUnlocked({ onImport });
       fireEvent.click(screen.getByTestId("guard-confirm"));
-      selectBackupFile();
+      fireEvent.click(screen.getByTestId("select-backup-file"));
+      fireEvent.click(screen.getByTestId("fill-backup-password"));
       fireEvent.click(screen.getByText("cardImportData.continueButton"));
 
       fireEvent.click(screen.getByTestId("modal-confirm"));
@@ -165,7 +195,8 @@ describe("ImportDataCardUnlocked", () => {
       const onImport = jest.fn().mockRejectedValue(new Error("Wrong password"));
       renderUnlocked({ onImport });
       fireEvent.click(screen.getByTestId("guard-confirm"));
-      selectBackupFile();
+      fireEvent.click(screen.getByTestId("select-backup-file"));
+      fireEvent.click(screen.getByTestId("fill-backup-password"));
       fireEvent.click(screen.getByText("cardImportData.continueButton"));
 
       await act(async () => {
@@ -179,7 +210,8 @@ describe("ImportDataCardUnlocked", () => {
       const onImport = jest.fn();
       renderUnlocked({ onImport });
       fireEvent.click(screen.getByTestId("guard-confirm"));
-      selectBackupFile();
+      fireEvent.click(screen.getByTestId("select-backup-file"));
+      fireEvent.click(screen.getByTestId("fill-backup-password"));
       fireEvent.click(screen.getByText("cardImportData.continueButton"));
 
       fireEvent.click(screen.getByTestId("modal-cancel"));
