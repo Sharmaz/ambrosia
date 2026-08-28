@@ -1,17 +1,21 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 
-import { Input } from "@heroui/react";
+import { Button, Input } from "@heroui/react";
 import { Eye, EyeOff } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 export function BackupPasswordAndFileFields({ backupPassword, onBackupPasswordChange, onFileChange }) {
   const backupFieldsTranslations = useTranslations("backupPasswordField");
   const [showBackupPassword, setShowBackupPassword] = useState(false);
+  const [selectedFileName, setSelectedFileName] = useState(null);
+  const fileInputRef = useRef(null);
 
   const handleFileChange = (event) => {
-    onFileChange(event.target.files?.[0] ?? null);
+    const file = event.target.files?.[0] ?? null;
+    setSelectedFileName(file?.name ?? null);
+    onFileChange(file);
   };
 
   return (
@@ -38,7 +42,24 @@ export function BackupPasswordAndFileFields({ backupPassword, onBackupPasswordCh
         <label className="block text-sm font-medium text-foreground mb-1">
           {backupFieldsTranslations("fileLabel")}
         </label>
-        <input type="file" accept=".zip,application/zip" onChange={handleFileChange} />
+        <Button
+          color="primary"
+          type="button"
+          className="bg-green-800"
+          onPress={() => fileInputRef.current?.click()}
+        >
+          {backupFieldsTranslations("fileButton")}
+        </Button>
+        {selectedFileName && (
+          <p className="text-sm text-foreground mt-1">{selectedFileName}</p>
+        )}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".zip,application/zip"
+          onChange={handleFileChange}
+          className="hidden"
+        />
         <p className="text-sm text-gray-500 mt-1">
           {backupFieldsTranslations("fileHint")}
         </p>

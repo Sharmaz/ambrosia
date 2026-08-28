@@ -12,6 +12,9 @@ jest.mock("@heroui/react", () => ({
       {endContent}
     </label>
   ),
+  Button: ({ onPress, children, ...props }) => (
+    <button type="button" onClick={onPress} {...props}>{children}</button>
+  ),
 }));
 
 jest.mock("lucide-react", () => ({
@@ -72,11 +75,23 @@ describe("BackupPasswordAndFileFields", () => {
   });
 
   describe("File input", () => {
+    it("renders a button that triggers the hidden file input instead of a bare native input", () => {
+      renderFields();
+      expect(screen.getByText("fileButton")).toBeInTheDocument();
+      expect(document.querySelector('input[type="file"]')).toHaveClass("hidden");
+    });
+
     it("calls onFileChange with the selected file", () => {
       const onFileChange = jest.fn();
       renderFields({ onFileChange });
       selectBackupFile();
       expect(onFileChange).toHaveBeenCalledWith(expect.any(File));
+    });
+
+    it("shows the selected file name once a file is chosen", () => {
+      renderFields();
+      selectBackupFile();
+      expect(screen.getByText("backup.zip")).toBeInTheDocument();
     });
 
     it("calls onFileChange with null when the selection is cleared", () => {
