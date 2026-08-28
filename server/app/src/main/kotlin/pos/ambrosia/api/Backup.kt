@@ -79,13 +79,13 @@ fun Route.backup(
         post("/import") {
             val userId = call.backupActorUserId() ?: throw InvalidCredentialsException()
 
-            var backupPassword: String? = null
+            val formFields = mutableMapOf<String, String>()
             var temporaryBackupFile: Path? = null
             try {
                 call.receiveMultipart().forEachPart { part ->
                     when (part) {
                         is PartData.FormItem -> {
-                            if (part.name == "password") backupPassword = part.value
+                            part.name?.let { fieldName -> formFields[fieldName] = part.value }
                         }
 
                         is PartData.FileItem -> {
@@ -97,14 +97,15 @@ fun Route.backup(
                     part.release()
                 }
 
-                val password = backupPassword
+                val rolePassword = formFields["rolePassword"]
+                val backupPassword = formFields["backupPassword"]
                 val backupFile = temporaryBackupFile
-                if (password.isNullOrEmpty() || backupFile == null) {
+                if (rolePassword.isNullOrEmpty() || backupPassword.isNullOrEmpty() || backupFile == null) {
                     call.respond(HttpStatusCode.BadRequest, mapOf("message" to "Missing password or backup file"))
                     return@post
                 }
 
-                val isAuthenticated = authService.authenticateByRole(userId, password.toCharArray())
+                val isAuthenticated = authService.authenticateByRole(userId, rolePassword.toCharArray())
                 if (isAuthenticated != true) {
                     call.respond(HttpStatusCode.Unauthorized)
                     return@post
@@ -112,7 +113,7 @@ fun Route.backup(
 
                 val importedManifest =
                     Files.newInputStream(backupFile).use { backupInputStream ->
-                        backupService.importBackup(backupInputStream, password.toCharArray())
+                        backupService.importBackup(backupInputStream, backupPassword.toCharArray())
                     }
 
                 call.respond(
