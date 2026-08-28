@@ -2,27 +2,22 @@
 
 import { useState } from "react";
 
-import { Button, Input, addToast } from "@heroui/react";
-import { Eye, EyeOff } from "lucide-react";
+import { Button, addToast } from "@heroui/react";
 import { useTranslations } from "next-intl";
 
 import { restartBackendAfterImport } from "@/utils/restartBackendAfterImport";
+import { BackupPasswordAndFileFields } from "@components/shared/BackupPasswordAndFileFields";
 import { restoreFromBackup } from "@services/initialSetupService";
 
 export function RestoreFromBackupStep({ onBack }) {
   const restoreTranslations = useTranslations();
-  const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
+  const [backupPassword, setBackupPassword] = useState("");
   const [backupFile, setBackupFile] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
 
-  const handleFileChange = (event) => {
-    setBackupFile(event.target.files?.[0] ?? null);
-  };
-
   const handleSubmit = async () => {
-    if (!password || !backupFile) {
+    if (!backupPassword || !backupFile) {
       setErrorMessage(restoreTranslations("restore.missingFields"));
       return;
     }
@@ -30,7 +25,7 @@ export function RestoreFromBackupStep({ onBack }) {
     setIsSubmitting(true);
     setErrorMessage("");
     try {
-      const restoreResponse = await restoreFromBackup(password, backupFile);
+      const restoreResponse = await restoreFromBackup(backupPassword, backupFile);
       if (!restoreResponse.ok) {
         setErrorMessage(restoreTranslations("restore.genericError"));
         return;
@@ -62,29 +57,11 @@ export function RestoreFromBackupStep({ onBack }) {
       <p className="text-gray-500 mb-4 md:mb-8">{restoreTranslations("restore.subtitle")}</p>
 
       <div className="flex flex-col gap-4">
-        <Input
-          aria-label="hide-show-backup-password"
-          label={restoreTranslations("restore.passwordLabel")}
-          type={showPassword ? "text" : "password"}
-          placeholder={restoreTranslations("restore.passwordPlaceholder")}
-          value={password}
-          onChange={(event) => setPassword(event.target.value)}
-          endContent={(
-            <button
-              type="button"
-              onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-            >
-              {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-            </button>
-          )}
+        <BackupPasswordAndFileFields
+          backupPassword={backupPassword}
+          onBackupPasswordChange={setBackupPassword}
+          onFileChange={setBackupFile}
         />
-
-        <div>
-          <label className="block text-sm font-medium text-foreground mb-1">{restoreTranslations("restore.fileLabel")}</label>
-          <input type="file" accept=".zip,application/zip" onChange={handleFileChange} />
-          <p className="text-sm text-gray-500 mt-1">{restoreTranslations("restore.fileHint")}</p>
-        </div>
 
         {errorMessage && <p className="text-sm text-danger">{errorMessage}</p>}
       </div>

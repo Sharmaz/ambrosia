@@ -39,7 +39,7 @@ describe("RestoreFromBackupStep", () => {
     });
 
     expect(screen.getByLabelText("hide-show-backup-password")).toBeInTheDocument();
-    expect(screen.getByText("restore.fileLabel")).toBeInTheDocument();
+    expect(screen.getByText("fileLabel")).toBeInTheDocument();
   });
 
   it("calls onBack when the back button is pressed", async () => {
