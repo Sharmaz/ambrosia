@@ -223,6 +223,18 @@ export function Onboarding() {
               />
               )}
 
+              {step === 1 && setupStatus?.initialized === false && (
+              <div className="mt-4 text-center">
+                <button
+                  type="button"
+                  onClick={() => setActiveView("restore")}
+                  className="text-sm text-green-800 underline hover:text-green-900 cursor-pointer transition-colors"
+                >
+                  {onboardingTranslations("restore.toggleLink")}
+                </button>
+              </div>
+              )}
+
               {step === 2 && (
               <UserAccountStep
                 data={{
@@ -318,18 +330,6 @@ export function Onboarding() {
                     </Button>
                   )}
                 </div>
-
-                {step === 1 && setupStatus?.initialized === false && (
-                <div className="mt-4 text-center">
-                  <button
-                    type="button"
-                    onClick={() => setActiveView("restore")}
-                    className="text-sm text-green-800 underline hover:text-green-900"
-                  >
-                    {onboardingTranslations("restore.toggleLink")}
-                  </button>
-                </div>
-                )}
               </div>
             </div>
           </>
