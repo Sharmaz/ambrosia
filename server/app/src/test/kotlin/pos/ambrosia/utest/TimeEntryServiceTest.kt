@@ -15,85 +15,88 @@ import kotlin.test.assertFalse
 import kotlin.test.assertNull
 
 class TimeEntryServiceTest {
-    private lateinit var databaseFile: File
-    private val service = TimeEntryService()
+    private lateinit var testDatabaseFile: File
+    private val timeEntryService = TimeEntryService()
 
     @Before
     fun setUp() {
-        databaseFile = ExposedTestDb.connect()
+        testDatabaseFile = ExposedTestDb.connect()
     }
 
     @After
     fun tearDown() {
-        ExposedTestDb.cleanup(databaseFile)
+        ExposedTestDb.cleanup(testDatabaseFile)
     }
 
     @Test
     fun `creates a time entry without user or price`() {
-        val fixture = seedFixture()
-        val entry = service.createTimeEntry(request(fixture))
+        val timeEntryFixture = createTimeEntryFixture()
+        val createdTimeEntry = timeEntryService.createTimeEntry(createTimeEntryRequest(timeEntryFixture))
 
-        assertEquals(fixture.projectId, entry.projectId)
-        assertEquals(fixture.taskId, entry.taskId)
-        assertEquals(60, entry.durationMinutes)
-        assertNull(entry.invoiceId)
+        assertEquals(timeEntryFixture.projectId, createdTimeEntry.projectId)
+        assertEquals(timeEntryFixture.taskId, createdTimeEntry.taskId)
+        assertEquals(60, createdTimeEntry.durationMinutes)
+        assertNull(createdTimeEntry.invoiceId)
     }
 
     @Test
     fun `lists entries by date and project`() {
-        val fixture = seedFixture()
-        val included = service.createTimeEntry(request(fixture, "2026-08-19"))
-        service.createTimeEntry(request(fixture, "2026-08-25"))
+        val timeEntryFixture = createTimeEntryFixture()
+        val inRangeTimeEntry = timeEntryService.createTimeEntry(createTimeEntryRequest(timeEntryFixture, "2026-08-19"))
+        timeEntryService.createTimeEntry(createTimeEntryRequest(timeEntryFixture, "2026-08-25"))
 
-        val entries = service.getTimeEntries("2026-08-17", "2026-08-23", fixture.projectId)
+        val retrievedTimeEntries = timeEntryService.getTimeEntries("2026-08-17", "2026-08-23", timeEntryFixture.projectId)
 
-        assertEquals(listOf(included.id), entries.map { it.id })
+        assertEquals(listOf(inRangeTimeEntry.id), retrievedTimeEntries.map { timeEntry -> timeEntry.id })
     }
 
     @Test
     fun `preserves whether an entry is billable`() {
-        val fixture = seedFixture(isBillable = false)
+        val timeEntryFixture = createTimeEntryFixture(isBillable = false)
 
-        assertFalse(service.createTimeEntry(request(fixture)).isBillable)
+        assertFalse(timeEntryService.createTimeEntry(createTimeEntryRequest(timeEntryFixture)).isBillable)
     }
 
     @Test
     fun `invoice linked entries cannot be changed or deleted`() {
-        val fixture = seedFixture()
-        val invoiceId = ExposedTestDb.seedInvoice(fixture.clientId, fixture.currencyId)
-        val entryId = ExposedTestDb.seedTimeEntry(fixture.projectId, fixture.taskId, invoiceId = invoiceId)
+        val timeEntryFixture = createTimeEntryFixture()
+        val invoiceId = ExposedTestDb.seedInvoice(timeEntryFixture.clientId, timeEntryFixture.currencyId)
+        val invoiceLinkedTimeEntryId =
+            ExposedTestDb.seedTimeEntry(timeEntryFixture.projectId, timeEntryFixture.taskId, invoiceId = invoiceId)
 
-        assertFailsWith<TimeEntryLockedException> { service.updateTimeEntry(entryId, updateRequest(fixture)) }
-        assertFailsWith<TimeEntryLockedException> { service.deleteTimeEntry(entryId) }
+        assertFailsWith<TimeEntryLockedException> {
+            timeEntryService.updateTimeEntry(invoiceLinkedTimeEntryId, updateTimeEntryRequest(timeEntryFixture))
+        }
+        assertFailsWith<TimeEntryLockedException> { timeEntryService.deleteTimeEntry(invoiceLinkedTimeEntryId) }
     }
 
-    private fun seedFixture(isBillable: Boolean = true): Fixture {
+    private fun createTimeEntryFixture(isBillable: Boolean = true): TimeEntryFixture {
         val currencyId = ExposedTestDb.seedCurrency("USD")
         val clientId = ExposedTestDb.seedClient("Client", currencyId, 10_000)
         val projectId = ExposedTestDb.seedProject(clientId, isBillable = isBillable)
-        return Fixture(currencyId, clientId, projectId, ExposedTestDb.seedTask("Development"))
+        return TimeEntryFixture(currencyId, clientId, projectId, ExposedTestDb.seedTask("Development"))
     }
 
-    private fun request(
-        fixture: Fixture,
+    private fun createTimeEntryRequest(
+        timeEntryFixture: TimeEntryFixture,
         entryDate: String = "2026-08-19",
     ): CreateTimeEntryRequest =
         CreateTimeEntryRequest(
-            projectId = fixture.projectId,
-            taskId = fixture.taskId,
+            projectId = timeEntryFixture.projectId,
+            taskId = timeEntryFixture.taskId,
             entryDate = entryDate,
             durationMinutes = 60,
         )
 
-    private fun updateRequest(fixture: Fixture): UpdateTimeEntryRequest =
+    private fun updateTimeEntryRequest(timeEntryFixture: TimeEntryFixture): UpdateTimeEntryRequest =
         UpdateTimeEntryRequest(
-            projectId = fixture.projectId,
-            taskId = fixture.taskId,
+            projectId = timeEntryFixture.projectId,
+            taskId = timeEntryFixture.taskId,
             entryDate = "2026-08-20",
             durationMinutes = 60,
         )
 
-    private data class Fixture(
+    private data class TimeEntryFixture(
         val currencyId: String,
         val clientId: String,
         val projectId: String,

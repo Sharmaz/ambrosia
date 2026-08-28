@@ -41,10 +41,10 @@ fun Route.timeEntries(timeEntryService: TimeEntryService) {
             call.respond(
                 HttpStatusCode.OK,
                 timeEntryService.getTimeEntries(
-                    from = from,
-                    to = to,
-                    projectId = call.request.queryParameters["project_id"],
-                    taskId = call.request.queryParameters["task_id"],
+                    startDate = from,
+                    endDate = to,
+                    selectedProjectId = call.request.queryParameters["project_id"],
+                    selectedTaskId = call.request.queryParameters["task_id"],
                 ),
             )
         }

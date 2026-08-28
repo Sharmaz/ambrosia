@@ -35,40 +35,40 @@ import java.util.UUID
 
 class TimeEntryService {
     fun getTimeEntries(
-        from: String,
-        to: String,
-        projectId: String? = null,
-        taskId: String? = null,
+        startDate: String,
+        endDate: String,
+        selectedProjectId: String? = null,
+        selectedTaskId: String? = null,
     ): List<TimeEntryResponse> =
         transaction {
-            val fromDate = parseDate(from, "from")
-            val toDate = parseDate(to, "to")
-            if (fromDate > toDate) throw InvalidTimeEntryException("from must be before or equal to to")
+            val rangeStartDate = parseDate(startDate, "from")
+            val rangeEndDate = parseDate(endDate, "to")
+            if (rangeStartDate > rangeEndDate) throw InvalidTimeEntryException("from must be before or equal to to")
 
-            var condition: Op<Boolean> =
-                (TimeEntriesTable.entryDate greaterEq fromDate.toString()) and
-                        (TimeEntriesTable.entryDate lessEq toDate.toString())
-            projectId?.let {
-                condition =
-                    condition and
-                            (TimeEntriesTable.projectId eq EntityID(parseUuid(it, "project_id"), ProjectsTable))
+            var queryCondition: Op<Boolean> =
+                (TimeEntriesTable.entryDate greaterEq rangeStartDate.toString()) and
+                    (TimeEntriesTable.entryDate lessEq rangeEndDate.toString())
+            selectedProjectId?.let { requestedProjectId ->
+                queryCondition =
+                    queryCondition and
+                    (TimeEntriesTable.projectId eq EntityID(parseUuid(requestedProjectId, "project_id"), ProjectsTable))
             }
-            taskId?.let {
-                condition =
-                    condition and
-                            (TimeEntriesTable.taskId eq EntityID(parseUuid(it, "task_id"), TasksTable))
+            selectedTaskId?.let { requestedTaskId ->
+                queryCondition =
+                    queryCondition and
+                    (TimeEntriesTable.taskId eq EntityID(parseUuid(requestedTaskId, "task_id"), TasksTable))
             }
 
-            val entries =
+            val timeEntries =
                 TimeEntryEntity
-                    .find { condition }
+                    .find { queryCondition }
                     .orderBy(
                         TimeEntriesTable.entryDate to SortOrder.ASC,
                         TimeEntriesTable.startTime to SortOrder.ASC,
                         TimeEntriesTable.createdAt to SortOrder.ASC,
                     ).toList()
-            val references = loadResponseReferences(entries)
-            entries.map { toResponse(it, references) }
+            val responseReferences = loadResponseReferences(timeEntries)
+            timeEntries.map { timeEntry -> toResponse(timeEntry, responseReferences) }
         }
 
     fun getTimeEntryById(id: String): TimeEntryResponse? =
@@ -78,7 +78,7 @@ class TimeEntryService {
 
     fun createTimeEntry(request: CreateTimeEntryRequest): TimeEntryResponse =
         transaction {
-            val validated =
+            val validatedTimeEntryInput =
                 validateInput(
                     projectId = request.projectId,
                     taskId = request.taskId,
@@ -88,21 +88,21 @@ class TimeEntryService {
                     description = request.description,
                     durationMinutes = request.durationMinutes,
                 )
-            val entity =
+            val timeEntry =
                 TimeEntryEntity.new(UUID.randomUUID()) {
-                    projectId = validated.project.id
-                    taskId = validated.task.id
-                    entryDate = validated.entryDate
-                    startTime = validated.startTime
-                    endTime = validated.endTime
-                    description = validated.description
-                    durationMinutes = validated.durationMinutes
-                    isBillable = validated.isBillable
+                    projectId = validatedTimeEntryInput.project.id
+                    taskId = validatedTimeEntryInput.task.id
+                    entryDate = validatedTimeEntryInput.entryDate
+                    startTime = validatedTimeEntryInput.startTime
+                    endTime = validatedTimeEntryInput.endTime
+                    description = validatedTimeEntryInput.description
+                    durationMinutes = validatedTimeEntryInput.durationMinutes
+                    isBillable = validatedTimeEntryInput.isBillable
                     invoiceId = null
                     isLocked = false
                     createdAt = currentTimestamp()
                 }
-            toResponse(entity)
+            toResponse(timeEntry)
         }
 
     fun updateTimeEntry(
@@ -110,9 +110,9 @@ class TimeEntryService {
         request: UpdateTimeEntryRequest,
     ): TimeEntryResponse =
         transaction {
-            val entity = findEntry(id) ?: throw ResourceNotFoundException("Time entry not found")
-            ensureUnlocked(entity)
-            val validated =
+            val timeEntry = findEntry(id) ?: throw ResourceNotFoundException("Time entry not found")
+            ensureUnlocked(timeEntry)
+            val validatedTimeEntryInput =
                 validateInput(
                     projectId = request.projectId,
                     taskId = request.taskId,
@@ -123,22 +123,22 @@ class TimeEntryService {
                     durationMinutes = request.durationMinutes,
                 )
 
-            entity.projectId = validated.project.id
-            entity.taskId = validated.task.id
-            entity.entryDate = validated.entryDate
-            entity.startTime = validated.startTime
-            entity.endTime = validated.endTime
-            entity.description = validated.description
-            entity.durationMinutes = validated.durationMinutes
-            entity.isBillable = validated.isBillable
-            toResponse(entity)
+            timeEntry.projectId = validatedTimeEntryInput.project.id
+            timeEntry.taskId = validatedTimeEntryInput.task.id
+            timeEntry.entryDate = validatedTimeEntryInput.entryDate
+            timeEntry.startTime = validatedTimeEntryInput.startTime
+            timeEntry.endTime = validatedTimeEntryInput.endTime
+            timeEntry.description = validatedTimeEntryInput.description
+            timeEntry.durationMinutes = validatedTimeEntryInput.durationMinutes
+            timeEntry.isBillable = validatedTimeEntryInput.isBillable
+            toResponse(timeEntry)
         }
 
     fun deleteTimeEntry(id: String) {
         transaction {
-            val entity = findEntry(id) ?: throw ResourceNotFoundException("Time entry not found")
-            ensureUnlocked(entity)
-            entity.delete()
+            val timeEntry = findEntry(id) ?: throw ResourceNotFoundException("Time entry not found")
+            ensureUnlocked(timeEntry)
+            timeEntry.delete()
         }
     }
 
@@ -184,58 +184,58 @@ class TimeEntryService {
         )
     }
 
-    private fun ensureUnlocked(entity: TimeEntryEntity) {
-        if (entity.invoiceId != null || entity.isLocked) throw TimeEntryLockedException()
+    private fun ensureUnlocked(timeEntry: TimeEntryEntity) {
+        if (timeEntry.invoiceId != null || timeEntry.isLocked) throw TimeEntryLockedException()
     }
 
     private fun toResponse(
-        entity: TimeEntryEntity,
-        references: ResponseReferences? = null,
+        timeEntry: TimeEntryEntity,
+        responseReferences: ResponseReferences? = null,
     ): TimeEntryResponse {
         val project =
-            references?.projects?.get(entity.projectId)
-                ?: ProjectEntity.findById(entity.projectId)
+            responseReferences?.projectsById?.get(timeEntry.projectId)
+                ?: ProjectEntity.findById(timeEntry.projectId)
                 ?: throw ResourceNotFoundException("Project not found")
         val client =
-            references?.clients?.get(project.clientId)
+            responseReferences?.clientsById?.get(project.clientId)
                 ?: ClientEntity.findById(project.clientId)
                 ?: throw ResourceNotFoundException("Client not found")
         val task =
-            references?.tasks?.get(entity.taskId)
-                ?: TaskEntity.findById(entity.taskId)
+            responseReferences?.tasksById?.get(timeEntry.taskId)
+                ?: TaskEntity.findById(timeEntry.taskId)
                 ?: throw ResourceNotFoundException("Task not found")
         val currency =
-            references?.currencies?.get(client.currencyId)
+            responseReferences?.currenciesById?.get(client.currencyId)
                 ?: CurrencyEntity.findById(client.currencyId)
                 ?: throw ResourceNotFoundException("Currency not found")
         return TimeEntryResponse(
-            id = entity.id.value.toString(),
+            id = timeEntry.id.value.toString(),
             projectId = project.id.value.toString(),
             projectName = project.name,
             taskId = task.id.value.toString(),
             taskName = task.name,
-            isBillable = entity.isBillable,
+            isBillable = timeEntry.isBillable,
             clientId = client.id.value.toString(),
             clientName = client.name,
             currencyId = currency.id.value.toString(),
             currencyAcronym = currency.acronym,
-            entryDate = entity.entryDate,
-            startTime = entity.startTime,
-            endTime = entity.endTime,
-            description = entity.description,
-            durationMinutes = entity.durationMinutes,
-            invoiceId = entity.invoiceId?.value?.toString(),
-            isLocked = entity.isLocked || entity.invoiceId != null,
-            createdAt = entity.createdAt,
+            entryDate = timeEntry.entryDate,
+            startTime = timeEntry.startTime,
+            endTime = timeEntry.endTime,
+            description = timeEntry.description,
+            durationMinutes = timeEntry.durationMinutes,
+            invoiceId = timeEntry.invoiceId?.value?.toString(),
+            isLocked = timeEntry.isLocked || timeEntry.invoiceId != null,
+            createdAt = timeEntry.createdAt,
         )
     }
 
-    private fun loadResponseReferences(entries: List<TimeEntryEntity>): ResponseReferences {
-        if (entries.isEmpty()) return ResponseReferences()
+    private fun loadResponseReferences(timeEntries: List<TimeEntryEntity>): ResponseReferences {
+        if (timeEntries.isEmpty()) return ResponseReferences()
 
         val projects =
             ProjectEntity
-                .find { ProjectsTable.id inList entries.map { it.projectId }.distinct() }
+                .find { ProjectsTable.id inList timeEntries.map { it.projectId }.distinct() }
                 .associateBy { it.id }
         val clients =
             ClientEntity
@@ -243,7 +243,7 @@ class TimeEntryService {
                 .associateBy { it.id }
         val tasks =
             TaskEntity
-                .find { TasksTable.id inList entries.map { it.taskId }.distinct() }
+                .find { TasksTable.id inList timeEntries.map { it.taskId }.distinct() }
                 .associateBy { it.id }
         val currencies =
             CurrencyEntity
@@ -253,10 +253,10 @@ class TimeEntryService {
     }
 
     private data class ResponseReferences(
-        val projects: Map<EntityID<UUID>, ProjectEntity> = emptyMap(),
-        val clients: Map<EntityID<UUID>, ClientEntity> = emptyMap(),
-        val tasks: Map<EntityID<UUID>, TaskEntity> = emptyMap(),
-        val currencies: Map<EntityID<UUID>, CurrencyEntity> = emptyMap(),
+        val projectsById: Map<EntityID<UUID>, ProjectEntity> = emptyMap(),
+        val clientsById: Map<EntityID<UUID>, ClientEntity> = emptyMap(),
+        val tasksById: Map<EntityID<UUID>, TaskEntity> = emptyMap(),
+        val currenciesById: Map<EntityID<UUID>, CurrencyEntity> = emptyMap(),
     )
 
     private data class ValidatedTimeEntry(
@@ -275,38 +275,38 @@ class TimeEntryService {
         private val timestampFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
 
         private fun parseUuid(
-            value: String,
-            field: String,
+            rawValue: String,
+            fieldName: String,
         ): UUID =
             try {
-                UUID.fromString(value)
+                UUID.fromString(rawValue)
             } catch (_: IllegalArgumentException) {
-                throw InvalidTimeEntryException("$field must be a valid UUID")
+                throw InvalidTimeEntryException("$fieldName must be a valid UUID")
             }
 
         private fun parseDate(
-            value: String,
-            field: String,
+            rawValue: String,
+            fieldName: String,
         ): LocalDate {
-            if (!isoDatePattern.matches(value)) {
-                throw InvalidTimeEntryException("$field must use YYYY-MM-DD format")
+            if (!isoDatePattern.matches(rawValue)) {
+                throw InvalidTimeEntryException("$fieldName must use YYYY-MM-DD format")
             }
             return try {
-                LocalDate.parse(value, DateTimeFormatter.ISO_LOCAL_DATE)
+                LocalDate.parse(rawValue, DateTimeFormatter.ISO_LOCAL_DATE)
             } catch (_: DateTimeParseException) {
-                throw InvalidTimeEntryException("$field must use YYYY-MM-DD format")
+                throw InvalidTimeEntryException("$fieldName must use YYYY-MM-DD format")
             }
         }
 
         private fun parseTime(
-            value: String?,
-            field: String,
+            timeValue: String?,
+            fieldName: String,
         ): String? =
-            value?.let {
+            timeValue?.let {
                 try {
                     LocalTime.parse(it, DateTimeFormatter.ISO_LOCAL_TIME).toString()
                 } catch (_: DateTimeParseException) {
-                    throw InvalidTimeEntryException("$field must use ISO local time format")
+                    throw InvalidTimeEntryException("$fieldName must use ISO local time format")
                 }
             }
 
