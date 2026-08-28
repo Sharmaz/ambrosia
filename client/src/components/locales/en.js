@@ -109,6 +109,12 @@ const componentsEn = {
     amountAtTimeOfPayment: "Amount at time of sale",
     amountAtCurrentRate: "Amount at current rate",
   },
+  backupPasswordField: {
+    passwordLabel: "Backup password",
+    passwordPlaceholder: "Enter the password used to encrypt the backup",
+    fileLabel: "Backup file",
+    fileHint: "Select the .zip file you exported from Settings.",
+  },
 };
 
 export default componentsEn;

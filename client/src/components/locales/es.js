@@ -109,6 +109,12 @@ const componentsEs = {
     amountAtTimeOfPayment: "Monto al momento del cobro",
     amountAtCurrentRate: "Monto con tasa actual",
   },
+  backupPasswordField: {
+    passwordLabel: "Contraseña del respaldo",
+    passwordPlaceholder: "Ingresa la contraseña usada para encriptar el respaldo",
+    fileLabel: "Archivo de respaldo",
+    fileHint: "Selecciona el archivo .zip que exportaste desde Configuración.",
+  },
 };
 
 export default componentsEs;
