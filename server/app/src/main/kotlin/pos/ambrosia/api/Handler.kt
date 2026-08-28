@@ -36,7 +36,6 @@ import pos.ambrosia.utils.PrintTicketException
 import pos.ambrosia.utils.ProductIsBundleComponentException
 import pos.ambrosia.utils.ResourceNotFoundException
 import pos.ambrosia.utils.TimeEntryLockedException
-import pos.ambrosia.utils.TimeEntryRateNotFoundException
 import pos.ambrosia.utils.UnauthorizedApiException
 import pos.ambrosia.utils.UnsupportedBackendOperationException
 import pos.ambrosia.utils.WalletOnlyException
@@ -59,10 +58,6 @@ fun Application.handler() {
         exception<InvalidTimeEntryException> { call, cause ->
             logger.warn("Invalid time entry: ${cause.message}")
             call.respond(HttpStatusCode.BadRequest, Message(cause.message ?: "Invalid time entry"))
-        }
-        exception<TimeEntryRateNotFoundException> { call, cause ->
-            logger.warn("Time entry rate not found: ${cause.message}")
-            call.respond(HttpStatusCode.BadRequest, Message(cause.message ?: "No billing rate is available"))
         }
         exception<TimeEntryLockedException> { call, cause ->
             logger.warn("Locked time entry mutation rejected: ${cause.message}")

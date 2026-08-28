@@ -19,17 +19,12 @@ import pos.ambrosia.db.tables.TaskEntity
 import pos.ambrosia.db.tables.TasksTable
 import pos.ambrosia.db.tables.TimeEntriesTable
 import pos.ambrosia.db.tables.TimeEntryEntity
-import pos.ambrosia.db.tables.UserEntity
-import pos.ambrosia.db.tables.UsersTable
 import pos.ambrosia.models.CreateTimeEntryRequest
 import pos.ambrosia.models.TimeEntryResponse
 import pos.ambrosia.models.UpdateTimeEntryRequest
 import pos.ambrosia.utils.InvalidTimeEntryException
 import pos.ambrosia.utils.ResourceNotFoundException
 import pos.ambrosia.utils.TimeEntryLockedException
-import pos.ambrosia.utils.TimeEntryRateNotFoundException
-import java.math.BigDecimal
-import java.math.RoundingMode
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
@@ -40,31 +35,28 @@ import java.util.UUID
 
 class TimeEntryService {
     fun getTimeEntries(
-        userId: String,
         from: String,
         to: String,
         projectId: String? = null,
         taskId: String? = null,
     ): List<TimeEntryResponse> =
         transaction {
-            val userUuid = parseUuid(userId, "userId")
             val fromDate = parseDate(from, "from")
             val toDate = parseDate(to, "to")
             if (fromDate > toDate) throw InvalidTimeEntryException("from must be before or equal to to")
 
             var condition: Op<Boolean> =
-                (TimeEntriesTable.userId eq EntityID(userUuid, UsersTable)) and
-                        (TimeEntriesTable.entryDate greaterEq fromDate.toString()) and
-                        (TimeEntriesTable.entryDate lessEq toDate.toString())
+                (TimeEntriesTable.entryDate greaterEq fromDate.toString()) and
+                    (TimeEntriesTable.entryDate lessEq toDate.toString())
             projectId?.let {
                 condition =
                     condition and
-                            (TimeEntriesTable.projectId eq EntityID(parseUuid(it, "project_id"), ProjectsTable))
+                    (TimeEntriesTable.projectId eq EntityID(parseUuid(it, "project_id"), ProjectsTable))
             }
             taskId?.let {
                 condition =
                     condition and
-                            (TimeEntriesTable.taskId eq EntityID(parseUuid(it, "task_id"), TasksTable))
+                    (TimeEntriesTable.taskId eq EntityID(parseUuid(it, "task_id"), TasksTable))
             }
 
             val entries =
@@ -79,22 +71,15 @@ class TimeEntryService {
             entries.map { toResponse(it, references) }
         }
 
-    fun getTimeEntryById(
-        userId: String,
-        id: String,
-    ): TimeEntryResponse? =
+    fun getTimeEntryById(id: String): TimeEntryResponse? =
         transaction {
-            findOwnedEntry(userId, id)?.let(::toResponse)
+            findEntry(id)?.let(::toResponse)
         }
 
-    fun createTimeEntry(
-        userId: String,
-        request: CreateTimeEntryRequest,
-    ): TimeEntryResponse =
+    fun createTimeEntry(request: CreateTimeEntryRequest): TimeEntryResponse =
         transaction {
             val validated =
                 validateInput(
-                    userId = userId,
                     projectId = request.projectId,
                     taskId = request.taskId,
                     entryDate = request.entryDate,
@@ -102,19 +87,17 @@ class TimeEntryService {
                     endTime = request.endTime,
                     description = request.description,
                     durationMinutes = request.durationMinutes,
-                    requestedRateCents = request.rateCents,
                 )
             val entity =
                 TimeEntryEntity.new(UUID.randomUUID()) {
                     projectId = validated.project.id
                     taskId = validated.task.id
-                    this.userId = validated.user.id
                     entryDate = validated.entryDate
                     startTime = validated.startTime
                     endTime = validated.endTime
                     description = validated.description
                     durationMinutes = validated.durationMinutes
-                    rateCents = validated.rateCents
+                    isBillable = validated.isBillable
                     invoiceId = null
                     isLocked = false
                     createdAt = currentTimestamp()
@@ -123,16 +106,14 @@ class TimeEntryService {
         }
 
     fun updateTimeEntry(
-        userId: String,
         id: String,
         request: UpdateTimeEntryRequest,
     ): TimeEntryResponse =
         transaction {
-            val entity = findOwnedEntry(userId, id) ?: throw ResourceNotFoundException("Time entry not found")
+            val entity = findEntry(id) ?: throw ResourceNotFoundException("Time entry not found")
             ensureUnlocked(entity)
             val validated =
                 validateInput(
-                    userId = userId,
                     projectId = request.projectId,
                     taskId = request.taskId,
                     entryDate = request.entryDate,
@@ -140,7 +121,6 @@ class TimeEntryService {
                     endTime = request.endTime,
                     description = request.description,
                     durationMinutes = request.durationMinutes,
-                    requestedRateCents = request.rateCents,
                 )
 
             entity.projectId = validated.project.id
@@ -150,36 +130,26 @@ class TimeEntryService {
             entity.endTime = validated.endTime
             entity.description = validated.description
             entity.durationMinutes = validated.durationMinutes
-            entity.rateCents = validated.rateCents
+            entity.isBillable = validated.isBillable
             toResponse(entity)
         }
 
-    fun deleteTimeEntry(
-        userId: String,
-        id: String,
-    ) {
+    fun deleteTimeEntry(id: String) {
         transaction {
-            val entity = findOwnedEntry(userId, id) ?: throw ResourceNotFoundException("Time entry not found")
+            val entity = findEntry(id) ?: throw ResourceNotFoundException("Time entry not found")
             ensureUnlocked(entity)
             entity.delete()
         }
     }
 
-    private fun findOwnedEntry(
-        userId: String,
-        id: String,
-    ): TimeEntryEntity? {
-        val userUuid = parseUuid(userId, "userId")
+    private fun findEntry(id: String): TimeEntryEntity? {
         val entryUuid = parseUuid(id, "id")
         return TimeEntryEntity
-            .find {
-                (TimeEntriesTable.id eq EntityID(entryUuid, TimeEntriesTable)) and
-                        (TimeEntriesTable.userId eq EntityID(userUuid, UsersTable))
-            }.firstOrNull()
+            .find { TimeEntriesTable.id eq EntityID(entryUuid, TimeEntriesTable) }
+            .firstOrNull()
     }
 
     private fun validateInput(
-        userId: String,
         projectId: String,
         taskId: String,
         entryDate: String,
@@ -187,16 +157,8 @@ class TimeEntryService {
         endTime: String?,
         description: String?,
         durationMinutes: Int,
-        requestedRateCents: Int?,
     ): ValidatedTimeEntry {
         if (durationMinutes <= 0) throw InvalidTimeEntryException("durationMinutes must be greater than 0")
-        if (requestedRateCents != null && requestedRateCents < 0) {
-            throw InvalidTimeEntryException("rateCents must be greater than or equal to 0")
-        }
-
-        val user =
-            UserEntity.findById(parseUuid(userId, "userId"))?.takeIf { !it.isDeleted }
-                ?: throw ResourceNotFoundException("User not found")
         val project =
             ProjectEntity.findById(parseUuid(projectId, "projectId"))?.takeIf { !it.isDeleted }
                 ?: throw ResourceNotFoundException("Project not found")
@@ -212,15 +174,8 @@ class TimeEntryService {
             TaskEntity.findById(parseUuid(taskId, "taskId"))?.takeIf { !it.isDeleted }
                 ?: throw ResourceNotFoundException("Task not found")
         val isBillable = task.isBillable && project.isBillable
-        val resolvedRate =
-            if (!isBillable) {
-                0
-            } else {
-                resolveRateCents(requestedRateCents, project.hourlyRateCents, client.hourlyRateCents)
-            }
 
         return ValidatedTimeEntry(
-            user = user,
             project = project,
             task = task,
             entryDate = parseDate(entryDate, "entryDate").toString(),
@@ -229,7 +184,6 @@ class TimeEntryService {
             description = description,
             durationMinutes = durationMinutes,
             isBillable = isBillable,
-            rateCents = resolvedRate,
         )
     }
 
@@ -257,33 +211,22 @@ class TimeEntryService {
             references?.currencies?.get(client.currencyId)
                 ?: CurrencyEntity.findById(client.currencyId)
                 ?: throw ResourceNotFoundException("Currency not found")
-        val isBillable = task.isBillable && project.isBillable
-        val (rate, amount) =
-            if (!isBillable) {
-                Pair(0, 0)
-            } else {
-                val r = resolveRateCents(entity.rateCents, project.hourlyRateCents, client.hourlyRateCents)
-                Pair(r, calculateAmountCents(r, entity.durationMinutes))
-            }
         return TimeEntryResponse(
             id = entity.id.value.toString(),
             projectId = project.id.value.toString(),
             projectName = project.name,
             taskId = task.id.value.toString(),
             taskName = task.name,
-            isBillable = isBillable,
+            isBillable = entity.isBillable,
             clientId = client.id.value.toString(),
             clientName = client.name,
             currencyId = currency.id.value.toString(),
             currencyAcronym = currency.acronym,
-            userId = entity.userId.value.toString(),
             entryDate = entity.entryDate,
             startTime = entity.startTime,
             endTime = entity.endTime,
             description = entity.description,
             durationMinutes = entity.durationMinutes,
-            rateCents = rate,
-            amountCents = amount,
             invoiceId = entity.invoiceId?.value?.toString(),
             isLocked = entity.isLocked || entity.invoiceId != null,
             createdAt = entity.createdAt,
@@ -320,7 +263,6 @@ class TimeEntryService {
     )
 
     private data class ValidatedTimeEntry(
-        val user: UserEntity,
         val project: ProjectEntity,
         val task: TaskEntity,
         val entryDate: String,
@@ -329,35 +271,11 @@ class TimeEntryService {
         val description: String?,
         val durationMinutes: Int,
         val isBillable: Boolean,
-        val rateCents: Int,
     )
 
     companion object {
         private val isoDatePattern = Regex("\\d{4}-\\d{2}-\\d{2}")
         private val timestampFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
-
-        internal fun resolveRateCents(
-            entryRateCents: Int?,
-            projectRateCents: Int?,
-            clientRateCents: Int?,
-        ): Int = entryRateCents ?: projectRateCents ?: clientRateCents ?: throw TimeEntryRateNotFoundException()
-
-        internal fun calculateAmountCents(
-            rateCents: Int,
-            durationMinutes: Int,
-        ): Int {
-            if (rateCents < 0) throw InvalidTimeEntryException("rateCents must be greater than or equal to 0")
-            if (durationMinutes <= 0) throw InvalidTimeEntryException("durationMinutes must be greater than 0")
-            return try {
-                BigDecimal
-                    .valueOf(rateCents.toLong())
-                    .multiply(BigDecimal.valueOf(durationMinutes.toLong()))
-                    .divide(BigDecimal.valueOf(60L), 0, RoundingMode.HALF_UP)
-                    .intValueExact()
-            } catch (_: ArithmeticException) {
-                throw InvalidTimeEntryException("Calculated amount exceeds the supported range")
-            }
-        }
 
         private fun parseUuid(
             value: String,

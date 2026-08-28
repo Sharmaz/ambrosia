@@ -88,10 +88,6 @@ class InvalidTimeEntryException(
     message: String = "Invalid time entry",
 ) : IllegalArgumentException(message)
 
-class TimeEntryRateNotFoundException(
-    message: String = "No billing rate is available for this time entry",
-) : IllegalArgumentException(message)
-
 class TimeEntryLockedException(
     message: String = "Time entry is locked because it belongs to an invoice",
 ) : IllegalStateException(message)

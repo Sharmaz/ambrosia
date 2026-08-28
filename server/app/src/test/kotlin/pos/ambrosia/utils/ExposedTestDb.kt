@@ -361,7 +361,10 @@ object ExposedTestDb {
                 .toString()
         }
 
-    fun seedTask(name: String = "Development", isBillable: Boolean = true): String =
+    fun seedTask(
+        name: String = "Development",
+        isBillable: Boolean = true,
+    ): String =
         transaction {
             TaskEntity
                 .new(UUID.randomUUID()) {
@@ -373,12 +376,11 @@ object ExposedTestDb {
         }
 
     fun seedTimeEntry(
-        userId: String,
         projectId: String = seedProject(),
         taskId: String = seedTask(),
         entryDate: String = "2026-08-24",
         durationMinutes: Int = 60,
-        rateCents: Int? = 10_000,
+        isBillable: Boolean = true,
         invoiceId: String? = null,
         isLocked: Boolean = false,
     ): String =
@@ -387,10 +389,9 @@ object ExposedTestDb {
                 .new(UUID.randomUUID()) {
                     this.projectId = EntityID(UUID.fromString(projectId), ProjectsTable)
                     this.taskId = EntityID(UUID.fromString(taskId), TasksTable)
-                    this.userId = EntityID(UUID.fromString(userId), UsersTable)
                     this.entryDate = entryDate
                     this.durationMinutes = durationMinutes
-                    this.rateCents = rateCents
+                    this.isBillable = isBillable
                     this.invoiceId = invoiceId?.let { EntityID(UUID.fromString(it), InvoicesTable) }
                     this.isLocked = isLocked
                     createdAt = "2026-08-24 12:00:00"

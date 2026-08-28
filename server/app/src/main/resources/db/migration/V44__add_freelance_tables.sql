@@ -42,21 +42,19 @@ CREATE TABLE time_entries (
 	id BLOB NOT NULL,
 	project_id BLOB NOT NULL,
 	task_id BLOB NOT NULL,
-	user_id BLOB NOT NULL,
 	entry_date TEXT NOT NULL,
   start_time TEXT,
   end_time TEXT,
 	description TEXT,
 	duration_minutes INTEGER NOT NULL CHECK (duration_minutes >= 0),
-	rate_cents INTEGER CHECK (rate_cents >= 0),
+	is_billable BOOLEAN NOT NULL DEFAULT 1,
 	invoice_id BLOB,
 	is_locked BOOLEAN NOT NULL DEFAULT 0,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
 	PRIMARY KEY(id),
 	FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE RESTRICT,
 	FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE RESTRICT,
-	FOREIGN KEY (invoice_id) REFERENCES invoices(id) ON DELETE RESTRICT,
-	FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE RESTRICT
+	FOREIGN KEY (invoice_id) REFERENCES invoices(id) ON DELETE RESTRICT
 );
 
 CREATE TABLE payout_accounts (

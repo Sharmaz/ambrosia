@@ -42,7 +42,6 @@ fun Route.timeEntries(timeEntryService: TimeEntryService) {
             call.respond(
                 HttpStatusCode.OK,
                 timeEntryService.getTimeEntries(
-                    userId = currentUser.userId,
                     from = from,
                     to = to,
                     projectId = call.request.queryParameters["project_id"],
@@ -55,7 +54,7 @@ fun Route.timeEntries(timeEntryService: TimeEntryService) {
             val currentUser = call.getCurrentUser() ?: throw UnauthorizedApiException()
             val id = call.parameters["id"] ?: throw InvalidTimeEntryException("Missing time entry ID")
             val entry =
-                timeEntryService.getTimeEntryById(currentUser.userId, id)
+                timeEntryService.getTimeEntryById(id)
                     ?: throw ResourceNotFoundException("Time entry not found")
             call.respond(HttpStatusCode.OK, entry)
         }
@@ -65,7 +64,7 @@ fun Route.timeEntries(timeEntryService: TimeEntryService) {
         post("") {
             val currentUser = call.getCurrentUser() ?: throw UnauthorizedApiException()
             val request = call.receiveCreateRequest()
-            call.respond(HttpStatusCode.Created, timeEntryService.createTimeEntry(currentUser.userId, request))
+            call.respond(HttpStatusCode.Created, timeEntryService.createTimeEntry(request))
         }
     }
 
@@ -74,7 +73,7 @@ fun Route.timeEntries(timeEntryService: TimeEntryService) {
             val currentUser = call.getCurrentUser() ?: throw UnauthorizedApiException()
             val id = call.parameters["id"] ?: throw InvalidTimeEntryException("Missing time entry ID")
             val request = call.receiveUpdateRequest()
-            call.respond(HttpStatusCode.OK, timeEntryService.updateTimeEntry(currentUser.userId, id, request))
+            call.respond(HttpStatusCode.OK, timeEntryService.updateTimeEntry(id, request))
         }
     }
 
@@ -82,7 +81,7 @@ fun Route.timeEntries(timeEntryService: TimeEntryService) {
         delete("/{id}") {
             val currentUser = call.getCurrentUser() ?: throw UnauthorizedApiException()
             val id = call.parameters["id"] ?: throw InvalidTimeEntryException("Missing time entry ID")
-            timeEntryService.deleteTimeEntry(currentUser.userId, id)
+            timeEntryService.deleteTimeEntry(id)
             call.respond(HttpStatusCode.NoContent)
         }
     }

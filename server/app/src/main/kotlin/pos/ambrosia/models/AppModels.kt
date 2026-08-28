@@ -840,7 +840,6 @@ data class CreateTimeEntryRequest(
     val endTime: String? = null,
     val description: String? = null,
     val durationMinutes: Int,
-    val rateCents: Int? = null,
 )
 
 @Serializable
@@ -852,7 +851,6 @@ data class UpdateTimeEntryRequest(
     val endTime: String? = null,
     val description: String? = null,
     val durationMinutes: Int,
-    val rateCents: Int? = null,
 )
 
 @Serializable
@@ -867,14 +865,11 @@ data class TimeEntryResponse(
     val clientName: String,
     val currencyId: String,
     val currencyAcronym: String,
-    val userId: String,
     val entryDate: String,
     val startTime: String?,
     val endTime: String?,
     val description: String?,
     val durationMinutes: Int,
-    val rateCents: Int,
-    val amountCents: Int,
     val invoiceId: String?,
     val isLocked: Boolean,
     val createdAt: String,

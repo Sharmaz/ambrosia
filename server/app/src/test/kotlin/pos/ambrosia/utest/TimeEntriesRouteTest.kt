@@ -21,8 +21,6 @@ import org.junit.Before
 import pos.ambrosia.api.configureTimeEntries
 import pos.ambrosia.api.handler
 import pos.ambrosia.db.tables.TimeEntryEntity
-import pos.ambrosia.db.tables.UserEntity
-import pos.ambrosia.db.tables.UsersTable
 import pos.ambrosia.models.TimeEntryResponse
 import pos.ambrosia.utils.ExposedTestDb
 import pos.ambrosia.utils.grantPermission
@@ -33,7 +31,9 @@ import java.io.File
 import java.util.UUID
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 class TimeEntriesRouteTest {
     private lateinit var databaseFile: File
@@ -88,7 +88,7 @@ class TimeEntriesRouteTest {
         }
 
     @Test
-    fun `post uses authenticated user and returns enriched entry`() =
+    fun `post returns an enriched entry`() =
         testApplication {
             val auth = installNonAdminAuth("time-create-role", "time-create-user")
             grantPermission("time-create-role", "time_entries_create")
@@ -108,11 +108,8 @@ class TimeEntriesRouteTest {
 
             assertEquals(HttpStatusCode.Created, response.status)
             val body = Json.decodeFromString<TimeEntryResponse>(response.bodyAsText())
-            assertEquals(authenticatedUserId("time-create-user"), body.userId)
             assertEquals("Project Alpha", body.projectName)
             assertEquals("Development", body.taskName)
-            assertEquals(12_000, body.rateCents)
-            assertEquals(3_400, body.amountCents)
         }
 
     @Test
@@ -121,8 +118,7 @@ class TimeEntriesRouteTest {
             val auth = installNonAdminAuth("time-read-role", "time-read-user")
             grantPermission("time-read-role", "time_entries_read")
             val fixture = seedFixture()
-            val userId = authenticatedUserId("time-read-user")
-            ExposedTestDb.seedTimeEntry(userId, fixture.projectId, fixture.taskId, "2026-08-19")
+            ExposedTestDb.seedTimeEntry(fixture.projectId, fixture.taskId, "2026-08-19")
             application {
                 install(ContentNegotiation) { json() }
                 handler()
@@ -147,10 +143,9 @@ class TimeEntriesRouteTest {
             val auth = installNonAdminAuth("time-update-role", "time-update-user")
             grantPermission("time-update-role", "time_entries_update")
             val fixture = seedFixture()
-            val userId = authenticatedUserId("time-update-user")
             val invoiceId = ExposedTestDb.seedInvoice(fixture.clientId, fixture.currencyId)
             val entryId =
-                ExposedTestDb.seedTimeEntry(userId, fixture.projectId, fixture.taskId, invoiceId = invoiceId)
+                ExposedTestDb.seedTimeEntry(fixture.projectId, fixture.taskId, invoiceId = invoiceId)
             application {
                 install(ContentNegotiation) { json() }
                 handler()
@@ -173,9 +168,8 @@ class TimeEntriesRouteTest {
             val auth = installNonAdminAuth("time-delete-role", "time-delete-user")
             grantPermission("time-delete-role", "time_entries_delete")
             val fixture = seedFixture()
-            val userId = authenticatedUserId("time-delete-user")
-            val unlockedId = ExposedTestDb.seedTimeEntry(userId, fixture.projectId, fixture.taskId)
-            val lockedId = ExposedTestDb.seedTimeEntry(userId, fixture.projectId, fixture.taskId, isLocked = true)
+            val unlockedId = ExposedTestDb.seedTimeEntry(fixture.projectId, fixture.taskId)
+            val lockedId = ExposedTestDb.seedTimeEntry(fixture.projectId, fixture.taskId, isLocked = true)
             application {
                 install(ContentNegotiation) { json() }
                 handler()
@@ -284,6 +278,83 @@ class TimeEntriesRouteTest {
             }
         }
 
+    @Test
+    fun `post returns isBillable false when project is not billable`() =
+        testApplication {
+            val auth = installNonAdminAuth("time-nb-project-role", "time-nb-project-user")
+            grantPermission("time-nb-project-role", "time_entries_create")
+            val currencyId = ExposedTestDb.seedCurrency("USD")
+            val clientId = ExposedTestDb.seedClient("Client NB", currencyId, 10_000)
+            val projectId = ExposedTestDb.seedProject(clientId, "Non-Billable Project", 12_000, isBillable = false)
+            val taskId = ExposedTestDb.seedTask("Development")
+            application {
+                install(ContentNegotiation) { json() }
+                handler()
+                configureTimeEntries()
+            }
+
+            val response =
+                client.post("/time-entries") {
+                    withAuthCookies(auth)
+                    header(HttpHeaders.ContentType, "application/json")
+                    setBody(requestBody(projectId, taskId))
+                }
+
+            assertEquals(HttpStatusCode.Created, response.status)
+            val body = Json.decodeFromString<TimeEntryResponse>(response.bodyAsText())
+            assertFalse(body.isBillable)
+        }
+
+    @Test
+    fun `post returns isBillable false when task is not billable`() =
+        testApplication {
+            val auth = installNonAdminAuth("time-nb-task-role", "time-nb-task-user")
+            grantPermission("time-nb-task-role", "time_entries_create")
+            val currencyId = ExposedTestDb.seedCurrency("USD")
+            val clientId = ExposedTestDb.seedClient("Client BT", currencyId, 10_000)
+            val projectId = ExposedTestDb.seedProject(clientId, "Billable Project", 12_000)
+            val taskId = ExposedTestDb.seedTask("Internal", isBillable = false)
+            application {
+                install(ContentNegotiation) { json() }
+                handler()
+                configureTimeEntries()
+            }
+
+            val response =
+                client.post("/time-entries") {
+                    withAuthCookies(auth)
+                    header(HttpHeaders.ContentType, "application/json")
+                    setBody(requestBody(projectId, taskId))
+                }
+
+            assertEquals(HttpStatusCode.Created, response.status)
+            val body = Json.decodeFromString<TimeEntryResponse>(response.bodyAsText())
+            assertFalse(body.isBillable)
+        }
+
+    @Test
+    fun `post returns isBillable true when both project and task are billable`() =
+        testApplication {
+            val auth = installNonAdminAuth("time-billable-role", "time-billable-user")
+            grantPermission("time-billable-role", "time_entries_create")
+            val fixture = seedFixture()
+            application {
+                install(ContentNegotiation) { json() }
+                handler()
+                configureTimeEntries()
+            }
+
+            val response =
+                client.post("/time-entries") {
+                    withAuthCookies(auth)
+                    header(HttpHeaders.ContentType, "application/json")
+                    setBody(requestBody(fixture.projectId, fixture.taskId))
+                }
+
+            assertEquals(HttpStatusCode.Created, response.status)
+            assertTrue(Json.decodeFromString<TimeEntryResponse>(response.bodyAsText()).isBillable)
+        }
+
     private fun seedFixture(): Fixture {
         val currencyId = ExposedTestDb.seedCurrency("USD")
         val clientId = ExposedTestDb.seedClient("Client Alpha", currencyId, 10_000)
@@ -291,15 +362,6 @@ class TimeEntriesRouteTest {
         val taskId = ExposedTestDb.seedTask("Development")
         return Fixture(currencyId, clientId, projectId, taskId)
     }
-
-    private fun authenticatedUserId(name: String): String =
-        transaction {
-            UserEntity
-                .find { UsersTable.name eq name }
-                .single()
-                .id.value
-                .toString()
-        }
 
     private fun requestBody(
         projectId: String,
@@ -316,8 +378,7 @@ class TimeEntriesRouteTest {
             "startTime":"09:00",
             "endTime":"10:00",
             "description":"$description",
-            "durationMinutes":$durationMinutes,
-            "rateCents":null
+            "durationMinutes":$durationMinutes
         }
         """.trimIndent()
 
