@@ -47,16 +47,16 @@ class TimeEntryService {
 
             var condition: Op<Boolean> =
                 (TimeEntriesTable.entryDate greaterEq fromDate.toString()) and
-                    (TimeEntriesTable.entryDate lessEq toDate.toString())
+                        (TimeEntriesTable.entryDate lessEq toDate.toString())
             projectId?.let {
                 condition =
                     condition and
-                    (TimeEntriesTable.projectId eq EntityID(parseUuid(it, "project_id"), ProjectsTable))
+                            (TimeEntriesTable.projectId eq EntityID(parseUuid(it, "project_id"), ProjectsTable))
             }
             taskId?.let {
                 condition =
                     condition and
-                    (TimeEntriesTable.taskId eq EntityID(parseUuid(it, "task_id"), TasksTable))
+                            (TimeEntriesTable.taskId eq EntityID(parseUuid(it, "task_id"), TasksTable))
             }
 
             val entries =
@@ -167,9 +167,6 @@ class TimeEntryService {
             throw InvalidTimeEntryException("Invalid project status. Time tracking is only allowed in the 'in_progress' state.")
         }
 
-        val client =
-            ClientEntity.findById(project.clientId)?.takeIf { !it.isDeleted }
-                ?: throw ResourceNotFoundException("Client not found")
         val task =
             TaskEntity.findById(parseUuid(taskId, "taskId"))?.takeIf { !it.isDeleted }
                 ?: throw ResourceNotFoundException("Task not found")

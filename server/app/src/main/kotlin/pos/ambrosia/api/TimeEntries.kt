@@ -32,7 +32,6 @@ fun Application.configureTimeEntries() {
 fun Route.timeEntries(timeEntryService: TimeEntryService) {
     authorizePermission("time_entries_read") {
         get("") {
-            val currentUser = call.getCurrentUser() ?: throw UnauthorizedApiException()
             val from =
                 call.request.queryParameters["from"]
                     ?: throw InvalidTimeEntryException("Both from and to dates are required")
@@ -51,7 +50,6 @@ fun Route.timeEntries(timeEntryService: TimeEntryService) {
         }
 
         get("/{id}") {
-            val currentUser = call.getCurrentUser() ?: throw UnauthorizedApiException()
             val id = call.parameters["id"] ?: throw InvalidTimeEntryException("Missing time entry ID")
             val entry =
                 timeEntryService.getTimeEntryById(id)
@@ -62,7 +60,6 @@ fun Route.timeEntries(timeEntryService: TimeEntryService) {
 
     authorizePermission("time_entries_create") {
         post("") {
-            val currentUser = call.getCurrentUser() ?: throw UnauthorizedApiException()
             val request = call.receiveCreateRequest()
             call.respond(HttpStatusCode.Created, timeEntryService.createTimeEntry(request))
         }
@@ -70,7 +67,6 @@ fun Route.timeEntries(timeEntryService: TimeEntryService) {
 
     authorizePermission("time_entries_update") {
         put("/{id}") {
-            val currentUser = call.getCurrentUser() ?: throw UnauthorizedApiException()
             val id = call.parameters["id"] ?: throw InvalidTimeEntryException("Missing time entry ID")
             val request = call.receiveUpdateRequest()
             call.respond(HttpStatusCode.OK, timeEntryService.updateTimeEntry(id, request))
@@ -79,7 +75,6 @@ fun Route.timeEntries(timeEntryService: TimeEntryService) {
 
     authorizePermission("time_entries_delete") {
         delete("/{id}") {
-            val currentUser = call.getCurrentUser() ?: throw UnauthorizedApiException()
             val id = call.parameters["id"] ?: throw InvalidTimeEntryException("Missing time entry ID")
             timeEntryService.deleteTimeEntry(id)
             call.respond(HttpStatusCode.NoContent)
