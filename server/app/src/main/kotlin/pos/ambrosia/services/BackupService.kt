@@ -55,6 +55,7 @@ class BackupService(
         // GCM's built-in tamper check: a wrong password or an altered file both fail to decrypt.
         private const val AUTHENTICATION_TAG_LENGTH_BITS = 128
         private val MAGIC_HEADER = "AMBROSIA-BACKUP-1".toByteArray(Charsets.UTF_8)
+        private val secureRandom = SecureRandom()
         const val STAGED_SECRET_FILE_NAME = "imported-secret"
         const val STAGED_DATABASE_FILE_NAME = "ambrosia.db"
         const val STAGED_UPLOADS_DIR_NAME = "uploads"
@@ -75,9 +76,9 @@ class BackupService(
         backupOutputStream: OutputStream,
     ) {
         try {
-            val salt = ByteArray(SALT_LENGTH_BYTES).also { SecureRandom().nextBytes(it) }
+            val salt = ByteArray(SALT_LENGTH_BYTES).also { secureRandom.nextBytes(it) }
             val initializationVector =
-                ByteArray(INITIALIZATION_VECTOR_LENGTH_BYTES).also { SecureRandom().nextBytes(it) }
+                ByteArray(INITIALIZATION_VECTOR_LENGTH_BYTES).also { secureRandom.nextBytes(it) }
             val secretKey = deriveKey(rolePassword, salt)
 
             // Salt and IV aren't secret, only unique — safe to store unencrypted right
