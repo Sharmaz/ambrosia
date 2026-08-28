@@ -33,7 +33,7 @@ export function ExportDataCardUnlocked({ onAuthorized, onHide, exportDataTransla
                   size="sm"
                 />
                 <p className="text-sm text-gray-500">
-                  {exportDataTranslations("cardExportData.exportingProgress", { percent: exportProgress })}
+                  {exportDataTranslations("cardExportData.exportingProgress")} {exportProgress}%
                 </p>
               </>
             ) : (

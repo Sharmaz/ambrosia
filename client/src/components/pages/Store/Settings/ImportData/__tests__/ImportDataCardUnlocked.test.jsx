@@ -168,7 +168,7 @@ describe("ImportDataCardUnlocked", () => {
       });
 
       expect(screen.getByTestId("progress")).toHaveAttribute("data-value", "37");
-      expect(screen.getByText("cardImportData.uploadingProgress")).toBeInTheDocument();
+      expect(screen.getByText("cardImportData.uploadingProgress 37%")).toBeInTheDocument();
     });
 
     it("shows the processing message once the upload reaches 100 percent", async () => {

@@ -88,9 +88,9 @@ describe("ExportDataCardUnlocked", () => {
       expect(screen.getByTestId("progress")).toHaveAttribute("data-value", "42");
     });
 
-    it("shows the progress translation key while a percent is known", () => {
+    it("shows the progress translation key and percent while a percent is known", () => {
       renderUnlocked({ exportProgress: 42 });
-      expect(screen.getByText("cardExportData.exportingProgress")).toBeInTheDocument();
+      expect(screen.getByText("cardExportData.exportingProgress 42%")).toBeInTheDocument();
     });
   });
 

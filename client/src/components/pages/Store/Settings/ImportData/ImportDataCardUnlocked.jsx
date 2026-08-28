@@ -75,7 +75,7 @@ export function ImportDataCardUnlocked({ onImport, onHide, importDataTranslation
                   />
                   <p className="text-sm text-gray-500">
                     {importProgress < 100
-                      ? importDataTranslations("cardImportData.uploadingProgress", { percent: importProgress })
+                      ? `${importDataTranslations("cardImportData.uploadingProgress")} ${importProgress}%`
                       : importDataTranslations("cardImportData.processing")}
                   </p>
                 </>

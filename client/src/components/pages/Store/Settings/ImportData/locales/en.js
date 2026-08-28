@@ -10,12 +10,11 @@ const importDataEn = {
     missingFields: "Enter the backup password and select a file to continue.",
     continueButton: "Continue",
     importing: "Importing your backup...",
-    uploadingProgress: "Uploading... {percent}%",
+    uploadingProgress: "Uploading...",
     processing: "Processing your backup...",
     success: "Backup imported successfully.",
     errorDescription: "Could not import the backup. Check the file and try again.",
     restartRequiredElectron: "Restarting the app now...",
-    restartRequiredManual: "Please restart the Ambrosia server to finish loading your data.",
     confirmModal: {
       title: "Overwrite all business data?",
       description: "This replaces every product, order, user, and setting with the contents of the backup file.",

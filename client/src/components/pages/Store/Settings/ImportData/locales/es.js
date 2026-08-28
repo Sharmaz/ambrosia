@@ -10,12 +10,11 @@ const importDataEs = {
     missingFields: "Ingresa la contraseña del respaldo y selecciona un archivo para continuar.",
     continueButton: "Continuar",
     importing: "Importando tu respaldo...",
-    uploadingProgress: "Subiendo... {percent}%",
+    uploadingProgress: "Subiendo...",
     processing: "Procesando tu respaldo...",
     success: "Respaldo importado con éxito.",
     errorDescription: "No se pudo importar el respaldo. Verifica el archivo e intenta de nuevo.",
     restartRequiredElectron: "Reiniciando la aplicación...",
-    restartRequiredManual: "Por favor reinicia el servidor de Ambrosia para terminar de cargar tus datos.",
     confirmModal: {
       title: "¿Sobrescribir todos los datos del negocio?",
       description: "Esto reemplaza cada producto, orden, usuario y configuración con el contenido del archivo de respaldo.",
