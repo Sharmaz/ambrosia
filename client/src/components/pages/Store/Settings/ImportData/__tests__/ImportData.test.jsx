@@ -143,7 +143,7 @@ describe("ImportData", () => {
       );
     });
 
-    it("shows the manual restart message when not running in Electron", async () => {
+    it("shows a blocking restart-required modal when not running in Electron", async () => {
       const { addToast } = require("@heroui/react");
       jest.spyOn(backupService, "importBackup").mockResolvedValue({ businessName: "Awesome Store" });
       restartBackendAfterImport.mockResolvedValue(false);
@@ -151,8 +151,9 @@ describe("ImportData", () => {
 
       await unlockSelectFileAndImport();
 
-      expect(addToast).toHaveBeenCalledWith(
-        expect.objectContaining({ color: "warning", description: "cardImportData.restartRequiredManual" }),
+      expect(await screen.findByText("acknowledgeButton")).toBeInTheDocument();
+      expect(addToast).not.toHaveBeenCalledWith(
+        expect.objectContaining({ description: "cardImportData.restartRequiredElectron" }),
       );
     });
 
