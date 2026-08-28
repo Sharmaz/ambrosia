@@ -85,9 +85,10 @@ function uploadBackupWithProgress(formData, onProgress) {
   });
 }
 
-export async function importBackup(password, backupFile, onProgress) {
+export async function importBackup(rolePassword, backupPassword, backupFile, onProgress) {
   const importFormData = new FormData();
-  importFormData.append("password", password);
+  importFormData.append("rolePassword", rolePassword);
+  importFormData.append("backupPassword", backupPassword);
   importFormData.append("backup", backupFile);
 
   const backupImportRequest = await uploadBackupWithProgress(importFormData, onProgress);

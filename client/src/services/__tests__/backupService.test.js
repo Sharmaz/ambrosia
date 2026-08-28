@@ -220,7 +220,7 @@ describe("backupService", () => {
     it("posts a multipart body with credentials to /api/backup/import", async () => {
       const backupFile = new File(["zip-content"], "backup.zip", { type: "application/zip" });
 
-      const importPromise = importBackup("wallet-password", backupFile);
+      const importPromise = importBackup("role-password", "backup-password", backupFile);
       resolveUpload({ status: 200, body: { message: "Backup imported", businessName: "Awesome Store" } });
       await importPromise;
 
@@ -228,14 +228,15 @@ describe("backupService", () => {
       expect(uploadRequest.method).toBe("POST");
       expect(uploadRequest.url).toBe("/api/backup/import");
       expect(uploadRequest.withCredentials).toBe(true);
-      expect(uploadRequest.sentBody.get("password")).toBe("wallet-password");
+      expect(uploadRequest.sentBody.get("rolePassword")).toBe("role-password");
+      expect(uploadRequest.sentBody.get("backupPassword")).toBe("backup-password");
       expect(uploadRequest.sentBody.get("backup")).toBe(backupFile);
     });
 
     it("reports upload percent from lengthComputable progress events", async () => {
       const onProgress = jest.fn();
 
-      const importPromise = importBackup("wallet-password", new File(["zip"], "backup.zip"), onProgress);
+      const importPromise = importBackup("role-password", "backup-password", new File(["zip"], "backup.zip"), onProgress);
       const [uploadRequest] = FakeXMLHttpRequest.instances;
       uploadRequest.upload.onprogress({ lengthComputable: true, loaded: 25, total: 100 });
       uploadRequest.upload.onprogress({ lengthComputable: false, loaded: 999, total: 100 });
@@ -247,14 +248,14 @@ describe("backupService", () => {
     });
 
     it("returns the parsed response body on success", async () => {
-      const importPromise = importBackup("wallet-password", new File(["zip"], "backup.zip"));
+      const importPromise = importBackup("role-password", "backup-password", new File(["zip"], "backup.zip"));
       resolveUpload({ status: 200, body: { message: "Backup imported", businessName: "Awesome Store" } });
 
       await expect(importPromise).resolves.toEqual({ message: "Backup imported", businessName: "Awesome Store" });
     });
 
     it("throws with the server message when the response is not ok", async () => {
-      const importPromise = importBackup("wrong-password", new File(["zip"], "backup.zip"));
+      const importPromise = importBackup("role-password", "wrong-backup-password", new File(["zip"], "backup.zip"));
       resolveUpload({ status: 400, body: { message: "Incorrect password or corrupted backup file" } });
 
       await expect(importPromise).rejects.toMatchObject({
@@ -264,7 +265,7 @@ describe("backupService", () => {
     });
 
     it("dispatches wallet:unauthorized on a 401 response", async () => {
-      const importPromise = importBackup("wrong-password", new File(["zip"], "backup.zip"));
+      const importPromise = importBackup("wrong-role-password", "backup-password", new File(["zip"], "backup.zip"));
       resolveUpload({ status: 401, body: { message: "Unauthorized" } });
       await importPromise.catch(() => {});
 
