@@ -6,6 +6,24 @@ import { httpClient } from "@/lib/http";
 
 import { getInitialSetupStatus, submitInitialSetup, restoreFromBackup } from "../initialSetupService";
 
+class FakeXMLHttpRequest {
+  constructor() {
+    this.upload = {};
+    this.withCredentials = false;
+    FakeXMLHttpRequest.instances.push(this);
+  }
+
+  open(method, url) {
+    this.method = method;
+    this.url = url;
+  }
+
+  send(body) {
+    this.sentBody = body;
+  }
+}
+FakeXMLHttpRequest.instances = [];
+
 describe("initialSetupService", () => {
   afterEach(() => {
     jest.clearAllMocks();
@@ -45,22 +63,69 @@ describe("initialSetupService", () => {
   });
 
   describe("restoreFromBackup", () => {
-    it("calls POST /initial-setup/restore with a multipart body and skipRefresh", async () => {
-      const restoreFromBackupResponse = { ok: true };
-      httpClient.mockResolvedValue(restoreFromBackupResponse);
+    let originalXMLHttpRequest;
+
+    beforeEach(() => {
+      FakeXMLHttpRequest.instances = [];
+      originalXMLHttpRequest = global.XMLHttpRequest;
+      global.XMLHttpRequest = FakeXMLHttpRequest;
+    });
+
+    afterEach(() => {
+      global.XMLHttpRequest = originalXMLHttpRequest;
+    });
+
+    function resolveUpload(status) {
+      const [uploadRequest] = FakeXMLHttpRequest.instances;
+      uploadRequest.status = status;
+      uploadRequest.onload();
+    }
+
+    it("posts a multipart body with credentials to /api/initial-setup/restore", async () => {
       const backupFile = new File(["zip-content"], "backup.zip", { type: "application/zip" });
 
-      const restoreFromBackupResult = await restoreFromBackup("backup-password", backupFile);
+      const restoreFromBackupPromise = restoreFromBackup("backup-password", backupFile);
+      resolveUpload(200);
+      await restoreFromBackupPromise;
 
-      expect(httpClient).toHaveBeenCalledWith("/initial-setup/restore", expect.objectContaining({
-        method: "POST",
-        skipRefresh: true,
-      }));
-      const [, requestOptions] = httpClient.mock.calls[0];
-      expect(requestOptions.body).toBeInstanceOf(FormData);
-      expect(requestOptions.body.get("password")).toBe("backup-password");
-      expect(requestOptions.body.get("backup")).toBe(backupFile);
-      expect(restoreFromBackupResult).toBe(restoreFromBackupResponse);
+      const [uploadRequest] = FakeXMLHttpRequest.instances;
+      expect(uploadRequest.method).toBe("POST");
+      expect(uploadRequest.url).toBe("/api/initial-setup/restore");
+      expect(uploadRequest.withCredentials).toBe(true);
+      expect(uploadRequest.sentBody.get("password")).toBe("backup-password");
+      expect(uploadRequest.sentBody.get("backup")).toBe(backupFile);
+    });
+
+    it("reports upload percent from lengthComputable progress events", async () => {
+      const onProgress = jest.fn();
+
+      const restoreFromBackupPromise = restoreFromBackup(
+        "backup-password",
+        new File(["zip"], "backup.zip"),
+        onProgress,
+      );
+      const [uploadRequest] = FakeXMLHttpRequest.instances;
+      uploadRequest.upload.onprogress({ lengthComputable: true, loaded: 25, total: 100 });
+      uploadRequest.upload.onprogress({ lengthComputable: false, loaded: 999, total: 100 });
+      resolveUpload(200);
+      await restoreFromBackupPromise;
+
+      expect(onProgress).toHaveBeenCalledTimes(1);
+      expect(onProgress).toHaveBeenCalledWith(25);
+    });
+
+    it("resolves with ok:true for a successful response", async () => {
+      const restoreFromBackupPromise = restoreFromBackup("backup-password", new File(["zip"], "backup.zip"));
+      resolveUpload(200);
+
+      await expect(restoreFromBackupPromise).resolves.toEqual({ ok: true });
+    });
+
+    it("resolves with ok:false for a failed response", async () => {
+      const restoreFromBackupPromise = restoreFromBackup("wrong-password", new File(["zip"], "backup.zip"));
+      resolveUpload(400);
+
+      await expect(restoreFromBackupPromise).resolves.toEqual({ ok: false });
     });
   });
 });
