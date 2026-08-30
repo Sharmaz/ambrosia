@@ -14,12 +14,12 @@ function extractFilename(contentDisposition, fallbackFilename) {
   return match?.[1] ?? fallbackFilename;
 }
 
-async function readResponseWithProgress(response, totalBytes, onProgress) {
-  if (!response.body || !totalBytes || !onProgress) {
-    return response.blob();
+async function readResponseWithProgress(backupExportResponse, totalExportBytes, onProgress) {
+  if (!backupExportResponse.body || !totalExportBytes || !onProgress) {
+    return backupExportResponse.blob();
   }
 
-  const bodyReader = response.body.getReader();
+  const bodyReader = backupExportResponse.body.getReader();
   const receivedChunks = [];
   let receivedBytes = 0;
 
@@ -28,7 +28,7 @@ async function readResponseWithProgress(response, totalBytes, onProgress) {
     if (done) break;
     receivedChunks.push(value);
     receivedBytes += value.length;
-    onProgress(Math.min(100, Math.round((receivedBytes / totalBytes) * 100)));
+    onProgress(Math.min(100, Math.round((receivedBytes / totalExportBytes) * 100)));
   }
 
   return new Blob(receivedChunks);
