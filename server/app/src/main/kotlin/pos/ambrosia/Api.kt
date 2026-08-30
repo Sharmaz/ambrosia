@@ -67,11 +67,11 @@ public val logger = LoggerFactory.getLogger("Server")
 
 class Api {
     fun Application.module() {
-        AppConfig.loadConfig() // Load the configuration
+        AppConfig.loadConfig()
         if (pendingDataImportWasApplied) {
             configurePendingImportCleanup()
         }
-        handler() // Install exception handlers
+        handler()
         install(ContentNegotiation) { json() }
         install(CORS) {
             allowCredentials = true
