@@ -19,10 +19,12 @@ data class OutgoingPaymentFailureClassification(
 object OutgoingPaymentFailureClassifier {
     fun classify(failureMessage: String): OutgoingPaymentFailureClassification {
         val normalizedFailureMessage = failureMessage.lowercase()
+        val compactFailureMessage = normalizedFailureMessage.filter { it.isLetterOrDigit() }
 
         return when {
             "already paid" in normalizedFailureMessage ||
-                "already been paid" in normalizedFailureMessage -> {
+                "already been paid" in normalizedFailureMessage ||
+                "alreadypaid" in compactFailureMessage -> {
                 OutgoingPaymentFailureClassification(
                     code = "invoice_already_paid",
                     category = OutgoingPaymentFailureCategories.LOCAL_VALIDATION,
@@ -38,7 +40,7 @@ object OutgoingPaymentFailureClassifier {
                 )
             }
 
-            isInvalidInvoiceFailure(normalizedFailureMessage) -> {
+            isInvalidInvoiceFailure(normalizedFailureMessage, compactFailureMessage) -> {
                 OutgoingPaymentFailureClassification(
                     code = "invalid_invoice",
                     category = OutgoingPaymentFailureCategories.LOCAL_VALIDATION,
@@ -46,7 +48,7 @@ object OutgoingPaymentFailureClassifier {
                 )
             }
 
-            isMissingAmountFailure(normalizedFailureMessage) -> {
+            isMissingAmountFailure(normalizedFailureMessage, compactFailureMessage) -> {
                 OutgoingPaymentFailureClassification(
                     code = "missing_amount",
                     category = OutgoingPaymentFailureCategories.LOCAL_VALIDATION,
@@ -62,7 +64,7 @@ object OutgoingPaymentFailureClassifier {
                 )
             }
 
-            isFeeOrCltvFailure(normalizedFailureMessage) -> {
+            isFeeOrCltvFailure(normalizedFailureMessage, compactFailureMessage) -> {
                 OutgoingPaymentFailureClassification(
                     code = "fee_or_cltv",
                     category = OutgoingPaymentFailureCategories.FEE_OR_CLTV,
@@ -70,7 +72,7 @@ object OutgoingPaymentFailureClassifier {
                 )
             }
 
-            isRemoteLiquidityFailure(normalizedFailureMessage) -> {
+            isRemoteLiquidityFailure(normalizedFailureMessage, compactFailureMessage) -> {
                 OutgoingPaymentFailureClassification(
                     code = "remote_liquidity",
                     category = OutgoingPaymentFailureCategories.REMOTE_LIQUIDITY,
@@ -78,7 +80,7 @@ object OutgoingPaymentFailureClassifier {
                 )
             }
 
-            isRemoteRoutingFailure(normalizedFailureMessage) -> {
+            isRemoteRoutingFailure(normalizedFailureMessage, compactFailureMessage) -> {
                 OutgoingPaymentFailureClassification(
                     code = "recipient_rejected_payment",
                     category = OutgoingPaymentFailureCategories.REMOTE_ROUTING,
@@ -104,14 +106,23 @@ object OutgoingPaymentFailureClassifier {
         }
     }
 
-    private fun isInvalidInvoiceFailure(normalizedFailureMessage: String): Boolean =
+    private fun isInvalidInvoiceFailure(
+        normalizedFailureMessage: String,
+        compactFailureMessage: String,
+    ): Boolean =
         ("invalid" in normalizedFailureMessage && "invoice" in normalizedFailureMessage) ||
             ("invalid" in normalizedFailureMessage && "bolt11" in normalizedFailureMessage) ||
+            "invalidbolt11invoice" in compactFailureMessage ||
+            "invalidinvoice" in compactFailureMessage ||
             "malformed invoice" in normalizedFailureMessage
 
-    private fun isMissingAmountFailure(normalizedFailureMessage: String): Boolean =
+    private fun isMissingAmountFailure(
+        normalizedFailureMessage: String,
+        compactFailureMessage: String,
+    ): Boolean =
         ("missing" in normalizedFailureMessage && "amount" in normalizedFailureMessage) ||
-            "amount is required" in normalizedFailureMessage
+            "amount is required" in normalizedFailureMessage ||
+            "missingamount" in compactFailureMessage
 
     private fun isLocalWalletStateFailure(normalizedFailureMessage: String): Boolean =
         (
@@ -122,27 +133,46 @@ object OutgoingPaymentFailureClassifier {
             ("channel" in normalizedFailureMessage && "opening" in normalizedFailureMessage) ||
             ("channel" in normalizedFailureMessage && "closing" in normalizedFailureMessage)
 
-    private fun isRemoteRoutingFailure(normalizedFailureMessage: String): Boolean =
+    private fun isRemoteRoutingFailure(
+        normalizedFailureMessage: String,
+        compactFailureMessage: String,
+    ): Boolean =
         "recipient node rejected the payment" in normalizedFailureMessage ||
             "recipient rejected" in normalizedFailureMessage ||
+            "recipientnoderejectedthepayment" in compactFailureMessage ||
+            "recipientrejected" in compactFailureMessage ||
             "recipient offline" in normalizedFailureMessage ||
+            "recipientoffline" in compactFailureMessage ||
             "remote failure" in normalizedFailureMessage ||
             "route not found" in normalizedFailureMessage ||
+            "routenotfound" in compactFailureMessage ||
             "routing" in normalizedFailureMessage
 
-    private fun isRemoteLiquidityFailure(normalizedFailureMessage: String): Boolean =
+    private fun isRemoteLiquidityFailure(
+        normalizedFailureMessage: String,
+        compactFailureMessage: String,
+    ): Boolean =
         "payment timeout" in normalizedFailureMessage ||
+            "paymenttimeout" in compactFailureMessage ||
             "recipient liquidity" in normalizedFailureMessage ||
             "remote liquidity" in normalizedFailureMessage ||
             "not enough liquidity" in normalizedFailureMessage ||
-            "temporary channel failure" in normalizedFailureMessage
+            "temporary channel failure" in normalizedFailureMessage ||
+            "temporarychannelfailure" in compactFailureMessage
 
-    private fun isFeeOrCltvFailure(normalizedFailureMessage: String): Boolean =
+    private fun isFeeOrCltvFailure(
+        normalizedFailureMessage: String,
+        compactFailureMessage: String,
+    ): Boolean =
         "trampoline fee insufficient" in normalizedFailureMessage ||
+            "trampolinefeeinsufficient" in compactFailureMessage ||
             "fee insufficient" in normalizedFailureMessage ||
+            "feeinsufficient" in compactFailureMessage ||
             "not enough fee" in normalizedFailureMessage ||
             "not enough fees" in normalizedFailureMessage ||
             "expiry too soon" in normalizedFailureMessage ||
+            "expirytoosoon" in compactFailureMessage ||
+            "trampolineexpirytoosoon" in compactFailureMessage ||
             "cltv" in normalizedFailureMessage
 
     private fun isTemporaryBackendFailure(normalizedFailureMessage: String): Boolean =
