@@ -59,6 +59,52 @@ class TokenServiceTest {
     }
 
     @Test
+    fun `generateBackupProgressToken embeds scope, userId, and operationId and expires in about 2 minutes`() {
+        val userId = ExposedTestDb.seedUser("progress-user")
+
+        val token = service.generateBackupProgressToken(userId, "operation-1")
+
+        val decoded = JWT.decode(token)
+        assertTrue(decoded.getClaim("scope").asString() == "backup_progress")
+        assertTrue(decoded.getClaim("userId").asString() == userId)
+        assertTrue(decoded.getClaim("operationId").asString() == "operation-1")
+
+        val now = System.currentTimeMillis()
+        assertTrue(decoded.expiresAt.after(Date(now + TimeUnit.MINUTES.toMillis(1))))
+        assertTrue(decoded.expiresAt.before(Date(now + TimeUnit.MINUTES.toMillis(2) + TimeUnit.SECONDS.toMillis(1))))
+    }
+
+    @Test
+    fun `getUserIdFromBackupProgressToken returns the userId when the token and operationId match`() {
+        val userId = ExposedTestDb.seedUser("progress-user")
+        val token = service.generateBackupProgressToken(userId, "operation-1")
+
+        val resolvedUserId = service.getUserIdFromBackupProgressToken(token, "operation-1")
+
+        assertTrue(resolvedUserId == userId)
+    }
+
+    @Test
+    fun `getUserIdFromBackupProgressToken returns null when the operationId does not match`() {
+        val userId = ExposedTestDb.seedUser("progress-user")
+        val token = service.generateBackupProgressToken(userId, "operation-1")
+
+        val resolvedUserId = service.getUserIdFromBackupProgressToken(token, "operation-2")
+
+        assertNull(resolvedUserId)
+    }
+
+    @Test
+    fun `getUserIdFromBackupProgressToken returns null for a token with a different scope`() {
+        val userId = ExposedTestDb.seedUser("progress-user")
+        val walletAccessToken = service.generateWalletAccessToken(userId)
+
+        val resolvedUserId = service.getUserIdFromBackupProgressToken(walletAccessToken, "operation-1")
+
+        assertNull(resolvedUserId)
+    }
+
+    @Test
     fun `isWalletTokenValid returns true when token matches stored value`() {
         val userId = ExposedTestDb.seedUser("wallet-user")
         val token = service.generateWalletAccessToken(userId)
