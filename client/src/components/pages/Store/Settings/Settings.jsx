@@ -17,6 +17,7 @@ import { Printers } from "./Printers";
 import { Seed } from "./Seed";
 import { StoreInfo } from "./StoreInfo";
 import { TicketTemplates } from "./TicketTemplates";
+import { Tips } from "./Tips";
 import { Tutorials } from "./Tutorials";
 
 export function Settings() {
@@ -31,6 +32,7 @@ export function Settings() {
         <div className="flex flex-col gap-6">
           <StoreInfo />
           <Currency />
+          <Tips />
           <Language />
           <Display />
           {isAdmin && (
