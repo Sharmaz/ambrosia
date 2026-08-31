@@ -5,6 +5,7 @@ import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.junit.After
 import org.junit.Before
 import pos.ambrosia.models.BackupManifest
+import pos.ambrosia.models.BackupProgressPhase
 import pos.ambrosia.services.BackupService
 import pos.ambrosia.utils.ExposedTestDb
 import java.io.ByteArrayOutputStream
@@ -251,6 +252,50 @@ class BackupServiceTest {
         assertTrue(!firstSaltAndInitializationVector.contentEquals(secondSaltAndInitializationVector))
     }
 
+    @Test
+    fun `exportBackup reports WRITING progress that ends at the total export bytes`() {
+        Files.write(uploadsRoot.resolve("product-1.jpg"), ByteArray(100))
+        val backupService = BackupService(uploadsRoot, databaseFile.absolutePath, configFile.absolutePath)
+        val databaseSnapshot = backupService.prepareExportSnapshot()
+        val totalExportBytes = backupService.calculateExportTotalBytes(databaseSnapshot)
+        val output = ByteArrayOutputStream()
+        val progressUpdates = mutableListOf<Triple<String, Long, Long?>>()
+
+        backupService.exportBackup(
+            "My Test Store",
+            "correct-password".toCharArray(),
+            databaseSnapshot,
+            output,
+        ) { phase, bytesProcessed, totalBytes -> progressUpdates.add(Triple(phase, bytesProcessed, totalBytes)) }
+
+        assertTrue(progressUpdates.isNotEmpty())
+        assertTrue(progressUpdates.all { it.first == BackupProgressPhase.WRITING })
+        assertTrue(progressUpdates.all { it.third == totalExportBytes })
+        assertEquals(totalExportBytes, progressUpdates.last().second)
+    }
+
+    @Test
+    fun `exportBackup reports multiple WRITING chunks for a file larger than the copy buffer`() {
+        Files.write(uploadsRoot.resolve("large-file.bin"), ByteArray(20000))
+        val backupService = BackupService(uploadsRoot, databaseFile.absolutePath, configFile.absolutePath)
+        val databaseSnapshot = backupService.prepareExportSnapshot()
+        val totalExportBytes = backupService.calculateExportTotalBytes(databaseSnapshot)
+        val output = ByteArrayOutputStream()
+        val progressUpdates = mutableListOf<Triple<String, Long, Long?>>()
+
+        backupService.exportBackup(
+            "My Test Store",
+            "correct-password".toCharArray(),
+            databaseSnapshot,
+            output,
+        ) { phase, bytesProcessed, totalBytes -> progressUpdates.add(Triple(phase, bytesProcessed, totalBytes)) }
+
+        assertTrue(progressUpdates.size > 2)
+        val bytesProcessedPerUpdate = progressUpdates.map { it.second }
+        assertEquals(bytesProcessedPerUpdate.sorted(), bytesProcessedPerUpdate)
+        assertEquals(totalExportBytes, progressUpdates.last().second)
+    }
+
     private fun buildEncryptedBackup(
         password: CharArray,
         zipEntries: Map<String, ByteArray>,
@@ -316,6 +361,55 @@ class BackupServiceTest {
 
         assertEquals("My Test Store", importedManifest.businessName)
         assertEquals(TEST_SECRET, importedManifest.secret)
+    }
+
+    @Test
+    fun `importBackup reports EXTRACTING progress that ends at the manifest total bytes`() {
+        val dateDir = Files.createDirectory(uploadsRoot.resolve("2026-08-24"))
+        Files.write(dateDir.resolve("logo.png"), ByteArray(200))
+        val backupService =
+            BackupService(uploadsRoot, databaseFile.absolutePath, configFile.absolutePath, importStagingRoot)
+        val databaseSnapshot = backupService.prepareExportSnapshot()
+        val totalExportBytes = backupService.calculateExportTotalBytes(databaseSnapshot)
+        val exportedBackup = ByteArrayOutputStream()
+        backupService.exportBackup("My Test Store", "correct-password".toCharArray(), databaseSnapshot, exportedBackup)
+        val progressUpdates = mutableListOf<Triple<String, Long, Long?>>()
+
+        backupService.importBackup(
+            exportedBackup.toByteArray().inputStream(),
+            "correct-password".toCharArray(),
+        ) { phase, bytesProcessed, totalBytes -> progressUpdates.add(Triple(phase, bytesProcessed, totalBytes)) }
+
+        assertTrue(progressUpdates.isNotEmpty())
+        assertTrue(progressUpdates.all { it.first == BackupProgressPhase.EXTRACTING })
+        assertTrue(progressUpdates.all { it.third == totalExportBytes })
+        assertEquals(totalExportBytes, progressUpdates.last().second)
+    }
+
+    @Test
+    fun `importBackup reports null total bytes when the manifest has no totalUncompressedBytes`() {
+        val backupService =
+            BackupService(uploadsRoot, databaseFile.absolutePath, configFile.absolutePath, importStagingRoot)
+        val password = "correct-password".toCharArray()
+        val oldBackupWithoutTotalBytes =
+            buildEncryptedBackup(
+                password,
+                mapOf(
+                    "manifest.json" to manifestZipEntry(sampleImportedManifest()),
+                    "ambrosia.db" to "fake-database-bytes".toByteArray(),
+                ),
+            )
+        val progressUpdates = mutableListOf<Triple<String, Long, Long?>>()
+
+        val importedManifest =
+            backupService.importBackup(
+                oldBackupWithoutTotalBytes.inputStream(),
+                password,
+            ) { phase, bytesProcessed, totalBytes -> progressUpdates.add(Triple(phase, bytesProcessed, totalBytes)) }
+
+        assertEquals("Imported Test Store", importedManifest.businessName)
+        assertTrue(progressUpdates.isNotEmpty())
+        assertTrue(progressUpdates.all { it.third == null })
     }
 
     @Test
