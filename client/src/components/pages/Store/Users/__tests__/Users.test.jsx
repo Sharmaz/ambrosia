@@ -38,10 +38,7 @@ jest.mock("../UsersList", () => ({
   ),
 }));
 
-jest.mock("@/hooks/usePermission", () => ({
-  usePermission: () => true,
-  RequirePermission: ({ children }) => children,
-}));
+jest.mock("@/hooks/usePermission");
 
 jest.mock("../AddUsersModal", () => ({
   AddUsersModal: ({ addUsersShowModal, data, onChange, addUser }) => (

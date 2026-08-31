@@ -8,12 +8,15 @@ import { isElectron } from "@lib/isElectron";
 
 import { Currency } from "./Currency";
 import { Display } from "./Display";
+import { ExportData } from "./ExportData";
+import { ImportData } from "./ImportData";
 import { InstallPWA } from "./InstallPWA";
 import { Language } from "./Language";
 import { LightningCard } from "./Lightning/LightningCard";
 import { NotificationPreferencesCard } from "./Notifications";
 import { NwcConnectionCard } from "./NwcConnection/NwcConnectionCard";
 import { Printers } from "./Printers";
+import { QRUrl } from "./QRUrl";
 import { Seed } from "./Seed";
 import { StoreInfo } from "./StoreInfo";
 import { TicketTemplates } from "./TicketTemplates";
@@ -38,6 +41,8 @@ export function Settings() {
           {isAdmin && (
             <>
               <Seed />
+              <ExportData />
+              <ImportData />
               <NwcConnectionCard />
               <Tutorials />
             </>
@@ -45,6 +50,7 @@ export function Settings() {
         </div>
 
         <div className="flex flex-col gap-6">
+          <QRUrl />
           <Printers />
           <TicketTemplates />
           {isAdmin && <NotificationPreferencesCard />}

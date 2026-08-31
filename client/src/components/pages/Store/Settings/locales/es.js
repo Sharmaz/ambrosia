@@ -1,3 +1,5 @@
+import exportDataEs from "../ExportData/locales/es";
+import importDataEs from "../ImportData/locales/es";
 import lightningEs from "../Lightning/locales/es";
 import nwcConnectionEs from "../NwcConnection/locales/es";
 import printersEs from "../Printers/locales/es";
@@ -17,6 +19,12 @@ const settingsEs = {
       successDescription: "La moneda de la tienda se ha cambiado correctamente.",
       errorTitle: "Error al actualizar moneda",
       errorDescription: "No se pudo actualizar la moneda de la tienda.",
+    },
+    cardQRUrl: {
+      title: "Abrir en otro dispositivo",
+      subtitle: "Escanea este código QR para abrir Ambrosia.",
+      helper: "Usa la cámara de tu teléfono u otro dispositivo para escanearlo.",
+      qrLabel: "Código QR para abrir Ambrosia en otro dispositivo",
     },
     cardLanguage: {
       title: "Idioma",
@@ -75,6 +83,8 @@ const settingsEs = {
     ...printersEs,
     ...ticketTemplatesEs,
     ...seedEs,
+    ...exportDataEs,
+    ...importDataEs,
     ...tutorialsEs,
   },
   ...lightningEs,

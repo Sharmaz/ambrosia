@@ -1,3 +1,5 @@
+import exportDataEn from "../ExportData/locales/en";
+import importDataEn from "../ImportData/locales/en";
 import lightningEn from "../Lightning/locales/en";
 import nwcConnectionEn from "../NwcConnection/locales/en";
 import printersEn from "../Printers/locales/en";
@@ -17,6 +19,12 @@ const settingsEn = {
       successDescription: "The store currency has been changed successfully.",
       errorTitle: "Currency update failed",
       errorDescription: "Could not update the store currency.",
+    },
+    cardQRUrl: {
+      title: "Open on another device",
+      subtitle: "Scan this QR code to open Ambrosia.",
+      helper: "Use your phone or another device's camera to scan it.",
+      qrLabel: "QR code to open Ambrosia on another device",
     },
     cardLanguage: {
       title: "Language",
@@ -75,6 +83,8 @@ const settingsEn = {
     ...printersEn,
     ...ticketTemplatesEn,
     ...seedEn,
+    ...exportDataEn,
+    ...importDataEn,
     ...tutorialsEn,
   },
   ...lightningEn,

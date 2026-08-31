@@ -4,9 +4,7 @@ import * as walletService from "@/services/walletService";
 
 import { NwcConnectionCardUnlocked } from "../NwcConnectionCardUnlocked";
 
-jest.mock("@/hooks/usePermission", () => ({
-  RequirePermission: ({ children }) => children,
-}));
+jest.mock("@/hooks/usePermission");
 
 jest.mock("@heroui/react", () => ({
   addToast: jest.fn(),
