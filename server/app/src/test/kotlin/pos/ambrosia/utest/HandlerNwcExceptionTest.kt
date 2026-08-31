@@ -23,7 +23,7 @@ private data class HandlerResponse(
 )
 
 private fun responseForThrowing(exception: Throwable): HandlerResponse {
-    lateinit var capturedResponse: HandlerResponse
+    lateinit var capturedHandlerResponse: HandlerResponse
     testApplication {
         application {
             this@application.install(ContentNegotiation) { json() }
@@ -32,46 +32,51 @@ private fun responseForThrowing(exception: Throwable): HandlerResponse {
                 get("/throws") { throw exception }
             }
         }
-        val response = client.get("/throws")
-        capturedResponse = HandlerResponse(response.status, response.bodyAsText())
+        val httpResponseFromThrowingRoute = client.get("/throws")
+        capturedHandlerResponse =
+            HandlerResponse(
+                httpResponseFromThrowingRoute.status,
+                httpResponseFromThrowingRoute.bodyAsText(),
+            )
     }
-    return capturedResponse
+    return capturedHandlerResponse
 }
 
 class HandlerNwcExceptionTest {
     @Test
     fun `maps NwcConnectionException to 503 without leaking the internal message`() {
-        val response = responseForThrowing(NwcConnectionException("relay socket reset by peer"))
+        val nwcConnectionHandlerResponse = responseForThrowing(NwcConnectionException("relay socket reset by peer"))
 
-        assertEquals(HttpStatusCode.ServiceUnavailable, response.status)
+        assertEquals(HttpStatusCode.ServiceUnavailable, nwcConnectionHandlerResponse.status)
         assertEquals(
             """{"message":"NWC wallet relay is unavailable","code":"nwc_connection_failed","source":"ambrosia","category":"unknown"}""",
-            response.body,
+            nwcConnectionHandlerResponse.body,
         )
     }
 
     @Test
     fun `maps NwcServiceException to 503 without leaking the internal message`() {
-        val response = responseForThrowing(NwcServiceException("NWC get_balance failed: [500] internal error"))
+        val nwcServiceHandlerResponse = responseForThrowing(NwcServiceException("NWC get_balance failed: [500] internal error"))
 
-        assertEquals(HttpStatusCode.ServiceUnavailable, response.status)
-        assertEquals("""{"message":"NWC wallet service error"}""", response.body)
+        assertEquals(HttpStatusCode.ServiceUnavailable, nwcServiceHandlerResponse.status)
+        assertEquals("""{"message":"NWC wallet service error"}""", nwcServiceHandlerResponse.body)
     }
 
     @Test
     fun `maps UnsupportedBackendOperationException to 501 with its own message`() {
-        val response = responseForThrowing(UnsupportedBackendOperationException("Seed export is not available with NWC backend"))
+        val unsupportedOperationHandlerResponse =
+            responseForThrowing(UnsupportedBackendOperationException("Seed export is not available with NWC backend"))
 
-        assertEquals(HttpStatusCode.NotImplemented, response.status)
+        assertEquals(HttpStatusCode.NotImplemented, unsupportedOperationHandlerResponse.status)
         assertEquals(
             """{"message":"Seed export is not available with NWC backend","code":"unsupported_operation","source":"ambrosia","category":"unknown"}""",
-            response.body,
+            unsupportedOperationHandlerResponse.body,
         )
     }
 
     @Test
     fun `maps PhoenixServiceException to wallet error response with category`() {
-        val response =
+        val phoenixServiceHandlerResponse =
             responseForThrowing(
                 PhoenixServiceException(
                     message = "Recipient node rejected the payment",
@@ -81,10 +86,10 @@ class HandlerNwcExceptionTest {
                 ),
             )
 
-        assertEquals(HttpStatusCode.UnprocessableEntity, response.status)
+        assertEquals(HttpStatusCode.UnprocessableEntity, phoenixServiceHandlerResponse.status)
         assertEquals(
             """{"message":"Recipient node rejected the payment","code":"recipient_rejected_payment","source":"phoenixd","category":"remote_routing"}""",
-            response.body,
+            phoenixServiceHandlerResponse.body,
         )
     }
 }
