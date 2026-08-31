@@ -12,6 +12,7 @@ import io.ktor.server.testing.testApplication
 import pos.ambrosia.api.handler
 import pos.ambrosia.utils.NwcConnectionException
 import pos.ambrosia.utils.NwcServiceException
+import pos.ambrosia.utils.PhoenixServiceException
 import pos.ambrosia.utils.UnsupportedBackendOperationException
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -44,7 +45,7 @@ class HandlerNwcExceptionTest {
 
         assertEquals(HttpStatusCode.ServiceUnavailable, response.status)
         assertEquals(
-            """{"message":"NWC wallet relay is unavailable","code":"nwc_connection_failed","source":"ambrosia"}""",
+            """{"message":"NWC wallet relay is unavailable","code":"nwc_connection_failed","source":"ambrosia","category":"unknown"}""",
             response.body,
         )
     }
@@ -63,7 +64,26 @@ class HandlerNwcExceptionTest {
 
         assertEquals(HttpStatusCode.NotImplemented, response.status)
         assertEquals(
-            """{"message":"Seed export is not available with NWC backend","code":"unsupported_operation","source":"ambrosia"}""",
+            """{"message":"Seed export is not available with NWC backend","code":"unsupported_operation","source":"ambrosia","category":"unknown"}""",
+            response.body,
+        )
+    }
+
+    @Test
+    fun `maps PhoenixServiceException to wallet error response with category`() {
+        val response =
+            responseForThrowing(
+                PhoenixServiceException(
+                    message = "Recipient node rejected the payment",
+                    code = "recipient_rejected_payment",
+                    category = "remote_routing",
+                    statusCode = 422,
+                ),
+            )
+
+        assertEquals(HttpStatusCode.UnprocessableEntity, response.status)
+        assertEquals(
+            """{"message":"Recipient node rejected the payment","code":"recipient_rejected_payment","source":"phoenixd","category":"remote_routing"}""",
             response.body,
         )
     }
