@@ -17,6 +17,8 @@ object ConfigTable : IntIdTable("config") {
     val businessLogoUrl = text("business_logo_url").nullable()
     val businessTypeConfirmed = bool("business_type_confirmed").default(false)
     val timezone = varchar("timezone", 50).default("America/Mexico_City")
+    val tipsEnabled = bool("tips_enabled").default(true)
+    val tipPercentages = varchar("tip_percentages", 50).default("10,15,20")
 }
 
 class ConfigEntity(
@@ -34,4 +36,6 @@ class ConfigEntity(
     var businessLogoUrl by ConfigTable.businessLogoUrl
     var businessTypeConfirmed by ConfigTable.businessTypeConfirmed
     var timezone by ConfigTable.timezone
+    var tipsEnabled by ConfigTable.tipsEnabled
+    var tipPercentages by ConfigTable.tipPercentages
 }

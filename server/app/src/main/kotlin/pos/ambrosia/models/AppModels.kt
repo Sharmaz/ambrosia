@@ -173,6 +173,7 @@ data class Order(
     val status: String,
     val total: Double,
     val discountAmount: Double = 0.0,
+    val tipAmount: Double = 0.0,
     val createdAt: String,
 )
 
@@ -192,6 +193,7 @@ data class OrderWithPayment(
     val status: String,
     val total: Double,
     val discountAmount: Double = 0.0,
+    val tipAmount: Double = 0.0,
     val createdAt: String,
     val paymentMethod: String? = null,
     val paymentMethodIds: List<String> = emptyList(),
@@ -267,6 +269,7 @@ data class Ticket(
     val status: Int,
     val totalAmount: Double,
     val notes: String,
+    val tipAmount: Double = 0.0,
 )
 
 @Serializable data class Currency(
@@ -500,6 +503,8 @@ data class Config(
     val businessLogoUrl: String?,
     val businessTypeConfirmed: Boolean = false,
     val timezone: String = "America/Mexico_City",
+    val tipsEnabled: Boolean = true,
+    val tipPercentages: String = "10,15,20",
 )
 
 @Serializable
@@ -733,6 +738,7 @@ data class StoreCheckoutRequest(
     val exchangeRateCurrency: String? = null,
     val fiatAmountAtPayment: Double? = null,
     val discountAmount: Double = 0.0,
+    val tipAmount: Double = 0.0,
 )
 
 @Serializable

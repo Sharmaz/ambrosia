@@ -65,6 +65,7 @@ class CheckoutServiceTest {
         transactionId: String? = null,
         paymentHash: String? = null,
         discountAmount: Double = 0.0,
+        tipAmount: Double = 0.0,
     ) = StoreCheckoutRequest(
         userId = userId,
         items = items,
@@ -75,6 +76,7 @@ class CheckoutServiceTest {
         ticketNotes = "",
         paymentHash = paymentHash,
         discountAmount = discountAmount,
+        tipAmount = tipAmount,
     )
 
     private fun incomingPayment(
@@ -120,6 +122,21 @@ class CheckoutServiceTest {
             val items = listOf(StoreCheckoutItem(productId = productId, quantity = -1, priceAtOrder = 500))
             val result = service.checkout(validStoreRequest(userId, items = items))
             assertTrue(result is CheckoutResult.Invalid)
+        }
+    }
+
+    @Test
+    fun `checkout returns Invalid when tip amount is negative or non-finite`() {
+        runBlocking {
+            val userId = seedUser()
+            val productId = ExposedTestDb.seedProduct(quantity = 10)
+            val items = listOf(StoreCheckoutItem(productId = productId, quantity = 1, priceAtOrder = 500))
+
+            listOf(-1.0, Double.NaN, Double.POSITIVE_INFINITY).forEach { invalidTip ->
+                val result = service.checkout(validStoreRequest(userId, items, tipAmount = invalidTip))
+                assertTrue(result is CheckoutResult.Invalid)
+                assertEquals("checkout_invalid_tip", result.code)
+            }
         }
     }
 
