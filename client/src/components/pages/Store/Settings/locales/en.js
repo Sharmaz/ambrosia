@@ -1,3 +1,5 @@
+import exportDataEn from "../ExportData/locales/en";
+import importDataEn from "../ImportData/locales/en";
 import lightningEn from "../Lightning/locales/en";
 import nwcConnectionEn from "../NwcConnection/locales/en";
 import printersEn from "../Printers/locales/en";
@@ -65,6 +67,8 @@ const settingsEn = {
     ...printersEn,
     ...ticketTemplatesEn,
     ...seedEn,
+    ...exportDataEn,
+    ...importDataEn,
     ...tutorialsEn,
   },
   ...lightningEn,

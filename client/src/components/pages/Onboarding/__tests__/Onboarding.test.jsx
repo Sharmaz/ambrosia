@@ -15,6 +15,7 @@ jest.mock("@heroui/react", () => ({
 jest.mock("@services/initialSetupService", () => ({
   getInitialSetupStatus: jest.fn(() => Promise.resolve({ initialized: false, needsBusinessType: false })),
   submitInitialSetup: jest.fn(() => Promise.resolve({})),
+  restoreFromBackup: jest.fn(),
 }));
 
 function renderOnboarding() {
@@ -435,6 +436,45 @@ describe("Onboarding Wizard", () => {
           expect.objectContaining({ timezone: Intl.DateTimeFormat().resolvedOptions().timeZone }),
         );
       });
+    });
+  });
+
+  describe("Restore from backup", () => {
+    it("shows the restore toggle link on the first step when setup is not initialized", async () => {
+      await act(async () => {
+        renderOnboarding();
+      });
+
+      expect(screen.getByText("restore.toggleLink")).toBeInTheDocument();
+    });
+
+    it("shows the restore step and hides the wizard when the toggle link is clicked", async () => {
+      await act(async () => {
+        renderOnboarding();
+      });
+
+      await act(async () => {
+        fireEvent.click(screen.getByText("restore.toggleLink"));
+      });
+
+      expect(screen.getByText("restore.title")).toBeInTheDocument();
+      expect(screen.queryByText("buttons.next")).not.toBeInTheDocument();
+    });
+
+    it("returns to the wizard when Back to setup is clicked from the restore step", async () => {
+      await act(async () => {
+        renderOnboarding();
+      });
+
+      await act(async () => {
+        fireEvent.click(screen.getByText("restore.toggleLink"));
+      });
+      await act(async () => {
+        fireEvent.click(screen.getByText("buttons.back"));
+      });
+
+      expect(screen.getByText("buttons.next")).toBeInTheDocument();
+      expect(screen.queryByText("restore.title")).not.toBeInTheDocument();
     });
   });
 

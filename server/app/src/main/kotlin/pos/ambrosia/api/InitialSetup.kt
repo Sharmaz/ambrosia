@@ -1,14 +1,20 @@
 package pos.ambrosia.api
 
 import io.ktor.http.HttpStatusCode
+import io.ktor.http.content.PartData
+import io.ktor.http.content.forEachPart
 import io.ktor.server.application.Application
 import io.ktor.server.request.receive
+import io.ktor.server.request.receiveMultipart
 import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 import io.ktor.server.routing.route
 import io.ktor.server.routing.routing
+import io.ktor.utils.io.ByteReadChannel
+import io.ktor.utils.io.copyTo
+import kotlinx.coroutines.runBlocking
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import pos.ambrosia.datadir
 import pos.ambrosia.logger
@@ -19,6 +25,7 @@ import pos.ambrosia.models.InitialSetupStatus
 import pos.ambrosia.models.Role
 import pos.ambrosia.models.User
 import pos.ambrosia.services.ActiveLightningBackend
+import pos.ambrosia.services.BackupService
 import pos.ambrosia.services.ConfigService
 import pos.ambrosia.services.CurrencyService
 import pos.ambrosia.services.PermissionsService
@@ -27,6 +34,9 @@ import pos.ambrosia.services.UsersService
 import pos.ambrosia.services.WalletAdminNotificationService
 import pos.ambrosia.utils.InitialSetupException
 import java.io.File
+import java.nio.channels.Channels
+import java.nio.file.Files
+import java.nio.file.Path
 import java.time.ZoneId
 
 fun Application.configureInitialSetup() {
@@ -182,4 +192,69 @@ private fun Route.initialSetupRoutes() {
             ),
         )
     }
+
+    post("/restore") {
+        val configService = ConfigService()
+        if (configService.getConfig() != null) {
+            call.respond(HttpStatusCode.Conflict, mapOf("message" to "Initial setup already completed"))
+            return@post
+        }
+
+        var backupPassword: String? = null
+        var temporaryBackupFile: Path? = null
+        try {
+            call.receiveMultipart().forEachPart { part ->
+                when (part) {
+                    is PartData.FormItem -> {
+                        if (part.name == "password") backupPassword = part.value
+                    }
+
+                    is PartData.FileItem -> {
+                        if (part.name == "backup") temporaryBackupFile = receiveChannelToTempFile(part.provider)
+                    }
+
+                    else -> {}
+                }
+                part.release()
+            }
+
+            val password = backupPassword
+            val backupFile = temporaryBackupFile
+            if (password.isNullOrEmpty() || backupFile == null) {
+                call.respond(HttpStatusCode.BadRequest, mapOf("message" to "Missing password or backup file"))
+                return@post
+            }
+
+            val backupService = BackupService()
+            val importedManifest =
+                Files.newInputStream(backupFile).use { backupInputStream ->
+                    backupService.importBackup(backupInputStream, password.toCharArray())
+                }
+
+            call.respond(
+                HttpStatusCode.OK,
+                mapOf("message" to "Backup restored", "businessName" to importedManifest.businessName),
+            )
+        } catch (invalidBackup: IllegalArgumentException) {
+            call.respond(
+                HttpStatusCode.BadRequest,
+                mapOf("message" to (invalidBackup.message ?: "Invalid backup file")),
+            )
+        } catch (unsafeBackup: SecurityException) {
+            logger.warn("Rejected backup restore with an unsafe path: ${unsafeBackup.message}")
+            call.respond(HttpStatusCode.BadRequest, mapOf("message" to "Invalid backup file"))
+        } finally {
+            temporaryBackupFile?.let { Files.deleteIfExists(it) }
+        }
+    }
+}
+
+private fun receiveChannelToTempFile(channelProvider: () -> ByteReadChannel): Path {
+    val temporaryFile = Files.createTempFile("ambrosia-import-upload-", ".zip")
+    val uploadChannel = channelProvider()
+    Files.newOutputStream(temporaryFile).use { temporaryFileOutputStream ->
+        runBlocking { uploadChannel.copyTo(Channels.newChannel(temporaryFileOutputStream)) }
+    }
+    uploadChannel.cancel(null)
+    return temporaryFile
 }

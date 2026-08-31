@@ -109,6 +109,18 @@ const componentsEn = {
     amountAtTimeOfPayment: "Amount at time of sale",
     amountAtCurrentRate: "Amount at current rate",
   },
+  backupPasswordField: {
+    passwordLabel: "Backup password",
+    passwordPlaceholder: "Enter the wallet password of the business that created this backup",
+    fileLabel: "Backup file",
+    fileButton: "Choose file",
+    fileHint: "Select the .zip file you exported from Settings.",
+  },
+  restartRequiredModal: {
+    title: "Restart required",
+    description: "Please restart the Ambrosia server to finish loading your data.",
+    acknowledgeButton: "Got it",
+  },
 };
 
 export default componentsEn;

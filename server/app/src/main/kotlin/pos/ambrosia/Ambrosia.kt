@@ -34,6 +34,7 @@ import pos.ambrosia.config.readConfValues
 import pos.ambrosia.config.replaceConfFileProperty
 import pos.ambrosia.config.writeConfValues
 import pos.ambrosia.db.DatabaseConnection
+import pos.ambrosia.services.BackupService
 import pos.ambrosia.services.VapidKeyService
 import pos.ambrosia.services.VapidKeys
 import java.io.File
@@ -49,7 +50,13 @@ val phoenixDatadir: Path =
     System.getenv()[EnvVars.PHOENIX_DATADIR]?.let { Path(it) }
         ?: Path(Path(userHome), ".phoenix")
 
-fun main(args: Array<String>) = Ambrosia().main(args)
+var pendingDataImportWasApplied: Boolean = false
+    private set
+
+fun main(args: Array<String>) {
+    pendingDataImportWasApplied = BackupService().applyPendingImport()
+    Ambrosia().main(args)
+}
 
 class Ambrosia : CliktCommand() {
     val appVersion: String = Ambrosia::class.java.getPackage().implementationVersion ?: "-dev"

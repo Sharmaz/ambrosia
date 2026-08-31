@@ -874,3 +874,12 @@ data class TimeEntryResponse(
     val isLocked: Boolean,
     val createdAt: String,
 )
+
+@Serializable
+data class BackupManifest(
+    val appVersion: String,
+    val schemaInstalledRank: Int?,
+    val exportedAt: String = Instant.now().toString(),
+    val businessName: String,
+    val secret: String,
+)

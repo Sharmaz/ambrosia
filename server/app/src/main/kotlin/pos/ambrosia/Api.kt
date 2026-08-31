@@ -22,6 +22,7 @@ import org.slf4j.LoggerFactory
 import pos.ambrosia.api.configureAdminNotifications
 import pos.ambrosia.api.configureAdminNotificationsWebsocket
 import pos.ambrosia.api.configureAuth
+import pos.ambrosia.api.configureBackup
 import pos.ambrosia.api.configureCategories
 import pos.ambrosia.api.configureCheckout
 import pos.ambrosia.api.configureClients
@@ -57,6 +58,7 @@ import pos.ambrosia.api.configureWallet
 import pos.ambrosia.api.handler
 import pos.ambrosia.config.AppConfig
 import pos.ambrosia.db.DatabaseConnection
+import pos.ambrosia.services.AdminNotificationService
 import pos.ambrosia.services.TokenService
 import pos.ambrosia.utils.UnauthorizedApiException
 import kotlin.time.Duration.Companion.seconds
@@ -65,8 +67,11 @@ public val logger = LoggerFactory.getLogger("Server")
 
 class Api {
     fun Application.module() {
-        AppConfig.loadConfig() // Load the configuration
-        handler() // Install exception handlers
+        AppConfig.loadConfig()
+        if (pendingDataImportWasApplied) {
+            configurePendingImportCleanup()
+        }
+        handler()
         install(ContentNegotiation) { json() }
         install(CORS) {
             allowCredentials = true
@@ -101,6 +106,7 @@ class Api {
         configureReports()
         configureShifts()
         configureWallet()
+        configureBackup()
         configurePrinters()
         configureConfig()
         configureTicketTemplates()
@@ -192,4 +198,12 @@ fun Application.configureAuthentication() {
             }
         }
     }
+}
+
+fun Application.configurePendingImportCleanup() {
+    val tokenService = TokenService(environment)
+    tokenService.revokeAllRefreshTokens()
+    tokenService.revokeAllWalletTokens()
+    AdminNotificationService().revokeAllPushSubscriptions()
+    logger.info("Cleared device sessions and push subscriptions after a data import")
 }
