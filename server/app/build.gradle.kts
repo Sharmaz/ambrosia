@@ -61,6 +61,7 @@ dependencies {
     testImplementation(libs.mockito.kotlin)
     testImplementation(libs.mockito.core)
     testImplementation(libs.ktor.client.mock)
+    testImplementation(libs.ktor.client.websockets)
     testImplementation(libs.ktor.server.test.host)
 }
 
