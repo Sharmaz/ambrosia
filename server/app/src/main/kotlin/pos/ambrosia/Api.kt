@@ -23,6 +23,7 @@ import pos.ambrosia.api.configureAdminNotifications
 import pos.ambrosia.api.configureAdminNotificationsWebsocket
 import pos.ambrosia.api.configureAuth
 import pos.ambrosia.api.configureBackup
+import pos.ambrosia.api.configureBackupProgressWebsocket
 import pos.ambrosia.api.configureCategories
 import pos.ambrosia.api.configureCheckout
 import pos.ambrosia.api.configureClients
@@ -107,6 +108,7 @@ class Api {
         configureShifts()
         configureWallet()
         configureBackup()
+        configureBackupProgressWebsocket()
         configurePrinters()
         configureConfig()
         configureTicketTemplates()
