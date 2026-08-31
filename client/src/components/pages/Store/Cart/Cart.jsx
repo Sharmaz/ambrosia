@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 
 import { PageHeader } from "@/components/shared/PageHeader";
+import { useConfigurations } from "@/providers/configurations/configurationsProvider";
 
 import { useCategories } from "../hooks/useCategories";
 import { useProducts } from "../hooks/useProducts";
@@ -40,6 +41,8 @@ function syncCartWithProducts(cart, products) {
 
 export function Cart() {
   const cartTranslations = useTranslations("cart");
+  const { config } = useConfigurations();
+  const tipsEnabled = config?.tipsEnabled === true;
   const [showMobileSummary, setShowMobileSummary] = useState(false);
   const {
     cart,
@@ -48,6 +51,10 @@ export function Cart() {
     setDiscount,
     discountType,
     setDiscountType,
+    tip,
+    setTip,
+    tipType,
+    setTipType,
     isCartRestored,
     resetCartState,
   } = usePersistentCart();
@@ -58,6 +65,14 @@ export function Cart() {
       setDiscountType(selectedDiscountType);
     },
     [setDiscount, setDiscountType],
+  );
+
+  const handleApplyTip = useCallback(
+    (tipValue, selectedTipType) => {
+      setTip(tipValue);
+      setTipType(selectedTipType);
+    },
+    [setTip, setTipType],
   );
   const { products, forbidden: productsForbidden, refetch: refetchProducts } = useProducts({ skipForbiddenRedirect: true });
   const { categories } = useCategories();
@@ -134,12 +149,20 @@ export function Cart() {
       setTimeout(() => setShowMobileSummary(false), 0);
       setDiscount(0);
       setDiscountType("percentage");
+      setTip(0);
+      setTipType("percentage");
     }
-  }, [visibleCart.length, setDiscount, setDiscountType]);
+  }, [visibleCart.length, discount, tip, setDiscount, setDiscountType, setTip, setTipType]);
 
   const cartTotal = useMemo(
-    () => calculateCartTotals(visibleCart, discount).total,
-    [visibleCart, discount],
+    () => calculateCartTotals(
+      visibleCart,
+      discount,
+      discountType,
+      tipsEnabled ? tip : 0,
+      tipType,
+    ).total,
+    [visibleCart, discount, discountType, tipsEnabled, tip, tipType],
   );
 
   const missingPermissions = [
@@ -170,6 +193,11 @@ export function Cart() {
             discount={discount}
             discountType={discountType}
             onApplyDiscount={handleApplyDiscount}
+            tip={tip}
+            tipType={tipType}
+            tipsEnabled={tipsEnabled}
+            tipPercentages={config?.tipPercentages}
+            onApplyTip={handleApplyTip}
             onRemoveProduct={removeProduct}
             onClearCart={handleClearCart}
             onUpdateQuantity={updateQuantity}
@@ -196,6 +224,11 @@ export function Cart() {
         discount={discount}
         discountType={discountType}
         onApplyDiscount={handleApplyDiscount}
+        tip={tip}
+        tipType={tipType}
+        tipsEnabled={tipsEnabled}
+        tipPercentages={config?.tipPercentages}
+        onApplyTip={handleApplyTip}
         onRemoveProduct={removeProduct}
         onClearCart={handleClearCart}
         onUpdateQuantity={updateQuantity}
