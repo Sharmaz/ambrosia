@@ -50,6 +50,7 @@ import pos.ambrosia.api.configureSuppliers
 import pos.ambrosia.api.configureTables
 import pos.ambrosia.api.configureTicketTemplates
 import pos.ambrosia.api.configureTickets
+import pos.ambrosia.api.configureTimeEntries
 import pos.ambrosia.api.configureUploads
 import pos.ambrosia.api.configureUsers
 import pos.ambrosia.api.configureWallet
@@ -111,6 +112,7 @@ class Api {
         configureClients()
         configureProjects()
         configureCurrency()
+        configureTimeEntries()
         configureInitialSetup()
         if (environment.config.propertyOrNull("nwc-uri") == null) {
             configurePhoenixWebhook()

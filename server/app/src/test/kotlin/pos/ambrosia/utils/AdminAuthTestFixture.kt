@@ -78,8 +78,13 @@ fun HttpRequestBuilder.withAuthCookies(cookies: AuthCookies) {
 fun grantPermission(
     roleName: String,
     permission: String,
+) = grantPermissions(roleName, permission)
+
+fun grantPermissions(
+    roleName: String,
+    vararg permissions: String,
 ) {
     val roleId = ExposedTestDb.seedRole(roleName)
-    ExposedTestDb.seedPermission(permission)
-    PermissionsService().replaceRolePermissions(roleId, listOf(permission))
+    permissions.forEach(ExposedTestDb::seedPermission)
+    PermissionsService().replaceRolePermissions(roleId, permissions.toList())
 }
