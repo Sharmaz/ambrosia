@@ -147,6 +147,26 @@ describe("OrderDetailsModal", () => {
     expect(screen.queryByText(/amount-display/)).not.toBeInTheDocument();
   });
 
+  it("renders tip as secondary information aligned with the amount column", () => {
+    const formatAmount = jest.fn((value) => `fmt-${value}`);
+
+    render(
+      <OrderDetailsModal
+        order={{ id: "order-tip", status: "paid", total: 14.4, tipAmount: 2.4 }}
+        isOpen
+        onClose={jest.fn()}
+        formatAmount={formatAmount}
+      />,
+    );
+
+    const tipLabel = screen.getByText("details.tip");
+    const tipAmount = screen.getByText("+fmt-240");
+
+    expect(tipLabel.parentElement).toHaveClass("grid", "grid-cols-2", "text-gray-700");
+    expect(tipAmount).toHaveClass("text-right", "text-gray-500");
+    expect(tipAmount).not.toHaveClass("font-medium", "font-semibold", "font-bold");
+  });
+
   it("renders only the title when order is null", () => {
     render(
       <OrderDetailsModal

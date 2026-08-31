@@ -58,6 +58,7 @@ describe("TurnProvider", () => {
   it("forwards totalBalance, cashTotal and byPaymentMethod from useShiftTicketMetrics to a real consumer", async () => {
     useShiftTicketMetrics.mockReturnValue({
       totalBalance: 130,
+      totalTips: 0,
       cashTotal: 60,
       refundedCashTotal: 0,
       totalTickets: 11,
@@ -79,6 +80,7 @@ describe("TurnProvider", () => {
   it("does not fall back to totalBalance when cashTotal differs from it", async () => {
     useShiftTicketMetrics.mockReturnValue({
       totalBalance: 130,
+      totalTips: 0,
       cashTotal: 60,
       refundedCashTotal: 0,
       totalTickets: 11,
@@ -98,6 +100,7 @@ describe("TurnProvider", () => {
   it("forwards refundedCashTotal from useShiftTicketMetrics and subtracts it from expectedTotal", async () => {
     useShiftTicketMetrics.mockReturnValue({
       totalBalance: 130,
+      totalTips: 0,
       cashTotal: 60,
       refundedCashTotal: 20,
       totalTickets: 11,

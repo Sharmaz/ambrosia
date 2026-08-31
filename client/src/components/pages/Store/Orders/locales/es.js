@@ -62,6 +62,7 @@ const ordersEs = {
       paymentMethod: "Método de pago",
       total: "Total",
       discount: "Descuento",
+      tip: "Propina",
       createdAt: "Creada el",
       close: "Cerrar",
       unassigned: "Sin asignar",

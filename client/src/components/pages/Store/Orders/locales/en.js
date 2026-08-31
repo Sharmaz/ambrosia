@@ -62,6 +62,7 @@ const ordersEn = {
       paymentMethod: "Payment Method",
       total: "Total",
       discount: "Discount",
+      tip: "Tip",
       createdAt: "Created at",
       close: "Close",
       unassigned: "Unassigned",

@@ -88,6 +88,7 @@ const componentsEn = {
     printCorteZError: "Error printing Z Report",
     shiftPeriod: "Shift period",
     totalSales: "Total sales",
+    totalTips: "Total tips",
     cashSales: "Cash sales",
     cashRefunds: "Cash refunds",
     totalTickets: "Total tickets",
