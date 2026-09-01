@@ -106,6 +106,7 @@ const onboardingEs = {
     phaseExtracting: "Procesando tu respaldo...",
     missingFields: "Ingresa la contraseña del respaldo y selecciona un archivo.",
     genericError: "No se pudo restaurar el respaldo. Verifica la contraseña y el archivo, luego intenta de nuevo.",
+    pendingRestoreError: "La configuración ya podría estar completa, o hay una restauración anterior pendiente — actualiza la página o reinicia el servidor, y vuelve a intentarlo.",
     successTitle: "Respaldo restaurado",
     successDescription: "El servidor necesita reiniciarse para terminar de cargar tus datos.",
     restartRequiredElectron: "Reiniciando la aplicación...",

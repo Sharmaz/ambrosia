@@ -1,4 +1,4 @@
-import { httpClient } from "@/lib/http";
+import { httpClient, parseJsonResponse } from "@/lib/http";
 
 import { closeBackupProgressChannel, openBackupProgressChannel } from "./backupProgressChannel";
 
@@ -48,5 +48,11 @@ export async function restoreFromBackup(password, backupFile, onProgress) {
     closeBackupProgressChannel(progressChannel);
   }
 
-  return { ok: restoreRequest.status >= 200 && restoreRequest.status < 300 };
+  if (restoreRequest.status < 200 || restoreRequest.status >= 300) {
+    const restoreResponseLike = { status: restoreRequest.status, text: async () => restoreRequest.responseText };
+    const restoreBody = await parseJsonResponse(restoreResponseLike, null);
+    return { ok: false, status: restoreRequest.status, message: restoreBody?.message };
+  }
+
+  return { ok: true };
 }

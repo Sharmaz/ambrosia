@@ -37,7 +37,11 @@ export function RestoreFromBackupStep({ onBack }) {
     try {
       const restoreResponse = await restoreFromBackup(backupPassword, backupFile, setRestoreProgress);
       if (!restoreResponse.ok) {
-        setErrorMessage(restoreTranslations("restore.genericError"));
+        setErrorMessage(
+          restoreResponse.status === 409
+            ? restoreTranslations("restore.pendingRestoreError")
+            : restoreTranslations("restore.genericError"),
+        );
         return;
       }
 

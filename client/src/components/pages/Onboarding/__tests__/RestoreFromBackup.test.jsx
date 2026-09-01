@@ -81,6 +81,23 @@ describe("RestoreFromBackupStep", () => {
     expect(await screen.findByText("restore.genericError")).toBeInTheDocument();
   });
 
+  it("shows the pending-restore error when the server responds with 409", async () => {
+    restoreFromBackup.mockResolvedValue({ ok: false, status: 409, message: "A previous import is already staged" });
+
+    await act(async () => {
+      renderStep();
+    });
+
+    fireEvent.change(screen.getByLabelText("hide-show-backup-password"), { target: { value: "secret" } });
+    selectBackupFile();
+
+    await act(async () => {
+      fireEvent.click(screen.getByText("restore.submitButton"));
+    });
+
+    expect(await screen.findByText("restore.pendingRestoreError")).toBeInTheDocument();
+  });
+
   it("shows a generic error when the request throws", async () => {
     restoreFromBackup.mockRejectedValue(new Error("network error"));
 

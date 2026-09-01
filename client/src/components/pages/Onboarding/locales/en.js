@@ -105,6 +105,7 @@ const onboardingEn = {
     phaseExtracting: "Processing your backup...",
     missingFields: "Enter the backup password and select a file.",
     genericError: "Could not restore the backup. Check the password and file, then try again.",
+    pendingRestoreError: "Setup may already be complete, or a previous restore is still pending — refresh the page, or restart the server, then try again.",
     successTitle: "Backup restored",
     successDescription: "The server needs to restart to finish loading your data.",
     restartRequiredElectron: "Restarting the app now...",

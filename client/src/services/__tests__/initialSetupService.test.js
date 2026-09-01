@@ -1,5 +1,6 @@
 jest.mock("@/lib/http", () => ({
   httpClient: jest.fn(),
+  parseJsonResponse: jest.fn(),
 }));
 
 jest.mock("../backupProgressChannel", () => ({
@@ -7,7 +8,7 @@ jest.mock("../backupProgressChannel", () => ({
   closeBackupProgressChannel: jest.fn(),
 }));
 
-import { httpClient } from "@/lib/http";
+import { httpClient, parseJsonResponse } from "@/lib/http";
 import { waitForInstance } from "@test-utils/waitForInstance";
 
 import { closeBackupProgressChannel, openBackupProgressChannel } from "../backupProgressChannel";
@@ -83,8 +84,9 @@ describe("initialSetupService", () => {
       global.XMLHttpRequest = originalXMLHttpRequest;
     });
 
-    async function resolveUpload(status) {
+    async function resolveUpload({ status, body }) {
       const uploadRequest = await waitForInstance(FakeXMLHttpRequest);
+      parseJsonResponse.mockResolvedValue(body);
       uploadRequest.status = status;
       uploadRequest.onload();
     }
@@ -93,7 +95,7 @@ describe("initialSetupService", () => {
       const backupFile = new File(["zip-content"], "backup.zip", { type: "application/zip" });
 
       const restoreFromBackupPromise = restoreFromBackup("backup-password", backupFile);
-      await resolveUpload(200);
+      await resolveUpload({ status: 200 });
       await restoreFromBackupPromise;
 
       const [uploadRequest] = FakeXMLHttpRequest.instances;
@@ -106,16 +108,30 @@ describe("initialSetupService", () => {
 
     it("resolves with ok:true for a successful response", async () => {
       const restoreFromBackupPromise = restoreFromBackup("backup-password", new File(["zip"], "backup.zip"));
-      await resolveUpload(200);
+      await resolveUpload({ status: 200 });
 
       await expect(restoreFromBackupPromise).resolves.toEqual({ ok: true });
     });
 
-    it("resolves with ok:false for a failed response", async () => {
+    it("resolves with ok:false and the status for a failed response", async () => {
       const restoreFromBackupPromise = restoreFromBackup("wrong-password", new File(["zip"], "backup.zip"));
-      await resolveUpload(400);
+      await resolveUpload({ status: 400 });
 
-      await expect(restoreFromBackupPromise).resolves.toEqual({ ok: false });
+      await expect(restoreFromBackupPromise).resolves.toEqual({ ok: false, status: 400, message: undefined });
+    });
+
+    it("resolves with the server message when a pending import is already staged", async () => {
+      const restoreFromBackupPromise = restoreFromBackup("backup-password", new File(["zip"], "backup.zip"));
+      await resolveUpload({
+        status: 409,
+        body: { message: "A previous import is already staged and waiting for a server restart" },
+      });
+
+      await expect(restoreFromBackupPromise).resolves.toEqual({
+        ok: false,
+        status: 409,
+        message: "A previous import is already staged and waiting for a server restart",
+      });
     });
 
     describe("progress reporting", () => {
@@ -127,7 +143,7 @@ describe("initialSetupService", () => {
           new File(["zip"], "backup.zip"),
           onProgress,
         );
-        await resolveUpload(200);
+        await resolveUpload({ status: 200 });
         await restoreFromBackupPromise;
 
         expect(openBackupProgressChannel).toHaveBeenCalledWith(onProgress, "/initial-setup/progress-token");
@@ -141,7 +157,7 @@ describe("initialSetupService", () => {
           new File(["zip"], "backup.zip"),
           jest.fn(),
         );
-        await resolveUpload(200);
+        await resolveUpload({ status: 200 });
         await restoreFromBackupPromise;
 
         const [uploadRequest] = FakeXMLHttpRequest.instances;
@@ -156,7 +172,7 @@ describe("initialSetupService", () => {
           new File(["zip"], "backup.zip"),
           jest.fn(),
         );
-        await resolveUpload(200);
+        await resolveUpload({ status: 200 });
         await restoreFromBackupPromise;
 
         const [uploadRequest] = FakeXMLHttpRequest.instances;
@@ -172,7 +188,7 @@ describe("initialSetupService", () => {
           new File(["zip"], "backup.zip"),
           jest.fn(),
         );
-        await resolveUpload(200);
+        await resolveUpload({ status: 200 });
         await restoreFromBackupPromise;
 
         expect(closeBackupProgressChannel).toHaveBeenCalledWith(progressChannel);
