@@ -5,6 +5,7 @@ function createWalletServiceError(message, errorDetails = {}) {
   const error = new Error(message);
   error.status = errorDetails.status;
   error.code = errorDetails.code ?? "unknown";
+  error.category = errorDetails.category ?? "unknown";
   error.source = errorDetails.source ?? "ambrosia";
   return error;
 }
@@ -157,6 +158,7 @@ export async function payInvoiceFromService(invoice, amountSat, { exchangeRate =
       {
         status: payInvoiceResponse.status,
         code: paymentResponseBody?.code,
+        category: paymentResponseBody?.category,
         source: paymentResponseBody?.source,
       },
     );

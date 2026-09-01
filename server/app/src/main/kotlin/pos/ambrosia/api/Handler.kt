@@ -46,7 +46,8 @@ private suspend fun ApplicationCall.respondWalletError(
     message: String,
     code: String,
     source: String,
-) = respond(status, WalletErrorResponse(message = message, code = code, source = source))
+    category: String = "unknown",
+) = respond(status, WalletErrorResponse(message = message, code = code, source = source, category = category))
 
 fun Application.handler() {
     install(StatusPages) {
@@ -133,9 +134,15 @@ fun Application.handler() {
             )
         }
         exception<PhoenixServiceException> { call, cause ->
-            logger.error("Phoenix service error: ${cause.message}")
+            logger.error("Phoenix service error [${cause.category}]: ${cause.message}")
             val statusCode = cause.statusCode?.let(HttpStatusCode::fromValue) ?: HttpStatusCode.ServiceUnavailable
-            call.respondWalletError(statusCode, cause.message ?: "Lightning node service error", cause.code, cause.source)
+            call.respondWalletError(
+                statusCode,
+                cause.message ?: "Lightning node service error",
+                cause.code,
+                cause.source,
+                cause.category,
+            )
         }
         exception<NwcConnectionException> { call, cause ->
             logger.error("NWC relay connection error: ${cause.message}")

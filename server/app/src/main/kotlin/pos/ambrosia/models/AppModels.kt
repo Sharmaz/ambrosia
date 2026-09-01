@@ -63,6 +63,7 @@ data class WalletErrorResponse(
     val message: String,
     val code: String,
     val source: String,
+    val category: String = "unknown",
 )
 
 @Serializable
