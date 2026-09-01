@@ -1,7 +1,6 @@
 package pos.ambrosia.utest
 
 import com.auth0.jwt.JWT
-import io.ktor.server.config.MapApplicationConfig
 import io.ktor.server.engine.applicationEnvironment
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.junit.After
@@ -9,6 +8,7 @@ import org.junit.Before
 import pos.ambrosia.db.tables.UserEntity
 import pos.ambrosia.services.TokenService
 import pos.ambrosia.utils.ExposedTestDb
+import pos.ambrosia.utils.testJwtConfig
 import java.io.File
 import java.util.Date
 import java.util.UUID
@@ -22,12 +22,7 @@ import kotlin.test.assertTrue
 class TokenServiceTest {
     private val environment =
         applicationEnvironment {
-            config =
-                MapApplicationConfig(
-                    "secret" to "test-secret",
-                    "jwt.issuer" to "test-issuer",
-                    "jwt.audience" to "test-audience",
-                )
+            config = testJwtConfig()
         }
     private val service = TokenService(environment)
     private lateinit var dbFile: File

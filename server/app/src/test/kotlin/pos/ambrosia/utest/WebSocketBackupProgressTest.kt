@@ -5,7 +5,6 @@ import io.ktor.client.plugins.websocket.WebSockets
 import io.ktor.client.plugins.websocket.webSocket
 import io.ktor.server.application.Application
 import io.ktor.server.application.install
-import io.ktor.server.config.MapApplicationConfig
 import io.ktor.server.engine.applicationEnvironment
 import io.ktor.server.testing.ApplicationTestBuilder
 import io.ktor.server.testing.testApplication
@@ -17,6 +16,7 @@ import pos.ambrosia.api.backupProgressReporter
 import pos.ambrosia.api.configureBackupProgressWebsocket
 import pos.ambrosia.models.BackupProgressUpdate
 import pos.ambrosia.services.TokenService
+import pos.ambrosia.utils.testJwtConfig
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -28,13 +28,6 @@ private fun Application.testBackupProgressModule() {
 }
 
 class WebSocketBackupProgressTest {
-    private fun testJwtConfig(): MapApplicationConfig =
-        MapApplicationConfig(
-            "secret" to "test-secret",
-            "jwt.issuer" to "test-issuer",
-            "jwt.audience" to "test-audience",
-        )
-
     private fun testTokenService(): TokenService =
         TokenService(
             applicationEnvironment {
