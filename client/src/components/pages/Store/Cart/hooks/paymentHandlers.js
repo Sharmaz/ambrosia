@@ -68,6 +68,9 @@ export function buildHandlePay({
     subtotal = 0,
     discount = 0,
     discountAmount = 0,
+    tip = 0,
+    tipType = "percentage",
+    tipAmount = 0,
     total = 0,
     selectedPaymentMethod,
   }) {
@@ -87,7 +90,7 @@ export function buildHandlePay({
 
     try {
       const currencyId = currency.id;
-      const paymentAmounts = normalizeAmounts({ subtotal, discount, discountAmount, total, formatAmount });
+      const paymentAmounts = normalizeAmounts({ subtotal, discount, discountAmount, tipAmount, total, formatAmount });
       const paymentMethodData = paymentMethodMap[selectedPaymentMethod] || null;
       const paymentMethod = classifyPaymentMethod(paymentMethodData?.name || "");
 
@@ -108,6 +111,10 @@ export function buildHandlePay({
           subtotal: paymentAmounts.subtotal,
           discount: paymentAmounts.discount,
           discountAmount: paymentAmounts.discountAmount,
+          tip,
+          tipType,
+          tipAmount: paymentAmounts.tipAmount,
+          tipAmountFiat: paymentAmounts.tipAmountFiat,
           total: paymentAmounts.total,
           cartItems,
           invoiceDescription,
@@ -156,6 +163,7 @@ export function buildHandlePay({
         items: cartItems,
         totalCents: paymentAmounts.total,
         discountAmountCents: paymentAmounts.discountAmount,
+        tipAmountCents: paymentAmounts.tipAmount,
         ticketId: storeCheckoutResult.ticketId,
       });
 
@@ -190,6 +198,7 @@ export function buildHandleBtcInvoiceReady({ setBtcPaymentConfig }) {
           currencyId: prevConfig.currencyId,
           amount: prevConfig.amountFiat,
           discountAmount: prevConfig.discountAmount ?? 0,
+          tipAmount: prevConfig.tipAmountFiat ?? (prevConfig.tipAmount ? prevConfig.tipAmount / 100 : 0),
           transactionId: invoiceReadyData.invoice.serialized || "",
           satoshiAmount: invoiceReadyData.satoshis ?? null,
           exchangeRateAtPayment: invoiceReadyData.exchangeRate ?? null,
@@ -225,6 +234,7 @@ async function runDeferredCheckout({
   printCustomerReceipt,
   refreshShiftTickets,
   receiptDiscountAmount,
+  receiptTipAmount,
 }) {
   dispatch({ type: "start" });
   try {
@@ -243,6 +253,7 @@ async function runDeferredCheckout({
       items: receiptItems,
       totalCents: receiptTotal,
       discountAmountCents: receiptDiscountAmount,
+      tipAmountCents: receiptTipAmount,
       ticketId: storeCheckoutResult.ticketId,
       invoice: receiptInvoice,
     });
@@ -275,6 +286,8 @@ export function buildHandleBtcComplete({ getConfig, setConfig, ...context }) {
           subtotal: config.subtotal,
           discount: config.discount,
           discountAmount: config.discountAmount,
+          tipAmount: config.tipAmount,
+          tipAmountFiat: config.tipAmountFiat,
           total: config.total,
         },
         selectedPaymentMethod: config.selectedPaymentMethod,
@@ -289,12 +302,14 @@ export function buildHandleBtcComplete({ getConfig, setConfig, ...context }) {
       receiptItems: config.cartItems,
       receiptTotal: config.total,
       receiptDiscountAmount: config.discountAmount,
+      receiptTipAmount: config.tipAmount,
       receiptInvoice: completionData?.invoice?.serialized || "",
       buildOnPayPayload: (storeCheckoutResult) => ({
         items: config.cartItems,
         subtotal: config.subtotal,
         discount: config.discount,
         discountAmount: config.discountAmount,
+        tipAmount: config.tipAmount,
         total: config.total,
         amount: config.amountFiat,
         paymentMethod: config.selectedPaymentMethod,
@@ -332,6 +347,7 @@ export function buildHandleCashComplete({ getConfig, setConfig, ...context }) {
       receiptItems: config.cartItems,
       receiptTotal: config.paymentAmounts.total,
       receiptDiscountAmount: config.paymentAmounts.discountAmount,
+      receiptTipAmount: config.paymentAmounts.tipAmount,
       buildOnPayPayload: (storeCheckoutResult) => ({
         items: config.cartItems,
         ...config.paymentAmounts,
@@ -363,6 +379,7 @@ export function buildHandleCardComplete({ getConfig, setConfig, ...context }) {
       receiptItems: config.cartItems,
       receiptTotal: config.paymentAmounts.total,
       receiptDiscountAmount: config.paymentAmounts.discountAmount,
+      receiptTipAmount: config.paymentAmounts.tipAmount,
       buildOnPayPayload: (storeCheckoutResult) => ({
         items: config.cartItems,
         ...config.paymentAmounts,

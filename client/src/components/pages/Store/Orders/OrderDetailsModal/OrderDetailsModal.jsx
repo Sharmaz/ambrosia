@@ -28,6 +28,7 @@ export function OrderDetailsModal({ order, isOpen, onClose, onRefunded, formatAm
     paymentMethod,
     total,
     discountAmount,
+    tipAmount,
     createdAt,
     satoshiAmount,
     exchangeRateAtPayment,
@@ -99,14 +100,29 @@ export function OrderDetailsModal({ order, isOpen, onClose, onRefunded, formatAm
                   </div>
                 )}
 
-                {discountAmount > 0 && (
-                  <div className="flex justify-between items-center text-sm text-red-600">
-                    <span>{ordersTranslations("details.discount")}</span>
-                    <span>-{formatAmount(discountAmount)}</span>
+                {(discountAmount > 0 || tipAmount > 0) && (
+                  <div className="space-y-2 px-1 text-sm">
+                    {discountAmount > 0 && (
+                      <div className="grid grid-cols-2 items-center text-red-600">
+                        <span>{ordersTranslations("details.discount")}</span>
+                        <span className="text-right font-medium">
+                          -{formatAmount(discountAmount)}
+                        </span>
+                      </div>
+                    )}
+
+                    {tipAmount > 0 && (
+                      <div className="grid grid-cols-2 items-center text-gray-700">
+                        <span>{ordersTranslations("details.tip")}</span>
+                        <span className="text-right text-gray-500">
+                          +{formatAmount(tipAmount * 100)}
+                        </span>
+                      </div>
+                    )}
                   </div>
                 )}
 
-                <div className="border-t border-gray-200 pt-3 flex justify-between items-center">
+                <div className="flex items-center justify-between border-t border-gray-200 px-1 pt-3">
                   <span className="font-semibold text-sm">{ordersTranslations("details.total")}</span>
                   <div className="font-bold text-green-700">
                     {satoshiAmount != null

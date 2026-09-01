@@ -9,6 +9,7 @@ import { Cart } from "../Cart";
 
 const mockSetCart = jest.fn();
 const mockSetDiscount = jest.fn();
+const mockSetTip = jest.fn();
 const mockResetCartState = jest.fn();
 const mockHandlePay = jest.fn();
 const mockAddProduct = jest.fn();
@@ -69,6 +70,7 @@ jest.mock("../hooks/useCartOperations", () => ({
 }));
 
 const mockSetDiscountType = jest.fn();
+const mockSetTipType = jest.fn();
 
 jest.mock("../hooks/usePersistentCart", () => ({
   CART_STORAGE_KEY: "store-cart",
@@ -81,6 +83,10 @@ jest.mock("../hooks/usePersistentCart", () => ({
     setDiscount: mockSetDiscount,
     discountType: "percentage",
     setDiscountType: mockSetDiscountType,
+    tip: 0,
+    setTip: mockSetTip,
+    tipType: "percentage",
+    setTipType: mockSetTipType,
     isCartRestored: true,
     resetCartState: mockResetCartState,
   }),

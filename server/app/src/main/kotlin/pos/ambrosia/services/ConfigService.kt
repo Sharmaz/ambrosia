@@ -18,6 +18,8 @@ class ConfigService {
             businessLogoUrl = entity.businessLogoUrl,
             businessTypeConfirmed = entity.businessTypeConfirmed,
             timezone = entity.timezone,
+            tipsEnabled = entity.tipsEnabled,
+            tipPercentages = entity.tipPercentages,
         )
 
     fun getConfig(): Config? =
@@ -37,6 +39,8 @@ class ConfigService {
             entity.businessLogoUrl = config.businessLogoUrl
             entity.businessTypeConfirmed = config.businessTypeConfirmed
             entity.timezone = config.timezone
+            entity.tipsEnabled = config.tipsEnabled
+            entity.tipPercentages = config.tipPercentages
             true
         }
 
