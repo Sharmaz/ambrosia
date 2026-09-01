@@ -88,7 +88,7 @@ describe("ExportData", () => {
         fireEvent.click(screen.getByTestId("guard-confirm"));
       });
       act(() => {
-        reportProgress(55);
+        reportProgress({ phase: "writing", percent: 55 });
       });
 
       expect(screen.getByTestId("progress")).toHaveAttribute("data-value", "55");
