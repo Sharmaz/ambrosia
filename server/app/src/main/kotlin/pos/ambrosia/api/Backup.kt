@@ -63,8 +63,8 @@ fun Route.backup(
         post("/progress-token") {
             val userId = call.backupActorUserId() ?: throw InvalidCredentialsException()
             val operationId = UUID.randomUUID().toString()
-            val token = tokenService.generateBackupProgressToken(userId, operationId)
-            call.respond(HttpStatusCode.OK, mapOf("operationId" to operationId, "token" to token))
+            val progressToken = tokenService.generateBackupProgressToken(userId, operationId)
+            call.respond(HttpStatusCode.OK, mapOf("operationId" to operationId, "token" to progressToken))
         }
 
         post("/export") {
