@@ -44,8 +44,12 @@ export function ImportDataCardUnlocked({ onImport, onHide, importDataTranslation
     setErrorMessage("");
     try {
       await onImport(rolePassword, backupPassword, backupFile, setImportProgress);
-    } catch {
-      setErrorMessage(importDataTranslations("cardImportData.errorDescription"));
+    } catch (importError) {
+      setErrorMessage(
+        importError.status === 409
+          ? importDataTranslations("cardImportData.pendingImportError")
+          : importDataTranslations("cardImportData.errorDescription"),
+      );
       setIsImporting(false);
       setImportProgress(null);
     }

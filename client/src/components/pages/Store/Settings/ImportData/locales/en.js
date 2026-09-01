@@ -14,6 +14,7 @@ const importDataEn = {
     phaseExtracting: "Processing your backup...",
     success: "Backup imported successfully.",
     errorDescription: "Could not import the backup. Check the file and try again.",
+    pendingImportError: "A previous import is still pending — restart the Ambrosia server, then try again.",
     restartRequiredElectron: "Restarting the app now...",
     confirmModal: {
       title: "Overwrite all business data?",

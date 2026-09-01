@@ -206,6 +206,21 @@ describe("ImportDataCardUnlocked", () => {
       expect(await screen.findByText("cardImportData.errorDescription")).toBeInTheDocument();
     });
 
+    it("shows the pending-import error when onImport throws a 409", async () => {
+      const onImport = jest.fn().mockRejectedValue(Object.assign(new Error("A previous import is already staged"), { status: 409 }));
+      renderUnlocked({ onImport });
+      fireEvent.click(screen.getByTestId("guard-confirm"));
+      fireEvent.click(screen.getByTestId("select-backup-file"));
+      fireEvent.click(screen.getByTestId("fill-backup-password"));
+      fireEvent.click(screen.getByText("cardImportData.continueButton"));
+
+      await act(async () => {
+        fireEvent.click(screen.getByTestId("modal-confirm"));
+      });
+
+      expect(await screen.findByText("cardImportData.pendingImportError")).toBeInTheDocument();
+    });
+
     it("closes the confirm modal without importing when cancelled", () => {
       const onImport = jest.fn();
       renderUnlocked({ onImport });
