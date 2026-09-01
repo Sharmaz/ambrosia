@@ -2,6 +2,10 @@ import { dispatchAuthEvent, httpClient } from "@/lib/http/httpClient";
 import { parseJsonResponse } from "@/lib/http/parseJsonResponse";
 import { downloadBlob } from "@/utils/downloadBlob";
 
+import { closeBackupProgressChannel, openBackupProgressChannel } from "./backupProgressChannel";
+
+const BACKUP_OPERATION_ID_HEADER = "X-Backup-Operation-Id";
+
 function createBackupServiceError(message, errorDetails = {}) {
   const error = new Error(message);
   error.status = errorDetails.status;
@@ -14,35 +18,23 @@ function extractFilename(contentDisposition, fallbackFilename) {
   return match?.[1] ?? fallbackFilename;
 }
 
-async function readResponseWithProgress(backupExportResponse, totalExportBytes, onProgress) {
-  if (!backupExportResponse.body || !totalExportBytes || !onProgress) {
-    return backupExportResponse.blob();
-  }
-
-  const bodyReader = backupExportResponse.body.getReader();
-  const receivedChunks = [];
-  let receivedBytes = 0;
-
-  for (;;) {
-    const { done, value } = await bodyReader.read();
-    if (done) break;
-    receivedChunks.push(value);
-    receivedBytes += value.length;
-    onProgress(Math.min(100, Math.round((receivedBytes / totalExportBytes) * 100)));
-  }
-
-  return new Blob(receivedChunks);
-}
-
 export async function exportBackup(password, onProgress) {
-  const backupExportResponse = await httpClient("/backup/export", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ password }),
-    skipForbiddenRedirect: true,
-  });
+  const progressChannel = await openBackupProgressChannel(onProgress);
+
+  let backupExportResponse;
+  try {
+    backupExportResponse = await httpClient("/backup/export", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(progressChannel ? { [BACKUP_OPERATION_ID_HEADER]: progressChannel.operationId } : {}),
+      },
+      body: JSON.stringify({ password }),
+      skipForbiddenRedirect: true,
+    });
+  } finally {
+    closeBackupProgressChannel(progressChannel);
+  }
 
   if (!backupExportResponse.ok) {
     const backupExportErrorBody = await parseJsonResponse(backupExportResponse, null);
@@ -52,8 +44,7 @@ export async function exportBackup(password, onProgress) {
     );
   }
 
-  const totalExportBytes = Number(backupExportResponse.headers.get("x-backup-total-bytes")) || 0;
-  const backupBlob = await readResponseWithProgress(backupExportResponse, totalExportBytes, onProgress);
+  const backupBlob = await backupExportResponse.blob();
   const filename = extractFilename(
     backupExportResponse.headers.get("content-disposition"),
     "ambrosia-backup.zip",
@@ -61,18 +52,11 @@ export async function exportBackup(password, onProgress) {
   downloadBlob(backupBlob, filename);
 }
 
-function uploadBackupWithProgress(formData, onProgress) {
+function uploadBackupFile(formData) {
   return new Promise((resolve, reject) => {
     const uploadRequest = new XMLHttpRequest();
     uploadRequest.open("POST", "/api/backup/import");
     uploadRequest.withCredentials = true;
-
-    if (onProgress) {
-      uploadRequest.upload.onprogress = (progressEvent) => {
-        if (!progressEvent.lengthComputable) return;
-        onProgress(Math.round((progressEvent.loaded / progressEvent.total) * 100));
-      };
-    }
 
     uploadRequest.onload = () => {
       if (uploadRequest.status === 401) dispatchAuthEvent("wallet:unauthorized");
@@ -86,12 +70,21 @@ function uploadBackupWithProgress(formData, onProgress) {
 }
 
 export async function importBackup(rolePassword, backupPassword, backupFile, onProgress) {
+  const progressChannel = await openBackupProgressChannel(onProgress);
+
   const importFormData = new FormData();
   importFormData.append("rolePassword", rolePassword);
   importFormData.append("backupPassword", backupPassword);
+  if (progressChannel) importFormData.append("operationId", progressChannel.operationId);
   importFormData.append("backup", backupFile);
 
-  const backupImportRequest = await uploadBackupWithProgress(importFormData, onProgress);
+  let backupImportRequest;
+  try {
+    backupImportRequest = await uploadBackupFile(importFormData);
+  } finally {
+    closeBackupProgressChannel(progressChannel);
+  }
+
   const backupImportResponseLike = {
     status: backupImportRequest.status,
     text: async () => backupImportRequest.responseText,
