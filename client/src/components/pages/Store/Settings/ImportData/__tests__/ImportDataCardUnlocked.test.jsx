@@ -150,7 +150,7 @@ describe("ImportDataCardUnlocked", () => {
       });
     });
 
-    it("shows a progress bar once onImport reports an upload percent", async () => {
+    it("shows a progress bar once onImport reports an uploading phase update", async () => {
       let reportProgress;
       const onImport = jest.fn((rolePassword, backupPassword, backupFile, onProgress) => {
         reportProgress = onProgress;
@@ -164,14 +164,14 @@ describe("ImportDataCardUnlocked", () => {
 
       fireEvent.click(screen.getByTestId("modal-confirm"));
       await act(async () => {
-        reportProgress(37);
+        reportProgress({ phase: "uploading", percent: 37 });
       });
 
       expect(screen.getByTestId("progress")).toHaveAttribute("data-value", "37");
-      expect(screen.getByText("cardImportData.uploadingProgress 37%")).toBeInTheDocument();
+      expect(screen.getByText("cardImportData.phaseUploading 37%")).toBeInTheDocument();
     });
 
-    it("shows the processing message once the upload reaches 100 percent", async () => {
+    it("shows the extracting phase and its own percent once the server reports it", async () => {
       let reportProgress;
       const onImport = jest.fn((rolePassword, backupPassword, backupFile, onProgress) => {
         reportProgress = onProgress;
@@ -185,10 +185,10 @@ describe("ImportDataCardUnlocked", () => {
 
       fireEvent.click(screen.getByTestId("modal-confirm"));
       await act(async () => {
-        reportProgress(100);
+        reportProgress({ phase: "extracting", percent: 80 });
       });
 
-      expect(screen.getByText("cardImportData.processing")).toBeInTheDocument();
+      expect(screen.getByText("cardImportData.phaseExtracting 80%")).toBeInTheDocument();
     });
 
     it("shows a generic error when onImport throws", async () => {

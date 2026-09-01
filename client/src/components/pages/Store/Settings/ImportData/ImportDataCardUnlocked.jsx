@@ -9,6 +9,12 @@ import { BackupPasswordAndFileFields } from "@components/shared/BackupPasswordAn
 
 import { ImportBackupConfirmModal } from "./ImportBackupConfirmModal";
 
+function importPhaseLabel(importDataTranslations, phase) {
+  if (phase === "uploading") return importDataTranslations("cardImportData.phaseUploading");
+  if (phase === "extracting") return importDataTranslations("cardImportData.phaseExtracting");
+  return importDataTranslations("cardImportData.importing");
+}
+
 export function ImportDataCardUnlocked({ onImport, onHide, importDataTranslations }) {
   const [rolePassword, setRolePassword] = useState(null);
   const [backupPassword, setBackupPassword] = useState("");
@@ -64,26 +70,24 @@ export function ImportDataCardUnlocked({ onImport, onHide, importDataTranslation
         <CardBody>
           {isImporting ? (
             <div className="flex flex-col items-center gap-2 py-6 w-full">
-              {typeof importProgress === "number" ? (
+              {importProgress?.percent != null ? (
                 <>
                   <Progress
                     aria-label={importDataTranslations("cardImportData.importing")}
-                    value={importProgress}
+                    value={importProgress.percent}
                     className="max-w-full"
                     color="success"
                     size="sm"
                   />
                   <p className="text-sm text-gray-500">
-                    {importProgress < 100
-                      ? `${importDataTranslations("cardImportData.uploadingProgress")} ${importProgress}%`
-                      : importDataTranslations("cardImportData.processing")}
+                    {importPhaseLabel(importDataTranslations, importProgress.phase)} {importProgress.percent}%
                   </p>
                 </>
               ) : (
                 <>
                   <Spinner size="lg" color="success" />
                   <p className="text-sm text-gray-500">
-                    {importDataTranslations("cardImportData.importing")}
+                    {importProgress ? importPhaseLabel(importDataTranslations, importProgress.phase) : importDataTranslations("cardImportData.importing")}
                   </p>
                 </>
               )}
