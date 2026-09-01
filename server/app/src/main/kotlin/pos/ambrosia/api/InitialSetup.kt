@@ -29,6 +29,7 @@ import pos.ambrosia.services.ConfigService
 import pos.ambrosia.services.CurrencyService
 import pos.ambrosia.services.PermissionsService
 import pos.ambrosia.services.RolesService
+import pos.ambrosia.services.TokenService
 import pos.ambrosia.services.UsersService
 import pos.ambrosia.services.WalletAdminNotificationService
 import pos.ambrosia.utils.InitialSetupException
@@ -36,6 +37,9 @@ import java.io.File
 import java.nio.file.Files
 import java.nio.file.Path
 import java.time.ZoneId
+import java.util.UUID
+
+private const val ONBOARDING_PROGRESS_TOKEN_USER_ID = "onboarding"
 
 fun Application.configureInitialSetup() {
     routing {
@@ -256,5 +260,18 @@ private fun Route.initialSetupRoutes() {
             temporaryBackupFile?.let { Files.deleteIfExists(it) }
             operationId?.let { BackupProgressNotifier.unregister(it) }
         }
+    }
+
+    post("/progress-token") {
+        val configService = ConfigService()
+        if (configService.getConfig() != null) {
+            call.respond(HttpStatusCode.Conflict, mapOf("message" to "Initial setup already completed"))
+            return@post
+        }
+
+        val operationId = UUID.randomUUID().toString()
+        val tokenService = TokenService(call.application.environment)
+        val progressToken = tokenService.generateBackupProgressToken(ONBOARDING_PROGRESS_TOKEN_USER_ID, operationId)
+        call.respond(HttpStatusCode.OK, mapOf("operationId" to operationId, "token" to progressToken))
     }
 }
