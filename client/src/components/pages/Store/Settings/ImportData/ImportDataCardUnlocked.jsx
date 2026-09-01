@@ -50,6 +50,7 @@ export function ImportDataCardUnlocked({ onImport, onHide, importDataTranslation
           ? importDataTranslations("cardImportData.pendingImportError")
           : importDataTranslations("cardImportData.errorDescription"),
       );
+    } finally {
       setIsImporting(false);
       setImportProgress(null);
     }

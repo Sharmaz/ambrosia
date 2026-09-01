@@ -132,6 +132,26 @@ describe("ImportDataCardUnlocked", () => {
       expect(onImport).toHaveBeenCalledWith("wallet-password", "backup-password", expect.any(File), expect.any(Function));
     });
 
+    it("clears the spinner and shows the form again once onImport resolves", async () => {
+      let resolveImport;
+      const onImport = jest.fn(() => new Promise((resolve) => { resolveImport = resolve; }));
+      renderUnlocked({ onImport });
+      fireEvent.click(screen.getByTestId("guard-confirm"));
+      fireEvent.click(screen.getByTestId("select-backup-file"));
+      fireEvent.click(screen.getByTestId("fill-backup-password"));
+      fireEvent.click(screen.getByText("cardImportData.continueButton"));
+
+      fireEvent.click(screen.getByTestId("modal-confirm"));
+      await screen.findByTestId("spinner");
+
+      await act(async () => {
+        resolveImport();
+      });
+
+      expect(screen.queryByTestId("spinner")).not.toBeInTheDocument();
+      expect(screen.getByText("cardImportData.continueButton")).toBeInTheDocument();
+    });
+
     it("shows a spinner while importing", async () => {
       let resolveImport;
       const onImport = jest.fn(() => new Promise((resolve) => { resolveImport = resolve; }));
