@@ -82,6 +82,10 @@ class LastAdminRemovalException(
     message: String = "Cannot remove the last admin user",
 ) : IllegalStateException(message)
 
+class PendingImportAlreadyStagedException(
+    message: String = "A previous import is already staged and waiting for a server restart",
+) : IllegalStateException(message)
+
 class ResourceNotFoundException(
     message: String = "Resource not found",
 ) : RuntimeException(message)

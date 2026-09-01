@@ -8,11 +8,14 @@ import pos.ambrosia.models.BackupManifest
 import pos.ambrosia.models.BackupProgressPhase
 import pos.ambrosia.services.BackupService
 import pos.ambrosia.utils.ExposedTestDb
+import pos.ambrosia.utils.PendingImportAlreadyStagedException
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.nio.file.Files
 import java.nio.file.Path
 import java.security.SecureRandom
+import java.time.Instant
+import java.time.temporal.ChronoUnit
 import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
@@ -580,7 +583,7 @@ class BackupServiceTest {
     }
 
     @Test
-    fun `importBackup replaces an existing staging directory from a previous import`() {
+    fun `importBackup replaces an abandoned staging directory from a previous import`() {
         val backupService =
             BackupService(uploadsRoot, databaseFile.absolutePath, configFile.absolutePath, importStagingRoot)
         val firstExport = ByteArrayOutputStream()
@@ -590,6 +593,10 @@ class BackupServiceTest {
             "correct-password".toCharArray(),
         )
         Files.write(importStagingRoot.resolve("leftover-from-previous-import"), "stale".toByteArray())
+        Files.writeString(
+            importStagingRoot.resolve(BackupService.STAGED_AT_FILE_NAME),
+            Instant.now().minus(2, ChronoUnit.DAYS).toString(),
+        )
 
         val secondExport = ByteArrayOutputStream()
         backupService.exportBackup("Second Store", "correct-password".toCharArray(), backupService.prepareExportSnapshot(), secondExport)
@@ -601,6 +608,25 @@ class BackupServiceTest {
 
         assertEquals("Second Store", importedManifest.businessName)
         assertFalse(Files.exists(importStagingRoot.resolve("leftover-from-previous-import")))
+    }
+
+    @Test
+    fun `importBackup throws when a fresh pending import already exists`() {
+        val backupService =
+            BackupService(uploadsRoot, databaseFile.absolutePath, configFile.absolutePath, importStagingRoot)
+        val firstExport = ByteArrayOutputStream()
+        backupService.exportBackup("First Store", "correct-password".toCharArray(), backupService.prepareExportSnapshot(), firstExport)
+        backupService.importBackup(
+            firstExport.toByteArray().inputStream(),
+            "correct-password".toCharArray(),
+        )
+
+        val secondExport = ByteArrayOutputStream()
+        backupService.exportBackup("Second Store", "correct-password".toCharArray(), backupService.prepareExportSnapshot(), secondExport)
+
+        assertFailsWith<PendingImportAlreadyStagedException> {
+            backupService.importBackup(secondExport.toByteArray().inputStream(), "correct-password".toCharArray())
+        }
     }
 
     @Test
@@ -653,6 +679,49 @@ class BackupServiceTest {
             BackupService(uploadsRoot, databaseFile.absolutePath, configFile.absolutePath, importStagingRoot)
 
         assertFalse(backupService.applyPendingImport())
+    }
+
+    @Test
+    fun `applyPendingImport discards an abandoned pending import without applying it`() {
+        val destinationDatabaseFile = Files.createTempFile("backupServiceTestDestinationDb", ".db")
+        Files.writeString(destinationDatabaseFile, "old-destination-database-placeholder")
+        val originalDestinationDatabaseSize = Files.size(destinationDatabaseFile)
+        val destinationUploadsRoot = Files.createTempDirectory("backupServiceTestDestinationUploads")
+        val destinationConfigFile = Files.createTempFile("backupServiceTestDestinationConfig", ".conf").toFile()
+        destinationConfigFile.writeText("secret=old-destination-secret\n")
+        val destinationService =
+            prepareStagedImport(destinationUploadsRoot, destinationDatabaseFile, destinationConfigFile)
+        Files.writeString(
+            importStagingRoot.resolve(BackupService.STAGED_AT_FILE_NAME),
+            Instant.now().minus(2, ChronoUnit.DAYS).toString(),
+        )
+
+        val pendingImportApplied = destinationService.applyPendingImport()
+
+        assertFalse(pendingImportApplied)
+        assertFalse(Files.exists(importStagingRoot))
+        assertEquals(originalDestinationDatabaseSize, Files.size(destinationDatabaseFile))
+        assertEquals("secret=old-destination-secret", destinationConfigFile.readText().trim())
+    }
+
+    @Test
+    fun `applyPendingImport discards a pending import with no staged-at timestamp without applying it`() {
+        val destinationDatabaseFile = Files.createTempFile("backupServiceTestDestinationDb", ".db")
+        Files.writeString(destinationDatabaseFile, "old-destination-database-placeholder")
+        val originalDestinationDatabaseSize = Files.size(destinationDatabaseFile)
+        val destinationUploadsRoot = Files.createTempDirectory("backupServiceTestDestinationUploads")
+        val destinationConfigFile = Files.createTempFile("backupServiceTestDestinationConfig", ".conf").toFile()
+        destinationConfigFile.writeText("secret=old-destination-secret\n")
+        val destinationService =
+            prepareStagedImport(destinationUploadsRoot, destinationDatabaseFile, destinationConfigFile)
+        Files.deleteIfExists(importStagingRoot.resolve(BackupService.STAGED_AT_FILE_NAME))
+
+        val pendingImportApplied = destinationService.applyPendingImport()
+
+        assertFalse(pendingImportApplied)
+        assertFalse(Files.exists(importStagingRoot))
+        assertEquals(originalDestinationDatabaseSize, Files.size(destinationDatabaseFile))
+        assertEquals("secret=old-destination-secret", destinationConfigFile.readText().trim())
     }
 
     @Test

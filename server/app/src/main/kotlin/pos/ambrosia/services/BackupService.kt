@@ -8,6 +8,7 @@ import pos.ambrosia.datadir
 import pos.ambrosia.logger
 import pos.ambrosia.models.BackupManifest
 import pos.ambrosia.models.BackupProgressPhase
+import pos.ambrosia.utils.PendingImportAlreadyStagedException
 import java.io.IOException
 import java.io.InputStream
 import java.io.OutputStream
@@ -17,6 +18,8 @@ import java.nio.file.Paths
 import java.nio.file.StandardCopyOption
 import java.security.SecureRandom
 import java.sql.DriverManager
+import java.time.Duration
+import java.time.Instant
 import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
@@ -61,6 +64,8 @@ class BackupService(
         const val STAGED_SECRET_FILE_NAME = "imported-secret"
         const val STAGED_DATABASE_FILE_NAME = "ambrosia.db"
         const val STAGED_UPLOADS_DIR_NAME = "uploads"
+        const val STAGED_AT_FILE_NAME = "staged-at"
+        private val PENDING_IMPORT_ABANDONED_AFTER = Duration.ofHours(24)
     }
 
     fun prepareExportSnapshot(): Path {
@@ -123,6 +128,10 @@ class BackupService(
         rolePassword: CharArray,
         onProgress: (phase: String, bytesProcessed: Long, totalBytes: Long?) -> Unit = { _, _, _ -> },
     ): BackupManifest {
+        if (isPendingImportFresh()) {
+            throw PendingImportAlreadyStagedException()
+        }
+
         val magicHeader = readExactBytes(encryptedBackupInputStream, MAGIC_HEADER.size)
         if (!magicHeader.contentEquals(MAGIC_HEADER)) {
             throw IllegalArgumentException("Not a valid Ambrosia backup file")
@@ -156,6 +165,7 @@ class BackupService(
 
             validateSchemaCompatibility(importedManifest)
             writeStagedSecret(stagingTempRoot, importedManifest.secret)
+            writeStagedAt(stagingTempRoot)
 
             deleteRecursivelyIfExists(importStagingRoot)
             Files.move(stagingTempRoot, importStagingRoot, StandardCopyOption.ATOMIC_MOVE)
@@ -169,6 +179,12 @@ class BackupService(
 
     fun applyPendingImport(): Boolean {
         if (!Files.exists(importStagingRoot)) return false
+
+        if (!isPendingImportFresh()) {
+            logger.warn("Discarding an abandoned pending import staged at $importStagingRoot")
+            deleteRecursivelyIfExists(importStagingRoot)
+            return false
+        }
 
         val stagedSecret = Files.readString(importStagingRoot.resolve(STAGED_SECRET_FILE_NAME))
         val stagedDatabaseFile = importStagingRoot.resolve(STAGED_DATABASE_FILE_NAME)
@@ -197,6 +213,22 @@ class BackupService(
         if (Files.exists(path)) {
             path.toFile().deleteRecursively()
         }
+    }
+
+    private fun isPendingImportFresh(): Boolean {
+        val stagedAtFile = importStagingRoot.resolve(STAGED_AT_FILE_NAME)
+        if (!Files.exists(stagedAtFile)) return false
+        val stagedAt =
+            try {
+                Instant.parse(Files.readString(stagedAtFile))
+            } catch (malformedStagedAt: Exception) {
+                return false
+            }
+        return Duration.between(stagedAt, Instant.now()) <= PENDING_IMPORT_ABANDONED_AFTER
+    }
+
+    private fun writeStagedAt(stagingTempRoot: Path) {
+        Files.writeString(stagingTempRoot.resolve(STAGED_AT_FILE_NAME), Instant.now().toString())
     }
 
     private fun readExactBytes(
