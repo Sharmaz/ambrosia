@@ -1,20 +1,22 @@
 export const DEFAULT_TIP_PERCENTAGES = [10, 15, 20];
 
-export function isValidTipPercentages(value) {
-  if (typeof value !== "string") return false;
+export function isValidTipPercentages(serializedPercentages) {
+  if (typeof serializedPercentages !== "string") return false;
 
-  const entries = value.split(",").map((entry) => entry.trim());
-  if (entries.length === 0 || entries.some((entry) => entry === "")) return false;
+  const percentageEntries = serializedPercentages.split(",").map((entry) => entry.trim());
+  if (percentageEntries.length === 0 || percentageEntries.some((entry) => entry === "")) {
+    return false;
+  }
 
-  const parsedPercentages = entries.map(Number);
+  const parsedPercentages = percentageEntries.map(Number);
   return parsedPercentages.every(
     (percentage) => Number.isFinite(percentage) && percentage > 0 && percentage <= 100,
   ) && new Set(parsedPercentages).size === parsedPercentages.length;
 }
 
-export function normalizeTipPercentages(value) {
-  if (!isValidTipPercentages(value)) return null;
-  return value.split(",").map((entry) => Number(entry.trim())).join(",");
+export function normalizeTipPercentages(serializedPercentages) {
+  if (!isValidTipPercentages(serializedPercentages)) return null;
+  return serializedPercentages.split(",").map((entry) => Number(entry.trim())).join(",");
 }
 
 export function getDiscountedSubtotal(subtotal = 0, discountAmount = 0) {

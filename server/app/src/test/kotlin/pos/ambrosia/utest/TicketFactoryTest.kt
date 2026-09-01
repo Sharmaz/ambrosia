@@ -232,7 +232,7 @@ class TicketFactoryTest {
     @Test
     fun `build should process TOTAL_ROW with discount and tip amount`() {
         val mockEscpos: EscPos = mock()
-        val template =
+        val ticketTemplate =
             TicketTemplate(
                 id = "template-tip",
                 name = "Tip Template",
@@ -258,7 +258,7 @@ class TicketFactoryTest {
                 discountAmount = 10.0,
                 tipAmount = 15.0,
             )
-        val config =
+        val businessConfig =
             Config(
                 businessType = "restaurant",
                 businessName = "Ambrosia",
@@ -269,8 +269,8 @@ class TicketFactoryTest {
                 businessLogoUrl = null,
             )
 
-        val ticketFactory = TicketFactory(template)
-        ticketFactory.build(mockEscpos, ticketData, config)
+        val ticketFactory = TicketFactory(ticketTemplate)
+        ticketFactory.build(mockEscpos, ticketData, businessConfig)
 
         val captor = argumentCaptor<String>()
         verify(mockEscpos, times(4)).writeLF(any<Style>(), captor.capture())

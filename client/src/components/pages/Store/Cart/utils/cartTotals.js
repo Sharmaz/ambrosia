@@ -1,13 +1,16 @@
 import { getDiscountedSubtotal, resolveTipAmount } from "./tipCalculations";
 
 export function calculateCartTotals(
-  items = [],
+  cartItems = [],
   discountValue = 0,
   discountType = "percentage",
   tipValue = 0,
   tipType = "percentage",
 ) {
-  const subtotal = (items || []).reduce((sum, item) => sum + (item.subtotal || 0), 0);
+  const subtotal = (cartItems || []).reduce(
+    (sum, cartItem) => sum + (cartItem.subtotal || 0),
+    0,
+  );
   const discountAmount = Math.round(
     discountType === "fixed"
       ? (Number(discountValue) || 0) * 100

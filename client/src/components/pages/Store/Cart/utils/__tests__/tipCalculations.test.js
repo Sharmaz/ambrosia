@@ -69,9 +69,9 @@ describe("tipCalculations", () => {
 
     it.each(["", "abc", "0,10", "10,101", "10,10", "10,,20"])(
       "rejects invalid configuration %s",
-      (value) => {
-        expect(isValidTipPercentages(value)).toBe(false);
-        expect(normalizeTipPercentages(value)).toBeNull();
+      (invalidSerializedPercentages) => {
+        expect(isValidTipPercentages(invalidSerializedPercentages)).toBe(false);
+        expect(normalizeTipPercentages(invalidSerializedPercentages)).toBeNull();
       },
     );
   });

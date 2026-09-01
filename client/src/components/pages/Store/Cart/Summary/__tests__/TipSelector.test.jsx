@@ -73,8 +73,8 @@ describe("TipSelector", () => {
     expect(screen.getByTestId("tip-number-input")).toBeInTheDocument();
     expect(screen.getByText("summary.tipApply")).toBeInTheDocument();
 
-    const input = screen.getByTestId("tip-number-input");
-    fireEvent.change(input, { target: { value: "25" } });
+    const tipInput = screen.getByTestId("tip-number-input");
+    fireEvent.change(tipInput, { target: { value: "25" } });
 
     fireEvent.click(screen.getByText("summary.tipApply"));
     expect(defaultProps.onApply).toHaveBeenCalledWith(25, "percentage");
@@ -87,8 +87,8 @@ describe("TipSelector", () => {
     const fixedButton = screen.getByText("$");
     fireEvent.click(fixedButton);
 
-    const input = screen.getByTestId("tip-number-input");
-    fireEvent.change(input, { target: { value: "50" } });
+    const tipInput = screen.getByTestId("tip-number-input");
+    fireEvent.change(tipInput, { target: { value: "50" } });
 
     fireEvent.click(screen.getByText("summary.tipApply"));
     expect(defaultProps.onApply).toHaveBeenCalledWith(50, "fixed");

@@ -15,10 +15,10 @@ import pos.ambrosia.utils.authorizePermission
 import java.time.ZoneId
 
 private fun areTipPercentagesValid(serializedPercentages: String): Boolean {
-    val entries = serializedPercentages.split(",").map(String::trim)
-    if (entries.isEmpty() || entries.any { it.isEmpty() }) return false
+    val percentageEntries = serializedPercentages.split(",").map(String::trim)
+    if (percentageEntries.isEmpty() || percentageEntries.any { it.isEmpty() }) return false
 
-    val parsedPercentages = entries.map { it.toDoubleOrNull() ?: return false }
+    val parsedPercentages = percentageEntries.map { it.toDoubleOrNull() ?: return false }
     return parsedPercentages.all { it.isFinite() && it > 0.0 && it <= 100.0 } &&
         parsedPercentages.distinct().size == parsedPercentages.size
 }
