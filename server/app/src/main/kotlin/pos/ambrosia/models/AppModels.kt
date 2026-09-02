@@ -63,6 +63,7 @@ data class WalletErrorResponse(
     val message: String,
     val code: String,
     val source: String,
+    val category: String = "unknown",
 )
 
 @Serializable
@@ -173,6 +174,7 @@ data class Order(
     val status: String,
     val total: Double,
     val discountAmount: Double = 0.0,
+    val tipAmount: Double = 0.0,
     val createdAt: String,
 )
 
@@ -192,6 +194,7 @@ data class OrderWithPayment(
     val status: String,
     val total: Double,
     val discountAmount: Double = 0.0,
+    val tipAmount: Double = 0.0,
     val createdAt: String,
     val paymentMethod: String? = null,
     val paymentMethodIds: List<String> = emptyList(),
@@ -267,6 +270,7 @@ data class Ticket(
     val status: Int,
     val totalAmount: Double,
     val notes: String,
+    val tipAmount: Double = 0.0,
 )
 
 @Serializable data class Currency(
@@ -500,6 +504,51 @@ data class Config(
     val businessLogoUrl: String?,
     val businessTypeConfirmed: Boolean = false,
     val timezone: String = "America/Mexico_City",
+    val tipsEnabled: Boolean = true,
+    val tipPercentages: String = "10,15,20",
+)
+
+@Serializable
+data class FreelanceClient(
+    val id: String,
+    val name: String,
+    val currencyId: String,
+    val hourlyRateCents: Int,
+    val billingCycle: String,
+    val paymentMethod: String,
+    val payoutAccountId: String? = null,
+    val isDeleted: Boolean = false,
+    val createdAt: String,
+)
+
+@Serializable
+data class FreelanceClientUpsert(
+    val name: String,
+    val currencyId: String,
+    val hourlyRateCents: Int,
+    val billingCycle: String,
+    val paymentMethod: String,
+    val payoutAccountId: String? = null,
+)
+
+@Serializable
+data class FreelanceProject(
+    val id: String,
+    val clientId: String,
+    val name: String,
+    val status: String,
+    val hourlyRateCents: Int? = null,
+    val isBillable: Boolean = true,
+    val isDeleted: Boolean = false,
+    val createdAt: String,
+)
+
+@Serializable
+data class FreelanceProjectUpsert(
+    val name: String,
+    val status: String = "pending",
+    val hourlyRateCents: Int? = null,
+    val isBillable: Boolean = true,
 )
 
 @Serializable
@@ -690,6 +739,7 @@ data class StoreCheckoutRequest(
     val exchangeRateCurrency: String? = null,
     val fiatAmountAtPayment: Double? = null,
     val discountAmount: Double = 0.0,
+    val tipAmount: Double = 0.0,
 )
 
 @Serializable
@@ -786,4 +836,57 @@ data class IncomingPaymentWithRate(
     val exchangeRateCurrency: String? = null,
     val fiatAmountAtPayment: Double? = null,
     val refunded: Boolean,
+)
+
+@Serializable
+data class CreateTimeEntryRequest(
+    val projectId: String,
+    val taskId: String,
+    val entryDate: String,
+    val startTime: String? = null,
+    val endTime: String? = null,
+    val description: String? = null,
+    val durationMinutes: Int,
+)
+
+@Serializable
+data class UpdateTimeEntryRequest(
+    val projectId: String,
+    val taskId: String,
+    val entryDate: String,
+    val startTime: String? = null,
+    val endTime: String? = null,
+    val description: String? = null,
+    val durationMinutes: Int,
+)
+
+@Serializable
+data class TimeEntryResponse(
+    val id: String,
+    val projectId: String,
+    val projectName: String,
+    val taskId: String,
+    val taskName: String,
+    val isBillable: Boolean,
+    val clientId: String,
+    val clientName: String,
+    val currencyId: String,
+    val currencyAcronym: String,
+    val entryDate: String,
+    val startTime: String?,
+    val endTime: String?,
+    val description: String?,
+    val durationMinutes: Int,
+    val invoiceId: String?,
+    val isLocked: Boolean,
+    val createdAt: String,
+)
+
+@Serializable
+data class BackupManifest(
+    val appVersion: String,
+    val schemaInstalledRank: Int?,
+    val exportedAt: String = Instant.now().toString(),
+    val businessName: String,
+    val secret: String,
 )

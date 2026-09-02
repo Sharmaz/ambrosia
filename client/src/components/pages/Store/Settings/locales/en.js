@@ -1,3 +1,5 @@
+import exportDataEn from "../ExportData/locales/en";
+import importDataEn from "../ImportData/locales/en";
 import lightningEn from "../Lightning/locales/en";
 import nwcConnectionEn from "../NwcConnection/locales/en";
 import printersEn from "../Printers/locales/en";
@@ -17,6 +19,12 @@ const settingsEn = {
       successDescription: "The store currency has been changed successfully.",
       errorTitle: "Currency update failed",
       errorDescription: "Could not update the store currency.",
+    },
+    cardQRUrl: {
+      title: "Open on another device",
+      subtitle: "Scan this QR code to open Ambrosia.",
+      helper: "Use your phone or another device's camera to scan it.",
+      qrLabel: "QR code to open Ambrosia on another device",
     },
     cardLanguage: {
       title: "Language",
@@ -55,10 +63,28 @@ const settingsEn = {
       androidStep1: "Tap the menu icon ⋮",
       androidStep2: "Select \"Add to Home Screen\"",
     },
+    cardTips: {
+      title: "Tips",
+      subtitle: "Configure tipping system",
+      enableTips: "Enable tips",
+      enableTipsDescription: "Allow selecting tips before checkout in the cart",
+      percentagesLabel: "Suggested percentages",
+      percentagesPlaceholder: "10, 15, 20",
+      percentagesHelp: "Choose the options shown to customers at checkout",
+      percentagesError: "Select at least one percentage",
+      customPercentage: "Custom",
+      customPercentageLabel: "Custom tip percentage",
+      addPercentage: "Add",
+      saveButton: "Save",
+      successMessage: "Tip settings saved successfully",
+      errorMessage: "Failed to save tip settings",
+    },
     ...storeInfoEn,
     ...printersEn,
     ...ticketTemplatesEn,
     ...seedEn,
+    ...exportDataEn,
+    ...importDataEn,
     ...tutorialsEn,
   },
   ...lightningEn,

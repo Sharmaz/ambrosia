@@ -1,3 +1,5 @@
+import exportDataEs from "../ExportData/locales/es";
+import importDataEs from "../ImportData/locales/es";
 import lightningEs from "../Lightning/locales/es";
 import nwcConnectionEs from "../NwcConnection/locales/es";
 import printersEs from "../Printers/locales/es";
@@ -17,6 +19,12 @@ const settingsEs = {
       successDescription: "La moneda de la tienda se ha cambiado correctamente.",
       errorTitle: "Error al actualizar moneda",
       errorDescription: "No se pudo actualizar la moneda de la tienda.",
+    },
+    cardQRUrl: {
+      title: "Abrir en otro dispositivo",
+      subtitle: "Escanea este código QR para abrir Ambrosia.",
+      helper: "Usa la cámara de tu teléfono u otro dispositivo para escanearlo.",
+      qrLabel: "Código QR para abrir Ambrosia en otro dispositivo",
     },
     cardLanguage: {
       title: "Idioma",
@@ -55,10 +63,28 @@ const settingsEs = {
       androidStep1: "Toca el menú ⋮",
       androidStep2: "Selecciona \"Agregar a pantalla de inicio\"",
     },
+    cardTips: {
+      title: "Propinas",
+      subtitle: "Configuración del sistema de propinas",
+      enableTips: "Habilitar propinas",
+      enableTipsDescription: "Permite seleccionar propinas antes de cobrar en el carrito",
+      percentagesLabel: "Porcentajes sugeridos",
+      percentagesPlaceholder: "10, 15, 20",
+      percentagesHelp: "Elige las opciones que se mostrarán al cliente al cobrar",
+      percentagesError: "Selecciona al menos un porcentaje",
+      customPercentage: "Personalizado",
+      customPercentageLabel: "Porcentaje de propina personalizado",
+      addPercentage: "Agregar",
+      saveButton: "Guardar",
+      successMessage: "Configuración de propinas guardada correctamente",
+      errorMessage: "No se pudo guardar la configuración de propinas",
+    },
     ...storeInfoEs,
     ...printersEs,
     ...ticketTemplatesEs,
     ...seedEs,
+    ...exportDataEs,
+    ...importDataEs,
     ...tutorialsEs,
   },
   ...lightningEs,

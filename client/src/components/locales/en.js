@@ -88,6 +88,7 @@ const componentsEn = {
     printCorteZError: "Error printing Z Report",
     shiftPeriod: "Shift period",
     totalSales: "Total sales",
+    totalTips: "Total tips",
     cashSales: "Cash sales",
     cashRefunds: "Cash refunds",
     totalTickets: "Total tickets",
@@ -108,6 +109,18 @@ const componentsEn = {
     showHistoricalRate: "Show rate at time of sale",
     amountAtTimeOfPayment: "Amount at time of sale",
     amountAtCurrentRate: "Amount at current rate",
+  },
+  backupPasswordField: {
+    passwordLabel: "Backup password",
+    passwordPlaceholder: "Enter the wallet password of the business that created this backup",
+    fileLabel: "Backup file",
+    fileButton: "Choose file",
+    fileHint: "Select the .zip file you exported from Settings.",
+  },
+  restartRequiredModal: {
+    title: "Restart required",
+    description: "Please restart the Ambrosia server to finish loading your data.",
+    acknowledgeButton: "Got it",
   },
 };
 

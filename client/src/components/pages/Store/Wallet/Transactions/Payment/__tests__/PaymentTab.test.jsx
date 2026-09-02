@@ -56,6 +56,18 @@ function typeInvoice(input, value) {
   fireEvent.change(input, { target: { value } });
 }
 
+async function submitInvoicePayment() {
+  renderSendTab();
+  typeInvoice(screen.getByLabelText("payments.send.payInvoiceLabel"), "lnbc1000n1pj9h8uqpp5test");
+  fireEvent.click(screen.getByText("payments.send.payLightningButton"));
+
+  await waitFor(() => {
+    expect(screen.getByText("payments.send.confirmModal.title")).toBeInTheDocument();
+  });
+
+  fireEvent.click(screen.getByText("payments.send.confirmModal.confirmButton"));
+}
+
 beforeEach(() => {
   console.warn = jest.fn();
   console.error = jest.fn();
@@ -480,7 +492,45 @@ describe("SendTab Component", () => {
 
       await waitFor(() => {
         expect(addToast).toHaveBeenCalledWith(expect.objectContaining({
-          description: "phoenixd custom failure",
+          description: "phoenixd custom failure payments.send.errors.retryGuidance",
+        }));
+      });
+    });
+
+    it("adds retry guidance for remote routing failures", async () => {
+      jest.spyOn(walletService, "payInvoiceFromService").mockRejectedValue(
+        Object.assign(new Error("route failed"), {
+          code: "recipient_rejected_payment",
+          category: "remote_routing",
+        }),
+      );
+
+      await submitInvoicePayment();
+
+      await waitFor(() => {
+        expect(addToast).toHaveBeenCalledWith(expect.objectContaining({
+          title: "payments.send.paymentError",
+          description: "payments.send.errors.recipientRejectedPayment payments.send.errors.retryGuidance",
+          color: "danger",
+        }));
+      });
+    });
+
+    it("does not add retry guidance for local validation failures", async () => {
+      jest.spyOn(walletService, "payInvoiceFromService").mockRejectedValue(
+        Object.assign(new Error("Invalid Bolt11 invoice"), {
+          code: "invalid_invoice",
+          category: "local_validation",
+        }),
+      );
+
+      await submitInvoicePayment();
+
+      await waitFor(() => {
+        expect(addToast).toHaveBeenCalledWith(expect.objectContaining({
+          title: "payments.send.paymentError",
+          description: "payments.send.errors.invalidInvoice",
+          color: "danger",
         }));
       });
     });

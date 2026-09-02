@@ -88,6 +88,7 @@ const componentsEs = {
     printCorteZError: "Error al imprimir el Corte Z",
     shiftPeriod: "Período del turno",
     totalSales: "Total de ventas",
+    totalTips: "Total de propinas",
     cashSales: "Ventas en efectivo",
     cashRefunds: "Reembolsos en efectivo",
     totalTickets: "Total de tickets",
@@ -108,6 +109,18 @@ const componentsEs = {
     showHistoricalRate: "Ver tipo de cambio al momento de la venta",
     amountAtTimeOfPayment: "Monto al momento del cobro",
     amountAtCurrentRate: "Monto con tasa actual",
+  },
+  backupPasswordField: {
+    passwordLabel: "Contraseña del respaldo",
+    passwordPlaceholder: "Ingresa la contraseña de wallet del negocio que creó este respaldo",
+    fileLabel: "Archivo de respaldo",
+    fileButton: "Elegir archivo",
+    fileHint: "Selecciona el archivo .zip que exportaste desde Configuración.",
+  },
+  restartRequiredModal: {
+    title: "Reinicio requerido",
+    description: "Por favor reinicia el servidor de Ambrosia para terminar de cargar tus datos.",
+    acknowledgeButton: "Entendido",
   },
 };
 

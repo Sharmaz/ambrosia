@@ -80,6 +80,7 @@ export function ConfigurationsProvider({ children }) {
       return updateConfigResponse;
     } catch (error) {
       console.error(error);
+      throw error;
     }
   };
 

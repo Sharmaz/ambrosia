@@ -255,6 +255,7 @@ describe("walletService", () => {
       parseJsonResponse.mockResolvedValue({
         message: "This invoice has already been paid",
         code: "invoice_already_paid",
+        category: "local_validation",
         source: "phoenixd",
       });
 
@@ -262,6 +263,7 @@ describe("walletService", () => {
         message: "This invoice has already been paid",
         status: 409,
         code: "invoice_already_paid",
+        category: "local_validation",
         source: "phoenixd",
       });
     });

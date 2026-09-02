@@ -27,9 +27,11 @@ class PhoenixBalanceException(
 class PhoenixServiceException(
     message: String = "Phoenix Lightning node service error",
     val code: String = "unknown",
+    val category: String = "unknown",
     val statusCode: Int? = null,
     val source: String = "phoenixd",
     val upstreamMessage: String? = null,
+    val diagnosticLogged: Boolean = false,
 ) : RuntimeException(message)
 
 class InvalidTokenException(
@@ -83,6 +85,14 @@ class LastAdminRemovalException(
 class ResourceNotFoundException(
     message: String = "Resource not found",
 ) : RuntimeException(message)
+
+class InvalidTimeEntryException(
+    message: String = "Invalid time entry",
+) : IllegalArgumentException(message)
+
+class TimeEntryLockedException(
+    message: String = "Time entry is locked because it belongs to an invoice",
+) : IllegalStateException(message)
 
 class InitialSetupException(
     message: String = "Initial setup failed",

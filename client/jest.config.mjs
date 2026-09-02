@@ -2,7 +2,7 @@
 const config = {
   testEnvironment: "jsdom",
   moduleFileExtensions: ["js", "jsx", "ts", "tsx"],
-  testPathIgnorePatterns: ["/node_modules/", "/.next/", "__tests__/__mocks__/"],
+  testPathIgnorePatterns: ["/node_modules/", "/.next/", "__tests__/__mocks__/", "__tests__/utils/"],
   setupFiles: [
     "<rootDir>/__tests__/__mocks__/next/fetch.js",
     "<rootDir>/__tests__/__mocks__/globals.js",
@@ -22,6 +22,7 @@ const config = {
     "^@modules/(.*)$": "<rootDir>/src/modules/$1",
     "^@i18n/(.*)$": "<rootDir>/src/i18n/$1",
     "^@app/(.*)$": "<rootDir>/src/app/$1",
+    "^@test-utils/(.*)$": "<rootDir>/__tests__/utils/$1",
     "^next-intl$": "<rootDir>/__tests__/__mocks__/next/next-intl.js",
     "^next/image$": "<rootDir>/__tests__/__mocks__/next/image.js",
     "^framer-motion$": "<rootDir>/__tests__/__mocks__/framer-motion.js",

@@ -12,6 +12,7 @@ import { getInitialSetupStatus, submitInitialSetup } from "@services/initialSetu
 
 import { BusinessDetailsStep } from "./AddBusinessData";
 import { UserAccountStep } from "./AddUserAccount";
+import { RestoreFromBackupStep } from "./RestoreFromBackup";
 import { BusinessTypeStep } from "./SelectBusiness";
 import { WizardSummary } from "./StepsSummary";
 import { WalletBackendStep } from "./WalletBackendStep";
@@ -29,6 +30,7 @@ function addRedirectToast(toastProps) {
 export function Onboarding() {
   const onboardingTranslations = useTranslations();
   const [step, setStep] = useState(1);
+  const [activeView, setActiveView] = useState("setup");
   const [setupStatus, setSetupStatus] = useState(null);
   const [isSubmittingSetup, setIsSubmittingSetup] = useState(false);
   const isSubmittingSetupRef = useRef(false);
@@ -187,101 +189,119 @@ export function Onboarding() {
 
       <div className="w-full max-w-2xl">
 
-        {!needsBusinessType && (
-          <div className="mb-8">
-            <div className="flex justify-between items-center relative">
-              <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-2 md:h-3 rounded-full bg-gray-300 z-0" />
-              <div
-                className="absolute top-1/2 -translate-y-1/2 h-2 md:h-3 rounded-full bg-green-800 z-0 transition-all duration-300 left-0"
-                style={{ width: `${progressValue}%` }}
-              />
-              {[1, 2, 3, 4, 5].map((num) => (
-                <div
-                  key={num}
-                  className={`relative z-10 flex items-center justify-center w-8 h-8 md:w-10 md:h-10 rounded-full text-sm md:text-base font-semibold transition-all ${num <= step ? "bg-green-800 text-white" : "bg-gray-300 text-gray-500"}`}
-                >
-                  {num}
-                </div>
-              ))}
-            </div>
+        {activeView === "restore" ? (
+          <div className="bg-white rounded-lg shadow-lg p-4 md:p-8 mb-8">
+            <RestoreFromBackupStep onBack={() => setActiveView("setup")} />
           </div>
-        )}
-
-        <div className="bg-white rounded-lg shadow-lg p-4 md:p-8 mb-8">
-          {step === 1 && (
-            <BusinessTypeStep
-              value={data.businessType}
-              onChange={(businessType) => handleDataChange({ businessType })}
-            />
-          )}
-
-          {step === 2 && (
-            <UserAccountStep
-              data={{
-                userName: data.userName,
-                userPassword: data.userPassword,
-                userPasswordConfirmation: data.userPasswordConfirmation,
-                userPin: data.userPin,
-              }}
-              onChange={(userData) => handleDataChange(userData)}
-            />
-          )}
-
-          {step === 3 && (
-            <BusinessDetailsStep
-              data={{
-                businessType: data.businessType,
-                businessName: data.businessName,
-                businessAddress: data.businessAddress,
-                businessPhone: data.businessPhone,
-                businessEmail: data.businessEmail,
-                businessRFC: data.businessRFC,
-                businessCurrency: data.businessCurrency,
-                timezone: data.timezone,
-                businessLogo: data.businessLogo,
-              }}
-              onChange={(businessData) => handleDataChange(businessData)}
-            />
-          )}
-
-          {step === 4 && (
-            <WalletBackendStep
-              data={{ walletBackend: data.walletBackend, nwcUri: data.nwcUri }}
-              onChange={(walletData) => handleDataChange(walletData)}
-            />
-          )}
-
-          {step === 5 && <WizardSummary data={data} onEdit={(stepNum) => setStep(stepNum)} />}
-
-          <Divider className="hidden md:block my-8 bg-gray-400" />
-
-          <div className="flex w-full mt-6 md:mt-0">
-            {(!needsBusinessType && step !== 1) && (
-              <Button
-                variant="bordered"
-                onPress={handlePrevious}
-                className="px-6 py-2 border border-border text-foreground hover:bg-muted transition-colors"
-              >
-                {onboardingTranslations("buttons.back")}
-              </Button>
+        ) : (
+          <>
+            {!needsBusinessType && (
+            <div className="mb-8">
+              <div className="flex justify-between items-center relative">
+                <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-2 md:h-3 rounded-full bg-gray-300 z-0" />
+                <div
+                  className="absolute top-1/2 -translate-y-1/2 h-2 md:h-3 rounded-full bg-green-800 z-0 transition-all duration-300 left-0"
+                  style={{ width: `${progressValue}%` }}
+                />
+                {[1, 2, 3, 4, 5].map((stepNumber) => (
+                  <div
+                    key={stepNumber}
+                    className={`relative z-10 flex items-center justify-center w-8 h-8 md:w-10 md:h-10 rounded-full text-sm md:text-base font-semibold transition-all ${stepNumber <= step ? "bg-green-800 text-white" : "bg-gray-300 text-gray-500"}`}
+                  >
+                    {stepNumber}
+                  </div>
+                ))}
+              </div>
+            </div>
             )}
 
-            <div className="ml-auto">
-              {needsBusinessType ? (
-                <Button
-                  color="primary"
-                  onPress={handleComplete}
-                  isDisabled={!data.businessType || isSubmittingSetup}
-                  isLoading={isSubmittingSetup}
-                  className="bg-green-800"
+            <div className="bg-white rounded-lg shadow-lg p-4 md:p-8 mb-8">
+              {step === 1 && (
+              <BusinessTypeStep
+                value={data.businessType}
+                onChange={(businessType) => handleDataChange({ businessType })}
+              />
+              )}
+
+              {step === 1 && setupStatus?.initialized === false && (
+              <div className="mt-4 text-center">
+                <button
+                  type="button"
+                  onClick={() => setActiveView("restore")}
+                  className="text-sm text-green-800 underline hover:text-green-900 cursor-pointer transition-colors"
                 >
-                  {onboardingTranslations("buttons.finish")}
-                </Button>
-              ) : step < 5 ? (
+                  {onboardingTranslations("restore.toggleLink")}
+                </button>
+              </div>
+              )}
+
+              {step === 2 && (
+              <UserAccountStep
+                data={{
+                  userName: data.userName,
+                  userPassword: data.userPassword,
+                  userPasswordConfirmation: data.userPasswordConfirmation,
+                  userPin: data.userPin,
+                }}
+                onChange={(userData) => handleDataChange(userData)}
+              />
+              )}
+
+              {step === 3 && (
+              <BusinessDetailsStep
+                data={{
+                  businessType: data.businessType,
+                  businessName: data.businessName,
+                  businessAddress: data.businessAddress,
+                  businessPhone: data.businessPhone,
+                  businessEmail: data.businessEmail,
+                  businessRFC: data.businessRFC,
+                  businessCurrency: data.businessCurrency,
+                  timezone: data.timezone,
+                  businessLogo: data.businessLogo,
+                }}
+                onChange={(businessData) => handleDataChange(businessData)}
+              />
+              )}
+
+              {step === 4 && (
+              <WalletBackendStep
+                data={{ walletBackend: data.walletBackend, nwcUri: data.nwcUri }}
+                onChange={(walletData) => handleDataChange(walletData)}
+              />
+              )}
+
+              {step === 5 && <WizardSummary data={data} onEdit={(stepNum) => setStep(stepNum)} />}
+
+              <Divider className="hidden md:block my-8 bg-gray-400" />
+
+              <div className="flex w-full mt-6 md:mt-0">
+                {(!needsBusinessType && step !== 1) && (
                 <Button
-                  color="primary"
-                  onPress={handleNext}
-                  isDisabled={
+                  variant="bordered"
+                  onPress={handlePrevious}
+                  className="px-6 py-2 border border-border text-foreground hover:bg-muted transition-colors"
+                >
+                  {onboardingTranslations("buttons.back")}
+                </Button>
+                )}
+
+                <div className="ml-auto">
+                  {needsBusinessType ? (
+                    <Button
+                      color="primary"
+                      onPress={handleComplete}
+                      isDisabled={!data.businessType || isSubmittingSetup}
+                      isLoading={isSubmittingSetup}
+                      className="bg-green-800"
+                    >
+                      {onboardingTranslations("buttons.finish")}
+                    </Button>
+                  ) : step < 5 ? (
+                    <Button
+                      color="primary"
+                      onPress={handleNext}
+                      isDisabled={
                     (step === 1 && !data.businessType) ||
                     (step === 2 && (
                       !data.userName ||
@@ -294,24 +314,26 @@ export function Onboarding() {
                     (step === 3 && (!data.businessName || !data.businessCurrency || !data.timezone)) ||
                     (step === 4 && data.walletBackend === "nwc" && (!data.nwcUri || !NWC_URI_REGEX.test(data.nwcUri)))
                   }
-                  className="bg-green-800"
-                >
-                  {onboardingTranslations("buttons.next")}
-                </Button>
-              ) : (
-                <Button
-                  color="primary"
-                  onPress={handleComplete}
-                  isDisabled={isSubmittingSetup}
-                  isLoading={isSubmittingSetup}
-                  className="bg-green-800"
-                >
-                  {onboardingTranslations("buttons.finish")}
-                </Button>
-              )}
+                      className="bg-green-800"
+                    >
+                      {onboardingTranslations("buttons.next")}
+                    </Button>
+                  ) : (
+                    <Button
+                      color="primary"
+                      onPress={handleComplete}
+                      isDisabled={isSubmittingSetup}
+                      isLoading={isSubmittingSetup}
+                      className="bg-green-800"
+                    >
+                      {onboardingTranslations("buttons.finish")}
+                    </Button>
+                  )}
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
+          </>
+        )}
       </div>
     </div>
   );

@@ -14,9 +14,7 @@ jest.mock("next-intl", () => {
   return { useTranslations: () => roleTranslations };
 });
 
-jest.mock("@/hooks/usePermission", () => ({
-  RequirePermission: ({ children }) => children,
-}));
+jest.mock("@/hooks/usePermission");
 
 jest.mock("@/hooks/useNavigation", () => ({
   useNavigation: () => ({ isAdmin: mockIsAdmin }),

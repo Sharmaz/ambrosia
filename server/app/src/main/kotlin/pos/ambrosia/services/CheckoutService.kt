@@ -205,6 +205,9 @@ class CheckoutService(
         if (request.items.any { it.quantity <= 0 }) {
             return CheckoutResult.Invalid("checkout_invalid_quantity", "Checkout item quantities must be positive")
         }
+        if (!request.tipAmount.isFinite() || request.tipAmount < 0.0) {
+            return CheckoutResult.Invalid("checkout_invalid_tip", "Checkout tip amount must be finite and non-negative")
+        }
 
         return checkoutMutex.withLock {
             val paymentHash = request.paymentHash
@@ -292,6 +295,7 @@ class CheckoutService(
                 this.userId = userEntityId
                 this.ticketDate = now
                 this.totalAmount = request.amount
+                this.tipAmount = request.tipAmount
                 this.notes = request.ticketNotes
             }
 
@@ -333,6 +337,7 @@ class CheckoutService(
                         this.status = "paid"
                         this.total = request.amount
                         this.discountAmount = request.discountAmount
+                        this.tipAmount = request.tipAmount
                         this.createdAt = now
                     }
 

@@ -17,6 +17,7 @@ import pos.ambrosia.utils.DatabaseException
 import pos.ambrosia.utils.DuplicateUserNameException
 import pos.ambrosia.utils.InitialSetupException
 import pos.ambrosia.utils.InvalidCredentialsException
+import pos.ambrosia.utils.InvalidTimeEntryException
 import pos.ambrosia.utils.InvalidTokenException
 import pos.ambrosia.utils.LastAdminRemovalException
 import pos.ambrosia.utils.LastUserDeletionException
@@ -34,6 +35,7 @@ import pos.ambrosia.utils.PhoenixServiceException
 import pos.ambrosia.utils.PrintTicketException
 import pos.ambrosia.utils.ProductIsBundleComponentException
 import pos.ambrosia.utils.ResourceNotFoundException
+import pos.ambrosia.utils.TimeEntryLockedException
 import pos.ambrosia.utils.UnauthorizedApiException
 import pos.ambrosia.utils.UnsupportedBackendOperationException
 import pos.ambrosia.utils.WalletOnlyException
@@ -44,7 +46,8 @@ private suspend fun ApplicationCall.respondWalletError(
     message: String,
     code: String,
     source: String,
-) = respond(status, WalletErrorResponse(message = message, code = code, source = source))
+    category: String = "unknown",
+) = respond(status, WalletErrorResponse(message = message, code = code, source = source, category = category))
 
 fun Application.handler() {
     install(StatusPages) {
@@ -52,6 +55,14 @@ fun Application.handler() {
         exception<ResourceNotFoundException> { call, cause ->
             logger.warn("Resource not found: ${cause.message}")
             call.respond(HttpStatusCode.NotFound, Message(cause.message ?: "Resource not found"))
+        }
+        exception<InvalidTimeEntryException> { call, cause ->
+            logger.warn("Invalid time entry: ${cause.message}")
+            call.respond(HttpStatusCode.BadRequest, Message(cause.message ?: "Invalid time entry"))
+        }
+        exception<TimeEntryLockedException> { call, cause ->
+            logger.warn("Locked time entry mutation rejected: ${cause.message}")
+            call.respond(HttpStatusCode.Conflict, Message(cause.message ?: "Time entry is locked"))
         }
         exception<InvalidCredentialsException> { call, cause ->
             logger.warn("Invalid login attempt: ${cause.message}")
@@ -123,9 +134,15 @@ fun Application.handler() {
             )
         }
         exception<PhoenixServiceException> { call, cause ->
-            logger.error("Phoenix service error: ${cause.message}")
+            logger.error("Phoenix service error [${cause.category}]: ${cause.message}")
             val statusCode = cause.statusCode?.let(HttpStatusCode::fromValue) ?: HttpStatusCode.ServiceUnavailable
-            call.respondWalletError(statusCode, cause.message ?: "Lightning node service error", cause.code, cause.source)
+            call.respondWalletError(
+                statusCode,
+                cause.message ?: "Lightning node service error",
+                cause.code,
+                cause.source,
+                cause.category,
+            )
         }
         exception<NwcConnectionException> { call, cause ->
             logger.error("NWC relay connection error: ${cause.message}")

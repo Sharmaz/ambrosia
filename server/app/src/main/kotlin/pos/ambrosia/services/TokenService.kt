@@ -162,6 +162,12 @@ class TokenService(
         }
     }
 
+    fun revokeAllWalletTokens() {
+        transaction {
+            UsersTable.update { it[walletToken] = null }
+        }
+    }
+
     private fun saveRefreshTokenToDatabase(
         userId: String,
         refreshToken: String,
