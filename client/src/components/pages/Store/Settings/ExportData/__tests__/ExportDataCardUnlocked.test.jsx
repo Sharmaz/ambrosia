@@ -82,15 +82,21 @@ describe("ExportDataCardUnlocked", () => {
       expect(screen.queryByTestId("progress")).not.toBeInTheDocument();
     });
 
+    it("shows a spinner with the phase label while the percent is not known yet", () => {
+      renderUnlocked({ exportProgress: { phase: "preparing", percent: null } });
+      expect(screen.getByTestId("spinner")).toBeInTheDocument();
+      expect(screen.getByText("cardExportData.phasePreparing")).toBeInTheDocument();
+    });
+
     it("shows a progress bar with the given percent instead of the spinner", () => {
-      renderUnlocked({ exportProgress: 42 });
+      renderUnlocked({ exportProgress: { phase: "writing", percent: 42 } });
       expect(screen.queryByTestId("spinner")).not.toBeInTheDocument();
       expect(screen.getByTestId("progress")).toHaveAttribute("data-value", "42");
     });
 
-    it("shows the progress translation key and percent while a percent is known", () => {
-      renderUnlocked({ exportProgress: 42 });
-      expect(screen.getByText("cardExportData.exportingProgress 42%")).toBeInTheDocument();
+    it("shows the phase translation key and percent while a percent is known", () => {
+      renderUnlocked({ exportProgress: { phase: "writing", percent: 42 } });
+      expect(screen.getByText("cardExportData.phaseWriting 42%")).toBeInTheDocument();
     });
   });
 

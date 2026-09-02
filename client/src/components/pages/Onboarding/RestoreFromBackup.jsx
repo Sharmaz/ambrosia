@@ -10,6 +10,12 @@ import { BackupPasswordAndFileFields } from "@components/shared/BackupPasswordAn
 import { RestartRequiredModal } from "@components/shared/RestartRequiredModal";
 import { restoreFromBackup } from "@services/initialSetupService";
 
+function restorePhaseLabel(restoreTranslations, phase) {
+  if (phase === "uploading") return restoreTranslations("restore.phaseUploading");
+  if (phase === "extracting") return restoreTranslations("restore.phaseExtracting");
+  return restoreTranslations("restore.restoring");
+}
+
 export function RestoreFromBackupStep({ onBack }) {
   const restoreTranslations = useTranslations();
   const [backupPassword, setBackupPassword] = useState("");
@@ -31,7 +37,11 @@ export function RestoreFromBackupStep({ onBack }) {
     try {
       const restoreResponse = await restoreFromBackup(backupPassword, backupFile, setRestoreProgress);
       if (!restoreResponse.ok) {
-        setErrorMessage(restoreTranslations("restore.genericError"));
+        setErrorMessage(
+          restoreResponse.status === 409
+            ? restoreTranslations("restore.pendingRestoreError")
+            : restoreTranslations("restore.genericError"),
+        );
         return;
       }
 
@@ -66,26 +76,24 @@ export function RestoreFromBackupStep({ onBack }) {
       <div className="flex flex-col gap-4">
         {isSubmitting ? (
           <div className="flex flex-col items-center gap-2 py-6 w-full">
-            {typeof restoreProgress === "number" ? (
+            {restoreProgress?.percent != null ? (
               <>
                 <Progress
                   aria-label={restoreTranslations("restore.restoring")}
-                  value={restoreProgress}
+                  value={restoreProgress.percent}
                   className="max-w-full"
                   color="success"
                   size="sm"
                 />
                 <p className="text-sm text-gray-500">
-                  {restoreProgress < 100
-                    ? `${restoreTranslations("restore.uploadingProgress")} ${restoreProgress}%`
-                    : restoreTranslations("restore.processing")}
+                  {restorePhaseLabel(restoreTranslations, restoreProgress.phase)} {restoreProgress.percent}%
                 </p>
               </>
             ) : (
               <>
                 <Spinner size="lg" color="success" />
                 <p className="text-sm text-gray-500">
-                  {restoreTranslations("restore.restoring")}
+                  {restoreProgress ? restorePhaseLabel(restoreTranslations, restoreProgress.phase) : restoreTranslations("restore.restoring")}
                 </p>
               </>
             )}

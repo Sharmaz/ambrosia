@@ -1,9 +1,17 @@
 jest.mock("@/lib/http", () => ({
   httpClient: jest.fn(),
+  parseJsonResponse: jest.fn(),
 }));
 
-import { httpClient } from "@/lib/http";
+jest.mock("../backupProgressChannel", () => ({
+  openBackupProgressChannel: jest.fn(),
+  closeBackupProgressChannel: jest.fn(),
+}));
 
+import { httpClient, parseJsonResponse } from "@/lib/http";
+import { waitForInstance } from "@test-utils/waitForInstance";
+
+import { closeBackupProgressChannel, openBackupProgressChannel } from "../backupProgressChannel";
 import { getInitialSetupStatus, submitInitialSetup, restoreFromBackup } from "../initialSetupService";
 
 class FakeXMLHttpRequest {
@@ -69,14 +77,16 @@ describe("initialSetupService", () => {
       FakeXMLHttpRequest.instances = [];
       originalXMLHttpRequest = global.XMLHttpRequest;
       global.XMLHttpRequest = FakeXMLHttpRequest;
+      openBackupProgressChannel.mockResolvedValue(null);
     });
 
     afterEach(() => {
       global.XMLHttpRequest = originalXMLHttpRequest;
     });
 
-    function resolveUpload(status) {
-      const [uploadRequest] = FakeXMLHttpRequest.instances;
+    async function resolveUpload({ status, body }) {
+      const uploadRequest = await waitForInstance(FakeXMLHttpRequest);
+      parseJsonResponse.mockResolvedValue(body);
       uploadRequest.status = status;
       uploadRequest.onload();
     }
@@ -85,7 +95,7 @@ describe("initialSetupService", () => {
       const backupFile = new File(["zip-content"], "backup.zip", { type: "application/zip" });
 
       const restoreFromBackupPromise = restoreFromBackup("backup-password", backupFile);
-      resolveUpload(200);
+      await resolveUpload({ status: 200 });
       await restoreFromBackupPromise;
 
       const [uploadRequest] = FakeXMLHttpRequest.instances;
@@ -96,36 +106,93 @@ describe("initialSetupService", () => {
       expect(uploadRequest.sentBody.get("backup")).toBe(backupFile);
     });
 
-    it("reports upload percent from lengthComputable progress events", async () => {
-      const onProgress = jest.fn();
-
-      const restoreFromBackupPromise = restoreFromBackup(
-        "backup-password",
-        new File(["zip"], "backup.zip"),
-        onProgress,
-      );
-      const [uploadRequest] = FakeXMLHttpRequest.instances;
-      uploadRequest.upload.onprogress({ lengthComputable: true, loaded: 25, total: 100 });
-      uploadRequest.upload.onprogress({ lengthComputable: false, loaded: 999, total: 100 });
-      resolveUpload(200);
-      await restoreFromBackupPromise;
-
-      expect(onProgress).toHaveBeenCalledTimes(1);
-      expect(onProgress).toHaveBeenCalledWith(25);
-    });
-
     it("resolves with ok:true for a successful response", async () => {
       const restoreFromBackupPromise = restoreFromBackup("backup-password", new File(["zip"], "backup.zip"));
-      resolveUpload(200);
+      await resolveUpload({ status: 200 });
 
       await expect(restoreFromBackupPromise).resolves.toEqual({ ok: true });
     });
 
-    it("resolves with ok:false for a failed response", async () => {
+    it("resolves with ok:false and the status for a failed response", async () => {
       const restoreFromBackupPromise = restoreFromBackup("wrong-password", new File(["zip"], "backup.zip"));
-      resolveUpload(400);
+      await resolveUpload({ status: 400 });
 
-      await expect(restoreFromBackupPromise).resolves.toEqual({ ok: false });
+      await expect(restoreFromBackupPromise).resolves.toEqual({ ok: false, status: 400, message: undefined });
+    });
+
+    it("resolves with the server message when a pending import is already staged", async () => {
+      const restoreFromBackupPromise = restoreFromBackup("backup-password", new File(["zip"], "backup.zip"));
+      await resolveUpload({
+        status: 409,
+        body: { message: "A previous import is already staged and waiting for a server restart" },
+      });
+
+      await expect(restoreFromBackupPromise).resolves.toEqual({
+        ok: false,
+        status: 409,
+        message: "A previous import is already staged and waiting for a server restart",
+      });
+    });
+
+    describe("progress reporting", () => {
+      it("opens a progress channel with the caller's onProgress", async () => {
+        const onProgress = jest.fn();
+
+        const restoreFromBackupPromise = restoreFromBackup(
+          "backup-password",
+          new File(["zip"], "backup.zip"),
+          onProgress,
+        );
+        await resolveUpload({ status: 200 });
+        await restoreFromBackupPromise;
+
+        expect(openBackupProgressChannel).toHaveBeenCalledWith(onProgress, "/initial-setup/progress-token");
+      });
+
+      it("appends operationId before the backup file when a progress channel connects", async () => {
+        openBackupProgressChannel.mockResolvedValue({ operationId: "operation-1", socket: { close: jest.fn() } });
+
+        const restoreFromBackupPromise = restoreFromBackup(
+          "backup-password",
+          new File(["zip"], "backup.zip"),
+          jest.fn(),
+        );
+        await resolveUpload({ status: 200 });
+        await restoreFromBackupPromise;
+
+        const [uploadRequest] = FakeXMLHttpRequest.instances;
+        const sentFieldNames = [...uploadRequest.sentBody.keys()];
+        expect(uploadRequest.sentBody.get("operationId")).toBe("operation-1");
+        expect(sentFieldNames.indexOf("operationId")).toBeLessThan(sentFieldNames.indexOf("backup"));
+      });
+
+      it("does not append operationId when no progress channel could connect", async () => {
+        const restoreFromBackupPromise = restoreFromBackup(
+          "backup-password",
+          new File(["zip"], "backup.zip"),
+          jest.fn(),
+        );
+        await resolveUpload({ status: 200 });
+        await restoreFromBackupPromise;
+
+        const [uploadRequest] = FakeXMLHttpRequest.instances;
+        expect(uploadRequest.sentBody.has("operationId")).toBe(false);
+      });
+
+      it("closes the progress channel once the restore call settles", async () => {
+        const progressChannel = { operationId: "operation-1", socket: { close: jest.fn() } };
+        openBackupProgressChannel.mockResolvedValue(progressChannel);
+
+        const restoreFromBackupPromise = restoreFromBackup(
+          "backup-password",
+          new File(["zip"], "backup.zip"),
+          jest.fn(),
+        );
+        await resolveUpload({ status: 200 });
+        await restoreFromBackupPromise;
+
+        expect(closeBackupProgressChannel).toHaveBeenCalledWith(progressChannel);
+      });
     });
   });
 });

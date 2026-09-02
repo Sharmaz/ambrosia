@@ -889,4 +889,19 @@ data class BackupManifest(
     val exportedAt: String = Instant.now().toString(),
     val businessName: String,
     val secret: String,
+    val totalUncompressedBytes: Long? = null,
 )
+
+@Serializable
+data class BackupProgressUpdate(
+    val phase: String,
+    val bytesProcessed: Long,
+    val totalBytes: Long? = null,
+)
+
+object BackupProgressPhase {
+    const val PREPARING = "preparing"
+    const val WRITING = "writing"
+    const val UPLOADING = "uploading"
+    const val EXTRACTING = "extracting"
+}

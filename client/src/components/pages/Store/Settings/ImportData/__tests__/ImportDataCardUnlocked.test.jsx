@@ -132,6 +132,26 @@ describe("ImportDataCardUnlocked", () => {
       expect(onImport).toHaveBeenCalledWith("wallet-password", "backup-password", expect.any(File), expect.any(Function));
     });
 
+    it("clears the spinner and shows the form again once onImport resolves", async () => {
+      let resolveImport;
+      const onImport = jest.fn(() => new Promise((resolve) => { resolveImport = resolve; }));
+      renderUnlocked({ onImport });
+      fireEvent.click(screen.getByTestId("guard-confirm"));
+      fireEvent.click(screen.getByTestId("select-backup-file"));
+      fireEvent.click(screen.getByTestId("fill-backup-password"));
+      fireEvent.click(screen.getByText("cardImportData.continueButton"));
+
+      fireEvent.click(screen.getByTestId("modal-confirm"));
+      await screen.findByTestId("spinner");
+
+      await act(async () => {
+        resolveImport();
+      });
+
+      expect(screen.queryByTestId("spinner")).not.toBeInTheDocument();
+      expect(screen.getByText("cardImportData.continueButton")).toBeInTheDocument();
+    });
+
     it("shows a spinner while importing", async () => {
       let resolveImport;
       const onImport = jest.fn(() => new Promise((resolve) => { resolveImport = resolve; }));
@@ -150,7 +170,7 @@ describe("ImportDataCardUnlocked", () => {
       });
     });
 
-    it("shows a progress bar once onImport reports an upload percent", async () => {
+    it("shows a progress bar once onImport reports an uploading phase update", async () => {
       let reportProgress;
       const onImport = jest.fn((rolePassword, backupPassword, backupFile, onProgress) => {
         reportProgress = onProgress;
@@ -164,14 +184,14 @@ describe("ImportDataCardUnlocked", () => {
 
       fireEvent.click(screen.getByTestId("modal-confirm"));
       await act(async () => {
-        reportProgress(37);
+        reportProgress({ phase: "uploading", percent: 37 });
       });
 
       expect(screen.getByTestId("progress")).toHaveAttribute("data-value", "37");
-      expect(screen.getByText("cardImportData.uploadingProgress 37%")).toBeInTheDocument();
+      expect(screen.getByText("cardImportData.phaseUploading 37%")).toBeInTheDocument();
     });
 
-    it("shows the processing message once the upload reaches 100 percent", async () => {
+    it("shows the extracting phase and its own percent once the server reports it", async () => {
       let reportProgress;
       const onImport = jest.fn((rolePassword, backupPassword, backupFile, onProgress) => {
         reportProgress = onProgress;
@@ -185,10 +205,10 @@ describe("ImportDataCardUnlocked", () => {
 
       fireEvent.click(screen.getByTestId("modal-confirm"));
       await act(async () => {
-        reportProgress(100);
+        reportProgress({ phase: "extracting", percent: 80 });
       });
 
-      expect(screen.getByText("cardImportData.processing")).toBeInTheDocument();
+      expect(screen.getByText("cardImportData.phaseExtracting 80%")).toBeInTheDocument();
     });
 
     it("shows a generic error when onImport throws", async () => {
@@ -204,6 +224,21 @@ describe("ImportDataCardUnlocked", () => {
       });
 
       expect(await screen.findByText("cardImportData.errorDescription")).toBeInTheDocument();
+    });
+
+    it("shows the pending-import error when onImport throws a 409", async () => {
+      const onImport = jest.fn().mockRejectedValue(Object.assign(new Error("A previous import is already staged"), { status: 409 }));
+      renderUnlocked({ onImport });
+      fireEvent.click(screen.getByTestId("guard-confirm"));
+      fireEvent.click(screen.getByTestId("select-backup-file"));
+      fireEvent.click(screen.getByTestId("fill-backup-password"));
+      fireEvent.click(screen.getByText("cardImportData.continueButton"));
+
+      await act(async () => {
+        fireEvent.click(screen.getByTestId("modal-confirm"));
+      });
+
+      expect(await screen.findByText("cardImportData.pendingImportError")).toBeInTheDocument();
     });
 
     it("closes the confirm modal without importing when cancelled", () => {

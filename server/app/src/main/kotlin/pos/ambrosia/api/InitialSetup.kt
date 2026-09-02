@@ -4,6 +4,7 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.http.content.PartData
 import io.ktor.http.content.forEachPart
 import io.ktor.server.application.Application
+import io.ktor.server.request.contentLength
 import io.ktor.server.request.receive
 import io.ktor.server.request.receiveMultipart
 import io.ktor.server.response.respond
@@ -12,12 +13,10 @@ import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 import io.ktor.server.routing.route
 import io.ktor.server.routing.routing
-import io.ktor.utils.io.ByteReadChannel
-import io.ktor.utils.io.copyTo
-import kotlinx.coroutines.runBlocking
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import pos.ambrosia.datadir
 import pos.ambrosia.logger
+import pos.ambrosia.models.BackupProgressPhase
 import pos.ambrosia.models.Config
 import pos.ambrosia.models.InitialSetupRequest
 import pos.ambrosia.models.InitialSetupResponse
@@ -30,14 +29,17 @@ import pos.ambrosia.services.ConfigService
 import pos.ambrosia.services.CurrencyService
 import pos.ambrosia.services.PermissionsService
 import pos.ambrosia.services.RolesService
+import pos.ambrosia.services.TokenService
 import pos.ambrosia.services.UsersService
 import pos.ambrosia.services.WalletAdminNotificationService
 import pos.ambrosia.utils.InitialSetupException
 import java.io.File
-import java.nio.channels.Channels
 import java.nio.file.Files
 import java.nio.file.Path
 import java.time.ZoneId
+import java.util.UUID
+
+private const val ONBOARDING_PROGRESS_TOKEN_USER_ID = "onboarding"
 
 fun Application.configureInitialSetup() {
     routing {
@@ -201,16 +203,27 @@ private fun Route.initialSetupRoutes() {
         }
 
         var backupPassword: String? = null
+        var operationId: String? = null
         var temporaryBackupFile: Path? = null
+        var bytesUploaded = 0L
         try {
             call.receiveMultipart().forEachPart { part ->
                 when (part) {
                     is PartData.FormItem -> {
                         if (part.name == "password") backupPassword = part.value
+                        if (part.name == "operationId") operationId = part.value
                     }
 
                     is PartData.FileItem -> {
-                        if (part.name == "backup") temporaryBackupFile = receiveChannelToTempFile(part.provider)
+                        if (part.name == "backup") {
+                            val onRestoreProgress = backupProgressReporter(operationId)
+                            val totalUploadBytes = call.request.contentLength()
+                            temporaryBackupFile =
+                                receiveChannelToTempFile(part.provider) { bytesReceived ->
+                                    bytesUploaded += bytesReceived
+                                    onRestoreProgress(BackupProgressPhase.UPLOADING, bytesUploaded, totalUploadBytes)
+                                }
+                        }
                     }
 
                     else -> {}
@@ -228,7 +241,7 @@ private fun Route.initialSetupRoutes() {
             val backupService = BackupService()
             val importedManifest =
                 Files.newInputStream(backupFile).use { backupInputStream ->
-                    backupService.importBackup(backupInputStream, password.toCharArray())
+                    backupService.importBackup(backupInputStream, password.toCharArray(), backupProgressReporter(operationId))
                 }
 
             call.respond(
@@ -245,16 +258,20 @@ private fun Route.initialSetupRoutes() {
             call.respond(HttpStatusCode.BadRequest, mapOf("message" to "Invalid backup file"))
         } finally {
             temporaryBackupFile?.let { Files.deleteIfExists(it) }
+            operationId?.let { BackupProgressNotifier.unregister(it) }
         }
     }
-}
 
-private fun receiveChannelToTempFile(channelProvider: () -> ByteReadChannel): Path {
-    val temporaryFile = Files.createTempFile("ambrosia-import-upload-", ".zip")
-    val uploadChannel = channelProvider()
-    Files.newOutputStream(temporaryFile).use { temporaryFileOutputStream ->
-        runBlocking { uploadChannel.copyTo(Channels.newChannel(temporaryFileOutputStream)) }
+    post("/progress-token") {
+        val configService = ConfigService()
+        if (configService.getConfig() != null) {
+            call.respond(HttpStatusCode.Conflict, mapOf("message" to "Initial setup already completed"))
+            return@post
+        }
+
+        val operationId = UUID.randomUUID().toString()
+        val tokenService = TokenService(call.application.environment)
+        val progressToken = tokenService.generateBackupProgressToken(ONBOARDING_PROGRESS_TOKEN_USER_ID, operationId)
+        call.respond(HttpStatusCode.OK, mapOf("operationId" to operationId, "token" to progressToken))
     }
-    uploadChannel.cancel(null)
-    return temporaryFile
 }

@@ -27,6 +27,7 @@ import pos.ambrosia.utils.NwcServiceException
 import pos.ambrosia.utils.OrderAlreadyRefundedException
 import pos.ambrosia.utils.OrderNotRefundableException
 import pos.ambrosia.utils.PaymentNotConfirmedException
+import pos.ambrosia.utils.PendingImportAlreadyStagedException
 import pos.ambrosia.utils.PermissionDeniedException
 import pos.ambrosia.utils.PhoenixBalanceException
 import pos.ambrosia.utils.PhoenixConnectionException
@@ -94,6 +95,10 @@ fun Application.handler() {
         exception<LastAdminRemovalException> { call, cause ->
             logger.warn("Attempt to remove last admin user: ${cause.message}")
             call.respond(HttpStatusCode.Conflict, Message("Cannot remove the last admin user"))
+        }
+        exception<PendingImportAlreadyStagedException> { call, cause ->
+            logger.warn("Rejected a new import while a previous one is still pending: ${cause.message}")
+            call.respond(HttpStatusCode.Conflict, Message("A previous import is already staged and waiting for a server restart"))
         }
         exception<AdminOnlyException> { call, _ ->
             logger.warn("Non-admin user attempted to access admin-only endpoint")
