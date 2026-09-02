@@ -133,6 +133,15 @@ apt-get install -y -qq --no-install-recommends \
   xz-utils unzip p7zip-full openssl \
   systemd qemu-user-static git
 
+# The bind-mounted checkout belongs to the host user, while this container runs as root.
+git config --global --add safe.directory /repo
+
+echo "[build-docker] Checking loop device access..."
+if ! losetup --find >/dev/null; then
+  echo "[build-docker] ERROR: No loop device is available. On Linux, run sudo modprobe loop on the Docker host and retry." >&2
+  exit 1
+fi
+
 echo "[build-docker] Adding Adoptium (Temurin 21 JDK) repository..."
 mkdir -p /etc/apt/keyrings
 wget -qO - https://packages.adoptium.net/artifactory/api/gpg/key/public \
@@ -164,6 +173,7 @@ log "Launching $CONTAINER_ENGINE container (debian:bookworm, privileged)..."
 "$CONTAINER_ENGINE" run \
   --rm \
   --privileged \
+  --mount type=bind,source=/dev,target=/dev \
   -v "$REPO_ROOT:/repo" \
   "${EXTRA_MOUNTS[@]+"${EXTRA_MOUNTS[@]}"}" \
   -e "SUDO_UID=$(id -u)" \

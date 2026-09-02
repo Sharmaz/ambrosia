@@ -76,6 +76,8 @@ For Raspberry Pi:
 
 The wrapper installs all required build tools (Java 21 Temurin, Node 24, parted, e2fsprogs, etc.) inside the container on every run. The repo is mounted at `/repo` so output lands in `hardware/image/out/` on your host, and file ownership is restored to your user automatically.
 
+The privileged container also mounts the Docker host's `/dev` so loop devices allocated during image assembly remain visible. Loop access is checked before compiling artifacts. If no loop device is available on Linux, load the driver with `sudo modprobe loop` on the Docker host and retry. After an assembly failure, use `--skip-artifacts-build` to reuse completed artifacts in `out/staging/`.
+
 All `assemble-image.sh` flags are forwarded unchanged:
 
 ```bash
