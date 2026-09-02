@@ -23,12 +23,13 @@ unset _remaining_args
 
 [[ -n "$BOARD_ID" ]] || { printf 'Usage: sudo %s --board <board-id> [options]\n' "$(basename "$0")" >&2; exit 1; }
 
+[[ "$BOARD_ID" =~ ^[a-z0-9][a-z0-9-]*$ ]] || fail "Invalid board ID: $BOARD_ID"
 BOARD_DIR="$IMAGE_ROOT/boards/$BOARD_ID"
-BOARD_ENV_FILE="$BOARD_DIR/board.env"
-[[ -f "$BOARD_ENV_FILE" ]] || fail "Missing board definition: $BOARD_ENV_FILE"
+BOARD_CONFIG_FILE="$BOARD_DIR/board.conf"
+[[ -f "$BOARD_CONFIG_FILE" ]] || fail "Missing board definition: $BOARD_CONFIG_FILE"
 # shellcheck source=/dev/null
-source "$BOARD_ENV_FILE"
-[[ -n "${BOARD_SHORT_NAME:-}" ]] || fail "board.env for '$BOARD_ID' is missing BOARD_SHORT_NAME"
+source "$BOARD_CONFIG_FILE"
+[[ -n "${BOARD_SHORT_NAME:-}" ]] || fail "board.conf for '$BOARD_ID' is missing BOARD_SHORT_NAME"
 
 OUTPUT_DIR="${OUTPUT_DIR:-$IMAGE_OUT_DIR}"
 STAGING_DIR="${STAGING_DIR:-$IMAGE_STAGING_DIR}"

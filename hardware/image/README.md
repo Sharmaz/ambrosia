@@ -13,7 +13,11 @@ The image embeds the full stack: Ambrosia server (Kotlin/Ktor), the Next.js clie
 | `opi-zero-2w` | OrangePi Zero 2W | Debian Bookworm (official OPi image) |
 | `rpi-zero-2w` | Raspberry Pi Zero 2W | Raspberry Pi OS Lite 64-bit Bookworm |
 
-Each board has its own definition under `hardware/image/boards/<board-id>/`. Adding a new board only requires creating that directory with `board.env`, `packages.txt`, and `README.md`.
+Each board has its own definition under `hardware/image/boards/<board-id>/`. Adding a new board only requires creating that directory with `board.conf`, `packages.txt`, and `README.md`. Select it with `--board <board-id>`.
+
+`board.conf` uses Bash `KEY="value"` assignments and is loaded with `source`. Use the existing definitions as templates; variable expansion is supported, including the Phoenixd archive and URL derived from `PHOENIXD_VERSION`. `BASE_IMAGE_URL` defaults to `AMBROSIA_BASE_IMAGE_URL` when set; `--base-image-url` takes precedence.
+
+The separate `ambrosia-device.env` file configures first-boot provisioning; it does not select the board.
 
 ## What the build produces
 
@@ -38,7 +42,7 @@ The image is built from the board's official Debian Bookworm base. On top of it 
 
 ## Base image
 
-Each board defines its own base image in `hardware/image/boards/<board-id>/board.env`. Refer to the board's `README.md` for the expected filename and download page.
+Each board defines its own base image in `hardware/image/boards/<board-id>/board.conf`. Refer to the board's `README.md` for the expected filename and download page.
 
 You can provide the image in any of these ways:
 

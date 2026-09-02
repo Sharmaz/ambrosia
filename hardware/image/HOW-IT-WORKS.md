@@ -63,7 +63,7 @@ Every supported board is a directory under `boards/<board-id>/` containing exact
 
 ```
 boards/opi-zero-2w/
-├── board.env      # which vendor image, which phoenixd version, apt repos, runtime user
+├── board.conf      # which vendor image, which phoenixd version, apt repos, runtime user
 ├── packages.txt   # flat list of Debian packages to install
 └── README.md      # where to download the vendor image
 ```
@@ -101,7 +101,7 @@ flowchart TD
     PK["5 · Packages: add Adoptium + NodeSource apt repos,\ninstall everything in packages.txt inside the chroot"]
     U["6 · User: create 'ambrosia' (UID 1001),\ncreate /opt/ambrosia, /etc/ambrosia, /var/lib/ambrosia"]
     AR["7 · Ambrosia: rsync staging/server + staging/client\nto /opt/ambrosia/, write launch wrappers"]
-    PH["8 · Phoenixd: download ACINQ release (version pinned\nin board.env), install to /usr/local/bin"]
+    PH["8 · Phoenixd: download ACINQ release (version pinned\nin board.conf), install to /usr/local/bin"]
     AS["9 · Repo assets: firstboot script, Wi-Fi captive portal,\n6 systemd units, config templates, preseed example"]
     EN["10 · Enable services with systemctl --root=\n(no boot required)"]
     CL["11 · Clean forbidden state: SSH host keys, machine-id,\nphoenix seed, database, keystore, logs"]
