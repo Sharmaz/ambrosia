@@ -5,12 +5,14 @@ const apiUrl = API_URL;
 export async function POST(request) {
   const requestBody = await request.text();
   const cookieHeader = request.headers.get("cookie") ?? "";
+  const operationIdHeader = request.headers.get("x-backup-operation-id");
 
   const backendResponse = await fetch(`${apiUrl}/backup/export`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       Cookie: cookieHeader,
+      ...(operationIdHeader ? { "X-Backup-Operation-Id": operationIdHeader } : {}),
     },
     body: requestBody,
   });

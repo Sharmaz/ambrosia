@@ -81,6 +81,23 @@ describe("RestoreFromBackupStep", () => {
     expect(await screen.findByText("restore.genericError")).toBeInTheDocument();
   });
 
+  it("shows the pending-restore error when the server responds with 409", async () => {
+    restoreFromBackup.mockResolvedValue({ ok: false, status: 409, message: "A previous import is already staged" });
+
+    await act(async () => {
+      renderStep();
+    });
+
+    fireEvent.change(screen.getByLabelText("hide-show-backup-password"), { target: { value: "secret" } });
+    selectBackupFile();
+
+    await act(async () => {
+      fireEvent.click(screen.getByText("restore.submitButton"));
+    });
+
+    expect(await screen.findByText("restore.pendingRestoreError")).toBeInTheDocument();
+  });
+
   it("shows a generic error when the request throws", async () => {
     restoreFromBackup.mockRejectedValue(new Error("network error"));
 
@@ -98,7 +115,7 @@ describe("RestoreFromBackupStep", () => {
     expect(await screen.findByText("restore.genericError")).toBeInTheDocument();
   });
 
-  it("shows a progress bar once restoreFromBackup reports an upload percent", async () => {
+  it("shows a progress bar once restoreFromBackup reports an uploading phase update", async () => {
     let reportProgress;
     restoreFromBackup.mockImplementation((password, backupFile, onProgress) => {
       reportProgress = onProgress;
@@ -114,13 +131,13 @@ describe("RestoreFromBackupStep", () => {
     fireEvent.click(screen.getByText("restore.submitButton"));
 
     await act(async () => {
-      reportProgress(37);
+      reportProgress({ phase: "uploading", percent: 37 });
     });
 
-    expect(screen.getByText("restore.uploadingProgress 37%")).toBeInTheDocument();
+    expect(screen.getByText("restore.phaseUploading 37%")).toBeInTheDocument();
   });
 
-  it("shows the processing message once the upload reaches 100 percent", async () => {
+  it("shows the extracting phase and its own percent once the server reports it", async () => {
     let reportProgress;
     restoreFromBackup.mockImplementation((password, backupFile, onProgress) => {
       reportProgress = onProgress;
@@ -136,10 +153,10 @@ describe("RestoreFromBackupStep", () => {
     fireEvent.click(screen.getByText("restore.submitButton"));
 
     await act(async () => {
-      reportProgress(100);
+      reportProgress({ phase: "extracting", percent: 80 });
     });
 
-    expect(screen.getByText("restore.processing")).toBeInTheDocument();
+    expect(screen.getByText("restore.phaseExtracting 80%")).toBeInTheDocument();
   });
 
   it("shows a blocking restart-required modal outside Electron on success", async () => {

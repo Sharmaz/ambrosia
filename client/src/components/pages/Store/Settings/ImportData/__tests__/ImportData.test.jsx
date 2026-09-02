@@ -125,7 +125,7 @@ describe("ImportData", () => {
 
       await unlockSelectFileAndImport();
       act(() => {
-        reportProgress(63);
+        reportProgress({ phase: "uploading", percent: 63 });
       });
 
       expect(screen.getByTestId("progress")).toHaveAttribute("data-value", "63");

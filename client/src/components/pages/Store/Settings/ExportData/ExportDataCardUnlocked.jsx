@@ -4,6 +4,12 @@ import { Card, CardBody, CardHeader, Progress, Spinner } from "@heroui/react";
 
 import WalletGuard from "@components/auth/WalletGuard";
 
+function exportPhaseLabel(exportDataTranslations, phase) {
+  if (phase === "preparing") return exportDataTranslations("cardExportData.phasePreparing");
+  if (phase === "writing") return exportDataTranslations("cardExportData.phaseWriting");
+  return exportDataTranslations("cardExportData.exporting");
+}
+
 export function ExportDataCardUnlocked({ onAuthorized, onHide, exportDataTranslations, exportProgress }) {
   return (
     <WalletGuard
@@ -23,24 +29,24 @@ export function ExportDataCardUnlocked({ onAuthorized, onHide, exportDataTransla
 
         <CardBody>
           <div className="flex flex-col items-center gap-2 py-6 w-full">
-            {typeof exportProgress === "number" ? (
+            {exportProgress?.percent != null ? (
               <>
                 <Progress
                   aria-label={exportDataTranslations("cardExportData.exporting")}
-                  value={exportProgress}
+                  value={exportProgress.percent}
                   className="max-w-full"
                   color="success"
                   size="sm"
                 />
                 <p className="text-sm text-gray-500">
-                  {exportDataTranslations("cardExportData.exportingProgress")} {exportProgress}%
+                  {exportPhaseLabel(exportDataTranslations, exportProgress.phase)} {exportProgress.percent}%
                 </p>
               </>
             ) : (
               <>
                 <Spinner size="lg" color="success" />
                 <p className="text-sm text-gray-500">
-                  {exportDataTranslations("cardExportData.exporting")}
+                  {exportProgress ? exportPhaseLabel(exportDataTranslations, exportProgress.phase) : exportDataTranslations("cardExportData.exporting")}
                 </p>
               </>
             )}

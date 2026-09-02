@@ -1,7 +1,6 @@
 package pos.ambrosia.utest
 
 import com.auth0.jwt.JWT
-import io.ktor.server.config.MapApplicationConfig
 import io.ktor.server.engine.applicationEnvironment
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.junit.After
@@ -9,6 +8,7 @@ import org.junit.Before
 import pos.ambrosia.db.tables.UserEntity
 import pos.ambrosia.services.TokenService
 import pos.ambrosia.utils.ExposedTestDb
+import pos.ambrosia.utils.testJwtConfig
 import java.io.File
 import java.util.Date
 import java.util.UUID
@@ -22,12 +22,7 @@ import kotlin.test.assertTrue
 class TokenServiceTest {
     private val environment =
         applicationEnvironment {
-            config =
-                MapApplicationConfig(
-                    "secret" to "test-secret",
-                    "jwt.issuer" to "test-issuer",
-                    "jwt.audience" to "test-audience",
-                )
+            config = testJwtConfig()
         }
     private val service = TokenService(environment)
     private lateinit var dbFile: File
@@ -56,6 +51,52 @@ class TokenServiceTest {
         val now = System.currentTimeMillis()
         assertTrue(expiresAt.after(Date(now + TimeUnit.MINUTES.toMillis(4))))
         assertTrue(expiresAt.before(Date(now + TimeUnit.MINUTES.toMillis(5) + TimeUnit.SECONDS.toMillis(1))))
+    }
+
+    @Test
+    fun `generateBackupProgressToken embeds scope, userId, and operationId and expires in about 2 minutes`() {
+        val userId = ExposedTestDb.seedUser("progress-user")
+
+        val token = service.generateBackupProgressToken(userId, "operation-1")
+
+        val decoded = JWT.decode(token)
+        assertTrue(decoded.getClaim("scope").asString() == "backup_progress")
+        assertTrue(decoded.getClaim("userId").asString() == userId)
+        assertTrue(decoded.getClaim("operationId").asString() == "operation-1")
+
+        val now = System.currentTimeMillis()
+        assertTrue(decoded.expiresAt.after(Date(now + TimeUnit.MINUTES.toMillis(1))))
+        assertTrue(decoded.expiresAt.before(Date(now + TimeUnit.MINUTES.toMillis(2) + TimeUnit.SECONDS.toMillis(1))))
+    }
+
+    @Test
+    fun `getUserIdFromBackupProgressToken returns the userId when the token and operationId match`() {
+        val userId = ExposedTestDb.seedUser("progress-user")
+        val token = service.generateBackupProgressToken(userId, "operation-1")
+
+        val resolvedUserId = service.getUserIdFromBackupProgressToken(token, "operation-1")
+
+        assertTrue(resolvedUserId == userId)
+    }
+
+    @Test
+    fun `getUserIdFromBackupProgressToken returns null when the operationId does not match`() {
+        val userId = ExposedTestDb.seedUser("progress-user")
+        val token = service.generateBackupProgressToken(userId, "operation-1")
+
+        val resolvedUserId = service.getUserIdFromBackupProgressToken(token, "operation-2")
+
+        assertNull(resolvedUserId)
+    }
+
+    @Test
+    fun `getUserIdFromBackupProgressToken returns null for a token with a different scope`() {
+        val userId = ExposedTestDb.seedUser("progress-user")
+        val walletAccessToken = service.generateWalletAccessToken(userId)
+
+        val resolvedUserId = service.getUserIdFromBackupProgressToken(walletAccessToken, "operation-1")
+
+        assertNull(resolvedUserId)
     }
 
     @Test

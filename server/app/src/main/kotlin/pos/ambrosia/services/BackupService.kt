@@ -7,6 +7,8 @@ import pos.ambrosia.config.replaceConfFileProperty
 import pos.ambrosia.datadir
 import pos.ambrosia.logger
 import pos.ambrosia.models.BackupManifest
+import pos.ambrosia.models.BackupProgressPhase
+import pos.ambrosia.utils.PendingImportAlreadyStagedException
 import java.io.IOException
 import java.io.InputStream
 import java.io.OutputStream
@@ -16,6 +18,8 @@ import java.nio.file.Paths
 import java.nio.file.StandardCopyOption
 import java.security.SecureRandom
 import java.sql.DriverManager
+import java.time.Duration
+import java.time.Instant
 import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
@@ -54,11 +58,14 @@ class BackupService(
 
         // GCM's built-in tamper check: a wrong password or an altered file both fail to decrypt.
         private const val AUTHENTICATION_TAG_LENGTH_BITS = 128
+        private const val COPY_BUFFER_SIZE_BYTES = 8192
         private val MAGIC_HEADER = "AMBROSIA-BACKUP-1".toByteArray(Charsets.UTF_8)
         private val secureRandom = SecureRandom()
         const val STAGED_SECRET_FILE_NAME = "imported-secret"
         const val STAGED_DATABASE_FILE_NAME = "ambrosia.db"
         const val STAGED_UPLOADS_DIR_NAME = "uploads"
+        const val STAGED_AT_FILE_NAME = "staged-at"
+        private val PENDING_IMPORT_ABANDONED_AFTER = Duration.ofHours(24)
     }
 
     fun prepareExportSnapshot(): Path {
@@ -74,8 +81,10 @@ class BackupService(
         rolePassword: CharArray,
         databaseSnapshot: Path,
         backupOutputStream: OutputStream,
+        onProgress: (phase: String, bytesProcessed: Long, totalBytes: Long?) -> Unit = { _, _, _ -> },
     ) {
         try {
+            val totalExportBytes = calculateExportTotalBytes(databaseSnapshot)
             val salt = ByteArray(SALT_LENGTH_BYTES).also { secureRandom.nextBytes(it) }
             val initializationVector =
                 ByteArray(INITIALIZATION_VECTOR_LENGTH_BYTES).also { secureRandom.nextBytes(it) }
@@ -94,11 +103,17 @@ class BackupService(
                 GCMParameterSpec(AUTHENTICATION_TAG_LENGTH_BITS, initializationVector),
             )
 
+            var bytesWritten = 0L
+            val onBytesWritten: (Long) -> Unit = { chunkBytes ->
+                bytesWritten += chunkBytes
+                onProgress(BackupProgressPhase.WRITING, bytesWritten, totalExportBytes)
+            }
+
             CipherOutputStream(backupOutputStream, cipher).use { encryptedOutput ->
                 ZipOutputStream(encryptedOutput).use { zip ->
-                    writeManifestEntry(zip, businessName)
-                    writeFileEntry(zip, databaseSnapshot, "ambrosia.db")
-                    writeUploadsEntries(zip)
+                    writeManifestEntry(zip, businessName, totalExportBytes)
+                    writeFileEntry(zip, databaseSnapshot, "ambrosia.db", onBytesWritten)
+                    writeUploadsEntries(zip, onBytesWritten)
                 }
             }
         } finally {
@@ -111,7 +126,12 @@ class BackupService(
     fun importBackup(
         encryptedBackupInputStream: InputStream,
         rolePassword: CharArray,
+        onProgress: (phase: String, bytesProcessed: Long, totalBytes: Long?) -> Unit = { _, _, _ -> },
     ): BackupManifest {
+        if (isPendingImportFresh()) {
+            throw PendingImportAlreadyStagedException()
+        }
+
         val magicHeader = readExactBytes(encryptedBackupInputStream, MAGIC_HEADER.size)
         if (!magicHeader.contentEquals(MAGIC_HEADER)) {
             throw IllegalArgumentException("Not a valid Ambrosia backup file")
@@ -132,7 +152,7 @@ class BackupService(
             val importedManifest =
                 try {
                     CipherInputStream(encryptedBackupInputStream, cipher).use { decryptedInput ->
-                        extractStagedBackup(ZipInputStream(decryptedInput), stagingTempRoot)
+                        extractStagedBackup(ZipInputStream(decryptedInput), stagingTempRoot, onProgress)
                     }
                 } catch (decryptionFailure: IOException) {
                     // GCM's tamper check fails the same way for a wrong password and for a
@@ -145,6 +165,7 @@ class BackupService(
 
             validateSchemaCompatibility(importedManifest)
             writeStagedSecret(stagingTempRoot, importedManifest.secret)
+            writeStagedAt(stagingTempRoot)
 
             deleteRecursivelyIfExists(importStagingRoot)
             Files.move(stagingTempRoot, importStagingRoot, StandardCopyOption.ATOMIC_MOVE)
@@ -158,6 +179,12 @@ class BackupService(
 
     fun applyPendingImport(): Boolean {
         if (!Files.exists(importStagingRoot)) return false
+
+        if (!isPendingImportFresh()) {
+            logger.warn("Discarding an abandoned pending import staged at $importStagingRoot")
+            deleteRecursivelyIfExists(importStagingRoot)
+            return false
+        }
 
         val stagedSecret = Files.readString(importStagingRoot.resolve(STAGED_SECRET_FILE_NAME))
         val stagedDatabaseFile = importStagingRoot.resolve(STAGED_DATABASE_FILE_NAME)
@@ -188,6 +215,22 @@ class BackupService(
         }
     }
 
+    private fun isPendingImportFresh(): Boolean {
+        val stagedAtFile = importStagingRoot.resolve(STAGED_AT_FILE_NAME)
+        if (!Files.exists(stagedAtFile)) return false
+        val stagedAt =
+            try {
+                Instant.parse(Files.readString(stagedAtFile))
+            } catch (malformedStagedAt: Exception) {
+                return false
+            }
+        return Duration.between(stagedAt, Instant.now()) <= PENDING_IMPORT_ABANDONED_AFTER
+    }
+
+    private fun writeStagedAt(stagingTempRoot: Path) {
+        Files.writeString(stagingTempRoot.resolve(STAGED_AT_FILE_NAME), Instant.now().toString())
+    }
+
     private fun readExactBytes(
         input: InputStream,
         length: Int,
@@ -199,25 +242,48 @@ class BackupService(
         return bytes
     }
 
+    private fun copyWithProgress(
+        input: InputStream,
+        output: OutputStream,
+        onBytesCopied: (Long) -> Unit,
+    ) {
+        val buffer = ByteArray(COPY_BUFFER_SIZE_BYTES)
+        while (true) {
+            val bytesRead = input.read(buffer)
+            if (bytesRead == -1) break
+            output.write(buffer, 0, bytesRead)
+            onBytesCopied(bytesRead.toLong())
+        }
+    }
+
     private fun extractStagedBackup(
         zip: ZipInputStream,
         stagingTempRoot: Path,
+        onProgress: (phase: String, bytesProcessed: Long, totalBytes: Long?) -> Unit,
     ): BackupManifest {
         var importedManifest: BackupManifest? = null
+        var bytesExtracted = 0L
         zip.use {
-            var entry = zip.nextEntry
-            while (entry != null) {
-                if (entry.name == "manifest.json") {
+            var zipEntry = zip.nextEntry
+            while (zipEntry != null) {
+                if (zipEntry.name == "manifest.json") {
                     val manifestJson = String(zip.readBytes(), Charsets.UTF_8)
                     importedManifest = Json.decodeFromString(BackupManifest.serializer(), manifestJson)
-                } else if (!entry.isDirectory) {
-                    val destination = resolveStagingEntryPath(stagingTempRoot, entry.name)
+                } else if (!zipEntry.isDirectory) {
+                    val destination = resolveStagingEntryPath(stagingTempRoot, zipEntry.name)
                     Files.createDirectories(destination.parent)
                     Files.newOutputStream(destination).use { stagedEntryOutputStream ->
-                        zip.copyTo(stagedEntryOutputStream)
+                        copyWithProgress(zip, stagedEntryOutputStream) { chunkBytes ->
+                            bytesExtracted += chunkBytes
+                            onProgress(
+                                BackupProgressPhase.EXTRACTING,
+                                bytesExtracted,
+                                importedManifest?.totalUncompressedBytes,
+                            )
+                        }
                     }
                 }
-                entry = zip.nextEntry
+                zipEntry = zip.nextEntry
             }
         }
         return importedManifest ?: throw IllegalArgumentException("Backup is missing manifest.json")
@@ -277,6 +343,7 @@ class BackupService(
     private fun writeManifestEntry(
         zip: ZipOutputStream,
         businessName: String,
+        totalUncompressedBytes: Long,
     ) {
         val manifest =
             BackupManifest(
@@ -284,6 +351,7 @@ class BackupService(
                 schemaInstalledRank = highestInstalledRank(),
                 businessName = businessName,
                 secret = readSecret(),
+                totalUncompressedBytes = totalUncompressedBytes,
             )
         zip.putNextEntry(ZipEntry("manifest.json"))
         zip.write(Json.encodeToString(BackupManifest.serializer(), manifest).toByteArray(Charsets.UTF_8))
@@ -294,13 +362,17 @@ class BackupService(
         zip: ZipOutputStream,
         source: Path,
         entryName: String,
+        onBytesWritten: (Long) -> Unit,
     ) {
         zip.putNextEntry(ZipEntry(entryName))
-        Files.newInputStream(source).use { it.copyTo(zip) }
+        Files.newInputStream(source).use { fileInputStream -> copyWithProgress(fileInputStream, zip, onBytesWritten) }
         zip.closeEntry()
     }
 
-    private fun writeUploadsEntries(zip: ZipOutputStream) {
+    private fun writeUploadsEntries(
+        zip: ZipOutputStream,
+        onBytesWritten: (Long) -> Unit,
+    ) {
         if (!uploadsRoot.exists()) return
 
         Files.walk(uploadsRoot).use { paths ->
@@ -309,7 +381,7 @@ class BackupService(
                 .filter { it.isRegularFile() }
                 .forEach { file ->
                     val relativeUploadPath = uploadsRoot.relativize(file).toString().replace('\\', '/')
-                    writeFileEntry(zip, file, "uploads/$relativeUploadPath")
+                    writeFileEntry(zip, file, "uploads/$relativeUploadPath", onBytesWritten)
                 }
         }
     }

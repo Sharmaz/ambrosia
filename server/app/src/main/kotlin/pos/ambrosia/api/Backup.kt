@@ -11,6 +11,7 @@ import io.ktor.server.application.ApplicationCall
 import io.ktor.server.auth.authenticate
 import io.ktor.server.auth.jwt.JWTPrincipal
 import io.ktor.server.auth.principal
+import io.ktor.server.request.contentLength
 import io.ktor.server.request.receive
 import io.ktor.server.request.receiveMultipart
 import io.ktor.server.response.header
@@ -21,27 +22,33 @@ import io.ktor.server.routing.post
 import io.ktor.server.routing.route
 import io.ktor.server.routing.routing
 import io.ktor.utils.io.ByteReadChannel
-import io.ktor.utils.io.copyTo
+import io.ktor.utils.io.readAvailable
 import kotlinx.coroutines.runBlocking
 import pos.ambrosia.logger
+import pos.ambrosia.models.BackupProgressPhase
 import pos.ambrosia.models.RolePassword
 import pos.ambrosia.services.AuthService
 import pos.ambrosia.services.BackupService
 import pos.ambrosia.services.ConfigService
+import pos.ambrosia.services.TokenService
 import pos.ambrosia.utils.InvalidCredentialsException
-import java.nio.channels.Channels
 import java.nio.file.Files
 import java.nio.file.Path
 import java.time.LocalDate
+import java.util.UUID
+
+private const val BACKUP_OPERATION_ID_HEADER = "X-Backup-Operation-Id"
+const val COPY_BUFFER_SIZE_BYTES = 8192
 
 fun Application.configureBackup() {
     val authService = AuthService(environment)
     val backupService = BackupService()
     val configService = ConfigService()
+    val tokenService = TokenService(environment)
 
     routing {
         route("/backup") {
-            backup(authService, backupService, configService)
+            backup(authService, backupService, configService, tokenService)
         }
     }
 }
@@ -50,8 +57,16 @@ fun Route.backup(
     authService: AuthService,
     backupService: BackupService,
     configService: ConfigService,
+    tokenService: TokenService,
 ) {
     authenticate("auth-jwt-wallet") {
+        post("/progress-token") {
+            val userId = call.backupActorUserId() ?: throw InvalidCredentialsException()
+            val operationId = UUID.randomUUID().toString()
+            val progressToken = tokenService.generateBackupProgressToken(userId, operationId)
+            call.respond(HttpStatusCode.OK, mapOf("operationId" to operationId, "token" to progressToken))
+        }
+
         post("/export") {
             val userId = call.backupActorUserId() ?: throw InvalidCredentialsException()
             val rolePassword = call.receive<RolePassword>()
@@ -61,18 +76,32 @@ fun Route.backup(
                 return@post
             }
 
-            val businessName = configService.getConfig()?.businessName ?: "ambrosia"
-            val fileName = buildBackupFileName(businessName)
-            val databaseSnapshot = backupService.prepareExportSnapshot()
-            val totalExportBytes = backupService.calculateExportTotalBytes(databaseSnapshot)
+            val operationId = call.request.headers[BACKUP_OPERATION_ID_HEADER]
+            val onExportProgress = backupProgressReporter(operationId)
 
-            call.response.header(
-                HttpHeaders.ContentDisposition,
-                ContentDisposition.Attachment.withParameter(ContentDisposition.Parameters.FileName, fileName).toString(),
-            )
-            call.response.header("X-Backup-Total-Bytes", totalExportBytes.toString())
-            call.respondOutputStream(ContentType.Application.OctetStream, HttpStatusCode.OK) {
-                backupService.exportBackup(businessName, rolePassword.password.toCharArray(), databaseSnapshot, this)
+            try {
+                onExportProgress(BackupProgressPhase.PREPARING, 0L, null)
+                val businessName = configService.getConfig()?.businessName ?: "ambrosia"
+                val fileName = buildBackupFileName(businessName)
+                val databaseSnapshot = backupService.prepareExportSnapshot()
+                val totalExportBytes = backupService.calculateExportTotalBytes(databaseSnapshot)
+
+                call.response.header(
+                    HttpHeaders.ContentDisposition,
+                    ContentDisposition.Attachment.withParameter(ContentDisposition.Parameters.FileName, fileName).toString(),
+                )
+                call.response.header("X-Backup-Total-Bytes", totalExportBytes.toString())
+                call.respondOutputStream(ContentType.Application.OctetStream, HttpStatusCode.OK) {
+                    backupService.exportBackup(
+                        businessName,
+                        rolePassword.password.toCharArray(),
+                        databaseSnapshot,
+                        this,
+                        onExportProgress,
+                    )
+                }
+            } finally {
+                operationId?.let { BackupProgressNotifier.unregister(it) }
             }
         }
 
@@ -81,6 +110,7 @@ fun Route.backup(
 
             val formFields = mutableMapOf<String, String>()
             var temporaryBackupFile: Path? = null
+            var bytesUploaded = 0L
             try {
                 call.receiveMultipart().forEachPart { part ->
                     when (part) {
@@ -89,7 +119,15 @@ fun Route.backup(
                         }
 
                         is PartData.FileItem -> {
-                            if (part.name == "backup") temporaryBackupFile = receiveChannelToTempFile(part.provider)
+                            if (part.name == "backup") {
+                                val onImportProgress = backupProgressReporter(formFields["operationId"])
+                                val totalUploadBytes = call.request.contentLength()
+                                temporaryBackupFile =
+                                    receiveChannelToTempFile(part.provider) { bytesReceived ->
+                                        bytesUploaded += bytesReceived
+                                        onImportProgress(BackupProgressPhase.UPLOADING, bytesUploaded, totalUploadBytes)
+                                    }
+                            }
                         }
 
                         else -> {}
@@ -113,7 +151,11 @@ fun Route.backup(
 
                 val importedManifest =
                     Files.newInputStream(backupFile).use { backupInputStream ->
-                        backupService.importBackup(backupInputStream, backupPassword.toCharArray())
+                        backupService.importBackup(
+                            backupInputStream,
+                            backupPassword.toCharArray(),
+                            backupProgressReporter(formFields["operationId"]),
+                        )
                     }
 
                 call.respond(
@@ -130,6 +172,7 @@ fun Route.backup(
                 call.respond(HttpStatusCode.BadRequest, mapOf("message" to "Invalid backup file"))
             } finally {
                 temporaryBackupFile?.let { Files.deleteIfExists(it) }
+                formFields["operationId"]?.let { BackupProgressNotifier.unregister(it) }
             }
         }
     }
@@ -143,11 +186,22 @@ private fun buildBackupFileName(businessName: String): String {
 
 private fun ApplicationCall.backupActorUserId(): String? = principal<JWTPrincipal>()?.getClaim("userId", String::class)
 
-private fun receiveChannelToTempFile(channelProvider: () -> ByteReadChannel): Path {
+fun receiveChannelToTempFile(
+    channelProvider: () -> ByteReadChannel,
+    onBytesReceived: (Long) -> Unit,
+): Path {
     val temporaryFile = Files.createTempFile("ambrosia-import-upload-", ".zip")
     val uploadChannel = channelProvider()
     Files.newOutputStream(temporaryFile).use { temporaryFileOutputStream ->
-        runBlocking { uploadChannel.copyTo(Channels.newChannel(temporaryFileOutputStream)) }
+        val buffer = ByteArray(COPY_BUFFER_SIZE_BYTES)
+        runBlocking {
+            while (true) {
+                val bytesRead = uploadChannel.readAvailable(buffer, 0, buffer.size)
+                if (bytesRead < 0) break
+                temporaryFileOutputStream.write(buffer, 0, bytesRead)
+                onBytesReceived(bytesRead.toLong())
+            }
+        }
     }
     uploadChannel.cancel(null)
     return temporaryFile

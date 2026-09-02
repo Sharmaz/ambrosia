@@ -1,4 +1,6 @@
-import { httpClient } from "@/lib/http";
+import { httpClient, parseJsonResponse } from "@/lib/http";
+
+import { closeBackupProgressChannel, openBackupProgressChannel } from "./backupProgressChannel";
 
 export async function getInitialSetupStatus() {
   return await httpClient("/initial-setup", {
@@ -18,18 +20,11 @@ export async function submitInitialSetup(payload) {
   });
 }
 
-function uploadRestoreWithProgress(formData, onProgress) {
+function uploadRestoreFile(formData) {
   return new Promise((resolve, reject) => {
     const uploadRequest = new XMLHttpRequest();
     uploadRequest.open("POST", "/api/initial-setup/restore");
     uploadRequest.withCredentials = true;
-
-    if (onProgress) {
-      uploadRequest.upload.onprogress = (progressEvent) => {
-        if (!progressEvent.lengthComputable) return;
-        onProgress(Math.round((progressEvent.loaded / progressEvent.total) * 100));
-      };
-    }
 
     uploadRequest.onload = () => resolve(uploadRequest);
     uploadRequest.onerror = () => reject(new Error("Network error while restoring the backup"));
@@ -39,10 +34,25 @@ function uploadRestoreWithProgress(formData, onProgress) {
 }
 
 export async function restoreFromBackup(password, backupFile, onProgress) {
+  const progressChannel = await openBackupProgressChannel(onProgress, "/initial-setup/progress-token");
+
   const restoreFormData = new FormData();
   restoreFormData.append("password", password);
+  if (progressChannel) restoreFormData.append("operationId", progressChannel.operationId);
   restoreFormData.append("backup", backupFile);
 
-  const restoreRequest = await uploadRestoreWithProgress(restoreFormData, onProgress);
-  return { ok: restoreRequest.status >= 200 && restoreRequest.status < 300 };
+  let restoreRequest;
+  try {
+    restoreRequest = await uploadRestoreFile(restoreFormData);
+  } finally {
+    closeBackupProgressChannel(progressChannel);
+  }
+
+  if (restoreRequest.status < 200 || restoreRequest.status >= 300) {
+    const restoreResponseLike = { status: restoreRequest.status, text: async () => restoreRequest.responseText };
+    const restoreBody = await parseJsonResponse(restoreResponseLike, null);
+    return { ok: false, status: restoreRequest.status, message: restoreBody?.message };
+  }
+
+  return { ok: true };
 }

@@ -5,13 +5,17 @@ import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.junit.After
 import org.junit.Before
 import pos.ambrosia.models.BackupManifest
+import pos.ambrosia.models.BackupProgressPhase
 import pos.ambrosia.services.BackupService
 import pos.ambrosia.utils.ExposedTestDb
+import pos.ambrosia.utils.PendingImportAlreadyStagedException
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.nio.file.Files
 import java.nio.file.Path
 import java.security.SecureRandom
+import java.time.Instant
+import java.time.temporal.ChronoUnit
 import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
@@ -251,6 +255,50 @@ class BackupServiceTest {
         assertTrue(!firstSaltAndInitializationVector.contentEquals(secondSaltAndInitializationVector))
     }
 
+    @Test
+    fun `exportBackup reports WRITING progress that ends at the total export bytes`() {
+        Files.write(uploadsRoot.resolve("product-1.jpg"), ByteArray(100))
+        val backupService = BackupService(uploadsRoot, databaseFile.absolutePath, configFile.absolutePath)
+        val databaseSnapshot = backupService.prepareExportSnapshot()
+        val totalExportBytes = backupService.calculateExportTotalBytes(databaseSnapshot)
+        val output = ByteArrayOutputStream()
+        val progressUpdates = mutableListOf<Triple<String, Long, Long?>>()
+
+        backupService.exportBackup(
+            "My Test Store",
+            "correct-password".toCharArray(),
+            databaseSnapshot,
+            output,
+        ) { phase, bytesProcessed, totalBytes -> progressUpdates.add(Triple(phase, bytesProcessed, totalBytes)) }
+
+        assertTrue(progressUpdates.isNotEmpty())
+        assertTrue(progressUpdates.all { it.first == BackupProgressPhase.WRITING })
+        assertTrue(progressUpdates.all { it.third == totalExportBytes })
+        assertEquals(totalExportBytes, progressUpdates.last().second)
+    }
+
+    @Test
+    fun `exportBackup reports multiple WRITING chunks for a file larger than the copy buffer`() {
+        Files.write(uploadsRoot.resolve("large-file.bin"), ByteArray(20000))
+        val backupService = BackupService(uploadsRoot, databaseFile.absolutePath, configFile.absolutePath)
+        val databaseSnapshot = backupService.prepareExportSnapshot()
+        val totalExportBytes = backupService.calculateExportTotalBytes(databaseSnapshot)
+        val output = ByteArrayOutputStream()
+        val progressUpdates = mutableListOf<Triple<String, Long, Long?>>()
+
+        backupService.exportBackup(
+            "My Test Store",
+            "correct-password".toCharArray(),
+            databaseSnapshot,
+            output,
+        ) { phase, bytesProcessed, totalBytes -> progressUpdates.add(Triple(phase, bytesProcessed, totalBytes)) }
+
+        assertTrue(progressUpdates.size > 2)
+        val bytesProcessedPerUpdate = progressUpdates.map { it.second }
+        assertEquals(bytesProcessedPerUpdate.sorted(), bytesProcessedPerUpdate)
+        assertEquals(totalExportBytes, progressUpdates.last().second)
+    }
+
     private fun buildEncryptedBackup(
         password: CharArray,
         zipEntries: Map<String, ByteArray>,
@@ -316,6 +364,55 @@ class BackupServiceTest {
 
         assertEquals("My Test Store", importedManifest.businessName)
         assertEquals(TEST_SECRET, importedManifest.secret)
+    }
+
+    @Test
+    fun `importBackup reports EXTRACTING progress that ends at the manifest total bytes`() {
+        val dateDir = Files.createDirectory(uploadsRoot.resolve("2026-08-24"))
+        Files.write(dateDir.resolve("logo.png"), ByteArray(200))
+        val backupService =
+            BackupService(uploadsRoot, databaseFile.absolutePath, configFile.absolutePath, importStagingRoot)
+        val databaseSnapshot = backupService.prepareExportSnapshot()
+        val totalExportBytes = backupService.calculateExportTotalBytes(databaseSnapshot)
+        val exportedBackup = ByteArrayOutputStream()
+        backupService.exportBackup("My Test Store", "correct-password".toCharArray(), databaseSnapshot, exportedBackup)
+        val progressUpdates = mutableListOf<Triple<String, Long, Long?>>()
+
+        backupService.importBackup(
+            exportedBackup.toByteArray().inputStream(),
+            "correct-password".toCharArray(),
+        ) { phase, bytesProcessed, totalBytes -> progressUpdates.add(Triple(phase, bytesProcessed, totalBytes)) }
+
+        assertTrue(progressUpdates.isNotEmpty())
+        assertTrue(progressUpdates.all { it.first == BackupProgressPhase.EXTRACTING })
+        assertTrue(progressUpdates.all { it.third == totalExportBytes })
+        assertEquals(totalExportBytes, progressUpdates.last().second)
+    }
+
+    @Test
+    fun `importBackup reports null total bytes when the manifest has no totalUncompressedBytes`() {
+        val backupService =
+            BackupService(uploadsRoot, databaseFile.absolutePath, configFile.absolutePath, importStagingRoot)
+        val password = "correct-password".toCharArray()
+        val oldBackupWithoutTotalBytes =
+            buildEncryptedBackup(
+                password,
+                mapOf(
+                    "manifest.json" to manifestZipEntry(sampleImportedManifest()),
+                    "ambrosia.db" to "fake-database-bytes".toByteArray(),
+                ),
+            )
+        val progressUpdates = mutableListOf<Triple<String, Long, Long?>>()
+
+        val importedManifest =
+            backupService.importBackup(
+                oldBackupWithoutTotalBytes.inputStream(),
+                password,
+            ) { phase, bytesProcessed, totalBytes -> progressUpdates.add(Triple(phase, bytesProcessed, totalBytes)) }
+
+        assertEquals("Imported Test Store", importedManifest.businessName)
+        assertTrue(progressUpdates.isNotEmpty())
+        assertTrue(progressUpdates.all { it.third == null })
     }
 
     @Test
@@ -486,7 +583,7 @@ class BackupServiceTest {
     }
 
     @Test
-    fun `importBackup replaces an existing staging directory from a previous import`() {
+    fun `importBackup replaces an abandoned staging directory from a previous import`() {
         val backupService =
             BackupService(uploadsRoot, databaseFile.absolutePath, configFile.absolutePath, importStagingRoot)
         val firstExport = ByteArrayOutputStream()
@@ -496,6 +593,10 @@ class BackupServiceTest {
             "correct-password".toCharArray(),
         )
         Files.write(importStagingRoot.resolve("leftover-from-previous-import"), "stale".toByteArray())
+        Files.writeString(
+            importStagingRoot.resolve(BackupService.STAGED_AT_FILE_NAME),
+            Instant.now().minus(2, ChronoUnit.DAYS).toString(),
+        )
 
         val secondExport = ByteArrayOutputStream()
         backupService.exportBackup("Second Store", "correct-password".toCharArray(), backupService.prepareExportSnapshot(), secondExport)
@@ -507,6 +608,25 @@ class BackupServiceTest {
 
         assertEquals("Second Store", importedManifest.businessName)
         assertFalse(Files.exists(importStagingRoot.resolve("leftover-from-previous-import")))
+    }
+
+    @Test
+    fun `importBackup throws when a fresh pending import already exists`() {
+        val backupService =
+            BackupService(uploadsRoot, databaseFile.absolutePath, configFile.absolutePath, importStagingRoot)
+        val firstExport = ByteArrayOutputStream()
+        backupService.exportBackup("First Store", "correct-password".toCharArray(), backupService.prepareExportSnapshot(), firstExport)
+        backupService.importBackup(
+            firstExport.toByteArray().inputStream(),
+            "correct-password".toCharArray(),
+        )
+
+        val secondExport = ByteArrayOutputStream()
+        backupService.exportBackup("Second Store", "correct-password".toCharArray(), backupService.prepareExportSnapshot(), secondExport)
+
+        assertFailsWith<PendingImportAlreadyStagedException> {
+            backupService.importBackup(secondExport.toByteArray().inputStream(), "correct-password".toCharArray())
+        }
     }
 
     @Test
@@ -559,6 +679,49 @@ class BackupServiceTest {
             BackupService(uploadsRoot, databaseFile.absolutePath, configFile.absolutePath, importStagingRoot)
 
         assertFalse(backupService.applyPendingImport())
+    }
+
+    @Test
+    fun `applyPendingImport discards an abandoned pending import without applying it`() {
+        val destinationDatabaseFile = Files.createTempFile("backupServiceTestDestinationDb", ".db")
+        Files.writeString(destinationDatabaseFile, "old-destination-database-placeholder")
+        val originalDestinationDatabaseSize = Files.size(destinationDatabaseFile)
+        val destinationUploadsRoot = Files.createTempDirectory("backupServiceTestDestinationUploads")
+        val destinationConfigFile = Files.createTempFile("backupServiceTestDestinationConfig", ".conf").toFile()
+        destinationConfigFile.writeText("secret=old-destination-secret\n")
+        val destinationService =
+            prepareStagedImport(destinationUploadsRoot, destinationDatabaseFile, destinationConfigFile)
+        Files.writeString(
+            importStagingRoot.resolve(BackupService.STAGED_AT_FILE_NAME),
+            Instant.now().minus(2, ChronoUnit.DAYS).toString(),
+        )
+
+        val pendingImportApplied = destinationService.applyPendingImport()
+
+        assertFalse(pendingImportApplied)
+        assertFalse(Files.exists(importStagingRoot))
+        assertEquals(originalDestinationDatabaseSize, Files.size(destinationDatabaseFile))
+        assertEquals("secret=old-destination-secret", destinationConfigFile.readText().trim())
+    }
+
+    @Test
+    fun `applyPendingImport discards a pending import with no staged-at timestamp without applying it`() {
+        val destinationDatabaseFile = Files.createTempFile("backupServiceTestDestinationDb", ".db")
+        Files.writeString(destinationDatabaseFile, "old-destination-database-placeholder")
+        val originalDestinationDatabaseSize = Files.size(destinationDatabaseFile)
+        val destinationUploadsRoot = Files.createTempDirectory("backupServiceTestDestinationUploads")
+        val destinationConfigFile = Files.createTempFile("backupServiceTestDestinationConfig", ".conf").toFile()
+        destinationConfigFile.writeText("secret=old-destination-secret\n")
+        val destinationService =
+            prepareStagedImport(destinationUploadsRoot, destinationDatabaseFile, destinationConfigFile)
+        Files.deleteIfExists(importStagingRoot.resolve(BackupService.STAGED_AT_FILE_NAME))
+
+        val pendingImportApplied = destinationService.applyPendingImport()
+
+        assertFalse(pendingImportApplied)
+        assertFalse(Files.exists(importStagingRoot))
+        assertEquals(originalDestinationDatabaseSize, Files.size(destinationDatabaseFile))
+        assertEquals("secret=old-destination-secret", destinationConfigFile.readText().trim())
     }
 
     @Test

@@ -11,43 +11,27 @@ jest.mock("@/utils/downloadBlob", () => ({
   downloadBlob: jest.fn(),
 }));
 
+jest.mock("../backupProgressChannel", () => ({
+  openBackupProgressChannel: jest.fn(),
+  closeBackupProgressChannel: jest.fn(),
+}));
+
 import { dispatchAuthEvent, httpClient } from "@/lib/http/httpClient";
 import { parseJsonResponse } from "@/lib/http/parseJsonResponse";
 import { downloadBlob } from "@/utils/downloadBlob";
+import { waitForInstance } from "@test-utils/waitForInstance";
 
+import { closeBackupProgressChannel, openBackupProgressChannel } from "../backupProgressChannel";
 import { exportBackup, importBackup } from "../backupService";
 
-function makeResponse({
-  ok, status, contentDisposition, totalBytes, blob, body,
-}) {
+function makeResponse({ ok, status, contentDisposition, blob }) {
   return {
     ok,
     status,
     headers: {
-      get: (headerName) => {
-        if (headerName === "content-disposition") return contentDisposition ?? null;
-        if (headerName === "x-backup-total-bytes") return totalBytes ?? null;
-        return null;
-      },
+      get: (headerName) => (headerName === "content-disposition" ? (contentDisposition ?? null) : null),
     },
-    body,
     blob: jest.fn().mockResolvedValue(blob),
-  };
-}
-
-function makeStreamingBody(chunks) {
-  let chunkIndex = 0;
-  return {
-    getReader: () => ({
-      read: jest.fn().mockImplementation(() => {
-        if (chunkIndex >= chunks.length) {
-          return Promise.resolve({ done: true, value: undefined });
-        }
-        const chunk = chunks[chunkIndex];
-        chunkIndex += 1;
-        return Promise.resolve({ done: false, value: chunk });
-      }),
-    }),
   };
 }
 
@@ -75,6 +59,10 @@ describe("backupService", () => {
   });
 
   describe("exportBackup", () => {
+    beforeEach(() => {
+      openBackupProgressChannel.mockResolvedValue(null);
+    });
+
     it("calls /backup/export with the password and skipForbiddenRedirect", async () => {
       const backupBlob = new Blob(["encrypted-zip-bytes"]);
       httpClient.mockResolvedValue(makeResponse({
@@ -144,55 +132,57 @@ describe("backupService", () => {
     });
 
     describe("progress reporting", () => {
-      it("reports cumulative percent against X-Backup-Total-Bytes as chunks arrive", async () => {
-        const firstChunk = new Uint8Array(30);
-        const secondChunk = new Uint8Array(70);
-        httpClient.mockResolvedValue(makeResponse({
-          ok: true,
-          status: 200,
-          totalBytes: "100",
-          body: makeStreamingBody([firstChunk, secondChunk]),
-        }));
+      it("opens a progress channel with the caller's onProgress", async () => {
+        httpClient.mockResolvedValue(makeResponse({ ok: true, status: 200, blob: new Blob() }));
         const onProgress = jest.fn();
 
         await exportBackup("wallet-password", onProgress);
 
-        expect(onProgress).toHaveBeenNthCalledWith(1, 30);
-        expect(onProgress).toHaveBeenNthCalledWith(2, 100);
+        expect(openBackupProgressChannel).toHaveBeenCalledWith(onProgress);
       });
 
-      it("downloads the accumulated chunks as a single blob", async () => {
-        const firstChunk = new Uint8Array([1, 2, 3]);
-        httpClient.mockResolvedValue(makeResponse({
-          ok: true,
-          status: 200,
-          totalBytes: "3",
-          body: makeStreamingBody([firstChunk]),
-        }));
+      it("sends the operationId as a header when a progress channel connects", async () => {
+        openBackupProgressChannel.mockResolvedValue({ operationId: "operation-1", socket: { close: jest.fn() } });
+        httpClient.mockResolvedValue(makeResponse({ ok: true, status: 200, blob: new Blob() }));
 
         await exportBackup("wallet-password", jest.fn());
 
-        expect(downloadBlob).toHaveBeenCalledTimes(1);
-        const [downloadedBlob] = downloadBlob.mock.calls[0];
-        expect(downloadedBlob).toBeInstanceOf(Blob);
-        expect(downloadedBlob.size).toBe(3);
+        expect(httpClient).toHaveBeenCalledWith("/backup/export", expect.objectContaining({
+          headers: { "Content-Type": "application/json", "X-Backup-Operation-Id": "operation-1" },
+        }));
       });
 
-      it("falls back to buffering the whole blob when the total-bytes header is missing", async () => {
+      it("still exports successfully when no progress channel could connect", async () => {
         const backupBlob = new Blob(["encrypted-zip-bytes"]);
-        httpClient.mockResolvedValue(makeResponse({
-          ok: true,
-          status: 200,
-          totalBytes: null,
-          body: makeStreamingBody([new Uint8Array(10)]),
-          blob: backupBlob,
-        }));
-        const onProgress = jest.fn();
+        httpClient.mockResolvedValue(makeResponse({ ok: true, status: 200, blob: backupBlob }));
 
-        await exportBackup("wallet-password", onProgress);
+        await exportBackup("wallet-password", jest.fn());
 
-        expect(onProgress).not.toHaveBeenCalled();
         expect(downloadBlob).toHaveBeenCalledWith(backupBlob, "ambrosia-backup.zip");
+        expect(httpClient).toHaveBeenCalledWith("/backup/export", expect.objectContaining({
+          headers: { "Content-Type": "application/json" },
+        }));
+      });
+
+      it("closes the progress channel once the export call settles", async () => {
+        const progressChannel = { operationId: "operation-1", socket: { close: jest.fn() } };
+        openBackupProgressChannel.mockResolvedValue(progressChannel);
+        httpClient.mockResolvedValue(makeResponse({ ok: true, status: 200, blob: new Blob() }));
+
+        await exportBackup("wallet-password", jest.fn());
+
+        expect(closeBackupProgressChannel).toHaveBeenCalledWith(progressChannel);
+      });
+
+      it("closes the progress channel even when the export call fails", async () => {
+        const progressChannel = { operationId: "operation-1", socket: { close: jest.fn() } };
+        openBackupProgressChannel.mockResolvedValue(progressChannel);
+        httpClient.mockResolvedValue(makeResponse({ ok: false, status: 500 }));
+        parseJsonResponse.mockResolvedValue(null);
+
+        await expect(exportBackup("wallet-password", jest.fn())).rejects.toThrow();
+
+        expect(closeBackupProgressChannel).toHaveBeenCalledWith(progressChannel);
       });
     });
   });
@@ -204,14 +194,15 @@ describe("backupService", () => {
       FakeXMLHttpRequest.instances = [];
       originalXMLHttpRequest = global.XMLHttpRequest;
       global.XMLHttpRequest = FakeXMLHttpRequest;
+      openBackupProgressChannel.mockResolvedValue(null);
     });
 
     afterEach(() => {
       global.XMLHttpRequest = originalXMLHttpRequest;
     });
 
-    function resolveUpload({ status, body }) {
-      const [uploadRequest] = FakeXMLHttpRequest.instances;
+    async function resolveUpload({ status, body }) {
+      const uploadRequest = await waitForInstance(FakeXMLHttpRequest);
       parseJsonResponse.mockResolvedValue(body);
       uploadRequest.status = status;
       uploadRequest.onload();
@@ -221,7 +212,7 @@ describe("backupService", () => {
       const backupFile = new File(["zip-content"], "backup.zip", { type: "application/zip" });
 
       const importPromise = importBackup("role-password", "backup-password", backupFile);
-      resolveUpload({ status: 200, body: { message: "Backup imported", businessName: "Awesome Store" } });
+      await resolveUpload({ status: 200, body: { message: "Backup imported", businessName: "Awesome Store" } });
       await importPromise;
 
       const [uploadRequest] = FakeXMLHttpRequest.instances;
@@ -233,30 +224,16 @@ describe("backupService", () => {
       expect(uploadRequest.sentBody.get("backup")).toBe(backupFile);
     });
 
-    it("reports upload percent from lengthComputable progress events", async () => {
-      const onProgress = jest.fn();
-
-      const importPromise = importBackup("role-password", "backup-password", new File(["zip"], "backup.zip"), onProgress);
-      const [uploadRequest] = FakeXMLHttpRequest.instances;
-      uploadRequest.upload.onprogress({ lengthComputable: true, loaded: 25, total: 100 });
-      uploadRequest.upload.onprogress({ lengthComputable: false, loaded: 999, total: 100 });
-      resolveUpload({ status: 200, body: { message: "Backup imported" } });
-      await importPromise;
-
-      expect(onProgress).toHaveBeenCalledTimes(1);
-      expect(onProgress).toHaveBeenCalledWith(25);
-    });
-
     it("returns the parsed response body on success", async () => {
       const importPromise = importBackup("role-password", "backup-password", new File(["zip"], "backup.zip"));
-      resolveUpload({ status: 200, body: { message: "Backup imported", businessName: "Awesome Store" } });
+      await resolveUpload({ status: 200, body: { message: "Backup imported", businessName: "Awesome Store" } });
 
       await expect(importPromise).resolves.toEqual({ message: "Backup imported", businessName: "Awesome Store" });
     });
 
     it("throws with the server message when the response is not ok", async () => {
       const importPromise = importBackup("role-password", "wrong-backup-password", new File(["zip"], "backup.zip"));
-      resolveUpload({ status: 400, body: { message: "Incorrect password or corrupted backup file" } });
+      await resolveUpload({ status: 400, body: { message: "Incorrect password or corrupted backup file" } });
 
       await expect(importPromise).rejects.toMatchObject({
         message: "Incorrect password or corrupted backup file",
@@ -266,10 +243,60 @@ describe("backupService", () => {
 
     it("dispatches wallet:unauthorized on a 401 response", async () => {
       const importPromise = importBackup("wrong-role-password", "backup-password", new File(["zip"], "backup.zip"));
-      resolveUpload({ status: 401, body: { message: "Unauthorized" } });
+      await resolveUpload({ status: 401, body: { message: "Unauthorized" } });
       await importPromise.catch(() => {});
 
       expect(dispatchAuthEvent).toHaveBeenCalledWith("wallet:unauthorized");
+    });
+
+    describe("progress reporting", () => {
+      it("appends operationId before the backup file when a progress channel connects", async () => {
+        openBackupProgressChannel.mockResolvedValue({ operationId: "operation-1", socket: { close: jest.fn() } });
+
+        const importPromise = importBackup(
+          "role-password",
+          "backup-password",
+          new File(["zip"], "backup.zip"),
+          jest.fn(),
+        );
+        await resolveUpload({ status: 200, body: { message: "Backup imported" } });
+        await importPromise;
+
+        const [uploadRequest] = FakeXMLHttpRequest.instances;
+        const sentFieldNames = [...uploadRequest.sentBody.keys()];
+        expect(uploadRequest.sentBody.get("operationId")).toBe("operation-1");
+        expect(sentFieldNames.indexOf("operationId")).toBeLessThan(sentFieldNames.indexOf("backup"));
+      });
+
+      it("does not append operationId when no progress channel could connect", async () => {
+        const importPromise = importBackup(
+          "role-password",
+          "backup-password",
+          new File(["zip"], "backup.zip"),
+          jest.fn(),
+        );
+        await resolveUpload({ status: 200, body: { message: "Backup imported" } });
+        await importPromise;
+
+        const [uploadRequest] = FakeXMLHttpRequest.instances;
+        expect(uploadRequest.sentBody.has("operationId")).toBe(false);
+      });
+
+      it("closes the progress channel once the import call settles", async () => {
+        const progressChannel = { operationId: "operation-1", socket: { close: jest.fn() } };
+        openBackupProgressChannel.mockResolvedValue(progressChannel);
+
+        const importPromise = importBackup(
+          "role-password",
+          "backup-password",
+          new File(["zip"], "backup.zip"),
+          jest.fn(),
+        );
+        await resolveUpload({ status: 200, body: { message: "Backup imported" } });
+        await importPromise;
+
+        expect(closeBackupProgressChannel).toHaveBeenCalledWith(progressChannel);
+      });
     });
   });
 });

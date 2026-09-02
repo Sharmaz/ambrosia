@@ -84,6 +84,38 @@ class TokenService(
         return walletAccessToken
     }
 
+    fun generateBackupProgressToken(
+        userId: String,
+        operationId: String,
+    ): String =
+        JWT
+            .create()
+            .withAudience(audience)
+            .withIssuer(issuer)
+            .withClaim("scope", "backup_progress")
+            .withClaim("userId", userId)
+            .withClaim("operationId", operationId)
+            .withClaim("realm", "Ambrosia-Server")
+            .withExpiresAt(Date(System.currentTimeMillis() + TimeUnit.MINUTES.toMillis(2)))
+            .sign(algorithm)
+
+    fun getUserIdFromBackupProgressToken(
+        token: String,
+        operationId: String,
+    ): String? =
+        try {
+            val decodedJWT = verifier.verify(token)
+            val scope = decodedJWT.getClaim("scope")?.asString()
+            val tokenOperationId = decodedJWT.getClaim("operationId")?.asString()
+            if (scope == "backup_progress" && tokenOperationId == operationId) {
+                decodedJWT.getClaim("userId")?.asString()
+            } else {
+                null
+            }
+        } catch (e: JWTVerificationException) {
+            null
+        }
+
     fun isWalletTokenValid(
         userId: String,
         walletAccessToken: String,
