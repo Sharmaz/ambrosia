@@ -205,7 +205,7 @@ private fun Route.initialSetupRoutes() {
         var backupPassword: String? = null
         var operationId: String? = null
         var temporaryBackupFile: Path? = null
-        var uploadedBytesSoFar = 0L
+        var bytesUploaded = 0L
         try {
             call.receiveMultipart().forEachPart { part ->
                 when (part) {
@@ -220,8 +220,8 @@ private fun Route.initialSetupRoutes() {
                             val totalUploadBytes = call.request.contentLength()
                             temporaryBackupFile =
                                 receiveChannelToTempFile(part.provider) { bytesReceived ->
-                                    uploadedBytesSoFar += bytesReceived
-                                    onRestoreProgress(BackupProgressPhase.UPLOADING, uploadedBytesSoFar, totalUploadBytes)
+                                    bytesUploaded += bytesReceived
+                                    onRestoreProgress(BackupProgressPhase.UPLOADING, bytesUploaded, totalUploadBytes)
                                 }
                         }
                     }

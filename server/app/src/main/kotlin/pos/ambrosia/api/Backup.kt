@@ -110,7 +110,7 @@ fun Route.backup(
 
             val formFields = mutableMapOf<String, String>()
             var temporaryBackupFile: Path? = null
-            var uploadedBytesSoFar = 0L
+            var bytesUploaded = 0L
             try {
                 call.receiveMultipart().forEachPart { part ->
                     when (part) {
@@ -124,8 +124,8 @@ fun Route.backup(
                                 val totalUploadBytes = call.request.contentLength()
                                 temporaryBackupFile =
                                     receiveChannelToTempFile(part.provider) { bytesReceived ->
-                                        uploadedBytesSoFar += bytesReceived
-                                        onImportProgress(BackupProgressPhase.UPLOADING, uploadedBytesSoFar, totalUploadBytes)
+                                        bytesUploaded += bytesReceived
+                                        onImportProgress(BackupProgressPhase.UPLOADING, bytesUploaded, totalUploadBytes)
                                     }
                             }
                         }

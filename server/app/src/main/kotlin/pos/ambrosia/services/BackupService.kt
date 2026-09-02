@@ -103,10 +103,10 @@ class BackupService(
                 GCMParameterSpec(AUTHENTICATION_TAG_LENGTH_BITS, initializationVector),
             )
 
-            var bytesWrittenSoFar = 0L
+            var bytesWritten = 0L
             val onBytesWritten: (Long) -> Unit = { chunkBytes ->
-                bytesWrittenSoFar += chunkBytes
-                onProgress(BackupProgressPhase.WRITING, bytesWrittenSoFar, totalExportBytes)
+                bytesWritten += chunkBytes
+                onProgress(BackupProgressPhase.WRITING, bytesWritten, totalExportBytes)
             }
 
             CipherOutputStream(backupOutputStream, cipher).use { encryptedOutput ->
@@ -262,28 +262,28 @@ class BackupService(
         onProgress: (phase: String, bytesProcessed: Long, totalBytes: Long?) -> Unit,
     ): BackupManifest {
         var importedManifest: BackupManifest? = null
-        var bytesExtractedSoFar = 0L
+        var bytesExtracted = 0L
         zip.use {
-            var entry = zip.nextEntry
-            while (entry != null) {
-                if (entry.name == "manifest.json") {
+            var zipEntry = zip.nextEntry
+            while (zipEntry != null) {
+                if (zipEntry.name == "manifest.json") {
                     val manifestJson = String(zip.readBytes(), Charsets.UTF_8)
                     importedManifest = Json.decodeFromString(BackupManifest.serializer(), manifestJson)
-                } else if (!entry.isDirectory) {
-                    val destination = resolveStagingEntryPath(stagingTempRoot, entry.name)
+                } else if (!zipEntry.isDirectory) {
+                    val destination = resolveStagingEntryPath(stagingTempRoot, zipEntry.name)
                     Files.createDirectories(destination.parent)
                     Files.newOutputStream(destination).use { stagedEntryOutputStream ->
                         copyWithProgress(zip, stagedEntryOutputStream) { chunkBytes ->
-                            bytesExtractedSoFar += chunkBytes
+                            bytesExtracted += chunkBytes
                             onProgress(
                                 BackupProgressPhase.EXTRACTING,
-                                bytesExtractedSoFar,
+                                bytesExtracted,
                                 importedManifest?.totalUncompressedBytes,
                             )
                         }
                     }
                 }
-                entry = zip.nextEntry
+                zipEntry = zip.nextEntry
             }
         }
         return importedManifest ?: throw IllegalArgumentException("Backup is missing manifest.json")
