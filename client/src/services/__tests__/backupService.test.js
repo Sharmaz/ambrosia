@@ -22,7 +22,7 @@ import { downloadBlob } from "@/utils/downloadBlob";
 import { waitForInstance } from "@test-utils/waitForInstance";
 
 import { closeBackupProgressChannel, openBackupProgressChannel } from "../backupProgressChannel";
-import { exportBackup, importBackup } from "../backupService";
+import { confirmPendingImport, exportBackup, importBackup } from "../backupService";
 
 function makeResponse({ ok, status, contentDisposition, blob }) {
   return {
@@ -297,6 +297,16 @@ describe("backupService", () => {
 
         expect(closeBackupProgressChannel).toHaveBeenCalledWith(progressChannel);
       });
+    });
+  });
+
+  describe("confirmPendingImport", () => {
+    it("calls POST /backup/confirm-pending-import", async () => {
+      httpClient.mockResolvedValue({ ok: true });
+
+      await confirmPendingImport();
+
+      expect(httpClient).toHaveBeenCalledWith("/backup/confirm-pending-import", { method: "POST" });
     });
   });
 });

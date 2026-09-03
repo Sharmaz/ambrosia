@@ -100,3 +100,7 @@ export async function importBackup(rolePassword, backupPassword, backupFile, onP
 
   return backupImportBody;
 }
+
+export async function confirmPendingImport() {
+  await httpClient("/backup/confirm-pending-import", { method: "POST" });
+}
