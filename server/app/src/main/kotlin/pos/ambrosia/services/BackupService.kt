@@ -20,6 +20,7 @@ import java.security.SecureRandom
 import java.sql.DriverManager
 import java.time.Duration
 import java.time.Instant
+import java.util.UUID
 import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
@@ -65,6 +66,8 @@ class BackupService(
         const val STAGED_DATABASE_FILE_NAME = "ambrosia.db"
         const val STAGED_UPLOADS_DIR_NAME = "uploads"
         const val STAGED_AT_FILE_NAME = "staged-at"
+        const val STAGED_OPERATION_ID_FILE_NAME = "operation-id"
+        const val STAGED_CONFIRMATION_TOKEN_FILE_NAME = "confirmation-token"
         private val PENDING_IMPORT_ABANDONED_AFTER = Duration.ofHours(24)
     }
 
@@ -166,6 +169,7 @@ class BackupService(
             validateSchemaCompatibility(importedManifest)
             writeStagedSecret(stagingTempRoot, importedManifest.secret)
             writeStagedAt(stagingTempRoot)
+            writeStagedOperationId(stagingTempRoot)
 
             deleteRecursivelyIfExists(importStagingRoot)
             Files.move(stagingTempRoot, importStagingRoot, StandardCopyOption.ATOMIC_MOVE)
@@ -177,6 +181,16 @@ class BackupService(
         }
     }
 
+    fun stagedOperationId(): String? {
+        val stagedOperationIdFile = importStagingRoot.resolve(STAGED_OPERATION_ID_FILE_NAME)
+        if (!Files.exists(stagedOperationIdFile)) return null
+        return Files.readString(stagedOperationIdFile)
+    }
+
+    fun writeConfirmationToken(confirmationToken: String) {
+        Files.writeString(importStagingRoot.resolve(STAGED_CONFIRMATION_TOKEN_FILE_NAME), confirmationToken)
+    }
+
     fun applyPendingImport(): Boolean {
         if (!Files.exists(importStagingRoot)) return false
 
@@ -185,6 +199,8 @@ class BackupService(
             deleteRecursivelyIfExists(importStagingRoot)
             return false
         }
+
+        if (!isPendingImportConfirmed()) return false
 
         val stagedSecret = Files.readString(importStagingRoot.resolve(STAGED_SECRET_FILE_NAME))
         val stagedDatabaseFile = importStagingRoot.resolve(STAGED_DATABASE_FILE_NAME)
@@ -229,6 +245,18 @@ class BackupService(
 
     private fun writeStagedAt(stagingTempRoot: Path) {
         Files.writeString(stagingTempRoot.resolve(STAGED_AT_FILE_NAME), Instant.now().toString())
+    }
+
+    private fun writeStagedOperationId(stagingTempRoot: Path) {
+        Files.writeString(stagingTempRoot.resolve(STAGED_OPERATION_ID_FILE_NAME), UUID.randomUUID().toString())
+    }
+
+    private fun isPendingImportConfirmed(): Boolean {
+        val operationId = stagedOperationId() ?: return false
+        val stagedConfirmationTokenFile = importStagingRoot.resolve(STAGED_CONFIRMATION_TOKEN_FILE_NAME)
+        if (!Files.exists(stagedConfirmationTokenFile)) return false
+        val stagedConfirmationToken = Files.readString(stagedConfirmationTokenFile)
+        return TokenService.isBackupConfirmationTokenValid(readSecret(), stagedConfirmationToken, operationId)
     }
 
     private fun readExactBytes(

@@ -1,5 +1,8 @@
 package pos.ambrosia.utest
 
+import com.auth0.jwt.JWT
+import com.auth0.jwt.algorithms.Algorithm
+import io.ktor.server.engine.applicationEnvironment
 import kotlinx.serialization.json.Json
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.junit.After
@@ -7,8 +10,10 @@ import org.junit.Before
 import pos.ambrosia.models.BackupManifest
 import pos.ambrosia.models.BackupProgressPhase
 import pos.ambrosia.services.BackupService
+import pos.ambrosia.services.TokenService
 import pos.ambrosia.utils.ExposedTestDb
 import pos.ambrosia.utils.PendingImportAlreadyStagedException
+import pos.ambrosia.utils.confirmationTokenConfig
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.nio.file.Files
@@ -16,6 +21,7 @@ import java.nio.file.Path
 import java.security.SecureRandom
 import java.time.Instant
 import java.time.temporal.ChronoUnit
+import java.util.Date
 import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
@@ -464,6 +470,21 @@ class BackupServiceTest {
     }
 
     @Test
+    fun `importBackup stages an operation id`() {
+        val backupService =
+            BackupService(uploadsRoot, databaseFile.absolutePath, configFile.absolutePath, importStagingRoot)
+        val exportedBackup = ByteArrayOutputStream()
+        backupService.exportBackup("My Test Store", "correct-password".toCharArray(), backupService.prepareExportSnapshot(), exportedBackup)
+
+        backupService.importBackup(
+            exportedBackup.toByteArray().inputStream(),
+            "correct-password".toCharArray(),
+        )
+
+        assertTrue(!backupService.stagedOperationId().isNullOrBlank())
+    }
+
+    @Test
     fun `importBackup throws when the password is wrong`() {
         val backupService =
             BackupService(uploadsRoot, databaseFile.absolutePath, configFile.absolutePath, importStagingRoot)
@@ -642,11 +663,36 @@ class BackupServiceTest {
         assertTrue(password.all { it == Char(0) })
     }
 
+    private fun confirmationTokenService(secret: String): TokenService =
+        TokenService(applicationEnvironment { config = confirmationTokenConfig(secret) })
+
+    private fun expiredConfirmationToken(
+        secret: String,
+        operationId: String,
+    ): String =
+        JWT
+            .create()
+            .withAudience(TokenService.JWT_AUDIENCE)
+            .withIssuer(TokenService.JWT_ISSUER)
+            .withClaim("scope", "backup_confirmation")
+            .withClaim("operationId", operationId)
+            .withExpiresAt(Date(System.currentTimeMillis() - 1000))
+            .sign(Algorithm.HMAC256(secret))
+
+    private fun confirmPendingImport(
+        backupService: BackupService,
+        secret: String,
+    ) {
+        val operationId = backupService.stagedOperationId() ?: return
+        backupService.writeConfirmationToken(confirmationTokenService(secret).generateBackupConfirmationToken(operationId))
+    }
+
     private fun prepareStagedImport(
         destinationUploadsRoot: Path,
         destinationDatabaseFile: Path,
         destinationConfigFile: File,
         destinationKeyStoreFile: Path = Files.createTempDirectory("backupServiceTestDestinationKeyStoreParent").resolve("keystore.jks"),
+        confirm: Boolean = true,
     ): BackupService {
         val exportingService =
             BackupService(uploadsRoot, databaseFile.absolutePath, configFile.absolutePath, importStagingRoot)
@@ -670,6 +716,10 @@ class BackupServiceTest {
             exportedBackup.toByteArray().inputStream(),
             "correct-password".toCharArray(),
         )
+        if (confirm) {
+            val destinationSecret = destinationConfigFile.readText().trim().removePrefix("secret=")
+            confirmPendingImport(destinationService, destinationSecret)
+        }
         return destinationService
     }
 
@@ -831,5 +881,77 @@ class BackupServiceTest {
         destinationService.applyPendingImport()
 
         assertFalse(Files.exists(importStagingRoot))
+    }
+
+    @Test
+    fun `applyPendingImport does not apply an unconfirmed pending import`() {
+        val destinationDatabaseFile = Files.createTempFile("backupServiceTestDestinationDb", ".db")
+        Files.writeString(destinationDatabaseFile, "old-destination-database-placeholder")
+        val originalDestinationDatabaseSize = Files.size(destinationDatabaseFile)
+        val destinationUploadsRoot = Files.createTempDirectory("backupServiceTestDestinationUploads")
+        val destinationConfigFile = Files.createTempFile("backupServiceTestDestinationConfig", ".conf").toFile()
+        destinationConfigFile.writeText("secret=old-destination-secret\n")
+        val destinationService =
+            prepareStagedImport(destinationUploadsRoot, destinationDatabaseFile, destinationConfigFile, confirm = false)
+
+        val pendingImportApplied = destinationService.applyPendingImport()
+
+        assertFalse(pendingImportApplied)
+        assertEquals(originalDestinationDatabaseSize, Files.size(destinationDatabaseFile))
+        assertEquals("secret=old-destination-secret", destinationConfigFile.readText().trim())
+    }
+
+    @Test
+    fun `applyPendingImport does not delete an unconfirmed pending import`() {
+        val destinationDatabaseFile = Files.createTempFile("backupServiceTestDestinationDb", ".db")
+        val destinationUploadsRoot = Files.createTempDirectory("backupServiceTestDestinationUploads")
+        val destinationConfigFile = Files.createTempFile("backupServiceTestDestinationConfig", ".conf").toFile()
+        destinationConfigFile.writeText("secret=old-destination-secret\n")
+        val destinationService =
+            prepareStagedImport(destinationUploadsRoot, destinationDatabaseFile, destinationConfigFile, confirm = false)
+
+        destinationService.applyPendingImport()
+
+        assertTrue(Files.exists(importStagingRoot))
+    }
+
+    @Test
+    fun `applyPendingImport does not apply a confirmation for a different operation id`() {
+        val destinationDatabaseFile = Files.createTempFile("backupServiceTestDestinationDb", ".db")
+        Files.writeString(destinationDatabaseFile, "old-destination-database-placeholder")
+        val originalDestinationDatabaseSize = Files.size(destinationDatabaseFile)
+        val destinationUploadsRoot = Files.createTempDirectory("backupServiceTestDestinationUploads")
+        val destinationConfigFile = Files.createTempFile("backupServiceTestDestinationConfig", ".conf").toFile()
+        destinationConfigFile.writeText("secret=old-destination-secret\n")
+        val destinationService =
+            prepareStagedImport(destinationUploadsRoot, destinationDatabaseFile, destinationConfigFile)
+        Files.writeString(
+            importStagingRoot.resolve(BackupService.STAGED_OPERATION_ID_FILE_NAME),
+            "a-newer-restaged-operation-id",
+        )
+
+        val pendingImportApplied = destinationService.applyPendingImport()
+
+        assertFalse(pendingImportApplied)
+        assertEquals(originalDestinationDatabaseSize, Files.size(destinationDatabaseFile))
+    }
+
+    @Test
+    fun `applyPendingImport does not apply an expired confirmation`() {
+        val destinationDatabaseFile = Files.createTempFile("backupServiceTestDestinationDb", ".db")
+        Files.writeString(destinationDatabaseFile, "old-destination-database-placeholder")
+        val originalDestinationDatabaseSize = Files.size(destinationDatabaseFile)
+        val destinationUploadsRoot = Files.createTempDirectory("backupServiceTestDestinationUploads")
+        val destinationConfigFile = Files.createTempFile("backupServiceTestDestinationConfig", ".conf").toFile()
+        destinationConfigFile.writeText("secret=old-destination-secret\n")
+        val destinationService =
+            prepareStagedImport(destinationUploadsRoot, destinationDatabaseFile, destinationConfigFile, confirm = false)
+        val operationId = destinationService.stagedOperationId()!!
+        destinationService.writeConfirmationToken(expiredConfirmationToken("old-destination-secret", operationId))
+
+        val pendingImportApplied = destinationService.applyPendingImport()
+
+        assertFalse(pendingImportApplied)
+        assertEquals(originalDestinationDatabaseSize, Files.size(destinationDatabaseFile))
     }
 }
