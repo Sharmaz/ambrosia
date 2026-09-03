@@ -1,13 +1,14 @@
 import { render, screen, fireEvent, act, waitFor } from "@testing-library/react";
 
 import { restartBackendAfterImport } from "@/utils/restartBackendAfterImport";
-import { restoreFromBackup } from "@services/initialSetupService";
+import { confirmPendingRestore, restoreFromBackup } from "@services/initialSetupService";
 import { selectBackupFile } from "@test-utils/selectBackupFile";
 
 import { RestoreFromBackupStep } from "../RestoreFromBackup";
 
 jest.mock("@services/initialSetupService", () => ({
   restoreFromBackup: jest.fn(),
+  confirmPendingRestore: jest.fn(),
 }));
 
 jest.mock("@/utils/restartBackendAfterImport", () => ({
@@ -31,6 +32,7 @@ describe("RestoreFromBackupStep", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     restartBackendAfterImport.mockResolvedValue(false);
+    confirmPendingRestore.mockResolvedValue(undefined);
   });
 
   it("renders the password and file fields", async () => {
@@ -177,6 +179,31 @@ describe("RestoreFromBackupStep", () => {
     expect(mockAddToast).not.toHaveBeenCalledWith(
       expect.objectContaining({ description: "restore.restartRequiredElectron" }),
     );
+  });
+
+  it("confirms the pending restore before triggering the restart", async () => {
+    const callOrder = [];
+    confirmPendingRestore.mockImplementation(async () => {
+      callOrder.push("confirm");
+    });
+    restartBackendAfterImport.mockImplementation(async () => {
+      callOrder.push("restart");
+      return false;
+    });
+    restoreFromBackup.mockResolvedValue({ ok: true });
+
+    await act(async () => {
+      renderStep();
+    });
+
+    fireEvent.change(screen.getByLabelText("hide-show-backup-password"), { target: { value: "secret" } });
+    selectBackupFile();
+
+    await act(async () => {
+      fireEvent.click(screen.getByText("restore.submitButton"));
+    });
+
+    expect(callOrder).toEqual(["confirm", "restart"]);
   });
 
   it("shows the Electron restart message on success when the backend restarts automatically", async () => {

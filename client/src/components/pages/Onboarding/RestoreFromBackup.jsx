@@ -8,7 +8,7 @@ import { useTranslations } from "next-intl";
 import { restartBackendAfterImport } from "@/utils/restartBackendAfterImport";
 import { BackupPasswordAndFileFields } from "@components/shared/BackupPasswordAndFileFields";
 import { RestartRequiredModal } from "@components/shared/RestartRequiredModal";
-import { restoreFromBackup } from "@services/initialSetupService";
+import { confirmPendingRestore, restoreFromBackup } from "@services/initialSetupService";
 
 function restorePhaseLabel(restoreTranslations, phase) {
   if (phase === "uploading") return restoreTranslations("restore.phaseUploading");
@@ -51,6 +51,7 @@ export function RestoreFromBackupStep({ onBack }) {
         color: "success",
       });
 
+      await confirmPendingRestore();
       const restartTriggeredAutomatically = await restartBackendAfterImport();
       if (restartTriggeredAutomatically) {
         addToast({
