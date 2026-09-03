@@ -166,4 +166,33 @@ class InitialSetupRestoreRouteTest {
             val tokenService = TokenService(applicationEnvironment { config = testJwtConfig() })
             assertEquals("onboarding", tokenService.getUserIdFromBackupProgressToken(progressToken, operationId))
         }
+
+    @Test
+    fun `confirm-pending-restore returns conflict when initial setup is already completed`() =
+        testApplication {
+            ExposedTestDb.seedConfig("America/Mexico_City")
+            application {
+                install(ContentNegotiation) { json() }
+                handler()
+                configureInitialSetup()
+            }
+
+            val confirmResponse = client.post("/initial-setup/confirm-pending-restore")
+
+            assertEquals(HttpStatusCode.Conflict, confirmResponse.status)
+        }
+
+    @Test
+    fun `confirm-pending-restore returns ok when nothing is pending`() =
+        testApplication {
+            application {
+                install(ContentNegotiation) { json() }
+                handler()
+                configureInitialSetup()
+            }
+
+            val confirmResponse = client.post("/initial-setup/confirm-pending-restore")
+
+            assertEquals(HttpStatusCode.OK, confirmResponse.status)
+        }
 }
