@@ -12,7 +12,7 @@ import { httpClient, parseJsonResponse } from "@/lib/http";
 import { waitForInstance } from "@test-utils/waitForInstance";
 
 import { closeBackupProgressChannel, openBackupProgressChannel } from "../backupProgressChannel";
-import { getInitialSetupStatus, submitInitialSetup, restoreFromBackup } from "../initialSetupService";
+import { confirmPendingRestore, getInitialSetupStatus, submitInitialSetup, restoreFromBackup } from "../initialSetupService";
 
 class FakeXMLHttpRequest {
   constructor() {
@@ -192,6 +192,19 @@ describe("initialSetupService", () => {
         await restoreFromBackupPromise;
 
         expect(closeBackupProgressChannel).toHaveBeenCalledWith(progressChannel);
+      });
+    });
+  });
+
+  describe("confirmPendingRestore", () => {
+    it("calls POST /initial-setup/confirm-pending-restore with skipRefresh", async () => {
+      httpClient.mockResolvedValue({ ok: true });
+
+      await confirmPendingRestore();
+
+      expect(httpClient).toHaveBeenCalledWith("/initial-setup/confirm-pending-restore", {
+        method: "POST",
+        skipRefresh: true,
       });
     });
   });
