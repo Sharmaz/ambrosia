@@ -73,6 +73,7 @@ async function unlockSelectFileAndImport() {
 beforeEach(() => {
   jest.clearAllMocks();
   restartBackendAfterImport.mockResolvedValue(false);
+  jest.spyOn(backupService, "confirmPendingImport").mockResolvedValue(undefined);
 });
 
 afterEach(() => {
@@ -155,6 +156,23 @@ describe("ImportData", () => {
       expect(addToast).not.toHaveBeenCalledWith(
         expect.objectContaining({ description: "cardImportData.restartRequiredElectron" }),
       );
+    });
+
+    it("confirms the pending import before triggering the restart", async () => {
+      const callOrder = [];
+      jest.spyOn(backupService, "importBackup").mockResolvedValue({ businessName: "Awesome Store" });
+      backupService.confirmPendingImport.mockImplementation(async () => {
+        callOrder.push("confirm");
+      });
+      restartBackendAfterImport.mockImplementation(async () => {
+        callOrder.push("restart");
+        return false;
+      });
+      render(<ImportData />);
+
+      await unlockSelectFileAndImport();
+
+      expect(callOrder).toEqual(["confirm", "restart"]);
     });
 
     it("shows the Electron restart message when the backend restarts automatically", async () => {

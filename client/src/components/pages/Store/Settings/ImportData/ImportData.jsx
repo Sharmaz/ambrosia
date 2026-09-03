@@ -5,7 +5,7 @@ import { useState } from "react";
 import { addToast } from "@heroui/react";
 import { useTranslations } from "next-intl";
 
-import { importBackup } from "@/services/backupService";
+import { confirmPendingImport, importBackup } from "@/services/backupService";
 import { restartBackendAfterImport } from "@/utils/restartBackendAfterImport";
 import { RestartRequiredModal } from "@components/shared/RestartRequiredModal";
 
@@ -21,6 +21,7 @@ export function ImportData() {
     await importBackup(rolePassword, backupPassword, backupFile, onProgress);
     addToast({ color: "success", description: importDataTranslations("cardImportData.success") });
 
+    await confirmPendingImport();
     const restartTriggeredAutomatically = await restartBackendAfterImport();
     if (restartTriggeredAutomatically) {
       addToast({
