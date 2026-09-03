@@ -8,6 +8,7 @@ import org.junit.Before
 import pos.ambrosia.db.tables.UserEntity
 import pos.ambrosia.services.TokenService
 import pos.ambrosia.utils.ExposedTestDb
+import pos.ambrosia.utils.confirmationTokenConfig
 import pos.ambrosia.utils.testJwtConfig
 import java.io.File
 import java.util.Date
@@ -26,6 +27,9 @@ class TokenServiceTest {
         }
     private val service = TokenService(environment)
     private lateinit var dbFile: File
+
+    private fun confirmationTokenService(secret: String): TokenService =
+        TokenService(applicationEnvironment { config = confirmationTokenConfig(secret) })
 
     @Before
     fun setUp() {
@@ -97,6 +101,55 @@ class TokenServiceTest {
         val resolvedUserId = service.getUserIdFromBackupProgressToken(walletAccessToken, "operation-1")
 
         assertNull(resolvedUserId)
+    }
+
+    @Test
+    fun `generateBackupConfirmationToken embeds scope and operationId and expires in about 4 hours`() {
+        val token = confirmationTokenService("confirmation-secret").generateBackupConfirmationToken("operation-1")
+
+        val decoded = JWT.decode(token)
+        assertTrue(decoded.getClaim("scope").asString() == "backup_confirmation")
+        assertTrue(decoded.getClaim("operationId").asString() == "operation-1")
+
+        val now = System.currentTimeMillis()
+        assertTrue(decoded.expiresAt.after(Date(now + TimeUnit.HOURS.toMillis(3))))
+        assertTrue(decoded.expiresAt.before(Date(now + TimeUnit.HOURS.toMillis(4) + TimeUnit.SECONDS.toMillis(1))))
+    }
+
+    @Test
+    fun `isBackupConfirmationTokenValid returns true when the token and operationId match`() {
+        val token = confirmationTokenService("confirmation-secret").generateBackupConfirmationToken("operation-1")
+
+        val isValid = TokenService.isBackupConfirmationTokenValid("confirmation-secret", token, "operation-1")
+
+        assertTrue(isValid)
+    }
+
+    @Test
+    fun `isBackupConfirmationTokenValid returns false when the operationId does not match`() {
+        val token = confirmationTokenService("confirmation-secret").generateBackupConfirmationToken("operation-1")
+
+        val isValid = TokenService.isBackupConfirmationTokenValid("confirmation-secret", token, "operation-2")
+
+        assertFalse(isValid)
+    }
+
+    @Test
+    fun `isBackupConfirmationTokenValid returns false for a token with a different scope`() {
+        val progressToken = confirmationTokenService("confirmation-secret").generateBackupProgressToken("user-1", "operation-1")
+
+        val isValid = TokenService.isBackupConfirmationTokenValid("confirmation-secret", progressToken, "operation-1")
+
+        assertFalse(isValid)
+    }
+
+    @Test
+    fun `isBackupConfirmationTokenValid returns false when the token was signed with a different secret`() {
+        val token = confirmationTokenService("confirmation-secret").generateBackupConfirmationToken("operation-1")
+
+        val isValid = TokenService.isBackupConfirmationTokenValid("a-different-secret", token, "operation-1")
+
+        assertFalse(isValid)
     }
 
     @Test

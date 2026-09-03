@@ -16,11 +16,16 @@ import com.github.ajalt.mordant.rendering.TextColors.yellow
 import io.ktor.network.tls.certificates.buildKeyStore
 import io.ktor.network.tls.certificates.saveToFile
 import io.ktor.server.config.MapApplicationConfig
+import io.ktor.server.engine.EmbeddedServer
 import io.ktor.server.engine.applicationEnvironment
 import io.ktor.server.engine.connector
 import io.ktor.server.engine.embeddedServer
 import io.ktor.server.engine.sslConnector
 import io.ktor.server.netty.Netty
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.io.buffered
 import kotlinx.io.files.Path
 import kotlinx.io.files.SystemFileSystem
@@ -35,6 +40,7 @@ import pos.ambrosia.config.replaceConfFileProperty
 import pos.ambrosia.config.writeConfValues
 import pos.ambrosia.db.DatabaseConnection
 import pos.ambrosia.services.BackupService
+import pos.ambrosia.services.TokenService
 import pos.ambrosia.services.VapidKeyService
 import pos.ambrosia.services.VapidKeys
 import java.io.File
@@ -53,9 +59,19 @@ val phoenixDatadir: Path =
 var pendingDataImportWasApplied: Boolean = false
     private set
 
+var runningEmbeddedServer: EmbeddedServer<*, *>? = null
+    private set
+
 fun main(args: Array<String>) {
     pendingDataImportWasApplied = BackupService().applyPendingImport()
     Ambrosia().main(args)
+}
+
+fun scheduleDockerRestart() {
+    CoroutineScope(Dispatchers.IO).launch {
+        delay(500)
+        runningEmbeddedServer?.stopSuspend()
+    }
 }
 
 class Ambrosia : CliktCommand() {
@@ -214,8 +230,9 @@ class Ambrosia : CliktCommand() {
                             config =
                                 MapApplicationConfig().apply {
                                     put("jwt.accessTokenExpirationSeconds", options.jwtAccessTokenExpirationSeconds)
-                                    put("jwt.issuer", "ambrosia-pos")
-                                    put("jwt.audience", "ambrosia-pos-users")
+                                    put("jwt.issuer", TokenService.JWT_ISSUER)
+                                    put("jwt.audience", TokenService.JWT_AUDIENCE)
+                                    put("docker", options.docker.toString())
                                     put("secret", options.secret)
                                     put("phoenixd-url", options.phoenixdUrl)
                                     put("phoenixd-password", options.phoenixdPassword)
@@ -252,6 +269,7 @@ class Ambrosia : CliktCommand() {
                     },
                     module = { Api().run { module() } },
                 )
+            runningEmbeddedServer = server
             if (options.nwcUri == null) {
                 ensurePhoenixWebhookConfigured(options.phoenixdWebhookUrl)
             } else {

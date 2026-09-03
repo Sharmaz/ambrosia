@@ -56,3 +56,7 @@ export async function restoreFromBackup(password, backupFile, onProgress) {
 
   return { ok: true };
 }
+
+export async function confirmPendingRestore() {
+  await httpClient("/initial-setup/confirm-pending-restore", { method: "POST", skipRefresh: true });
+}

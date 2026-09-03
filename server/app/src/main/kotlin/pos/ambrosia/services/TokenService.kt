@@ -20,6 +20,31 @@ import java.util.concurrent.TimeUnit
 class TokenService(
     environment: ApplicationEnvironment,
 ) {
+    companion object {
+        const val JWT_ISSUER = "ambrosia-pos"
+        const val JWT_AUDIENCE = "ambrosia-pos-users"
+
+        fun isBackupConfirmationTokenValid(
+            secret: String,
+            token: String,
+            operationId: String,
+        ): Boolean =
+            try {
+                val verifier =
+                    JWT
+                        .require(Algorithm.HMAC256(secret))
+                        .withAudience(JWT_AUDIENCE)
+                        .withIssuer(JWT_ISSUER)
+                        .build()
+                val decodedJWT = verifier.verify(token)
+                val tokenScope = decodedJWT.getClaim("scope")?.asString()
+                val tokenOperationId = decodedJWT.getClaim("operationId")?.asString()
+                tokenScope == "backup_confirmation" && tokenOperationId == operationId
+            } catch (e: JWTVerificationException) {
+                false
+            }
+    }
+
     private val config = environment.config
     private val secret = config.property("secret").getString()
     private val issuer = config.property("jwt.issuer").getString()
@@ -105,9 +130,9 @@ class TokenService(
     ): String? =
         try {
             val decodedJWT = verifier.verify(token)
-            val scope = decodedJWT.getClaim("scope")?.asString()
+            val tokenScope = decodedJWT.getClaim("scope")?.asString()
             val tokenOperationId = decodedJWT.getClaim("operationId")?.asString()
-            if (scope == "backup_progress" && tokenOperationId == operationId) {
+            if (tokenScope == "backup_progress" && tokenOperationId == operationId) {
                 decodedJWT.getClaim("userId")?.asString()
             } else {
                 null
@@ -115,6 +140,17 @@ class TokenService(
         } catch (e: JWTVerificationException) {
             null
         }
+
+    fun generateBackupConfirmationToken(operationId: String): String =
+        JWT
+            .create()
+            .withAudience(audience)
+            .withIssuer(issuer)
+            .withClaim("scope", "backup_confirmation")
+            .withClaim("operationId", operationId)
+            .withClaim("realm", "Ambrosia-Server")
+            .withExpiresAt(Date(System.currentTimeMillis() + TimeUnit.HOURS.toMillis(4)))
+            .sign(algorithm)
 
     fun isWalletTokenValid(
         userId: String,

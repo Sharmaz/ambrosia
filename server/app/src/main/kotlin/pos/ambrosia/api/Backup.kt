@@ -27,11 +27,13 @@ import kotlinx.coroutines.runBlocking
 import pos.ambrosia.logger
 import pos.ambrosia.models.BackupProgressPhase
 import pos.ambrosia.models.RolePassword
+import pos.ambrosia.scheduleDockerRestart
 import pos.ambrosia.services.AuthService
 import pos.ambrosia.services.BackupService
 import pos.ambrosia.services.ConfigService
 import pos.ambrosia.services.TokenService
 import pos.ambrosia.utils.InvalidCredentialsException
+import pos.ambrosia.utils.isDockerMode
 import java.nio.file.Files
 import java.nio.file.Path
 import java.time.LocalDate
@@ -65,6 +67,15 @@ fun Route.backup(
             val operationId = UUID.randomUUID().toString()
             val progressToken = tokenService.generateBackupProgressToken(userId, operationId)
             call.respond(HttpStatusCode.OK, mapOf("operationId" to operationId, "token" to progressToken))
+        }
+
+        post("/confirm-pending-import") {
+            call.backupActorUserId() ?: throw InvalidCredentialsException()
+            backupService.stagedOperationId()?.let { operationId ->
+                backupService.writeConfirmationToken(tokenService.generateBackupConfirmationToken(operationId))
+                if (call.isDockerMode()) scheduleDockerRestart()
+            }
+            call.respond(HttpStatusCode.OK)
         }
 
         post("/export") {
