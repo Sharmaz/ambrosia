@@ -1,9 +1,8 @@
-import { addToast } from "@heroui/react";
 import { render, screen, fireEvent, act, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { I18nProvider } from "@/i18n/I18nProvider";
-import { submitInitialSetup } from "@services/initialSetupService";
+import { getInitialSetupStatus } from "@services/initialSetupService";
 
 import { Onboarding } from "../Onboarding";
 
@@ -13,10 +12,25 @@ jest.mock("@heroui/react", () => ({
 }));
 
 jest.mock("@services/initialSetupService", () => ({
-  getInitialSetupStatus: jest.fn(() => Promise.resolve({ initialized: false, needsBusinessType: false })),
-  submitInitialSetup: jest.fn(() => Promise.resolve({})),
+  getInitialSetupStatus: jest.fn(() => (
+    Promise.resolve({ status: 200, text: () => Promise.resolve(JSON.stringify({ initialized: false, needsBusinessType: false })) })
+  )),
   restoreFromBackup: jest.fn(),
 }));
+
+const mockHandleComplete = jest.fn();
+let mockIsSubmittingSetup = false;
+
+jest.mock("../hooks/useOnboardingSubmit", () => ({
+  useOnboardingSubmit: () => ({
+    handleComplete: mockHandleComplete,
+    isSubmittingSetup: mockIsSubmittingSetup,
+  }),
+}));
+
+function makeStatusResponse(statusBody) {
+  return { status: 200, text: () => Promise.resolve(JSON.stringify(statusBody)) };
+}
 
 function renderOnboarding() {
   return render(
@@ -34,9 +48,7 @@ async function navigateToStep(button, targetStep) {
   }
 }
 
-const validNwcUri = `nostr+walletconnect://${"a".repeat(64)}?relay=wss://relay.test&secret=${"b".repeat(64)}`;
-
-async function completeOnboardingWithNwcUri(user, nwcUri) {
+async function navigateToWalletBackendStep() {
   await act(async () => {
     fireEvent.click(screen.getByText("buttons.next"));
   });
@@ -53,85 +65,25 @@ async function completeOnboardingWithNwcUri(user, nwcUri) {
 
   await act(async () => {
     fireEvent.change(screen.getByPlaceholderText("step3.fields.businessNamePlaceholder"), { target: { value: "My Business" } });
-  });
-  await act(async () => {
-    fireEvent.click(screen.getByText("buttons.next"));
-  });
-
-  await user.click(screen.getByText("stepWallet.nwcName"));
-  await act(async () => {
-    fireEvent.change(screen.getByPlaceholderText("nostr+walletconnect://..."), {
-      target: { value: nwcUri },
-    });
-  });
-  await act(async () => {
-    fireEvent.click(screen.getByText("buttons.next"));
-  });
-
-  await act(async () => {
-    fireEvent.click(screen.getByText("buttons.finish"));
-  });
-}
-
-async function completeOnboardingWithPhoenixd() {
-  await act(async () => {
-    fireEvent.click(screen.getByText("buttons.next"));
-  });
-
-  await act(async () => {
-    fireEvent.change(screen.getByPlaceholderText("step2.fields.userNamePlaceholder"), { target: { value: "testuser" } });
-    fireEvent.change(screen.getByPlaceholderText("step2.fields.userPinPlaceholder"), { target: { value: "0000" } });
-    fireEvent.change(screen.getByPlaceholderText("step2.fields.passwordPlaceholder"), { target: { value: "Abcd123$" } });
-    fireEvent.change(screen.getByPlaceholderText("step2.fields.confirmPasswordPlaceholder"), { target: { value: "Abcd123$" } });
-  });
-  await act(async () => {
-    fireEvent.click(screen.getByText("buttons.next"));
-  });
-
-  await act(async () => {
-    fireEvent.change(screen.getByPlaceholderText("step3.fields.businessNamePlaceholder"), { target: { value: "My Business" } });
-  });
-  await act(async () => {
-    fireEvent.click(screen.getByText("buttons.next"));
   });
   await act(async () => {
     fireEvent.click(screen.getByText("buttons.next"));
   });
 }
 
-async function completeOnboardingWithPhoenixdRemote(user, phoenixdUrl, phoenixdPassword) {
+async function navigateToSecretsEncryptionStep() {
+  await navigateToWalletBackendStep();
+
   await act(async () => {
     fireEvent.click(screen.getByText("buttons.next"));
   });
+}
 
-  await act(async () => {
-    fireEvent.change(screen.getByPlaceholderText("step2.fields.userNamePlaceholder"), { target: { value: "testuser" } });
-    fireEvent.change(screen.getByPlaceholderText("step2.fields.userPinPlaceholder"), { target: { value: "0000" } });
-    fireEvent.change(screen.getByPlaceholderText("step2.fields.passwordPlaceholder"), { target: { value: "Abcd123$" } });
-    fireEvent.change(screen.getByPlaceholderText("step2.fields.confirmPasswordPlaceholder"), { target: { value: "Abcd123$" } });
-  });
+async function navigateToSummary() {
+  await navigateToSecretsEncryptionStep();
+
   await act(async () => {
     fireEvent.click(screen.getByText("buttons.next"));
-  });
-
-  await act(async () => {
-    fireEvent.change(screen.getByPlaceholderText("step3.fields.businessNamePlaceholder"), { target: { value: "My Business" } });
-  });
-  await act(async () => {
-    fireEvent.click(screen.getByText("buttons.next"));
-  });
-
-  await user.click(screen.getByLabelText("remoteToggleLabel"));
-  await act(async () => {
-    fireEvent.change(screen.getByPlaceholderText("http://100.x.x.x:9740"), { target: { value: phoenixdUrl } });
-    fireEvent.change(screen.getByLabelText("passwordLabel"), { target: { value: phoenixdPassword } });
-  });
-  await act(async () => {
-    fireEvent.click(screen.getByText("buttons.next"));
-  });
-
-  await act(async () => {
-    fireEvent.click(screen.getByText("buttons.finish"));
   });
 }
 
@@ -158,6 +110,11 @@ beforeAll(() => {
     }
     originalWarn.call(console, ...args);
   };
+});
+
+afterEach(() => {
+  mockHandleComplete.mockClear();
+  mockIsSubmittingSetup = false;
 });
 
 describe("Onboarding Wizard", () => {
@@ -416,125 +373,6 @@ describe("Onboarding Wizard", () => {
     expect(nextButton).not.toBeDisabled();
   });
 
-  describe("NWC onboarding result toast", () => {
-    it("shows the NWC activated toast when the backend connects successfully", async () => {
-      submitInitialSetup.mockResolvedValueOnce({
-        json: () => Promise.resolve({ nwcSaved: true }),
-      });
-      const user = userEvent.setup();
-
-      await act(async () => {
-        renderOnboarding();
-      });
-
-      await completeOnboardingWithNwcUri(user, validNwcUri);
-
-      await waitFor(() => {
-        expect(addToast).toHaveBeenCalledWith(
-          expect.objectContaining({ title: "submitOnboardingToast.nwcSavedTitle", color: "primary" }),
-        );
-      });
-    });
-
-    it("shows an error toast when the NWC backend could not be connected", async () => {
-      submitInitialSetup.mockResolvedValueOnce({
-        json: () => Promise.resolve({ nwcSaved: false }),
-      });
-      const user = userEvent.setup();
-
-      await act(async () => {
-        renderOnboarding();
-      });
-
-      await completeOnboardingWithNwcUri(user, validNwcUri);
-
-      await waitFor(() => {
-        expect(addToast).toHaveBeenCalledWith(
-          expect.objectContaining({ title: "submitOnboardingToast.nwcErrorTitle", color: "danger" }),
-        );
-      });
-    });
-  });
-
-  describe("phoenixd remote onboarding result toast", () => {
-    it("shows the phoenixd remote activated toast when the backend connects successfully", async () => {
-      submitInitialSetup.mockResolvedValueOnce({
-        json: () => Promise.resolve({ phoenixdRemoteSaved: true }),
-      });
-      const user = userEvent.setup();
-
-      await act(async () => {
-        renderOnboarding();
-      });
-
-      await completeOnboardingWithPhoenixdRemote(user, "http://100.1.1.1:9740", "remote-password");
-
-      await waitFor(() => {
-        expect(addToast).toHaveBeenCalledWith(
-          expect.objectContaining({ title: "submitOnboardingToast.phoenixdRemoteSavedTitle", color: "primary" }),
-        );
-      });
-    });
-
-    it("shows an error toast when the remote phoenixd node could not be connected", async () => {
-      submitInitialSetup.mockResolvedValueOnce({
-        json: () => Promise.resolve({ phoenixdRemoteSaved: false }),
-      });
-      const user = userEvent.setup();
-
-      await act(async () => {
-        renderOnboarding();
-      });
-
-      await completeOnboardingWithPhoenixdRemote(user, "http://100.1.1.1:9740", "remote-password");
-
-      await waitFor(() => {
-        expect(addToast).toHaveBeenCalledWith(
-          expect.objectContaining({ title: "submitOnboardingToast.phoenixdRemoteErrorTitle", color: "danger" }),
-        );
-      });
-    });
-
-    it("sends the phoenixd remote fields in the setup payload", async () => {
-      const user = userEvent.setup();
-
-      await act(async () => {
-        renderOnboarding();
-      });
-
-      await completeOnboardingWithPhoenixdRemote(user, "http://100.1.1.1:9740", "remote-password");
-
-      await waitFor(() => {
-        expect(submitInitialSetup).toHaveBeenCalledWith(
-          expect.objectContaining({
-            phoenixdRemote: true,
-            phoenixdUrl: "http://100.1.1.1:9740",
-            phoenixdPassword: "remote-password",
-          }),
-        );
-      });
-    });
-  });
-
-  describe("timezone", () => {
-    it("sends the browser-detected timezone in the setup payload", async () => {
-      await act(async () => {
-        renderOnboarding();
-      });
-      await completeOnboardingWithPhoenixd();
-
-      await act(async () => {
-        fireEvent.click(screen.getByText("buttons.finish"));
-      });
-
-      await waitFor(() => {
-        expect(submitInitialSetup).toHaveBeenCalledWith(
-          expect.objectContaining({ timezone: Intl.DateTimeFormat().resolvedOptions().timeZone }),
-        );
-      });
-    });
-  });
-
   describe("Restore from backup", () => {
     it("shows the restore toggle link on the first step when setup is not initialized", async () => {
       await act(async () => {
@@ -574,51 +412,81 @@ describe("Onboarding Wizard", () => {
     });
   });
 
-  describe("setup submit feedback", () => {
-    it("shows a localized error toast when setup submission fails", async () => {
-      submitInitialSetup.mockRejectedValueOnce(new Error("Server unavailable"));
-
+  describe("submitting the wizard", () => {
+    it("calls handleComplete when Finish is pressed", async () => {
       await act(async () => {
         renderOnboarding();
       });
-      await completeOnboardingWithPhoenixd();
+      await navigateToSummary();
 
       await act(async () => {
         fireEvent.click(screen.getByText("buttons.finish"));
       });
 
-      expect(addToast).toHaveBeenCalledWith(
-        expect.objectContaining({
-          title: "submitOnboardingToast.errorTitle",
-          description: "Server unavailable",
-          color: "danger",
-        }),
-      );
+      expect(mockHandleComplete).toHaveBeenCalledTimes(1);
     });
 
-    it("prevents duplicate setup submissions while finish is pending", async () => {
-      let resolveSetupSubmission;
-      submitInitialSetup.mockImplementationOnce(() => new Promise((resolveSetup) => {
-        resolveSetupSubmission = resolveSetup;
-      }));
+    it("disables and shows loading on Finish while isSubmittingSetup is true", async () => {
+      mockIsSubmittingSetup = true;
 
       await act(async () => {
         renderOnboarding();
       });
-      await completeOnboardingWithPhoenixd();
-      submitInitialSetup.mockClear();
+      await navigateToSummary();
 
-      const finishButton = screen.getByText("buttons.finish");
-      await act(async () => {
-        fireEvent.click(finishButton);
-        fireEvent.click(finishButton);
-      });
+      expect(screen.getByText("buttons.finish").closest("button")).toBeDisabled();
+    });
 
-      expect(submitInitialSetup).toHaveBeenCalledTimes(1);
+    it("calls handleComplete when Finish is pressed for a business-type-only setup", async () => {
+      getInitialSetupStatus.mockResolvedValueOnce(makeStatusResponse({ initialized: false, needsBusinessType: true }));
 
       await act(async () => {
-        resolveSetupSubmission({});
+        renderOnboarding();
       });
+
+      await act(async () => {
+        fireEvent.click(screen.getByLabelText("store"));
+      });
+      await act(async () => {
+        fireEvent.click(screen.getByText("buttons.finish"));
+      });
+
+      expect(mockHandleComplete).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe("secrets encryption onboarding step", () => {
+    it("shows the secrets encryption step between the wallet backend step and the summary", async () => {
+      await act(async () => {
+        renderOnboarding();
+      });
+
+      await navigateToSecretsEncryptionStep();
+
+      expect(screen.getByText("stepSecretsEncryption.title")).toBeInTheDocument();
+    });
+
+    it("reaches the summary as not activated when the admin leaves the checkbox unchecked", async () => {
+      await act(async () => {
+        renderOnboarding();
+      });
+
+      await navigateToSummary();
+
+      expect(screen.getByText("step4.sections.secretsEncryption.inactive")).toBeInTheDocument();
+    });
+
+    it("disables the Next button when the checkbox is checked but no password was entered", async () => {
+      const user = userEvent.setup();
+
+      await act(async () => {
+        renderOnboarding();
+      });
+
+      await navigateToSecretsEncryptionStep();
+      await user.click(screen.getByRole("checkbox"));
+
+      expect(screen.getByText("buttons.next")).toBeDisabled();
     });
   });
 });

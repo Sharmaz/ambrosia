@@ -56,6 +56,9 @@ describe("Step 4 Summary", () => {
 
     await act(async () => fireEvent.click(buttons[2]));
     expect(mockOnEdit).toHaveBeenCalledWith(3);
+
+    await act(async () => fireEvent.click(buttons[3]));
+    expect(mockOnEdit).toHaveBeenCalledWith(5);
   });
 
   it("shows masked password correctly", async () => {
@@ -91,6 +94,26 @@ describe("Step 4 Summary", () => {
     });
 
     expect(screen.queryByText("step4.sections.walletBackend.phoenixdRemote")).not.toBeInTheDocument();
+  });
+
+  it("shows secrets encryption as active when the admin chose to activate it", async () => {
+    const dataWithSecretsEncryption = { ...baseData, activateSecretsEncryption: true };
+
+    await act(async () => {
+      render(<WizardSummary onboardingData={dataWithSecretsEncryption} onEdit={mockOnEdit} />);
+    });
+
+    expect(screen.getByText("step4.sections.secretsEncryption.active")).toBeInTheDocument();
+    expect(screen.queryByText("step4.sections.secretsEncryption.inactive")).not.toBeInTheDocument();
+  });
+
+  it("shows secrets encryption as inactive when the admin did not activate it", async () => {
+    await act(async () => {
+      render(<WizardSummary onboardingData={baseData} onEdit={mockOnEdit} />);
+    });
+
+    expect(screen.getByText("step4.sections.secretsEncryption.inactive")).toBeInTheDocument();
+    expect(screen.queryByText("step4.sections.secretsEncryption.active")).not.toBeInTheDocument();
   });
 
   it("renders the store logo if provided", async () => {

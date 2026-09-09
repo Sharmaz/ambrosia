@@ -68,6 +68,20 @@ export function WizardSummary({ onboardingData, onEdit }) {
         <Card>
           <CardHeader className="flex justify-between items-start">
             <div className="flex flex-col">
+              <p className="text-xs font-medium text-muted-foreground uppercase">{summaryTranslations("step4.sections.secretsEncryption.title")}</p>
+              <p className="text-md font-semibold text-foreground mt-1">
+                {onboardingData.activateSecretsEncryption
+                  ? summaryTranslations("step4.sections.secretsEncryption.active")
+                  : summaryTranslations("step4.sections.secretsEncryption.inactive")}
+              </p>
+            </div>
+            <EditButton onPress={() => onEdit(5)}>{summaryTranslations("buttons.edit")}</EditButton>
+          </CardHeader>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex justify-between items-start">
+            <div className="flex flex-col">
               <p className="text-xs font-medium text-muted-foreground uppercase">{summaryTranslations("step4.sections.businessDetails.title")}</p>
               <div className="mt-3 space-y-2">
                 <div>

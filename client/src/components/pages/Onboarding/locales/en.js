@@ -11,6 +11,7 @@ const onboardingEn = {
     phoenixdRemoteErrorDescription: "Check the URL and password — you'll need to redo the initial setup to try again.",
     nwcErrorTitle: "Could not connect the NWC wallet",
     nwcErrorDescription: "Check the connection URI — you'll need to redo the initial setup to try again.",
+    secretsEncryptionErrorDescription: "Could not activate secrets encryption. You can retry from Settings.",
   },
   buttons: {
     next: "Next",
@@ -98,6 +99,12 @@ const onboardingEn = {
     uriHint: "The URI will be saved to ambrosia.conf and the NWC backend will be activated immediately.",
     uriInvalid: "Invalid NWC URI format",
   },
+  stepSecretsEncryption: {
+    title: "Extra security for your wallet connection",
+    subtitle: "Optionally protect your Lightning connection details with a password",
+    activateLabel: "Encrypt phoenixd password, NWC connection, and notification key with a password",
+    laterHint: "You can also set this up later from Settings.",
+  },
   restore: {
     toggleLink: "Restoring from a previous backup?",
     title: "Restore from backup",
@@ -133,6 +140,11 @@ const onboardingEn = {
         title: "Admin account",
         userName: "User Name",
         password: "Password",
+      },
+      secretsEncryption: {
+        title: "Secrets encryption",
+        active: "Will be activated",
+        inactive: "Not activated",
       },
       businessDetails: {
         title: "Business details",

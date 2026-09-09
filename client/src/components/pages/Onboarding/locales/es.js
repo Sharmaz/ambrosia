@@ -11,6 +11,7 @@ const onboardingEs = {
     phoenixdRemoteSavedDescription: "El backend está conectado al nodo remoto y listo para usarse.",
     phoenixdRemoteErrorTitle: "No se pudo conectar al nodo phoenixd remoto",
     phoenixdRemoteErrorDescription: "Revisa la URL y el password — vas a tener que rehacer la configuración inicial para volver a intentarlo.",
+    secretsEncryptionErrorDescription: "No se pudo activar el cifrado de secretos. Puedes volver a intentarlo desde Configuración.",
   },
   buttons: {
     next: "Siguiente",
@@ -99,6 +100,12 @@ const onboardingEs = {
     uriHint: "El URI se guardará en ambrosia.conf y el backend NWC se activará inmediatamente.",
     uriInvalid: "Formato de URI NWC inválido",
   },
+  stepSecretsEncryption: {
+    title: "Seguridad extra para tu conexión de wallet",
+    subtitle: "Protege de forma opcional los datos de tu conexión Lightning con una contraseña",
+    activateLabel: "Cifrar la contraseña de phoenixd, la conexión NWC y la clave de notificaciones con una contraseña",
+    laterHint: "También puedes configurar esto más adelante desde Configuración.",
+  },
   restore: {
     toggleLink: "¿Estás restaurando un respaldo anterior?",
     title: "Restaurar desde respaldo",
@@ -134,6 +141,11 @@ const onboardingEs = {
         title: "Cuenta de administrador",
         userName: "Nombre de usuario",
         password: "Contraseña",
+      },
+      secretsEncryption: {
+        title: "Cifrado de secretos",
+        active: "Se va a activar",
+        inactive: "No activado",
       },
       businessDetails: {
         title: "Detalles del negocio",
