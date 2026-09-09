@@ -98,6 +98,10 @@ class TimeEntryLockedException(
     message: String = "Time entry is locked because it belongs to an invoice",
 ) : IllegalStateException(message)
 
+class SecretsLockedException(
+    message: String = "Secrets are locked — unlock the server before using this feature",
+) : IllegalStateException(message)
+
 class InitialSetupException(
     message: String = "Initial setup failed",
 ) : RuntimeException(message)

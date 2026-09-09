@@ -36,6 +36,7 @@ import pos.ambrosia.utils.PhoenixServiceException
 import pos.ambrosia.utils.PrintTicketException
 import pos.ambrosia.utils.ProductIsBundleComponentException
 import pos.ambrosia.utils.ResourceNotFoundException
+import pos.ambrosia.utils.SecretsLockedException
 import pos.ambrosia.utils.TimeEntryLockedException
 import pos.ambrosia.utils.UnauthorizedApiException
 import pos.ambrosia.utils.UnsupportedBackendOperationException
@@ -64,6 +65,10 @@ fun Application.handler() {
         exception<TimeEntryLockedException> { call, cause ->
             logger.warn("Locked time entry mutation rejected: ${cause.message}")
             call.respond(HttpStatusCode.Conflict, Message(cause.message ?: "Time entry is locked"))
+        }
+        exception<SecretsLockedException> { call, cause ->
+            logger.warn("Locked secrets access rejected: ${cause.message}")
+            call.respond(HttpStatusCode.Conflict, Message(cause.message ?: "Secrets are locked"))
         }
         exception<InvalidCredentialsException> { call, cause ->
             logger.warn("Invalid login attempt: ${cause.message}")

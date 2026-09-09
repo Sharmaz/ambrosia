@@ -102,6 +102,22 @@ data class RestartCapabilitiesResponse(
 )
 
 @Serializable
+data class SecretsStatusResponse(
+    val encryptionActive: Boolean,
+    val locked: Boolean,
+)
+
+@Serializable
+data class UnlockSecretsRequest(
+    val unlockPassword: String,
+)
+
+@Serializable
+data class ActivateSecretsEncryptionRequest(
+    val unlockPassword: String,
+)
+
+@Serializable
 data class User(
     val id: String? = null,
     val name: String,
