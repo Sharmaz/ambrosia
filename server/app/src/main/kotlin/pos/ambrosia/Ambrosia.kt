@@ -40,6 +40,7 @@ import pos.ambrosia.config.replaceConfFileProperty
 import pos.ambrosia.config.writeConfValues
 import pos.ambrosia.db.DatabaseConnection
 import pos.ambrosia.services.BackupService
+import pos.ambrosia.services.SecretsStore
 import pos.ambrosia.services.TokenService
 import pos.ambrosia.services.VapidKeyService
 import pos.ambrosia.services.VapidKeys
@@ -98,6 +99,7 @@ class Ambrosia : CliktCommand() {
     init {
         SystemFileSystem.createDirectories(datadir)
         InjectLogs.ensureLogConfig(datadir.toString())
+        attemptAutoUnlock()
         ensureWebPushConfig()
 
         context {
@@ -255,15 +257,10 @@ class Ambrosia : CliktCommand() {
                                     put("docker", options.docker.toString())
                                     put("secret", options.secret)
                                     put("phoenixd-url", options.phoenixdUrl)
-                                    put("phoenixd-password", options.phoenixdPassword)
                                     put("phoenixd-remote", options.phoenixdRemote.toString())
                                     put("phoenix.webhook-secret", options.phoenixdWebhookSecret)
-                                    options.nwcUri?.let { put("nwc-uri", it) }
                                     options.webPushVapidPublicKey.takeIf { it.isNotBlank() }?.let {
                                         put("web-push.vapid-public-key", it)
-                                    }
-                                    options.webPushVapidPrivateKey.takeIf { it.isNotBlank() }?.let {
-                                        put("web-push.vapid-private-key", it)
                                     }
                                     options.webPushVapidSubject.takeIf { it.isNotBlank() }?.let {
                                         put("web-push.vapid-subject", it)
@@ -349,11 +346,30 @@ class Ambrosia : CliktCommand() {
         return KeyStoreInfo(keyStore, storePassword, privateKeyPassword)
     }
 
+    private fun attemptAutoUnlock() {
+        if (!SecretsStore.isEncryptionActive()) return
+
+        val autoUnlockPassword = System.getenv("AUTO_UNLOCK_PASSWORD") ?: return
+        if (!SecretsStore.unlock(autoUnlockPassword.toCharArray())) {
+            System.err.println("AUTO_UNLOCK_PASSWORD is set but incorrect — cannot unlock secrets, aborting startup")
+            throw IllegalStateException("Invalid AUTO_UNLOCK_PASSWORD")
+        }
+    }
+
     private fun ensureWebPushConfig() {
         val existingValues = readConfValues(confFile)
-        val environmentVapidKeys = readEnvironmentVapidKeysOrNull()
         val missingVapidConfig =
             WEB_PUSH_VAPID_CONF_KEYS.any { existingValues[it].isNullOrBlank() }
+        val encryptionIsLocked = SecretsStore.isLocked()
+        if (missingVapidConfig && encryptionIsLocked) return
+
+        val environmentVapidKeys = readEnvironmentVapidKeysOrNull()
+        val currentDecryptedPrivateKeyOrNull =
+            if (missingVapidConfig || encryptionIsLocked) {
+                null
+            } else {
+                SecretsStore.getSecretOrNull(WEB_PUSH_VAPID_PRIVATE_KEY_CONF)
+            }
         val vapidKeys =
             if (missingVapidConfig) {
                 environmentVapidKeys ?: VapidKeyService.generateKeys(
@@ -362,24 +378,26 @@ class Ambrosia : CliktCommand() {
             } else {
                 environmentVapidKeys ?: VapidKeys(
                     publicKey = existingValues.getValue(WEB_PUSH_VAPID_PUBLIC_KEY_CONF),
-                    privateKey = existingValues.getValue(WEB_PUSH_VAPID_PRIVATE_KEY_CONF),
+                    privateKey = currentDecryptedPrivateKeyOrNull ?: "",
                     subject = existingValues.getValue(WEB_PUSH_VAPID_SUBJECT_CONF),
                 )
             }
 
-        val nextValues =
+        val nonSecretValues =
             mapOf(
                 WEB_PUSH_ENABLED_CONF to (existingValues[WEB_PUSH_ENABLED_CONF] ?: System.getenv("WEB_PUSH_ENABLED") ?: "true"),
                 WEB_PUSH_VAPID_PUBLIC_KEY_CONF to vapidKeys.publicKey,
-                WEB_PUSH_VAPID_PRIVATE_KEY_CONF to vapidKeys.privateKey,
                 WEB_PUSH_VAPID_SUBJECT_CONF to vapidKeys.subject,
             )
+        if (nonSecretValues.any { (key, value) -> existingValues[key] != value }) {
+            writeConfValues(confFile, nonSecretValues)
+        }
+        if (!encryptionIsLocked && vapidKeys.privateKey != currentDecryptedPrivateKeyOrNull) {
+            SecretsStore.setSecret(WEB_PUSH_VAPID_PRIVATE_KEY_CONF, vapidKeys.privateKey)
+        }
 
-        if (nextValues.any { (key, value) -> existingValues[key] != value }) {
-            writeConfValues(confFile, nextValues)
-            if (missingVapidConfig) {
-                println(yellow("Generated Web Push VAPID keys in ambrosia.conf"))
-            }
+        if (missingVapidConfig) {
+            println(yellow("Generated Web Push VAPID keys in ambrosia.conf"))
         }
     }
 

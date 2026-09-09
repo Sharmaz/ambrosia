@@ -49,6 +49,7 @@ import pos.ambrosia.services.PaymentService
 import pos.ambrosia.services.PhoenixService
 import pos.ambrosia.services.RefundService
 import pos.ambrosia.services.RolesService
+import pos.ambrosia.services.SecretsStore
 import pos.ambrosia.services.TokenService
 import pos.ambrosia.services.WalletAdminNotificationService
 import pos.ambrosia.services.WalletRateService
@@ -60,32 +61,12 @@ import pos.ambrosia.utils.authenticateAdmin
 import pos.ambrosia.utils.getCurrentUser
 
 fun Application.configureWallet() {
-    val phoenixService = PhoenixService(environment)
     val walletAdminNotificationService =
         WalletAdminNotificationService(createConfiguredAdminNotificationService(environment))
-    val nwcUri = environment.config.propertyOrNull("nwc-uri")?.getString()
-    val phoenixdRemote =
-        environment.config
-            .propertyOrNull("phoenixd-remote")
-            ?.getString()
-            .toBoolean()
-    val backend: LightningBackend =
-        if (nwcUri != null) {
-            NwcService.create(nwcUri, this) { paymentNotification ->
-                walletAdminNotificationService.notifyIncomingPaymentReceived(paymentNotification)
-            }
-        } else {
-            phoenixService
-        }
-    ActiveLightningBackend.set(backend)
-    if (nwcUri == null && phoenixdRemote) {
-        val phoenixdUrl = environment.config.propertyOrNull("phoenixd-url")?.getString() ?: ""
-        val phoenixdPassword = environment.config.propertyOrNull("phoenixd-password")?.getString() ?: ""
-        ActiveLightningBackend.startPhoenixPaymentEventsListener(
-            phoenixdUrl,
-            phoenixdPassword,
-            buildPhoenixPaymentReceivedHandler(walletAdminNotificationService),
-        )
+    if (SecretsStore.isLocked()) {
+        SecretsStore.onUnlock { initializeLightningBackend(walletAdminNotificationService) }
+    } else {
+        initializeLightningBackend(walletAdminNotificationService)
     }
     monitor.subscribe(ApplicationStopping) { ActiveLightningBackend.closeActive() }
 
@@ -200,12 +181,12 @@ fun Route.wallet(
             } catch (exception: Exception) {
                 throw NwcConnectionException(code = "nwc_reconfigure_failed")
             }
-            replaceConfFileProperty(Path(datadir, "ambrosia.conf"), "nwc-uri", trimmedNwcUri)
+            SecretsStore.setSecret("nwc-uri", trimmedNwcUri)
             call.respond(HttpStatusCode.OK, Message("NWC backend reconfigured"))
         }
         post("/update-phoenixd-remote") {
             val updatePhoenixdRemoteRequest = call.receive<UpdatePhoenixdRemoteRequest>()
-            val configFile = Path(datadir, "ambrosia.conf")
+            val ambrosiaConfigFile = Path(datadir, "ambrosia.conf")
             if (updatePhoenixdRemoteRequest.phoenixdRemote) {
                 val trimmedPhoenixdUrl = updatePhoenixdRemoteRequest.phoenixdUrl?.trim()
                 val trimmedPhoenixdPassword = updatePhoenixdRemoteRequest.phoenixdPassword?.trim()
@@ -213,9 +194,9 @@ fun Route.wallet(
                     call.respond(HttpStatusCode.BadRequest, Message("Missing url or password"))
                     return@post
                 }
-                replaceConfFileProperty(configFile, "phoenixd-remote", "true")
-                replaceConfFileProperty(configFile, "phoenixd-url", trimmedPhoenixdUrl)
-                replaceConfFileProperty(configFile, "phoenixd-password", trimmedPhoenixdPassword)
+                replaceConfFileProperty(ambrosiaConfigFile, "phoenixd-remote", "true")
+                replaceConfFileProperty(ambrosiaConfigFile, "phoenixd-url", trimmedPhoenixdUrl)
+                SecretsStore.setSecret("phoenixd-password", trimmedPhoenixdPassword)
                 ActiveLightningBackend.reinitializePhoenixBackend(trimmedPhoenixdUrl, trimmedPhoenixdPassword)
                 ActiveLightningBackend.startPhoenixPaymentEventsListener(
                     trimmedPhoenixdUrl,
@@ -224,9 +205,9 @@ fun Route.wallet(
                 )
                 call.respond(HttpStatusCode.OK, Message("Remote phoenixd node configured"))
             } else {
-                replaceConfFileProperty(configFile, "phoenixd-remote", "false")
-                replaceConfFileProperty(configFile, "phoenixd-url", AppConfig.getLocalPhoenixdUrl())
-                replaceConfFileProperty(configFile, "phoenixd-password", AppConfig.getLocalPhoenixdPassword())
+                replaceConfFileProperty(ambrosiaConfigFile, "phoenixd-remote", "false")
+                replaceConfFileProperty(ambrosiaConfigFile, "phoenixd-url", AppConfig.getLocalPhoenixdUrl())
+                SecretsStore.setSecret("phoenixd-password", AppConfig.getLocalPhoenixdPassword())
                 call.respond(HttpStatusCode.OK, Message("Switched to local phoenixd — restart required to apply"))
             }
         }
@@ -477,6 +458,35 @@ fun Route.wallet(
                 call.respond(HttpStatusCode.OK, payment)
             }
         }
+    }
+}
+
+private fun Application.initializeLightningBackend(walletAdminNotificationService: WalletAdminNotificationService) {
+    val nwcUri = SecretsStore.getSecretOrNull("nwc-uri")
+    val phoenixdRemote =
+        environment.config
+            .propertyOrNull("phoenixd-remote")
+            ?.getString()
+            .toBoolean()
+    val phoenixdUrl = environment.config.propertyOrNull("phoenixd-url")?.getString() ?: ""
+    val phoenixdPassword = SecretsStore.getSecretOrNull("phoenixd-password") ?: AppConfig.getLocalPhoenixdPassword()
+
+    val backend: LightningBackend =
+        if (nwcUri != null) {
+            NwcService.create(nwcUri, this) { paymentNotification ->
+                walletAdminNotificationService.notifyIncomingPaymentReceived(paymentNotification)
+            }
+        } else {
+            PhoenixService(phoenixdUrl, phoenixdPassword)
+        }
+    ActiveLightningBackend.set(backend)
+
+    if (nwcUri == null && phoenixdRemote) {
+        ActiveLightningBackend.startPhoenixPaymentEventsListener(
+            phoenixdUrl,
+            phoenixdPassword,
+            buildPhoenixPaymentReceivedHandler(walletAdminNotificationService),
+        )
     }
 }
 

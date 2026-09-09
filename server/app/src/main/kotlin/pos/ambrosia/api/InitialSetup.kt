@@ -33,6 +33,7 @@ import pos.ambrosia.services.CurrencyService
 import pos.ambrosia.services.PermissionsService
 import pos.ambrosia.services.PhoenixService
 import pos.ambrosia.services.RolesService
+import pos.ambrosia.services.SecretsStore
 import pos.ambrosia.services.TokenService
 import pos.ambrosia.services.UsersService
 import pos.ambrosia.services.WalletAdminNotificationService
@@ -181,7 +182,7 @@ private fun Route.initialSetupRoutes() {
         val nwcSaved =
             initialSetupRequest.nwcUri?.takeIf { it.isNotBlank() }?.let { uri ->
                 try {
-                    File(datadir.toString(), "ambrosia.conf").appendText("\nnwc-uri=$uri\n")
+                    SecretsStore.setSecret("nwc-uri", uri)
                     logger.info("NWC URI saved to ambrosia.conf — hot-reloading backend")
                     val walletAdminNotificationService =
                         WalletAdminNotificationService(createConfiguredAdminNotificationService(call.application.environment))
@@ -207,8 +208,9 @@ private fun Route.initialSetupRoutes() {
             } else {
                 try {
                     File(datadir.toString(), "ambrosia.conf").appendText(
-                        "\nphoenixd-remote=true\nphoenixd-url=$trimmedPhoenixdUrl\nphoenixd-password=$phoenixdPassword\n",
+                        "\nphoenixd-remote=true\nphoenixd-url=$trimmedPhoenixdUrl\n",
                     )
+                    SecretsStore.setSecret("phoenixd-password", phoenixdPassword)
                     logger.info("Remote phoenixd node saved to ambrosia.conf — hot-reloading backend")
                     ActiveLightningBackend.reinitializePhoenixBackend(trimmedPhoenixdUrl, phoenixdPassword)
                     true

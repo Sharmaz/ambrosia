@@ -105,11 +105,6 @@ class PhoenixService(
         httpClient,
     )
 
-    constructor(app: ApplicationEnvironment) : this(
-        app,
-        buildHttpClient(app.config.property("phoenixd-password").getString()),
-    )
-
     constructor(phoenixdUrl: String, phoenixdPassword: String) : this(phoenixdUrl, buildHttpClient(phoenixdPassword))
 
     override fun close() {

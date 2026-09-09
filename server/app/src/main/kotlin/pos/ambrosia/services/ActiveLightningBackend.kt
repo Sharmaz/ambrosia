@@ -18,6 +18,7 @@ import pos.ambrosia.models.phoenix.PayOfferRequest
 import pos.ambrosia.models.phoenix.PayOnchainRequest
 import pos.ambrosia.models.phoenix.PaymentResponse
 import pos.ambrosia.models.phoenix.PhoenixBalance
+import pos.ambrosia.utils.SecretsLockedException
 import java.util.concurrent.atomic.AtomicReference
 
 private const val NWC_CONNECTION_TIMEOUT_MS = 15_000L
@@ -84,7 +85,12 @@ object ActiveLightningBackend : LightningBackend, PaymentVerifier {
         logger.info("Phoenix backend hot-reloaded — no restart required")
     }
 
-    private fun current(): LightningBackend = backendReference.get() ?: error("Lightning backend not initialized")
+    private fun current(): LightningBackend =
+        backendReference.get() ?: if (SecretsStore.isLocked()) {
+            throw SecretsLockedException()
+        } else {
+            error("Lightning backend not initialized")
+        }
 
     override suspend fun getNodeInfo(): NodeInfo = current().getNodeInfo()
 
