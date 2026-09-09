@@ -4,6 +4,7 @@ import lightningEs from "../Lightning/locales/es";
 import nwcConnectionEs from "../NwcConnection/locales/es";
 import phoenixdRemoteCardEs from "../PhoenixdRemote/locales/es";
 import printersEs from "../Printers/locales/es";
+import secretsEncryptionCardEs from "../SecretsEncryption/locales/es";
 import seedEs from "../Seed/locales/es";
 import storeInfoEs from "../StoreInfo/locales/es";
 import systemEs from "../System/locales/es";
@@ -106,6 +107,7 @@ const settingsEs = {
   ...lightningEs,
   ...nwcConnectionEs,
   ...phoenixdRemoteCardEs,
+  ...secretsEncryptionCardEs,
 };
 
 export default settingsEs;
