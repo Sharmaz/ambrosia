@@ -133,6 +133,11 @@ const componentsEs = {
     testSuccess: "Conexión exitosa con el nodo remoto",
     testError: "No se pudo conectar con el nodo remoto — revisa la URL y el password",
   },
+  secretsUnlockPassword: {
+    passwordLabel: "Contraseña de desbloqueo",
+    passwordDescription: "Esta es la contraseña que vas a usar para desbloquear tus secretos cifrados más adelante. Puede ser cualquier contraseña — no necesita seguir un formato específico.",
+    passwordWarning: "Anótala o guárdala en un lugar seguro — es posible que te la pida de nuevo si la app se reinicia. Si olvidas esta contraseña, no hay forma de recuperarla ni de recuperar los secretos que protege.",
+  },
 };
 
 export default componentsEs;
