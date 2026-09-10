@@ -243,6 +243,7 @@ class Ambrosia : CliktCommand() {
 
         try {
             ensureNwcUriPersisted()
+            ensurePhoenixdPasswordPersisted()
             val (keyStore, storePassword, privateKeyPassword) = ensureKeyStore()
 
             val server =
@@ -408,6 +409,14 @@ class Ambrosia : CliktCommand() {
         if (SecretsStore.getSecretOrNull("nwc-uri") != null) return
 
         SecretsStore.setSecret("nwc-uri", nwcUri)
+    }
+
+    private fun ensurePhoenixdPasswordPersisted() {
+        if (SecretsStore.isLocked()) return
+        if (SecretsStore.getSecretOrNull("phoenixd-password") != null) return
+        if (options.phoenixdPassword.isBlank()) return
+
+        SecretsStore.setSecret("phoenixd-password", options.phoenixdPassword)
     }
 
     private fun readEnvironmentVapidKeysOrNull(): VapidKeys? {
