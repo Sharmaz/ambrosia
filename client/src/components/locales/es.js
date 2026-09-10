@@ -136,6 +136,8 @@ const componentsEs = {
   secretsUnlockPassword: {
     passwordLabel: "Contraseña de desbloqueo",
     passwordDescription: "Esta es la contraseña que vas a usar para desbloquear tus secretos cifrados más adelante. Puede ser cualquier contraseña — no necesita seguir un formato específico.",
+    confirmPasswordLabel: "Confirmar contraseña de desbloqueo",
+    passwordsDoNotMatch: "Las contraseñas no coinciden",
     passwordWarning: "Anótala o guárdala en un lugar seguro — es posible que te la pida de nuevo si la app se reinicia. Si olvidas esta contraseña, no hay forma de recuperarla ni de recuperar los secretos que protege.",
   },
 };
