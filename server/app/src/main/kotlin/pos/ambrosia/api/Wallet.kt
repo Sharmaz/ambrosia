@@ -469,19 +469,20 @@ private fun Application.initializeLightningBackend(walletAdminNotificationServic
             ?.getString()
             .toBoolean()
     val phoenixdUrl = environment.config.propertyOrNull("phoenixd-url")?.getString() ?: ""
-    val phoenixdPassword = SecretsStore.getSecretOrNull("phoenixd-password") ?: AppConfig.getLocalPhoenixdPassword()
 
-    val backend: LightningBackend =
-        if (nwcUri != null) {
+    if (nwcUri != null) {
+        ActiveLightningBackend.set(
             NwcService.create(nwcUri, this) { paymentNotification ->
                 walletAdminNotificationService.notifyIncomingPaymentReceived(paymentNotification)
-            }
-        } else {
-            PhoenixService(phoenixdUrl, phoenixdPassword)
-        }
-    ActiveLightningBackend.set(backend)
+            },
+        )
+        return
+    }
 
-    if (nwcUri == null && phoenixdRemote) {
+    val phoenixdPassword = SecretsStore.getSecretOrNull("phoenixd-password") ?: AppConfig.getLocalPhoenixdPassword()
+    ActiveLightningBackend.set(PhoenixService(phoenixdUrl, phoenixdPassword))
+
+    if (phoenixdRemote) {
         ActiveLightningBackend.startPhoenixPaymentEventsListener(
             phoenixdUrl,
             phoenixdPassword,
