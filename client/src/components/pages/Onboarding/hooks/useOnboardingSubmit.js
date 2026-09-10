@@ -5,6 +5,7 @@ import { useCallback, useRef, useState } from "react";
 import { addToast } from "@heroui/react";
 import { useTranslations } from "next-intl";
 
+import { authenticateUser, logoutSession } from "@/lib/auth/authSession";
 import { activateSecretsEncryption } from "@/services/secretsService";
 import { loginWallet, logoutWallet } from "@/services/walletService";
 import { useUpload } from "@components/hooks/useUpload";
@@ -36,19 +37,27 @@ function buildInitialSetupPayload(onboardingData, { businessLogoUrl, isPhoenixdR
   };
 }
 
-async function activateSecretsEncryptionAfterSetup({ userPassword, secretsUnlockPassword, onboardingTranslations }) {
+async function activateSecretsEncryptionAfterSetup({
+  userName,
+  userPin,
+  userPassword,
+  secretsUnlockPassword,
+  onboardingTranslations,
+}) {
   try {
+    await authenticateUser({ name: userName, pin: userPin, skipRefresh: true });
     await loginWallet(userPassword);
     await activateSecretsEncryption(secretsUnlockPassword);
-  } catch (secretsEncryptionActivationError) {
+  } catch (secretsEncryptionSetupError) {
     addToast({
       color: "danger",
       description:
-        secretsEncryptionActivationError.message ||
+        secretsEncryptionSetupError.message ||
         onboardingTranslations("submitOnboardingToast.secretsEncryptionErrorDescription"),
     });
   } finally {
     await logoutWallet().catch(() => {});
+    await logoutSession({ skipRefresh: true }).catch(() => {});
   }
 }
 
@@ -135,6 +144,8 @@ export function useOnboardingSubmit({ onboardingData, needsBusinessType }) {
 
       if (onboardingData.activateSecretsEncryption) {
         await activateSecretsEncryptionAfterSetup({
+          userName: onboardingData.userName,
+          userPin: onboardingData.userPin,
           userPassword: onboardingData.userPassword,
           secretsUnlockPassword: onboardingData.secretsUnlockPassword,
           onboardingTranslations,

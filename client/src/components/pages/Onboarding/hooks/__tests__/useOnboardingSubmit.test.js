@@ -1,6 +1,7 @@
 import { addToast } from "@heroui/react";
 import { renderHook, act } from "@testing-library/react";
 
+import { authenticateUser, logoutSession } from "@/lib/auth/authSession";
 import { activateSecretsEncryption } from "@/services/secretsService";
 import { loginWallet, logoutWallet } from "@/services/walletService";
 import { submitInitialSetup } from "@services/initialSetupService";
@@ -19,6 +20,11 @@ jest.mock("next-intl", () => ({
 
 jest.mock("@services/initialSetupService", () => ({
   submitInitialSetup: jest.fn(),
+}));
+
+jest.mock("@/lib/auth/authSession", () => ({
+  authenticateUser: jest.fn(),
+  logoutSession: jest.fn(),
 }));
 
 jest.mock("@/services/secretsService", () => ({
@@ -73,9 +79,11 @@ function renderOnboardingSubmit(onboardingDataOverrides = {}, needsBusinessType 
 beforeEach(() => {
   jest.clearAllMocks();
   submitInitialSetup.mockResolvedValue(makeSetupResponse());
+  authenticateUser.mockResolvedValue({ user: { id: "user-1" }, permissions: [] });
   activateSecretsEncryption.mockResolvedValue({ message: "Secrets encryption activated" });
   loginWallet.mockResolvedValue({ token: "wallet-token" });
   logoutWallet.mockResolvedValue(null);
+  logoutSession.mockResolvedValue(null);
   mockUpload.mockResolvedValue([{ url: "https://uploads.test/logo.png" }]);
 });
 
@@ -280,7 +288,29 @@ describe("useOnboardingSubmit", () => {
   });
 
   describe("secrets encryption activation", () => {
-    it("logs into the wallet, activates encryption with the chosen password, then logs out", async () => {
+    it("authenticates a regular session, logs into the wallet, activates encryption, then logs out of both sessions in order", async () => {
+      const callOrder = [];
+      authenticateUser.mockImplementationOnce(async () => {
+        callOrder.push("authenticateUser");
+        return { user: { id: "user-1" }, permissions: [] };
+      });
+      loginWallet.mockImplementationOnce(async () => {
+        callOrder.push("loginWallet");
+        return { token: "wallet-token" };
+      });
+      activateSecretsEncryption.mockImplementationOnce(async () => {
+        callOrder.push("activateSecretsEncryption");
+        return { message: "Secrets encryption activated" };
+      });
+      logoutWallet.mockImplementationOnce(async () => {
+        callOrder.push("logoutWallet");
+        return null;
+      });
+      logoutSession.mockImplementationOnce(async () => {
+        callOrder.push("logoutSession");
+        return null;
+      });
+
       const { result: submitHook } = renderOnboardingSubmit({
         activateSecretsEncryption: true,
         secretsUnlockPassword: "correct-unlock-password",
@@ -290,9 +320,17 @@ describe("useOnboardingSubmit", () => {
         await submitHook.current.handleComplete();
       });
 
+      expect(authenticateUser).toHaveBeenCalledWith({ name: "testuser", pin: "0000", skipRefresh: true });
       expect(loginWallet).toHaveBeenCalledWith("Abcd123$");
       expect(activateSecretsEncryption).toHaveBeenCalledWith("correct-unlock-password");
-      expect(logoutWallet).toHaveBeenCalledTimes(1);
+      expect(logoutSession).toHaveBeenCalledWith({ skipRefresh: true });
+      expect(callOrder).toEqual([
+        "authenticateUser",
+        "loginWallet",
+        "activateSecretsEncryption",
+        "logoutWallet",
+        "logoutSession",
+      ]);
     });
 
     it("does not attempt activation when the admin did not opt in", async () => {
@@ -302,12 +340,34 @@ describe("useOnboardingSubmit", () => {
         await submitHook.current.handleComplete();
       });
 
+      expect(authenticateUser).not.toHaveBeenCalled();
       expect(loginWallet).not.toHaveBeenCalled();
       expect(activateSecretsEncryption).not.toHaveBeenCalled();
       expect(logoutWallet).not.toHaveBeenCalled();
+      expect(logoutSession).not.toHaveBeenCalled();
     });
 
-    it("shows an error toast and still logs out of the wallet when activation fails", async () => {
+    it("shows an error toast and still logs out of both sessions when authentication fails", async () => {
+      authenticateUser.mockRejectedValueOnce(new Error("Invalid credentials"));
+      const { result: submitHook } = renderOnboardingSubmit({
+        activateSecretsEncryption: true,
+        secretsUnlockPassword: "correct-unlock-password",
+      });
+
+      await act(async () => {
+        await submitHook.current.handleComplete();
+      });
+
+      expect(loginWallet).not.toHaveBeenCalled();
+      expect(activateSecretsEncryption).not.toHaveBeenCalled();
+      expect(addToast).toHaveBeenCalledWith(
+        expect.objectContaining({ color: "danger", description: "Invalid credentials" }),
+      );
+      expect(logoutWallet).toHaveBeenCalledTimes(1);
+      expect(logoutSession).toHaveBeenCalledWith({ skipRefresh: true });
+    });
+
+    it("shows an error toast and still logs out of both sessions when activation fails", async () => {
       activateSecretsEncryption.mockRejectedValueOnce(new Error("Could not reach the server"));
       const { result: submitHook } = renderOnboardingSubmit({
         activateSecretsEncryption: true,
@@ -322,6 +382,7 @@ describe("useOnboardingSubmit", () => {
         expect.objectContaining({ color: "danger", description: "Could not reach the server" }),
       );
       expect(logoutWallet).toHaveBeenCalledTimes(1);
+      expect(logoutSession).toHaveBeenCalledWith({ skipRefresh: true });
     });
 
     it("falls back to the translated message when the activation error has none", async () => {
