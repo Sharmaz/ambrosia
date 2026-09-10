@@ -56,25 +56,25 @@ object SecretsStore {
         return unlockSucceeded
     }
 
-    fun getSecretOrNull(key: String): String? {
-        val storedValue = readConfValues(ambrosiaConfigFile)[key] ?: return null
-        if (key !in ENCRYPTABLE_CONF_KEYS || !isEncryptionActive()) return storedValue
+    fun getSecretOrNull(secretName: String): String? {
+        val storedValue = readConfValues(ambrosiaConfigFile)[secretName] ?: return null
+        if (secretName !in ENCRYPTABLE_CONF_KEYS || !isEncryptionActive()) return storedValue
 
         val secretKey = unlockKeyReference.get() ?: throw SecretsLockedException()
         return SecretsCipher.decrypt(storedValue, secretKey)
     }
 
     fun setSecret(
-        key: String,
+        secretName: String,
         plaintextValue: String,
     ) {
-        if (key !in ENCRYPTABLE_CONF_KEYS || !isEncryptionActive()) {
-            replaceConfFileProperty(ambrosiaConfigFile, key, plaintextValue)
+        if (secretName !in ENCRYPTABLE_CONF_KEYS || !isEncryptionActive()) {
+            replaceConfFileProperty(ambrosiaConfigFile, secretName, plaintextValue)
             return
         }
 
         val secretKey = unlockKeyReference.get() ?: throw SecretsLockedException()
-        replaceConfFileProperty(ambrosiaConfigFile, key, SecretsCipher.encrypt(plaintextValue, secretKey))
+        replaceConfFileProperty(ambrosiaConfigFile, secretName, SecretsCipher.encrypt(plaintextValue, secretKey))
     }
 
     fun activateEncryption(
