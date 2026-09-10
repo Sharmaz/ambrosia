@@ -26,12 +26,24 @@ jest.mock("@heroui/react", () => ({
 }));
 
 jest.mock("@components/shared/SecretsUnlockPasswordField", () => ({
-  SecretsUnlockPasswordField: ({ unlockPassword, onUnlockPasswordChange }) => (
-    <input
-      data-testid="secrets-unlock-password-field"
-      value={unlockPassword}
-      onChange={(event) => onUnlockPasswordChange(event.target.value)}
-    />
+  SecretsUnlockPasswordField: ({
+    unlockPassword,
+    onUnlockPasswordChange,
+    unlockPasswordConfirmation,
+    onUnlockPasswordConfirmationChange,
+  }) => (
+    <>
+      <input
+        data-testid="secrets-unlock-password-field"
+        value={unlockPassword}
+        onChange={(event) => onUnlockPasswordChange(event.target.value)}
+      />
+      <input
+        data-testid="secrets-unlock-password-confirm-field"
+        value={unlockPasswordConfirmation}
+        onChange={(event) => onUnlockPasswordConfirmationChange(event.target.value)}
+      />
+    </>
   ),
 }));
 
@@ -148,10 +160,24 @@ describe("SecretsEncryptionCardDetails", () => {
       expect(screen.getByText("secretsEncryptionCard.activateButton")).toBeDisabled();
     });
 
+    it("disables the activate button when the passwords don't match", () => {
+      fireEvent.change(screen.getByTestId("secrets-unlock-password-field"), {
+        target: { value: "correct-unlock-password" },
+      });
+      fireEvent.change(screen.getByTestId("secrets-unlock-password-confirm-field"), {
+        target: { value: "different-password" },
+      });
+
+      expect(screen.getByText("secretsEncryptionCard.activateButton")).toBeDisabled();
+    });
+
     it("activates encryption with the entered password and shows the confirmed state", async () => {
       secretsService.activateSecretsEncryption.mockResolvedValue({ message: "Secrets encryption activated" });
 
       fireEvent.change(screen.getByTestId("secrets-unlock-password-field"), {
+        target: { value: "correct-unlock-password" },
+      });
+      fireEvent.change(screen.getByTestId("secrets-unlock-password-confirm-field"), {
         target: { value: "correct-unlock-password" },
       });
       await act(async () => {
@@ -171,6 +197,9 @@ describe("SecretsEncryptionCardDetails", () => {
       const { addToast } = require("@heroui/react");
 
       fireEvent.change(screen.getByTestId("secrets-unlock-password-field"), {
+        target: { value: "correct-unlock-password" },
+      });
+      fireEvent.change(screen.getByTestId("secrets-unlock-password-confirm-field"), {
         target: { value: "correct-unlock-password" },
       });
       await act(async () => {

@@ -15,6 +15,7 @@ const HIDE_BUTTON_CLASS_NAME = "h-8 min-w-16 px-3 rounded-small sm:h-10 sm:min-w
 export function SecretsEncryptionCardDetails({ onHide, secretsEncryptionCardTranslations }) {
   const [secretsStatus, setSecretsStatus] = useState(null);
   const [unlockPassword, setUnlockPassword] = useState("");
+  const [unlockPasswordConfirmation, setUnlockPasswordConfirmation] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   const handleAuthorized = async () => {
@@ -36,6 +37,7 @@ export function SecretsEncryptionCardDetails({ onHide, secretsEncryptionCardTran
       addToast({ color: "success", description: secretsEncryptionCardTranslations("secretsEncryptionCard.activateSuccess") });
       setSecretsStatus({ encryptionActive: true, locked: false });
       setUnlockPassword("");
+      setUnlockPasswordConfirmation("");
     } catch (activateSecretsEncryptionError) {
       addToast({
         color: "danger",
@@ -81,7 +83,12 @@ export function SecretsEncryptionCardDetails({ onHide, secretsEncryptionCardTran
           </p>
 
           <RequirePermission allOf={["settings_update"]}>
-            <SecretsUnlockPasswordField unlockPassword={unlockPassword} onUnlockPasswordChange={setUnlockPassword} />
+            <SecretsUnlockPasswordField
+              unlockPassword={unlockPassword}
+              onUnlockPasswordChange={setUnlockPassword}
+              unlockPasswordConfirmation={unlockPasswordConfirmation}
+              onUnlockPasswordConfirmationChange={setUnlockPasswordConfirmation}
+            />
           </RequirePermission>
 
           <div className="flex gap-2">
@@ -89,7 +96,7 @@ export function SecretsEncryptionCardDetails({ onHide, secretsEncryptionCardTran
               <Button
                 color="primary"
                 className={PASSWORD_ACTION_BUTTON_CLASS_NAME}
-                isDisabled={!unlockPassword || submitting}
+                isDisabled={!unlockPassword || unlockPassword !== unlockPasswordConfirmation || submitting}
                 isLoading={submitting}
                 onPress={handleActivate}
               >
