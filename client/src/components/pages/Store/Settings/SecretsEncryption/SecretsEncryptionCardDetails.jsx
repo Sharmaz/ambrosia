@@ -142,11 +142,9 @@ export function SecretsEncryptionCardDetails({ onHide, secretsEncryptionCardTran
 
     return (
       <div className="flex flex-col gap-4">
-        <div className="flex items-start gap-2 bg-green-50 border border-green-200 rounded-lg p-3">
-          <p className="text-sm text-green-800 font-medium">
-            {secretsEncryptionCardTranslations("secretsEncryptionCard.unlockedDescription")}
-          </p>
-        </div>
+        <p className="text-sm text-green-800 font-medium">
+          {secretsEncryptionCardTranslations("secretsEncryptionCard.unlockedDescription")}
+        </p>
         <div>
           <Button variant="bordered" onPress={onHide} className={HIDE_BUTTON_CLASS_NAME}>
             {secretsEncryptionCardTranslations("secretsEncryptionCard.hideButton")}
