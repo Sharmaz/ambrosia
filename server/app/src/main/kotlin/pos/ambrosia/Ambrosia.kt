@@ -242,6 +242,7 @@ class Ambrosia : CliktCommand() {
         Runtime.getRuntime().addShutdownHook(Thread { DatabaseConnection.close() })
 
         try {
+            ensureNwcUriPersisted()
             val (keyStore, storePassword, privateKeyPassword) = ensureKeyStore()
 
             val server =
@@ -399,6 +400,14 @@ class Ambrosia : CliktCommand() {
         if (missingVapidConfig) {
             println(yellow("Generated Web Push VAPID keys in ambrosia.conf"))
         }
+    }
+
+    private fun ensureNwcUriPersisted() {
+        val nwcUri = options.nwcUri ?: return
+        if (SecretsStore.isLocked()) return
+        if (SecretsStore.getSecretOrNull("nwc-uri") != null) return
+
+        SecretsStore.setSecret("nwc-uri", nwcUri)
     }
 
     private fun readEnvironmentVapidKeysOrNull(): VapidKeys? {
