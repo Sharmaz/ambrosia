@@ -45,7 +45,11 @@ const STEP_VALIDATORS = {
     onboardingData.walletBackend !== "nwc" ||
     (Boolean(onboardingData.nwcUri) && NWC_URI_REGEX.test(onboardingData.nwcUri))
   ),
-  5: (onboardingData) => !onboardingData.activateSecretsEncryption || Boolean(onboardingData.secretsUnlockPassword),
+  5: (onboardingData) => (
+    !onboardingData.activateSecretsEncryption ||
+    (Boolean(onboardingData.secretsUnlockPassword) &&
+      onboardingData.secretsUnlockPassword === onboardingData.secretsUnlockPasswordConfirmation)
+  ),
 };
 
 export function Onboarding() {
@@ -62,6 +66,7 @@ export function Onboarding() {
     phoenixdPassword: "",
     activateSecretsEncryption: false,
     secretsUnlockPassword: "",
+    secretsUnlockPasswordConfirmation: "",
     userName: "",
     userPassword: "",
     userPasswordConfirmation: "",
@@ -222,6 +227,7 @@ export function Onboarding() {
                 secretsEncryptionData={{
                   activateSecretsEncryption: onboardingData.activateSecretsEncryption,
                   secretsUnlockPassword: onboardingData.secretsUnlockPassword,
+                  secretsUnlockPasswordConfirmation: onboardingData.secretsUnlockPasswordConfirmation,
                 }}
                 onChange={(updatedSecretsEncryptionFields) => handleOnboardingDataChange(updatedSecretsEncryptionFields)}
               />

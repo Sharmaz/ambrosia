@@ -488,5 +488,41 @@ describe("Onboarding Wizard", () => {
 
       expect(screen.getByText("buttons.next")).toBeDisabled();
     });
+
+    it("keeps the Next button disabled when the passwords don't match", async () => {
+      const user = userEvent.setup();
+
+      await act(async () => {
+        renderOnboarding();
+      });
+
+      await navigateToSecretsEncryptionStep();
+      await user.click(screen.getByRole("checkbox"));
+
+      await act(async () => {
+        fireEvent.change(screen.getByLabelText("passwordLabel"), { target: { value: "correct-unlock-password" } });
+        fireEvent.change(screen.getByLabelText("confirmPasswordLabel"), { target: { value: "different-password" } });
+      });
+
+      expect(screen.getByText("buttons.next")).toBeDisabled();
+    });
+
+    it("enables the Next button when both passwords match", async () => {
+      const user = userEvent.setup();
+
+      await act(async () => {
+        renderOnboarding();
+      });
+
+      await navigateToSecretsEncryptionStep();
+      await user.click(screen.getByRole("checkbox"));
+
+      await act(async () => {
+        fireEvent.change(screen.getByLabelText("passwordLabel"), { target: { value: "correct-unlock-password" } });
+        fireEvent.change(screen.getByLabelText("confirmPasswordLabel"), { target: { value: "correct-unlock-password" } });
+      });
+
+      expect(screen.getByText("buttons.next")).not.toBeDisabled();
+    });
   });
 });

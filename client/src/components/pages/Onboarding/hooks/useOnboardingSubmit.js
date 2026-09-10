@@ -30,6 +30,7 @@ function buildInitialSetupPayload(onboardingData, { businessLogoUrl, isPhoenixdR
     walletBackend: undefined,
     activateSecretsEncryption: undefined,
     secretsUnlockPassword: undefined,
+    secretsUnlockPasswordConfirmation: undefined,
     nwcUri: onboardingData.walletBackend === "nwc" && onboardingData.nwcUri ? onboardingData.nwcUri : undefined,
     phoenixdRemote: isPhoenixdRemoteAttempt ? true : undefined,
     phoenixdUrl: isPhoenixdRemoteAttempt ? onboardingData.phoenixdUrl : undefined,

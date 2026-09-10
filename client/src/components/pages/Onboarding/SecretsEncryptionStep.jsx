@@ -12,6 +12,9 @@ export function SecretsEncryptionStep({ secretsEncryptionData, onChange }) {
     onChange({
       activateSecretsEncryption,
       secretsUnlockPassword: activateSecretsEncryption ? secretsEncryptionData.secretsUnlockPassword : "",
+      secretsUnlockPasswordConfirmation: activateSecretsEncryption
+        ? secretsEncryptionData.secretsUnlockPasswordConfirmation
+        : "",
     });
   };
 
@@ -31,6 +34,10 @@ export function SecretsEncryptionStep({ secretsEncryptionData, onChange }) {
           <SecretsUnlockPasswordField
             unlockPassword={secretsEncryptionData.secretsUnlockPassword || ""}
             onUnlockPasswordChange={(secretsUnlockPassword) => onChange({ secretsUnlockPassword })}
+            unlockPasswordConfirmation={secretsEncryptionData.secretsUnlockPasswordConfirmation || ""}
+            onUnlockPasswordConfirmationChange={(secretsUnlockPasswordConfirmation) => (
+              onChange({ secretsUnlockPasswordConfirmation })
+            )}
           />
           <p className="text-xs text-gray-400">{secretsEncryptionTranslations("stepSecretsEncryption.laterHint")}</p>
         </div>

@@ -120,6 +120,7 @@ describe("useOnboardingSubmit", () => {
           walletBackend: undefined,
           activateSecretsEncryption: undefined,
           secretsUnlockPassword: undefined,
+          secretsUnlockPasswordConfirmation: undefined,
           timezone: "America/Mexico_City",
         }),
       );
