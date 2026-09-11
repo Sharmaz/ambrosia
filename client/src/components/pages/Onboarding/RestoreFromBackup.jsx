@@ -5,7 +5,7 @@ import { useState } from "react";
 import { Button, Progress, Spinner, addToast } from "@heroui/react";
 import { useTranslations } from "next-intl";
 
-import { restartBackendAfterImport } from "@/utils/restartBackendAfterImport";
+import { restartAppAfterImport } from "@/utils/restartAppAfterImport";
 import { BackupPasswordAndFileFields } from "@components/shared/BackupPasswordAndFileFields";
 import { RestartRequiredModal } from "@components/shared/RestartRequiredModal";
 import { confirmPendingRestore, restoreFromBackup } from "@services/initialSetupService";
@@ -52,15 +52,7 @@ export function RestoreFromBackupStep({ onBack }) {
       });
 
       await confirmPendingRestore();
-      const restartTriggeredAutomatically = await restartBackendAfterImport();
-      if (restartTriggeredAutomatically) {
-        addToast({
-          description: restoreTranslations("restore.restartRequiredElectron"),
-          color: "primary",
-        });
-      } else {
-        setShowRestartModal(true);
-      }
+      setShowRestartModal(true);
     } catch {
       setErrorMessage(restoreTranslations("restore.genericError"));
       setRestoreProgress(null);
@@ -131,7 +123,11 @@ export function RestoreFromBackupStep({ onBack }) {
         </Button>
       </div>
 
-      <RestartRequiredModal isOpen={showRestartModal} onAcknowledge={() => setShowRestartModal(false)} />
+      <RestartRequiredModal
+        isOpen={showRestartModal}
+        onManualClose={() => setShowRestartModal(false)}
+        onRestart={restartAppAfterImport}
+      />
     </div>
   );
 }

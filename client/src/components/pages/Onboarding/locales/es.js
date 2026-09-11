@@ -120,7 +120,6 @@ const onboardingEs = {
     pendingRestoreError: "La configuración ya podría estar completa, o hay una restauración anterior pendiente — actualiza la página o reinicia el servidor, y vuelve a intentarlo.",
     successTitle: "Respaldo restaurado",
     successDescription: "El servidor necesita reiniciarse para terminar de cargar tus datos.",
-    restartRequiredElectron: "Reiniciando la aplicación...",
   },
   step4: {
     title: "Resumen de tu configuración",
