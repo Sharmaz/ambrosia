@@ -6,7 +6,7 @@ import { addToast } from "@heroui/react";
 import { useTranslations } from "next-intl";
 
 import { confirmPendingImport, importBackup } from "@/services/backupService";
-import { restartBackendAfterImport } from "@/utils/restartBackendAfterImport";
+import { restartAppAfterImport } from "@/utils/restartAppAfterImport";
 import { RestartRequiredModal } from "@components/shared/RestartRequiredModal";
 
 import { ImportDataCardLocked } from "./ImportDataCardLocked";
@@ -22,15 +22,7 @@ export function ImportData() {
     addToast({ color: "success", description: importDataTranslations("cardImportData.success") });
 
     await confirmPendingImport();
-    const restartTriggeredAutomatically = await restartBackendAfterImport();
-    if (restartTriggeredAutomatically) {
-      addToast({
-        description: importDataTranslations("cardImportData.restartRequiredElectron"),
-        color: "primary",
-      });
-    } else {
-      setShowRestartModal(true);
-    }
+    setShowRestartModal(true);
   };
 
   return (
@@ -47,7 +39,11 @@ export function ImportData() {
           importDataTranslations={importDataTranslations}
         />
       )}
-      <RestartRequiredModal isOpen={showRestartModal} onAcknowledge={() => setShowRestartModal(false)} />
+      <RestartRequiredModal
+        isOpen={showRestartModal}
+        onManualClose={() => setShowRestartModal(false)}
+        onRestart={restartAppAfterImport}
+      />
     </>
   );
 }
