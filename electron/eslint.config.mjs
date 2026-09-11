@@ -149,6 +149,23 @@ const eslintConfig = [
       'import/prefer-default-export': 'off',
     },
   },
+  {
+    files: ['**/__tests__/**/*.test.js'],
+    languageOptions: {
+      globals: {
+        // vitest globals
+        describe: 'readonly',
+        it: 'readonly',
+        test: 'readonly',
+        expect: 'readonly',
+        vi: 'readonly',
+        beforeAll: 'readonly',
+        afterAll: 'readonly',
+        beforeEach: 'readonly',
+        afterEach: 'readonly',
+      },
+    },
+  },
 ];
 
 export default eslintConfig;
