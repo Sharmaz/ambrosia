@@ -1,39 +1,62 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 
-import { Button, Divider, addToast } from "@heroui/react";
+import { Button, Divider } from "@heroui/react";
 import { useTranslations } from "next-intl";
 
 import { parseJsonResponse } from "@/lib/http";
-import { useUpload } from "@components/hooks/useUpload";
 import { LanguageSwitcher } from "@i18n/I18nProvider";
-import { getInitialSetupStatus, submitInitialSetup } from "@services/initialSetupService";
+import { getInitialSetupStatus } from "@services/initialSetupService";
 
 import { BusinessDetailsStep } from "./AddBusinessData";
 import { UserAccountStep } from "./AddUserAccount";
+import { useOnboardingSubmit } from "./hooks/useOnboardingSubmit";
 import { RestoreFromBackupStep } from "./RestoreFromBackup";
+import { SecretsEncryptionStep } from "./SecretsEncryptionStep";
 import { BusinessTypeStep } from "./SelectBusiness";
 import { WizardSummary } from "./StepsSummary";
 import { WalletBackendStep } from "./WalletBackendStep";
 
-const TOAST_REDIRECT_TIMEOUT_MS = 3000;
+const NWC_URI_REGEX = /^nostr\+walletconnect:\/\/[0-9a-f]{64}\?/;
 
-function addRedirectToast(toastProps) {
-  addToast({
-    ...toastProps,
-    timeout: TOAST_REDIRECT_TIMEOUT_MS,
-    shouldShowTimeoutProgress: true,
-  });
+function isPasswordStrong(password) {
+  return /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{8,}$/.test(password);
 }
+
+function isPinValid(pin) {
+  return /^\d{4}$/.test(pin);
+}
+
+const STEP_VALIDATORS = {
+  1: (onboardingData) => Boolean(onboardingData.businessType),
+  2: (onboardingData) => (
+    Boolean(onboardingData.userName) &&
+    Boolean(onboardingData.userPassword) &&
+    Boolean(onboardingData.userPasswordConfirmation) &&
+    onboardingData.userPassword === onboardingData.userPasswordConfirmation &&
+    isPasswordStrong(onboardingData.userPassword) &&
+    isPinValid(onboardingData.userPin)
+  ),
+  3: (onboardingData) => (
+    Boolean(onboardingData.businessName) && Boolean(onboardingData.businessCurrency) && Boolean(onboardingData.timezone)
+  ),
+  4: (onboardingData) => (
+    onboardingData.walletBackend !== "nwc" ||
+    (Boolean(onboardingData.nwcUri) && NWC_URI_REGEX.test(onboardingData.nwcUri))
+  ),
+  5: (onboardingData) => (
+    !onboardingData.activateSecretsEncryption ||
+    (Boolean(onboardingData.secretsUnlockPassword) &&
+      onboardingData.secretsUnlockPassword === onboardingData.secretsUnlockPasswordConfirmation)
+  ),
+};
 
 export function Onboarding() {
   const onboardingTranslations = useTranslations();
   const [step, setStep] = useState(1);
   const [activeView, setActiveView] = useState("setup");
   const [setupStatus, setSetupStatus] = useState(null);
-  const [isSubmittingSetup, setIsSubmittingSetup] = useState(false);
-  const isSubmittingSetupRef = useRef(false);
   const [onboardingData, setOnboardingData] = useState({
     businessType: "store",
     walletBackend: "phoenixd",
@@ -41,6 +64,9 @@ export function Onboarding() {
     phoenixdRemote: false,
     phoenixdUrl: "",
     phoenixdPassword: "",
+    activateSecretsEncryption: false,
+    secretsUnlockPassword: "",
+    secretsUnlockPasswordConfirmation: "",
     userName: "",
     userPassword: "",
     userPasswordConfirmation: "",
@@ -54,8 +80,8 @@ export function Onboarding() {
     timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     businessLogo: null,
   });
-  const { upload } = useUpload();
   const needsBusinessType = setupStatus?.needsBusinessType === true;
+  const { handleComplete, isSubmittingSetup } = useOnboardingSubmit({ onboardingData, needsBusinessType });
 
   useEffect(() => {
     let isMounted = true;
@@ -80,18 +106,8 @@ export function Onboarding() {
     };
   }, []);
 
-  function isPasswordStrong(password) {
-    return /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{8,}$/.test(password);
-  }
-
-  function isPinValid(pin) {
-    return /^\d{4}$/.test(pin);
-  }
-
-  const NWC_URI_REGEX = /^nostr\+walletconnect:\/\/[0-9a-f]{64}\?/;
-
   const handleNext = () => {
-    if (step < 5) {
+    if (step < 6) {
       setStep(step + 1);
     }
   };
@@ -106,104 +122,9 @@ export function Onboarding() {
     setOnboardingData((previousOnboardingData) => ({ ...previousOnboardingData, ...updatedOnboardingFields }));
   };
 
-  const handleComplete = async () => {
-    if (isSubmittingSetupRef.current) return;
-    isSubmittingSetupRef.current = true;
-    setIsSubmittingSetup(true);
-
-    try {
-      if (needsBusinessType) {
-        await submitInitialSetup({
-          businessType: onboardingData.businessType,
-        });
-        addRedirectToast({
-          title: onboardingTranslations("submitOnboardingToast.title"),
-          description: onboardingTranslations("submitOnboardingToast.description"),
-          color: "success",
-          onClose: () => window.location.reload(),
-        });
-        return;
-      }
-
-      let logoUrl = null;
-      if (onboardingData.businessLogo) {
-        const [uploaded] = await upload([onboardingData.businessLogo]);
-        logoUrl = uploaded?.url ?? uploaded?.path;
-      }
-
-      const isPhoenixdRemoteAttempt = onboardingData.walletBackend === "phoenixd" && Boolean(onboardingData.phoenixdRemote);
-
-      const setupResponse = await submitInitialSetup({
-        ...onboardingData,
-        businessLogoUrl: logoUrl,
-        businessLogo: undefined,
-        userPasswordConfirmation: undefined,
-        walletBackend: undefined,
-        nwcUri: onboardingData.walletBackend === "nwc" && onboardingData.nwcUri ? onboardingData.nwcUri : undefined,
-        phoenixdRemote: isPhoenixdRemoteAttempt ? true : undefined,
-        phoenixdUrl: isPhoenixdRemoteAttempt ? onboardingData.phoenixdUrl : undefined,
-        phoenixdPassword: isPhoenixdRemoteAttempt ? onboardingData.phoenixdPassword : undefined,
-      });
-
-      const isNwcAttempt = onboardingData.walletBackend === "nwc";
-      let nwcSaved = false;
-      let phoenixdRemoteSaved = false;
-      try {
-        const setupResponseBody = await setupResponse.json();
-        nwcSaved = Boolean(setupResponseBody?.nwcSaved);
-        phoenixdRemoteSaved = Boolean(setupResponseBody?.phoenixdRemoteSaved);
-      } catch {}
-
-      addRedirectToast({
-        title: onboardingTranslations("submitOnboardingToast.title"),
-        description: onboardingTranslations("submitOnboardingToast.description"),
-        color: "success",
-        onClose: (isNwcAttempt || isPhoenixdRemoteAttempt) ? undefined : () => window.location.reload(),
-      });
-
-      if (nwcSaved) {
-        addRedirectToast({
-          title: onboardingTranslations("submitOnboardingToast.nwcSavedTitle"),
-          description: onboardingTranslations("submitOnboardingToast.nwcSavedDescription"),
-          color: "primary",
-          onClose: () => window.location.reload(),
-        });
-      } else if (isNwcAttempt) {
-        addRedirectToast({
-          title: onboardingTranslations("submitOnboardingToast.nwcErrorTitle"),
-          description: onboardingTranslations("submitOnboardingToast.nwcErrorDescription"),
-          color: "danger",
-          onClose: () => window.location.reload(),
-        });
-      } else if (phoenixdRemoteSaved) {
-        addRedirectToast({
-          title: onboardingTranslations("submitOnboardingToast.phoenixdRemoteSavedTitle"),
-          description: onboardingTranslations("submitOnboardingToast.phoenixdRemoteSavedDescription"),
-          color: "primary",
-          onClose: () => window.location.reload(),
-        });
-      } else if (isPhoenixdRemoteAttempt) {
-        addRedirectToast({
-          title: onboardingTranslations("submitOnboardingToast.phoenixdRemoteErrorTitle"),
-          description: onboardingTranslations("submitOnboardingToast.phoenixdRemoteErrorDescription"),
-          color: "danger",
-          onClose: () => window.location.reload(),
-        });
-      }
-    } catch (setupSubmissionError) {
-      addToast({
-        title: onboardingTranslations("submitOnboardingToast.errorTitle"),
-        description: setupSubmissionError.message,
-        color: "danger",
-      });
-    } finally {
-      isSubmittingSetupRef.current = false;
-      setIsSubmittingSetup(false);
-    }
-  };
-
-  const totalSteps = needsBusinessType ? 1 : 5;
+  const totalSteps = needsBusinessType ? 1 : 6;
   const progressValue = totalSteps === 1 ? 100 : ((step - 1) / (totalSteps - 1)) * 100;
+  const isCurrentStepValid = STEP_VALIDATORS[step]?.(onboardingData) ?? true;
 
   return (
     <div className="flex flex-col items-center justify-start min-h-screen gradient-fresh px-4 pb-4 pt-4">
@@ -227,7 +148,7 @@ export function Onboarding() {
                   className="absolute top-1/2 -translate-y-1/2 h-2 md:h-3 rounded-full bg-green-800 z-0 transition-all duration-300 left-0"
                   style={{ width: `${progressValue}%` }}
                 />
-                {[1, 2, 3, 4, 5].map((stepNumber) => (
+                {[1, 2, 3, 4, 5, 6].map((stepNumber) => (
                   <div
                     key={stepNumber}
                     className={`relative z-10 flex items-center justify-center w-8 h-8 md:w-10 md:h-10 rounded-full text-sm md:text-base font-semibold transition-all ${stepNumber <= step ? "bg-green-800 text-white" : "bg-gray-300 text-gray-500"}`}
@@ -301,7 +222,18 @@ export function Onboarding() {
               />
               )}
 
-              {step === 5 && <WizardSummary onboardingData={onboardingData} onEdit={(stepNum) => setStep(stepNum)} />}
+              {step === 5 && (
+              <SecretsEncryptionStep
+                secretsEncryptionData={{
+                  activateSecretsEncryption: onboardingData.activateSecretsEncryption,
+                  secretsUnlockPassword: onboardingData.secretsUnlockPassword,
+                  secretsUnlockPasswordConfirmation: onboardingData.secretsUnlockPasswordConfirmation,
+                }}
+                onChange={(updatedSecretsEncryptionFields) => handleOnboardingDataChange(updatedSecretsEncryptionFields)}
+              />
+              )}
+
+              {step === 6 && <WizardSummary onboardingData={onboardingData} onEdit={(stepNum) => setStep(stepNum)} />}
 
               <Divider className="hidden md:block my-8 bg-gray-400" />
 
@@ -327,23 +259,11 @@ export function Onboarding() {
                     >
                       {onboardingTranslations("buttons.finish")}
                     </Button>
-                  ) : step < 5 ? (
+                  ) : step < 6 ? (
                     <Button
                       color="primary"
                       onPress={handleNext}
-                      isDisabled={
-                    (step === 1 && !onboardingData.businessType) ||
-                    (step === 2 && (
-                      !onboardingData.userName ||
-                      !onboardingData.userPassword ||
-                      !onboardingData.userPasswordConfirmation ||
-                      onboardingData.userPassword !== onboardingData.userPasswordConfirmation ||
-                      !isPasswordStrong(onboardingData.userPassword) ||
-                      !isPinValid(onboardingData.userPin)
-                    )) ||
-                    (step === 3 && (!onboardingData.businessName || !onboardingData.businessCurrency || !onboardingData.timezone)) ||
-                    (step === 4 && onboardingData.walletBackend === "nwc" && (!onboardingData.nwcUri || !NWC_URI_REGEX.test(onboardingData.nwcUri)))
-                  }
+                      isDisabled={!isCurrentStepValid}
                       className="bg-green-800"
                     >
                       {onboardingTranslations("buttons.next")}

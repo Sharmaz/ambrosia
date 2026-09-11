@@ -18,6 +18,7 @@ import { NwcConnectionCard } from "./NwcConnection/NwcConnectionCard";
 import { PhoenixdRemoteCard } from "./PhoenixdRemote/PhoenixdRemoteCard";
 import { Printers } from "./Printers";
 import { QRUrl } from "./QRUrl";
+import { SecretsEncryptionCard } from "./SecretsEncryption/SecretsEncryptionCard";
 import { SecureConnection } from "./SecureConnection/SecureConnection";
 import { Seed } from "./Seed";
 import { StoreInfo } from "./StoreInfo";
@@ -49,6 +50,7 @@ export function Settings() {
               <NwcConnectionCard />
               <PhoenixdRemoteCard />
               <SystemCard />
+              <SecretsEncryptionCard />
               <Tutorials />
             </>
           )}

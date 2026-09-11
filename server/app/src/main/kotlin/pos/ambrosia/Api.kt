@@ -46,6 +46,7 @@ import pos.ambrosia.api.configureProjects
 import pos.ambrosia.api.configureReports
 import pos.ambrosia.api.configureRoles
 import pos.ambrosia.api.configureRouting
+import pos.ambrosia.api.configureSecrets
 import pos.ambrosia.api.configureShifts
 import pos.ambrosia.api.configureSpaces
 import pos.ambrosia.api.configureStoreOrders
@@ -109,6 +110,7 @@ class Api {
         configureReports()
         configureShifts()
         configureWallet()
+        configureSecrets()
         configureBackup()
         configureBackupProgressWebsocket()
         configurePrinters()

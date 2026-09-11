@@ -1,0 +1,183 @@
+"use client";
+
+import { useState } from "react";
+
+import { addToast, Button, Card, CardBody, CardHeader, Input, Spinner } from "@heroui/react";
+
+import { RequirePermission } from "@/hooks/usePermission";
+import { activateSecretsEncryption, getSecretsStatus, unlockSecrets } from "@/services/secretsService";
+import WalletGuard from "@components/auth/WalletGuard";
+import { SecretsUnlockPasswordField } from "@components/shared/SecretsUnlockPasswordField";
+
+const PASSWORD_ACTION_BUTTON_CLASS_NAME = "bg-green-800 h-8 min-w-16 px-3 rounded-small sm:h-10 sm:min-w-20 sm:px-4 sm:rounded-medium";
+const HIDE_BUTTON_CLASS_NAME = "h-8 min-w-16 px-3 rounded-small sm:h-10 sm:min-w-20 sm:px-4 sm:rounded-medium border border-border text-foreground hover:bg-muted transition-colors";
+
+export function SecretsEncryptionCardDetails({ onHide, secretsEncryptionCardTranslations }) {
+  const [secretsStatus, setSecretsStatus] = useState(null);
+  const [unlockPassword, setUnlockPassword] = useState("");
+  const [unlockPasswordConfirmation, setUnlockPasswordConfirmation] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleAuthorized = async () => {
+    try {
+      const secretsStatusResponse = await getSecretsStatus();
+      setSecretsStatus(secretsStatusResponse);
+    } catch {
+      addToast({
+        color: "danger",
+        description: secretsEncryptionCardTranslations("secretsEncryptionCard.statusLoadError"),
+      });
+    }
+  };
+
+  const handleActivate = async () => {
+    setSubmitting(true);
+    try {
+      await activateSecretsEncryption(unlockPassword);
+      addToast({ color: "success", description: secretsEncryptionCardTranslations("secretsEncryptionCard.activateSuccess") });
+      setSecretsStatus({ encryptionActive: true, locked: false });
+      setUnlockPassword("");
+      setUnlockPasswordConfirmation("");
+    } catch (activateSecretsEncryptionError) {
+      addToast({
+        color: "danger",
+        description:
+          activateSecretsEncryptionError.message || secretsEncryptionCardTranslations("secretsEncryptionCard.activateError"),
+      });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleUnlock = async () => {
+    setSubmitting(true);
+    try {
+      await unlockSecrets(unlockPassword);
+      addToast({ color: "success", description: secretsEncryptionCardTranslations("secretsEncryptionCard.unlockSuccess") });
+      setSecretsStatus({ encryptionActive: true, locked: false });
+      setUnlockPassword("");
+    } catch (unlockSecretsError) {
+      addToast({
+        color: "danger",
+        description: unlockSecretsError.message || secretsEncryptionCardTranslations("secretsEncryptionCard.unlockError"),
+      });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const renderStatusDependentContent = () => {
+    if (!secretsStatus) {
+      return (
+        <div className="flex justify-center py-6">
+          <Spinner size="lg" color="success" />
+        </div>
+      );
+    }
+
+    if (!secretsStatus.encryptionActive) {
+      return (
+        <div className="flex flex-col gap-4">
+          <p className="text-sm text-gray-500">
+            {secretsEncryptionCardTranslations("secretsEncryptionCard.inactiveDescription")}
+          </p>
+
+          <RequirePermission allOf={["settings_update"]}>
+            <SecretsUnlockPasswordField
+              unlockPassword={unlockPassword}
+              onUnlockPasswordChange={setUnlockPassword}
+              unlockPasswordConfirmation={unlockPasswordConfirmation}
+              onUnlockPasswordConfirmationChange={setUnlockPasswordConfirmation}
+            />
+          </RequirePermission>
+
+          <div className="flex gap-2">
+            <RequirePermission allOf={["settings_update"]}>
+              <Button
+                color="primary"
+                className={PASSWORD_ACTION_BUTTON_CLASS_NAME}
+                isDisabled={!unlockPassword || unlockPassword !== unlockPasswordConfirmation || submitting}
+                isLoading={submitting}
+                onPress={handleActivate}
+              >
+                {secretsEncryptionCardTranslations("secretsEncryptionCard.activateButton")}
+              </Button>
+            </RequirePermission>
+            <Button variant="bordered" isDisabled={submitting} onPress={onHide} className={HIDE_BUTTON_CLASS_NAME}>
+              {secretsEncryptionCardTranslations("secretsEncryptionCard.hideButton")}
+            </Button>
+          </div>
+        </div>
+      );
+    }
+
+    if (secretsStatus.locked) {
+      return (
+        <div className="flex flex-col gap-4">
+          <p className="text-sm text-gray-500">
+            {secretsEncryptionCardTranslations("secretsEncryptionCard.lockedDescription")}
+          </p>
+
+          <RequirePermission allOf={["settings_update"]}>
+            <Input
+              label={secretsEncryptionCardTranslations("secretsEncryptionCard.unlockPasswordLabel")}
+              type="password"
+              value={unlockPassword}
+              onValueChange={setUnlockPassword}
+            />
+          </RequirePermission>
+
+          <div className="flex gap-2">
+            <RequirePermission allOf={["settings_update"]}>
+              <Button
+                color="primary"
+                className={PASSWORD_ACTION_BUTTON_CLASS_NAME}
+                isDisabled={!unlockPassword || submitting}
+                isLoading={submitting}
+                onPress={handleUnlock}
+              >
+                {secretsEncryptionCardTranslations("secretsEncryptionCard.unlockButton")}
+              </Button>
+            </RequirePermission>
+            <Button variant="bordered" isDisabled={submitting} onPress={onHide} className={HIDE_BUTTON_CLASS_NAME}>
+              {secretsEncryptionCardTranslations("secretsEncryptionCard.hideButton")}
+            </Button>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="flex flex-col gap-4">
+        <p className="text-sm text-green-800 font-medium">
+          {secretsEncryptionCardTranslations("secretsEncryptionCard.unlockedDescription")}
+        </p>
+        <div>
+          <Button variant="bordered" onPress={onHide} className={HIDE_BUTTON_CLASS_NAME}>
+            {secretsEncryptionCardTranslations("secretsEncryptionCard.hideButton")}
+          </Button>
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <WalletGuard
+      onCancel={onHide}
+      onAuthorized={handleAuthorized}
+      title={secretsEncryptionCardTranslations("secretsEncryptionCard.modalTitle")}
+      passwordLabel={secretsEncryptionCardTranslations("secretsEncryptionCard.passwordLabel")}
+      confirmText={secretsEncryptionCardTranslations("secretsEncryptionCard.confirmButton")}
+      cancelText={secretsEncryptionCardTranslations("secretsEncryptionCard.cancelButton")}
+    >
+      <Card shadow="none" className="rounded-lg mb-6 p-6 shadow-lg">
+        <CardHeader className="flex flex-col items-start">
+          <h2 className="text-2xl font-semibold text-green-900">
+            {secretsEncryptionCardTranslations("secretsEncryptionCard.title")}
+          </h2>
+        </CardHeader>
+        <CardBody>{renderStatusDependentContent()}</CardBody>
+      </Card>
+    </WalletGuard>
+  );
+}
