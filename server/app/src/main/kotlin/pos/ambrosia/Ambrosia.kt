@@ -244,6 +244,7 @@ class Ambrosia : CliktCommand() {
         try {
             ensureNwcUriPersisted()
             ensurePhoenixdPasswordPersisted()
+            ensurePhoenixdWebhookSecretPersisted()
             val (keyStore, storePassword, privateKeyPassword) = ensureKeyStore()
 
             val server =
@@ -260,7 +261,6 @@ class Ambrosia : CliktCommand() {
                                     put("secret", options.secret)
                                     put("phoenixd-url", options.phoenixdUrl)
                                     put("phoenixd-remote", options.phoenixdRemote.toString())
-                                    put("phoenix.webhook-secret", options.phoenixdWebhookSecret)
                                     options.webPushVapidPublicKey.takeIf { it.isNotBlank() }?.let {
                                         put("web-push.vapid-public-key", it)
                                     }
@@ -417,6 +417,14 @@ class Ambrosia : CliktCommand() {
         if (options.phoenixdPassword.isBlank()) return
 
         SecretsStore.setSecret("phoenixd-password", options.phoenixdPassword)
+    }
+
+    private fun ensurePhoenixdWebhookSecretPersisted() {
+        if (SecretsStore.isLocked()) return
+        if (SecretsStore.getSecretOrNull("phoenixd-webhook-secret") != null) return
+        if (options.phoenixdWebhookSecret.isBlank()) return
+
+        SecretsStore.setSecret("phoenixd-webhook-secret", options.phoenixdWebhookSecret)
     }
 
     private fun readEnvironmentVapidKeysOrNull(): VapidKeys? {

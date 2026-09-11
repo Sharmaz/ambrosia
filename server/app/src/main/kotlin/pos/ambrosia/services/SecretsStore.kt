@@ -16,7 +16,8 @@ object SecretsStore {
     private const val ENCRYPTION_ACTIVE_CONF = "secrets-encrypted"
     private const val KDF_SALT_CONF = "secrets-kdf-salt"
     private const val KDF_SALT_LENGTH_BYTES = 32
-    private val ENCRYPTABLE_CONF_KEYS = setOf("phoenixd-password", "nwc-uri", "web-push-vapid-private-key")
+    private val ENCRYPTABLE_CONF_KEYS =
+        setOf("phoenixd-password", "nwc-uri", "web-push-vapid-private-key", "phoenixd-webhook-secret")
 
     var ambrosiaConfigFile: Path = Path(datadir, "ambrosia.conf")
     private val unlockKeyReference = AtomicReference<SecretKeySpec?>(null)
