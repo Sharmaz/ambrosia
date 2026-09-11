@@ -30,6 +30,7 @@ import pos.ambrosia.api.configureClients
 import pos.ambrosia.api.configureConfig
 import pos.ambrosia.api.configureCurrency
 import pos.ambrosia.api.configureDishes
+import pos.ambrosia.api.configureFreelanceReports
 import pos.ambrosia.api.configureHealth
 import pos.ambrosia.api.configureIngredients
 import pos.ambrosia.api.configureInitialSetup
@@ -126,6 +127,7 @@ class Api {
         configureProjects()
         configureCurrency()
         configureTimeEntries()
+        configureFreelanceReports()
         configureInitialSetup()
         if (environment.config.propertyOrNull("nwc-uri") == null) {
             configurePhoenixWebhook()
