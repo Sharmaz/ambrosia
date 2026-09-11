@@ -11,13 +11,6 @@ jest.mock("@/services/walletService");
 
 jest.mock("@/utils/restartAppAfterPhoenixdRemoteChange");
 
-let mockIsElectron = false;
-jest.mock("@lib/isElectron", () => ({
-  get isElectron() {
-    return mockIsElectron;
-  },
-}));
-
 jest.mock("@heroui/react", () => ({
   addToast: jest.fn(),
   Button: ({ onPress, children, isDisabled, ...props }) => (
@@ -55,11 +48,11 @@ jest.mock("@components/shared/PhoenixdRemoteFields", () => ({
 }));
 
 jest.mock("@components/shared/RestartRequiredModal", () => ({
-  RestartRequiredModal: ({ isOpen, onAcknowledge, countdownSeconds }) => (
+  RestartRequiredModal: ({ isOpen, onManualClose, onRestart }) => (
     isOpen ? (
       <div data-testid="restart-modal">
-        <span data-testid="restart-modal-countdown">{String(countdownSeconds)}</span>
-        <button type="button" data-testid="restart-modal-acknowledge" onClick={onAcknowledge}>acknowledge</button>
+        <button type="button" data-testid="restart-modal-manual-close" onClick={onManualClose}>manual-close</button>
+        <button type="button" data-testid="restart-modal-restart" onClick={onRestart}>restart</button>
       </div>
     ) : null
   ),
@@ -85,7 +78,6 @@ function renderUnlocked(props = {}) {
 
 describe("PhoenixdRemoteCardUnlocked", () => {
   afterEach(() => {
-    mockIsElectron = false;
     jest.clearAllMocks();
   });
 
@@ -219,9 +211,8 @@ describe("PhoenixdRemoteCardUnlocked", () => {
       expect(screen.queryByText("phoenixdRemoteCard.remoteActivatedTitle")).not.toBeInTheDocument();
     });
 
-    it("submits remote=false and shows the restart modal with a countdown inside Electron", async () => {
+    it("submits remote=false and shows the restart modal", async () => {
       walletService.updatePhoenixdRemote.mockResolvedValue({ message: "Switched to local phoenixd — restart required to apply" });
-      mockIsElectron = true;
       renderUnlocked();
 
       fireEvent.click(screen.getByText("set-remote-false"));
@@ -235,24 +226,22 @@ describe("PhoenixdRemoteCardUnlocked", () => {
         phoenixdPassword: undefined,
       });
       expect(screen.getByTestId("restart-modal")).toBeInTheDocument();
-      expect(screen.getByTestId("restart-modal-countdown").textContent).toBe("5");
     });
 
-    it("triggers the Electron relaunch when the restart modal is acknowledged", async () => {
+    it("passes restartAppAfterPhoenixdRemoteChange as onRestart to the restart modal", async () => {
       walletService.updatePhoenixdRemote.mockResolvedValue({ message: "Switched to local phoenixd — restart required to apply" });
-      mockIsElectron = true;
       renderUnlocked();
 
       fireEvent.click(screen.getByText("set-remote-false"));
       await act(async () => {
         fireEvent.click(screen.getByText("phoenixdRemoteCard.submitButton"));
       });
-      fireEvent.click(screen.getByTestId("restart-modal-acknowledge"));
+      fireEvent.click(screen.getByTestId("restart-modal-restart"));
 
       expect(restartAppAfterPhoenixdRemoteChange).toHaveBeenCalledTimes(1);
     });
 
-    it("submits remote=false and shows the restart modal without a countdown when not running in Electron", async () => {
+    it("closes the restart modal without a relaunch when manually closed", async () => {
       walletService.updatePhoenixdRemote.mockResolvedValue({ message: "Switched to local phoenixd — restart required to apply" });
       renderUnlocked();
 
@@ -260,20 +249,7 @@ describe("PhoenixdRemoteCardUnlocked", () => {
       await act(async () => {
         fireEvent.click(screen.getByText("phoenixdRemoteCard.submitButton"));
       });
-
-      expect(screen.getByTestId("restart-modal")).toBeInTheDocument();
-      expect(screen.getByTestId("restart-modal-countdown").textContent).toBe("undefined");
-    });
-
-    it("closes the restart modal when acknowledged outside Electron, without triggering a relaunch", async () => {
-      walletService.updatePhoenixdRemote.mockResolvedValue({ message: "Switched to local phoenixd — restart required to apply" });
-      renderUnlocked();
-
-      fireEvent.click(screen.getByText("set-remote-false"));
-      await act(async () => {
-        fireEvent.click(screen.getByText("phoenixdRemoteCard.submitButton"));
-      });
-      fireEvent.click(screen.getByTestId("restart-modal-acknowledge"));
+      fireEvent.click(screen.getByTestId("restart-modal-manual-close"));
 
       expect(restartAppAfterPhoenixdRemoteChange).not.toHaveBeenCalled();
       expect(screen.queryByTestId("restart-modal")).not.toBeInTheDocument();

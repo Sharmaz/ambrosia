@@ -1,6 +1,6 @@
-import { render, screen, fireEvent, act, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, act } from "@testing-library/react";
 
-import { restartBackendAfterImport } from "@/utils/restartBackendAfterImport";
+import { restartAppAfterImport } from "@/utils/restartAppAfterImport";
 import { confirmPendingRestore, restoreFromBackup } from "@services/initialSetupService";
 import { selectBackupFile } from "@test-utils/selectBackupFile";
 
@@ -11,8 +11,17 @@ jest.mock("@services/initialSetupService", () => ({
   confirmPendingRestore: jest.fn(),
 }));
 
-jest.mock("@/utils/restartBackendAfterImport", () => ({
-  restartBackendAfterImport: jest.fn(),
+jest.mock("@/utils/restartAppAfterImport");
+
+jest.mock("@components/shared/RestartRequiredModal", () => ({
+  RestartRequiredModal: ({ isOpen, onManualClose, onRestart }) => (
+    isOpen ? (
+      <div data-testid="restart-modal">
+        <button type="button" data-testid="restart-modal-manual-close" onClick={onManualClose}>manual-close</button>
+        <button type="button" data-testid="restart-modal-restart" onClick={onRestart}>restart</button>
+      </div>
+    ) : null
+  ),
 }));
 
 const mockAddToast = jest.fn();
@@ -31,7 +40,6 @@ function renderStep(onBack = jest.fn()) {
 describe("RestoreFromBackupStep", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    restartBackendAfterImport.mockResolvedValue(false);
     confirmPendingRestore.mockResolvedValue(undefined);
   });
 
@@ -161,35 +169,11 @@ describe("RestoreFromBackupStep", () => {
     expect(screen.getByText("restore.phaseExtracting 80%")).toBeInTheDocument();
   });
 
-  it("shows a blocking restart-required modal outside Electron on success", async () => {
-    restoreFromBackup.mockResolvedValue({ ok: true });
-
-    await act(async () => {
-      renderStep();
-    });
-
-    fireEvent.change(screen.getByLabelText("hide-show-backup-password"), { target: { value: "secret" } });
-    selectBackupFile();
-
-    await act(async () => {
-      fireEvent.click(screen.getByText("restore.submitButton"));
-    });
-
-    expect(await screen.findByText("acknowledgeButton")).toBeInTheDocument();
-    expect(mockAddToast).not.toHaveBeenCalledWith(
-      expect.objectContaining({ description: "restore.restartRequiredElectron" }),
-    );
-  });
-
-  it("confirms the pending restore before triggering the restart", async () => {
+  it("confirms the pending restore before showing the restart modal", async () => {
     const callOrder = [];
     confirmPendingRestore.mockImplementation(async () => {
       callOrder.push("confirm");
     });
-    restartBackendAfterImport.mockImplementation(async () => {
-      callOrder.push("restart");
-      return false;
-    });
     restoreFromBackup.mockResolvedValue({ ok: true });
 
     await act(async () => {
@@ -202,12 +186,12 @@ describe("RestoreFromBackupStep", () => {
     await act(async () => {
       fireEvent.click(screen.getByText("restore.submitButton"));
     });
+    callOrder.push(screen.getByTestId("restart-modal") ? "modal" : "no-modal");
 
-    expect(callOrder).toEqual(["confirm", "restart"]);
+    expect(callOrder).toEqual(["confirm", "modal"]);
   });
 
-  it("shows the Electron restart message on success when the backend restarts automatically", async () => {
-    restartBackendAfterImport.mockResolvedValue(true);
+  it("passes restartAppAfterImport as onRestart to the restart modal", async () => {
     restoreFromBackup.mockResolvedValue({ ok: true });
 
     await act(async () => {
@@ -220,11 +204,27 @@ describe("RestoreFromBackupStep", () => {
     await act(async () => {
       fireEvent.click(screen.getByText("restore.submitButton"));
     });
+    fireEvent.click(screen.getByTestId("restart-modal-restart"));
 
-    await waitFor(() => {
-      expect(mockAddToast).toHaveBeenCalledWith(
-        expect.objectContaining({ description: "restore.restartRequiredElectron" }),
-      );
+    expect(restartAppAfterImport).toHaveBeenCalledTimes(1);
+  });
+
+  it("closes the restart modal without a relaunch when manually closed", async () => {
+    restoreFromBackup.mockResolvedValue({ ok: true });
+
+    await act(async () => {
+      renderStep();
     });
+
+    fireEvent.change(screen.getByLabelText("hide-show-backup-password"), { target: { value: "secret" } });
+    selectBackupFile();
+
+    await act(async () => {
+      fireEvent.click(screen.getByText("restore.submitButton"));
+    });
+    fireEvent.click(screen.getByTestId("restart-modal-manual-close"));
+
+    expect(restartAppAfterImport).not.toHaveBeenCalled();
+    expect(screen.queryByTestId("restart-modal")).not.toBeInTheDocument();
   });
 });

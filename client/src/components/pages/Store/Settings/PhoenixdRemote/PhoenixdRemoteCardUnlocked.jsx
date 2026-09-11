@@ -14,11 +14,8 @@ import { restartAppAfterPhoenixdRemoteChange } from "@/utils/restartAppAfterPhoe
 import WalletGuard from "@components/auth/WalletGuard";
 import { PhoenixdRemoteFields } from "@components/shared/PhoenixdRemoteFields";
 import { RestartRequiredModal } from "@components/shared/RestartRequiredModal";
-import { isElectron } from "@lib/isElectron";
 
 import { PhoenixdRemoteActivatedModal } from "./PhoenixdRemoteActivatedModal";
-
-const RESTART_COUNTDOWN_SECONDS = 5;
 
 export function PhoenixdRemoteCardUnlocked({ onHide, phoenixdRemoteCardTranslations }) {
   const [phoenixdRemote, setPhoenixdRemote] = useState(undefined);
@@ -122,8 +119,8 @@ export function PhoenixdRemoteCardUnlocked({ onHide, phoenixdRemoteCardTranslati
       </Card>
       <RestartRequiredModal
         isOpen={showRestartModal}
-        onAcknowledge={isElectron ? restartAppAfterPhoenixdRemoteChange : () => setShowRestartModal(false)}
-        countdownSeconds={isElectron ? RESTART_COUNTDOWN_SECONDS : undefined}
+        onManualClose={() => setShowRestartModal(false)}
+        onRestart={restartAppAfterPhoenixdRemoteChange}
       />
       <PhoenixdRemoteActivatedModal
         isOpen={showRemoteActivatedModal}

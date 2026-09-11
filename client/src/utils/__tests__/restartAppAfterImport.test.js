@@ -1,4 +1,4 @@
-import { restartBackendAfterImport } from "../restartBackendAfterImport";
+import { restartAppAfterImport } from "../restartAppAfterImport";
 
 let mockIsElectron = false;
 jest.mock("@lib/isElectron", () => ({
@@ -7,7 +7,7 @@ jest.mock("@lib/isElectron", () => ({
   },
 }));
 
-describe("restartBackendAfterImport", () => {
+describe("restartAppAfterImport", () => {
   beforeEach(() => {
     mockIsElectron = false;
   });
@@ -17,19 +17,19 @@ describe("restartBackendAfterImport", () => {
   });
 
   it("returns false without invoking any IPC channel outside Electron", async () => {
-    const restartTriggered = await restartBackendAfterImport();
+    const restartTriggered = await restartAppAfterImport();
 
     expect(restartTriggered).toBe(false);
   });
 
-  it("invokes services:restart with backend and returns true inside Electron", async () => {
+  it("invokes app:relaunch and returns true inside Electron", async () => {
     mockIsElectron = true;
     const mockInvoke = jest.fn().mockResolvedValue(undefined);
     window.electron = { ipc: { invoke: mockInvoke } };
 
-    const restartTriggered = await restartBackendAfterImport();
+    const restartTriggered = await restartAppAfterImport();
 
-    expect(mockInvoke).toHaveBeenCalledWith("services:restart", "backend");
+    expect(mockInvoke).toHaveBeenCalledWith("app:relaunch");
     expect(restartTriggered).toBe(true);
   });
 });

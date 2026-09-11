@@ -119,7 +119,6 @@ const onboardingEn = {
     pendingRestoreError: "Setup may already be complete, or a previous restore is still pending — refresh the page, or restart the server, then try again.",
     successTitle: "Backup restored",
     successDescription: "The server needs to restart to finish loading your data.",
-    restartRequiredElectron: "Restarting the app now...",
   },
   step4: {
     title: "Summary of your setup",

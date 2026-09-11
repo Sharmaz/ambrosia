@@ -1,7 +1,7 @@
 import { render, screen, fireEvent, act } from "@testing-library/react";
 
 import * as backupService from "@/services/backupService";
-import { restartBackendAfterImport } from "@/utils/restartBackendAfterImport";
+import { restartAppAfterImport } from "@/utils/restartAppAfterImport";
 import { MockHeroUIProgress } from "@test-utils/mockHeroUIProgress";
 
 import { ImportData } from "../ImportData";
@@ -54,8 +54,17 @@ jest.mock("@components/auth/WalletGuard", () => function MockWalletGuard({ child
 },
 );
 
-jest.mock("@/utils/restartBackendAfterImport", () => ({
-  restartBackendAfterImport: jest.fn(),
+jest.mock("@/utils/restartAppAfterImport");
+
+jest.mock("@components/shared/RestartRequiredModal", () => ({
+  RestartRequiredModal: ({ isOpen, onManualClose, onRestart }) => (
+    isOpen ? (
+      <div data-testid="restart-modal">
+        <button type="button" data-testid="restart-modal-manual-close" onClick={onManualClose}>manual-close</button>
+        <button type="button" data-testid="restart-modal-restart" onClick={onRestart}>restart</button>
+      </div>
+    ) : null
+  ),
 }));
 
 async function unlockSelectFileAndImport() {
@@ -72,7 +81,6 @@ async function unlockSelectFileAndImport() {
 
 beforeEach(() => {
   jest.clearAllMocks();
-  restartBackendAfterImport.mockResolvedValue(false);
   jest.spyOn(backupService, "confirmPendingImport").mockResolvedValue(undefined);
 });
 
@@ -144,48 +152,39 @@ describe("ImportData", () => {
       );
     });
 
-    it("shows a blocking restart-required modal when not running in Electron", async () => {
-      const { addToast } = require("@heroui/react");
-      jest.spyOn(backupService, "importBackup").mockResolvedValue({ businessName: "Awesome Store" });
-      restartBackendAfterImport.mockResolvedValue(false);
-      render(<ImportData />);
-
-      await unlockSelectFileAndImport();
-
-      expect(await screen.findByText("acknowledgeButton")).toBeInTheDocument();
-      expect(addToast).not.toHaveBeenCalledWith(
-        expect.objectContaining({ description: "cardImportData.restartRequiredElectron" }),
-      );
-    });
-
-    it("confirms the pending import before triggering the restart", async () => {
+    it("confirms the pending import before showing the restart modal", async () => {
       const callOrder = [];
       jest.spyOn(backupService, "importBackup").mockResolvedValue({ businessName: "Awesome Store" });
       backupService.confirmPendingImport.mockImplementation(async () => {
         callOrder.push("confirm");
       });
-      restartBackendAfterImport.mockImplementation(async () => {
-        callOrder.push("restart");
-        return false;
-      });
       render(<ImportData />);
 
       await unlockSelectFileAndImport();
+      callOrder.push(screen.getByTestId("restart-modal") ? "modal" : "no-modal");
 
-      expect(callOrder).toEqual(["confirm", "restart"]);
+      expect(callOrder).toEqual(["confirm", "modal"]);
     });
 
-    it("shows the Electron restart message when the backend restarts automatically", async () => {
-      const { addToast } = require("@heroui/react");
+    it("passes restartAppAfterImport as onRestart to the restart modal", async () => {
       jest.spyOn(backupService, "importBackup").mockResolvedValue({ businessName: "Awesome Store" });
-      restartBackendAfterImport.mockResolvedValue(true);
       render(<ImportData />);
 
       await unlockSelectFileAndImport();
+      fireEvent.click(screen.getByTestId("restart-modal-restart"));
 
-      expect(addToast).toHaveBeenCalledWith(
-        expect.objectContaining({ color: "primary", description: "cardImportData.restartRequiredElectron" }),
-      );
+      expect(restartAppAfterImport).toHaveBeenCalledTimes(1);
+    });
+
+    it("closes the restart modal without a relaunch when manually closed", async () => {
+      jest.spyOn(backupService, "importBackup").mockResolvedValue({ businessName: "Awesome Store" });
+      render(<ImportData />);
+
+      await unlockSelectFileAndImport();
+      fireEvent.click(screen.getByTestId("restart-modal-manual-close"));
+
+      expect(restartAppAfterImport).not.toHaveBeenCalled();
+      expect(screen.queryByTestId("restart-modal")).not.toBeInTheDocument();
     });
   });
 
@@ -199,13 +198,13 @@ describe("ImportData", () => {
       expect(await screen.findByText("cardImportData.errorDescription")).toBeInTheDocument();
     });
 
-    it("does not trigger the restart flow when importBackup throws", async () => {
+    it("does not show the restart modal when importBackup throws", async () => {
       jest.spyOn(backupService, "importBackup").mockRejectedValue(new Error("Invalid backup file"));
       render(<ImportData />);
 
       await unlockSelectFileAndImport();
 
-      expect(restartBackendAfterImport).not.toHaveBeenCalled();
+      expect(screen.queryByTestId("restart-modal")).not.toBeInTheDocument();
     });
   });
 
