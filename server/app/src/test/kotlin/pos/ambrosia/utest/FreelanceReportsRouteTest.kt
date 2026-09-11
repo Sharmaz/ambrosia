@@ -37,7 +37,8 @@ class FreelanceReportsRouteTest {
     @Test
     fun `route requires authentication and the matching permission`() =
         testApplication {
-            val auth = installNonAdminAuth("freelance-reports-no-permission", "freelance-reports-no-permission-user")
+            val authWithoutPermission =
+                installNonAdminAuth("freelance-reports-no-permission", "freelance-reports-no-permission-user")
             application {
                 install(ContentNegotiation) { json() }
                 handler()
@@ -52,7 +53,7 @@ class FreelanceReportsRouteTest {
                 HttpStatusCode.Forbidden,
                 client
                     .get("/freelance/billing-reports?from=2026-08-17&to=2026-08-23") {
-                        withAuthCookies(auth)
+                        withAuthCookies(authWithoutPermission)
                     }.status,
             )
         }
@@ -60,7 +61,7 @@ class FreelanceReportsRouteTest {
     @Test
     fun `missing from or to returns bad request`() =
         testApplication {
-            val auth = installNonAdminAuth("freelance-reports-invalid", "freelance-reports-invalid-user")
+            val authWithPermission = installNonAdminAuth("freelance-reports-invalid", "freelance-reports-invalid-user")
             grantPermission("freelance-reports-invalid", "freelance_reports_read")
             application {
                 install(ContentNegotiation) { json() }
@@ -70,18 +71,21 @@ class FreelanceReportsRouteTest {
 
             assertEquals(
                 HttpStatusCode.BadRequest,
-                client.get("/freelance/billing-reports?from=2026-08-17") { withAuthCookies(auth) }.status,
+                client.get("/freelance/billing-reports?from=2026-08-17") { withAuthCookies(authWithPermission) }.status,
             )
             assertEquals(
                 HttpStatusCode.BadRequest,
-                client.get("/freelance/billing-reports?from=2026-08-24&to=2026-08-17") { withAuthCookies(auth) }.status,
+                client
+                    .get("/freelance/billing-reports?from=2026-08-24&to=2026-08-17") {
+                        withAuthCookies(authWithPermission)
+                    }.status,
             )
         }
 
     @Test
     fun `happy path returns the grouped report`() =
         testApplication {
-            val auth = installNonAdminAuth("freelance-reports-read", "freelance-reports-read-user")
+            val authWithPermission = installNonAdminAuth("freelance-reports-read", "freelance-reports-read-user")
             grantPermission("freelance-reports-read", "freelance_reports_read")
             val currencyId = ExposedTestDb.seedCurrency("USD")
             val clientId = ExposedTestDb.seedClient("Client Alpha", currencyId, hourlyRateCents = 6_000)
@@ -94,13 +98,13 @@ class FreelanceReportsRouteTest {
                 configureFreelanceReports()
             }
 
-            val response =
+            val billingReportResponse =
                 client.get("/freelance/billing-reports?from=2026-08-17&to=2026-08-23&client_id=$clientId") {
-                    withAuthCookies(auth)
+                    withAuthCookies(authWithPermission)
                 }
 
-            assertEquals(HttpStatusCode.OK, response.status)
-            val report = Json.decodeFromString<FreelanceReportResponse>(response.bodyAsText())
+            assertEquals(HttpStatusCode.OK, billingReportResponse.status)
+            val report = Json.decodeFromString<FreelanceReportResponse>(billingReportResponse.bodyAsText())
             val currencyGroup = report.currencies.single()
             assertEquals("USD", currencyGroup.currencyAcronym)
             val projectGroup = currencyGroup.projects.single()
