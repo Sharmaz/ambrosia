@@ -940,6 +940,41 @@ data class TimeEntryResponse(
 )
 
 @Serializable
+data class FreelanceReportTaskGroup(
+    val taskId: String,
+    val taskName: String,
+    val durationMinutes: Int,
+    val amountCents: Int,
+)
+
+@Serializable
+data class FreelanceReportProjectGroup(
+    val projectId: String,
+    val projectName: String,
+    val clientId: String,
+    val clientName: String,
+    val durationMinutes: Int,
+    val amountCents: Int,
+    val tasks: List<FreelanceReportTaskGroup>,
+)
+
+@Serializable
+data class FreelanceReportCurrencyGroup(
+    val currencyId: String,
+    val currencyAcronym: String,
+    val totalDurationMinutes: Int,
+    val totalAmountCents: Int,
+    val projects: List<FreelanceReportProjectGroup>,
+)
+
+@Serializable
+data class FreelanceReportResponse(
+    val from: String,
+    val to: String,
+    val currencies: List<FreelanceReportCurrencyGroup>,
+)
+
+@Serializable
 data class BackupManifest(
     val appVersion: String,
     val schemaInstalledRank: Int?,
