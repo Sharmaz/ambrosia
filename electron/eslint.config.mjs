@@ -150,7 +150,7 @@ const eslintConfig = [
     },
   },
   {
-    files: ['**/__tests__/**/*.test.js'],
+    files: ['**/__tests__/**/*.test.js', 'test-utils/**/*.js'],
     languageOptions: {
       globals: {
         // vitest globals
