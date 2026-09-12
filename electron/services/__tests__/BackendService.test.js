@@ -28,6 +28,7 @@ beforeEach(() => {
   spawnMock.mockReset().mockReturnValue(fakeSpawnedProcess);
   treeKillMock.mockReset().mockImplementation((_pid, _signal, callback) => callback());
   healthCheck.checkBackend.mockReset().mockResolvedValue(true);
+  vi.spyOn(fs, 'readdirSync').mockReturnValue(['ambrosia-0.8.0-beta.jar']);
   vi.spyOn(fs, 'existsSync').mockReturnValue(true);
   vi.spyOn(fs, 'mkdirSync').mockImplementation(() => {});
   vi.spyOn(fs, 'createWriteStream').mockImplementation(createFakeWriteStream);
