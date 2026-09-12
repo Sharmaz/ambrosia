@@ -23,6 +23,7 @@ const transactionsEs = {
       invoiceSatsToFiatError: "No se pudo convertir a fiat",
       invoiceFiatToSatsError: "No se pudo convertir a satoshis",
       invoiceCreateError: "Error al crear el invoice",
+      secretsLockedError: "El cifrado de secretos está bloqueado. Desbloquéalo en Configuración → Cifrado de secretos para recibir pagos.",
     },
     send: {
       tabTitle: "Enviar",
@@ -99,6 +100,7 @@ const transactionsEs = {
       fee: "Comisión:",
       getTransactionsError: "Error al cargar historial",
       getTransactionsErrorDescription: "No se pudo cargar el historial de transacciones",
+      secretsLockedErrorDescription: "El cifrado de secretos está bloqueado. Desbloquéalo en Configuración → Cifrado de secretos para ver tu historial de transacciones.",
     },
   },
   invoiceModal: {
