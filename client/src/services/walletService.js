@@ -10,6 +10,10 @@ function createWalletServiceError(message, errorDetails = {}) {
   return error;
 }
 
+export function isSecretsLockedError(error) {
+  return error?.status === 409;
+}
+
 function isValidPaymentResponse(paymentResponseBody) {
   return (
     paymentResponseBody &&

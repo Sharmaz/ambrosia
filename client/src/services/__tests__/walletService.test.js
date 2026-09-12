@@ -25,6 +25,7 @@ import {
   updatePhoenixdRemote,
   getPhoenixdRemoteStatus,
   closeChannel,
+  isSecretsLockedError,
 } from "../walletService";
 
 function makeResponse(status, ok = true) {
@@ -552,6 +553,21 @@ describe("walletService", () => {
       const closedChannel = await closeChannel("ch-1", "bc1qxyz", 5);
 
       expect(closedChannel).toEqual(closeChannelResult);
+    });
+  });
+
+  describe("isSecretsLockedError", () => {
+    it("returns true when the error status is 409", () => {
+      expect(isSecretsLockedError({ status: 409 })).toBe(true);
+    });
+
+    it("returns false when the error status is not 409", () => {
+      expect(isSecretsLockedError({ status: 500 })).toBe(false);
+    });
+
+    it("returns false when the error is null or undefined", () => {
+      expect(isSecretsLockedError(null)).toBe(false);
+      expect(isSecretsLockedError(undefined)).toBe(false);
     });
   });
 });
