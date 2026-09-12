@@ -50,10 +50,13 @@ export function StoreWallet() {
       setError("");
     } catch (walletInfoError) {
       console.error(walletInfoError);
-      setError(walletTranslations("nodeInfo.fetchInfoError"));
+      const isSecretsLocked = walletInfoError.status === 409;
+      setError(walletTranslations(isSecretsLocked ? "nodeInfo.secretsLockedError" : "nodeInfo.fetchInfoError"));
       addToast({
         title: walletTranslations("errorTitle"),
-        description: walletTranslations("nodeInfo.getInfoErrorDescription"),
+        description: walletTranslations(
+          isSecretsLocked ? "nodeInfo.secretsLockedErrorDescription" : "nodeInfo.getInfoErrorDescription",
+        ),
         variant: "solid",
         color: "danger",
       });
