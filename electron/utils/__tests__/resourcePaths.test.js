@@ -3,6 +3,7 @@ const os = require('os');
 const path = require('path');
 
 const { installElectronMock, setIsPackaged, resetElectronMock } = require('../../test-utils/electronMock');
+const { setPlatformAndArch, restorePlatformAndArch } = require('../../test-utils/platformMock');
 
 let resourcePaths;
 
@@ -11,14 +12,6 @@ beforeAll(() => {
   resourcePaths = require('../resourcePaths');
 });
 
-const originalPlatform = process.platform;
-const originalArch = process.arch;
-
-function setPlatformAndArch(platform, arch) {
-  Object.defineProperty(process, 'platform', { value: platform, configurable: true });
-  Object.defineProperty(process, 'arch', { value: arch, configurable: true });
-}
-
 beforeEach(() => {
   resetElectronMock();
   delete process.env.NODE_ENV;
@@ -26,8 +19,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  Object.defineProperty(process, 'platform', { value: originalPlatform, configurable: true });
-  Object.defineProperty(process, 'arch', { value: originalArch, configurable: true });
+  restorePlatformAndArch();
   vi.restoreAllMocks();
 });
 
