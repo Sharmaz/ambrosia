@@ -8,7 +8,8 @@ const electronModuleExports = {
   },
 };
 
-function installElectronMock() {
+function installElectronMock(additionalExports = {}) {
+  Object.assign(electronModuleExports, additionalExports);
   const electronPath = require.resolve('electron');
   require.cache[electronPath] = {
     id: electronPath,
