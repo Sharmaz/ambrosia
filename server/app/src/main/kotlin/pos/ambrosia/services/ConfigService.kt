@@ -11,6 +11,7 @@ class ConfigService {
             id = entity.id.value,
             businessType = entity.businessType,
             businessName = entity.businessName,
+            businessProfession = entity.businessProfession,
             businessAddress = entity.businessAddress,
             businessPhone = entity.businessPhone,
             businessEmail = entity.businessEmail,
@@ -32,6 +33,7 @@ class ConfigService {
             val entity = ConfigEntity.findById(1) ?: ConfigEntity.new(1) {}
             entity.businessType = config.businessType
             entity.businessName = config.businessName
+            entity.businessProfession = config.businessProfession
             entity.businessAddress = config.businessAddress
             entity.businessPhone = config.businessPhone
             entity.businessEmail = config.businessEmail
