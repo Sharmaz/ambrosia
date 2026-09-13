@@ -65,23 +65,23 @@ describe("Step 1 Business Type Selection", () => {
     expect(mockChange).toHaveBeenCalledWith("store");
   });
 
-  it("calls onChange with 'freelance' when the freelancer card is clicked", () => {
+  it("disables the freelancer card, like the restaurant card", () => {
+    renderBusinessTypeStep();
+    expect(screen.getByLabelText("restaurant")).toHaveAttribute("data-disabled", "true");
+    expect(screen.getByLabelText("freelance")).toHaveAttribute("data-disabled", "true");
+  });
+
+  it("does not call onChange when the freelancer card is clicked", () => {
     renderBusinessTypeStep();
     const freelanceCard = screen.getByLabelText("freelance");
     fireEvent.click(freelanceCard);
-    expect(mockChange).toHaveBeenCalledWith("freelance");
+    expect(mockChange).not.toHaveBeenCalled();
   });
 
   it("applies active styling when store is selected", () => {
     renderBusinessTypeStep("store");
     const storeCard = screen.getByLabelText("store");
     expect(storeCard).toHaveClass("bg-green-100");
-  });
-
-  it("applies active styling when freelance is selected", () => {
-    renderBusinessTypeStep("freelance");
-    const freelanceCard = screen.getByLabelText("freelance");
-    expect(freelanceCard).toHaveClass("bg-green-100");
   });
 
   it("does not apply active styling when no selection is made", () => {
