@@ -4,8 +4,11 @@ import { useTranslations } from "next-intl";
 
 import { EditButton } from "@components/shared/EditButton";
 
+import { getBusinessTypeLabelKeys, KNOWN_BUSINESS_TYPES } from "./utils/businessTypeLabels";
+
 export function WizardSummary({ onboardingData, onEdit }) {
   const summaryTranslations = useTranslations();
+  const nameLabelKey = getBusinessTypeLabelKeys(onboardingData.businessType).nameLabel;
 
   return (
     <div>
@@ -18,9 +21,7 @@ export function WizardSummary({ onboardingData, onEdit }) {
             <div className="flex flex-col">
               <p className="text-xs font-medium text-muted-foreground uppercase">{summaryTranslations("step4.sections.businessType.title")}</p>
               <p className="text-md font-semibold text-foreground mt-1">
-                {
-                  onboardingData.businessType === "store" ? summaryTranslations("step4.sections.businessType.store") : summaryTranslations("step4.sections.businessType.restaurant")
-                }
+                {summaryTranslations(`step4.sections.businessType.${KNOWN_BUSINESS_TYPES.includes(onboardingData.businessType) ? onboardingData.businessType : "restaurant"}`)}
               </p>
             </div>
             <EditButton onPress={() => onEdit(1)}>{summaryTranslations("buttons.edit")}</EditButton>
@@ -85,9 +86,15 @@ export function WizardSummary({ onboardingData, onEdit }) {
               <p className="text-xs font-medium text-muted-foreground uppercase">{summaryTranslations("step4.sections.businessDetails.title")}</p>
               <div className="mt-3 space-y-2">
                 <div>
-                  <p className="text-xs text-muted-foreground">{summaryTranslations("step4.sections.businessDetails.businessName")}</p>
+                  <p className="text-xs text-muted-foreground">{summaryTranslations(nameLabelKey)}</p>
                   <p className="font-semibold text-foreground">{onboardingData.businessName}</p>
                 </div>
+                {onboardingData.businessType === "freelance" && (
+                  <div>
+                    <p className="text-xs text-muted-foreground">{summaryTranslations("step4.sections.businessDetails.businessProfession")}</p>
+                    <p className="font-semibold text-foreground">{onboardingData.businessProfession}</p>
+                  </div>
+                )}
                 <div>
                   <p className="text-xs text-muted-foreground">{summaryTranslations("step4.sections.businessDetails.businessAddress")}</p>
                   <p className="font-semibold text-foreground">{onboardingData.businessAddress}</p>
