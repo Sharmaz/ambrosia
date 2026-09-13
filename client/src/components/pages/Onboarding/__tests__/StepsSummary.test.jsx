@@ -116,6 +116,35 @@ describe("Step 4 Summary", () => {
     expect(screen.queryByText("step4.sections.secretsEncryption.active")).not.toBeInTheDocument();
   });
 
+  it("shows the profession row and the professional name label when the business type is freelance", async () => {
+    const freelanceData = { ...baseData, businessType: "freelance", businessProfession: "Graphic Designer" };
+
+    await act(async () => {
+      render(<WizardSummary onboardingData={freelanceData} onEdit={mockOnEdit} />);
+    });
+
+    expect(screen.getByText("step4.sections.businessType.freelance")).toBeInTheDocument();
+    expect(screen.getByText("step3.fields.businessrNameLabelFreelance")).toBeInTheDocument();
+    expect(screen.getByText("step4.sections.businessDetails.businessProfession")).toBeInTheDocument();
+    expect(screen.getByText("Graphic Designer")).toBeInTheDocument();
+  });
+
+  it("shows the store name label for a store business type", async () => {
+    await act(async () => {
+      render(<WizardSummary onboardingData={baseData} onEdit={mockOnEdit} />);
+    });
+
+    expect(screen.getByText("step3.fields.businessrNameLabelStore")).toBeInTheDocument();
+  });
+
+  it("does not show the profession row for non-freelance business types", async () => {
+    await act(async () => {
+      render(<WizardSummary onboardingData={baseData} onEdit={mockOnEdit} />);
+    });
+
+    expect(screen.queryByText("step4.sections.businessDetails.businessProfession")).not.toBeInTheDocument();
+  });
+
   it("renders the store logo if provided", async () => {
     const file = new File(["fake"], "logo.png", { type: "image/png" });
     const dataWithLogo = { ...baseData, businessLogo: file };
