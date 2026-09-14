@@ -34,8 +34,19 @@ jest.mock("@/services/secretsService", () => ({
   unlockSecrets: jest.fn(),
 }));
 
-const renderModal = (props = {}) => render(
-  <SecretsUnlockModal isOpen onClose={jest.fn()} {...props} />,
+jest.mock("@/hooks/usePermission");
+
+jest.mock("@components/auth/WalletGuard", () => function MockWalletGuard({ children, onCancel, title, passwordLabel, confirmText, cancelText }) {
+  return (
+    <div>
+      <span data-testid="guard-title">{title}</span>
+      <span data-testid="guard-password-label">{passwordLabel}</span>
+      <span data-testid="guard-confirm-text">{confirmText}</span>
+      <button type="button" data-testid="guard-cancel" onClick={onCancel}>{cancelText}</button>
+      {children}
+    </div>
+  );
+},
 );
 
 const originalError = console.error;
@@ -57,8 +68,26 @@ afterEach(() => {
 });
 
 describe("SecretsUnlockModal", () => {
+  it("passes the cancel callback through to WalletGuard", () => {
+    const onClose = jest.fn();
+    render(<SecretsUnlockModal onClose={onClose} />);
+
+    fireEvent.click(screen.getByTestId("guard-cancel"));
+
+    expect(onClose).toHaveBeenCalled();
+  });
+
+  it("passes the reused secretsEncryptionCard copy to WalletGuard", () => {
+    render(<SecretsUnlockModal onClose={jest.fn()} />);
+
+    expect(screen.getByTestId("guard-title")).toHaveTextContent("secretsEncryptionCard.modalTitle");
+    expect(screen.getByTestId("guard-password-label")).toHaveTextContent("secretsEncryptionCard.passwordLabel");
+    expect(screen.getByTestId("guard-confirm-text")).toHaveTextContent("secretsEncryptionCard.confirmButton");
+    expect(screen.getByTestId("guard-cancel")).toHaveTextContent("secretsEncryptionCard.cancelButton");
+  });
+
   it("disables the unlock button while the password is empty", () => {
-    renderModal();
+    render(<SecretsUnlockModal onClose={jest.fn()} />);
 
     expect(screen.getByText("secretsEncryptionCard.unlockButton")).toBeDisabled();
   });
@@ -67,7 +96,7 @@ describe("SecretsUnlockModal", () => {
     secretsService.unlockSecrets.mockResolvedValue({ message: "Secrets unlocked" });
     const dispatchEventSpy = jest.spyOn(window, "dispatchEvent");
     const onClose = jest.fn();
-    renderModal({ onClose });
+    render(<SecretsUnlockModal onClose={onClose} />);
 
     fireEvent.change(screen.getByLabelText("secretsEncryptionCard.unlockPasswordLabel"), {
       target: { value: "correct-unlock-password" },
@@ -90,7 +119,7 @@ describe("SecretsUnlockModal", () => {
   it("shows an error toast and does not close when unlocking fails", async () => {
     secretsService.unlockSecrets.mockRejectedValue(new Error("Invalid credentials"));
     const onClose = jest.fn();
-    renderModal({ onClose });
+    render(<SecretsUnlockModal onClose={onClose} />);
 
     fireEvent.change(screen.getByLabelText("secretsEncryptionCard.unlockPasswordLabel"), {
       target: { value: "wrong-password" },

@@ -89,7 +89,7 @@ export function StoreLayout({ children }) {
 
       <ShiftWidget />
 
-      <SecretsUnlockModal isOpen={unlockModalOpen} onClose={() => setUnlockModalOpen(false)} />
+      {unlockModalOpen && <SecretsUnlockModal onClose={() => setUnlockModalOpen(false)} />}
     </div>
   );
 }

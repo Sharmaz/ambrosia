@@ -14,6 +14,7 @@ import { StoreLayout } from "../StoreLayout";
 
 jest.mock("next/navigation", () => ({
   usePathname: jest.fn(() => "/store"),
+  useRouter: jest.fn(() => ({ push: jest.fn() })),
 }));
 
 jest.mock("lucide-react", () => ({
@@ -27,6 +28,8 @@ jest.mock("lucide-react", () => ({
   Menu: () => <div>Menu Icon</div>,
   X: () => <div>X Icon</div>,
   Lock: () => <div>Lock Icon</div>,
+  Eye: () => <div>Eye Icon</div>,
+  EyeOff: () => <div>EyeOff Icon</div>,
 }));
 
 jest.mock("@/lib/http", () => ({
@@ -886,7 +889,7 @@ describe("StoreLayout", () => {
       expect(screen.queryByLabelText("Secrets locked")).not.toBeInTheDocument();
     });
 
-    it("opens the unlock modal when the locked badge is clicked", async () => {
+    it("opens the wallet guard prompt when the locked badge is clicked", async () => {
       getSecretsLockStatus.mockResolvedValue({ encryptionActive: true, locked: true });
 
       renderStoreLayout();
@@ -894,7 +897,7 @@ describe("StoreLayout", () => {
 
       fireEvent.click(within(getDesktopSidebar()).getByLabelText("Secrets locked"));
 
-      expect(screen.getByText("secretsEncryptionCard.unlockButton")).toBeInTheDocument();
+      expect(screen.getByText("secretsEncryptionCard.modalTitle")).toBeInTheDocument();
     });
   });
 });
