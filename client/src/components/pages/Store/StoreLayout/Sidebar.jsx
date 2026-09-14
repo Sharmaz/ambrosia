@@ -16,14 +16,29 @@ import { NotificationBadge } from "./NotificationBadge";
 const WALLET_ROUTE = "/store/wallet";
 
 function NavBarButton({ text, icon, href, isActive, id, onClick, badgeCount, isLocked, onLockClick }) {
+  const isCriticallyLocked = isLocked && href === WALLET_ROUTE;
+
+  const handleClick = (event) => {
+    if (isCriticallyLocked) {
+      event.preventDefault();
+      onLockClick?.();
+      return;
+    }
+    onClick?.();
+  };
+
+  const rowStateClassName = isCriticallyLocked
+    ? "bg-red-600/70 text-slate-100 hover:bg-red-600/80"
+    : isActive
+      ? "bg-green-300 text-green-800 hover:bg-green-300 hover:text-green-800"
+      : "text-slate-100 hover:bg-green-300 hover:text-green-800";
+
   return (
     <Link
       id={id}
       href={href}
-      onClick={onClick}
-      className={`flex items-center space-x-2 p-2 rounded-md transition-colors hover:bg-green-300 hover:text-green-800 ${
-        isActive ? "bg-green-300 text-green-800" : "text-slate-100"
-      }`}
+      onClick={handleClick}
+      className={`flex items-center space-x-2 p-2 rounded-md transition-colors ${rowStateClassName}`}
     >
       <NavIcon name={icon} className="w-6 h-6 md:w-5 md:h-5 lg:w-6 lg:h-6" />
       <span className="pl-2 text-2xl md:text-lg lg:text-2xl">{text}</span>
@@ -34,7 +49,7 @@ function NavBarButton({ text, icon, href, isActive, id, onClick, badgeCount, isL
       <LockedBadge
         isLocked={isLocked}
         onClick={onLockClick}
-        className="ml-auto text-slate-100 hover:text-white"
+        className="ml-auto text-slate-100 rounded-md bg-white/20 p-2"
       />
     </Link>
   );

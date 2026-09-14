@@ -122,5 +122,37 @@ describe("SidebarContent", () => {
 
       expect(onSecretsLockClick).toHaveBeenCalledTimes(1);
     });
+
+    it("puts a red background on the wallet item when secretsLocked is true", () => {
+      renderSidebar({ availableNavigation: navWithWallet, secretsLocked: true });
+
+      expect(screen.getByText("wallet").closest("a")).toHaveClass("bg-red-600/70");
+    });
+
+    it("does not put a red background on the wallet item when secretsLocked is false", () => {
+      renderSidebar({ availableNavigation: navWithWallet, secretsLocked: false });
+
+      expect(screen.getByText("wallet").closest("a")).not.toHaveClass("bg-red-600/70");
+    });
+
+    it("opens the unlock flow instead of navigating when clicking anywhere on the wallet item and secretsLocked is true", () => {
+      const onSecretsLockClick = jest.fn();
+      renderSidebar({ availableNavigation: navWithWallet, secretsLocked: true, onSecretsLockClick });
+
+      const navigationAllowed = fireEvent.click(screen.getByText("wallet"));
+
+      expect(onSecretsLockClick).toHaveBeenCalledTimes(1);
+      expect(navigationAllowed).toBe(false);
+    });
+
+    it("navigates normally when clicking anywhere on the wallet item and secretsLocked is false", () => {
+      const onSecretsLockClick = jest.fn();
+      renderSidebar({ availableNavigation: navWithWallet, secretsLocked: false, onSecretsLockClick });
+
+      const navigationAllowed = fireEvent.click(screen.getByText("wallet"));
+
+      expect(onSecretsLockClick).not.toHaveBeenCalled();
+      expect(navigationAllowed).toBe(true);
+    });
   });
 });
