@@ -9,6 +9,8 @@
     "dev:inspect": "npm run build:preload && electron --inspect=5858 .",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "build:preload": "node scripts/build-preload.js",
     "build:prepare": "node scripts/prepare-resources-wrapper.js",
     "build": "npm run build:prepare && electron-builder",
@@ -40,7 +42,8 @@
     "esbuild": "0.28.1",
     "eslint": "^9.39.2",
     "eslint-plugin-import": "^2.32.0",
-    "eslint-plugin-n": "^17.23.1"
+    "eslint-plugin-n": "^17.23.1",
+    "vitest": "5.0.0"
   },
   "dependencies": {
     "cross-spawn": "^7.0.6",
