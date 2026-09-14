@@ -192,6 +192,26 @@ describe("SecretsEncryptionCardDetails", () => {
       );
     });
 
+    it("dispatches SECRETS_UNLOCKED_EVENT after activating successfully", async () => {
+      secretsService.activateSecretsEncryption.mockResolvedValue({ message: "Secrets encryption activated" });
+      const dispatchEventSpy = jest.spyOn(window, "dispatchEvent");
+
+      fireEvent.change(screen.getByTestId("secrets-unlock-password-field"), {
+        target: { value: "correct-unlock-password" },
+      });
+      fireEvent.change(screen.getByTestId("secrets-unlock-password-confirm-field"), {
+        target: { value: "correct-unlock-password" },
+      });
+      await act(async () => {
+        fireEvent.click(screen.getByText("secretsEncryptionCard.activateButton"));
+      });
+
+      expect(dispatchEventSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ type: secretsService.SECRETS_UNLOCKED_EVENT }),
+      );
+      dispatchEventSpy.mockRestore();
+    });
+
     it("shows an error toast when activation fails", async () => {
       secretsService.activateSecretsEncryption.mockRejectedValue(new Error("Could not reach the server"));
       const { addToast } = require("@heroui/react");
@@ -239,6 +259,23 @@ describe("SecretsEncryptionCardDetails", () => {
       expect(addToast).toHaveBeenCalledWith(
         expect.objectContaining({ color: "success", description: "secretsEncryptionCard.unlockSuccess" }),
       );
+    });
+
+    it("dispatches SECRETS_UNLOCKED_EVENT after unlocking successfully", async () => {
+      secretsService.unlockSecrets.mockResolvedValue({ message: "Secrets unlocked" });
+      const dispatchEventSpy = jest.spyOn(window, "dispatchEvent");
+
+      fireEvent.change(screen.getByLabelText("secretsEncryptionCard.unlockPasswordLabel"), {
+        target: { value: "correct-unlock-password" },
+      });
+      await act(async () => {
+        fireEvent.click(screen.getByText("secretsEncryptionCard.unlockButton"));
+      });
+
+      expect(dispatchEventSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ type: secretsService.SECRETS_UNLOCKED_EVENT }),
+      );
+      dispatchEventSpy.mockRestore();
     });
 
     it("shows an error toast when unlocking fails", async () => {

@@ -5,7 +5,12 @@ import { useState } from "react";
 import { addToast, Button, Card, CardBody, CardHeader, Input, Spinner } from "@heroui/react";
 
 import { RequirePermission } from "@/hooks/usePermission";
-import { activateSecretsEncryption, getSecretsStatus, unlockSecrets } from "@/services/secretsService";
+import {
+  activateSecretsEncryption,
+  getSecretsStatus,
+  SECRETS_UNLOCKED_EVENT,
+  unlockSecrets,
+} from "@/services/secretsService";
 import WalletGuard from "@components/auth/WalletGuard";
 import { SecretsUnlockPasswordField } from "@components/shared/SecretsUnlockPasswordField";
 
@@ -36,6 +41,7 @@ export function SecretsEncryptionCardDetails({ onHide, secretsEncryptionCardTran
       await activateSecretsEncryption(unlockPassword);
       addToast({ color: "success", description: secretsEncryptionCardTranslations("secretsEncryptionCard.activateSuccess") });
       setSecretsStatus({ encryptionActive: true, locked: false });
+      window.dispatchEvent(new Event(SECRETS_UNLOCKED_EVENT));
       setUnlockPassword("");
       setUnlockPasswordConfirmation("");
     } catch (activateSecretsEncryptionError) {
@@ -55,6 +61,7 @@ export function SecretsEncryptionCardDetails({ onHide, secretsEncryptionCardTran
       await unlockSecrets(unlockPassword);
       addToast({ color: "success", description: secretsEncryptionCardTranslations("secretsEncryptionCard.unlockSuccess") });
       setSecretsStatus({ encryptionActive: true, locked: false });
+      window.dispatchEvent(new Event(SECRETS_UNLOCKED_EVENT));
       setUnlockPassword("");
     } catch (unlockSecretsError) {
       addToast({
