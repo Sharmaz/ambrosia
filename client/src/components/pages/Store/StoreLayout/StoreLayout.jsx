@@ -15,7 +15,9 @@ import { useConfigurations } from "@providers/configurations/configurationsProvi
 
 import { BottomNav } from "./BottomNav";
 import { useAdminNotificationSignals } from "./hooks/useAdminNotificationSignals";
+import { useSecretsLockSignal } from "./hooks/useSecretsLockSignal";
 import { MobileDrawer } from "./MobileDrawer";
+import { SecretsUnlockModal } from "./SecretsUnlockModal";
 import { SidebarContent } from "./Sidebar";
 
 export function StoreLayout({ children }) {
@@ -27,12 +29,14 @@ export function StoreLayout({ children }) {
   const { availableNavigation, isAuth, isAdmin, logout } = useNavigation();
   const logoSrc = storedAssetUrl(config?.businessLogoUrl);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [unlockModalOpen, setUnlockModalOpen] = useState(false);
   const { notificationUnreadCount } = useAdminNotificationSignals({
     enabled: isAuth && isAdmin,
     locale,
     pathname,
     notificationsTranslations,
   });
+  const { secretsLocked } = useSecretsLockSignal({ enabled: isAuth });
 
   useSeedTour(isAuth);
   useWalletTour(isAuth);
@@ -50,6 +54,8 @@ export function StoreLayout({ children }) {
     config,
     logoSrc,
     notificationUnreadCount,
+    secretsLocked,
+    onSecretsLockClick: () => setUnlockModalOpen(true),
   };
 
   return (
@@ -82,6 +88,8 @@ export function StoreLayout({ children }) {
       />
 
       <ShiftWidget />
+
+      <SecretsUnlockModal isOpen={unlockModalOpen} onClose={() => setUnlockModalOpen(false)} />
     </div>
   );
 }

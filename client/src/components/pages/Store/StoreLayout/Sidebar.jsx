@@ -9,10 +9,13 @@ import { ADMIN_NOTIFICATIONS_ROUTE } from "@/lib/adminNotifications";
 
 import ambrosia from "../../../../../public/ambrosia.svg";
 
+import { LockedBadge } from "./LockedBadge";
 import { NavIcon } from "./NavIcon";
 import { NotificationBadge } from "./NotificationBadge";
 
-function NavBarButton({ text, icon, href, isActive, id, onClick, badgeCount }) {
+const WALLET_ROUTE = "/store/wallet";
+
+function NavBarButton({ text, icon, href, isActive, id, onClick, badgeCount, isLocked, onLockClick }) {
   return (
     <Link
       id={id}
@@ -27,6 +30,11 @@ function NavBarButton({ text, icon, href, isActive, id, onClick, badgeCount }) {
       <NotificationBadge
         count={badgeCount}
         className="ml-auto min-w-5 rounded-full bg-red-500 px-1.5 py-0.5 text-center text-xs font-semibold text-white"
+      />
+      <LockedBadge
+        isLocked={isLocked}
+        onClick={onLockClick}
+        className="ml-auto text-slate-100 hover:text-white"
       />
     </Link>
   );
@@ -43,6 +51,8 @@ export function SidebarContent({
   withTourIds,
   onNavClick,
   notificationUnreadCount,
+  secretsLocked,
+  onSecretsLockClick,
 }) {
   return (
     <>
@@ -75,6 +85,8 @@ export function SidebarContent({
                 href={item.path}
                 isActive={pathname === item.path || pathname.startsWith(item.path)}
                 badgeCount={item.path === ADMIN_NOTIFICATIONS_ROUTE ? notificationUnreadCount : 0}
+                isLocked={item.path === WALLET_ROUTE && secretsLocked}
+                onLockClick={onSecretsLockClick}
                 onClick={onNavClick}
               />
             ))}
