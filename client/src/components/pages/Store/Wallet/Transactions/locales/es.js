@@ -65,6 +65,7 @@ const transactionsEs = {
         amountOverrideNotSupported: "Esta wallet no puede procesar un pago con un monto específico para esta factura — pedí una factura que ya incluya el monto",
         retryGuidance: "Puedes reintentar, refrescar Lightning o contactar soporte si vuelve a pasar.",
         unknown: "No se pudo procesar el pago",
+        secretsLocked: "El cifrado de secretos está bloqueado. Desbloquéalo en Configuración → Cifrado de secretos para enviar pagos.",
       },
       closeButton: "Cerrar",
       confirmModal: {
