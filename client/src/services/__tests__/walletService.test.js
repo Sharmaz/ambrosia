@@ -538,6 +538,13 @@ describe("walletService", () => {
       await expect(closeChannel("ch-1", "bc1qxyz", 5)).rejects.toThrow("Channel not found");
     });
 
+    it("attaches the response status to the thrown error", async () => {
+      httpClient.mockResolvedValue(makeResponse(409, false));
+      parseJsonResponse.mockResolvedValue({ message: "Secrets are locked" });
+
+      await expect(closeChannel("ch-1", "bc1qxyz", 5)).rejects.toMatchObject({ status: 409 });
+    });
+
     it("throws fallback message when server provides no message", async () => {
       httpClient.mockResolvedValue(makeResponse(500, false));
       parseJsonResponse.mockResolvedValue({});
