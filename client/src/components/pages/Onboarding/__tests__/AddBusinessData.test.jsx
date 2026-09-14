@@ -95,8 +95,8 @@ describe("Step 3 Business Details", () => {
 
   it("calls onChange when profession changes for freelance", () => {
     renderBusinessDetails({ ...defaultData, businessType: "freelance", businessProfession: "" });
-    const input = screen.getByPlaceholderText("step3.fields.businessProfessionPlaceholder");
-    fireEvent.change(input, { target: { value: "Graphic Designer" } });
+    const professionInput = screen.getByPlaceholderText("step3.fields.businessProfessionPlaceholder");
+    fireEvent.change(professionInput, { target: { value: "Graphic Designer" } });
     expect(mockChange).toHaveBeenCalledWith(
       expect.objectContaining({ businessProfession: "Graphic Designer" }),
     );
