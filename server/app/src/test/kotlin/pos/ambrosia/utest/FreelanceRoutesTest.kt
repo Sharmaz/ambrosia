@@ -57,7 +57,7 @@ class FreelanceRoutesTest {
             }
 
             val createClientResponse =
-                client.post("/clients") {
+                client.post("/freelance/clients") {
                     withAuthCookies(authCookies)
                     header(HttpHeaders.ContentType, "application/json")
                     setBody(
@@ -70,10 +70,10 @@ class FreelanceRoutesTest {
                         }""",
                     )
                 }
-            val listClientsResponse = client.get("/clients") { withAuthCookies(authCookies) }
-            val getClientResponse = client.get("/clients/$clientId") { withAuthCookies(authCookies) }
+            val listClientsResponse = client.get("/freelance/clients") { withAuthCookies(authCookies) }
+            val getClientResponse = client.get("/freelance/clients/$clientId") { withAuthCookies(authCookies) }
             val updateClientResponse =
-                client.put("/clients/$clientId") {
+                client.put("/freelance/clients/$clientId") {
                     withAuthCookies(authCookies)
                     header(HttpHeaders.ContentType, "application/json")
                     setBody(
@@ -86,8 +86,8 @@ class FreelanceRoutesTest {
                         }""",
                     )
                 }
-            val deleteClientResponse = client.delete("/clients/$clientId") { withAuthCookies(authCookies) }
-            val getDeletedClientResponse = client.get("/clients/$clientId") { withAuthCookies(authCookies) }
+            val deleteClientResponse = client.delete("/freelance/clients/$clientId") { withAuthCookies(authCookies) }
+            val getDeletedClientResponse = client.get("/freelance/clients/$clientId") { withAuthCookies(authCookies) }
 
             assertEquals(HttpStatusCode.Created, createClientResponse.status)
             assertEquals(HttpStatusCode.OK, listClientsResponse.status)
@@ -110,7 +110,7 @@ class FreelanceRoutesTest {
             }
 
             val createProjectResponse =
-                client.post("/clients/$clientId/projects") {
+                client.post("/freelance/clients/$clientId/projects") {
                     withAuthCookies(authCookies)
                     header(HttpHeaders.ContentType, "application/json")
                     setBody(
@@ -122,9 +122,9 @@ class FreelanceRoutesTest {
                         }""",
                     )
                 }
-            val listProjectsResponse = client.get("/clients/$clientId/projects") { withAuthCookies(authCookies) }
+            val listProjectsResponse = client.get("/freelance/clients/$clientId/projects") { withAuthCookies(authCookies) }
             val missingClientProjectsResponse =
-                client.get("/clients/00000000-0000-0000-0000-000000000000/projects") {
+                client.get("/freelance/clients/00000000-0000-0000-0000-000000000000/projects") {
                     withAuthCookies(authCookies)
                 }
 
@@ -145,9 +145,9 @@ class FreelanceRoutesTest {
                 configureProjects()
             }
 
-            val getProjectResponse = client.get("/projects/$projectId") { withAuthCookies(authCookies) }
+            val getProjectResponse = client.get("/freelance/projects/$projectId") { withAuthCookies(authCookies) }
             val updateProjectResponse =
-                client.put("/projects/$projectId") {
+                client.put("/freelance/projects/$projectId") {
                     withAuthCookies(authCookies)
                     header(HttpHeaders.ContentType, "application/json")
                     setBody(
@@ -159,8 +159,8 @@ class FreelanceRoutesTest {
                         }""",
                     )
                 }
-            val deleteProjectResponse = client.delete("/projects/$projectId") { withAuthCookies(authCookies) }
-            val getDeletedProjectResponse = client.get("/projects/$projectId") { withAuthCookies(authCookies) }
+            val deleteProjectResponse = client.delete("/freelance/projects/$projectId") { withAuthCookies(authCookies) }
+            val getDeletedProjectResponse = client.get("/freelance/projects/$projectId") { withAuthCookies(authCookies) }
 
             assertEquals(HttpStatusCode.OK, getProjectResponse.status)
             assertEquals(HttpStatusCode.OK, updateProjectResponse.status)
@@ -181,7 +181,7 @@ class FreelanceRoutesTest {
             }
 
             val createPayoutAccountResponse =
-                client.post("/payout-accounts") {
+                client.post("/freelance/payout-accounts") {
                     withAuthCookies(authCookies)
                     header(HttpHeaders.ContentType, "application/json")
                     setBody(
@@ -199,11 +199,11 @@ class FreelanceRoutesTest {
                     .parseToJsonElement(createPayoutAccountResponse.bodyAsText())
                     .jsonObject["id"]!!
                     .jsonPrimitive.content
-            val listPayoutAccountsResponse = client.get("/payout-accounts") { withAuthCookies(authCookies) }
+            val listPayoutAccountsResponse = client.get("/freelance/payout-accounts") { withAuthCookies(authCookies) }
             val getPayoutAccountResponse =
-                client.get("/payout-accounts/$createdPayoutAccountId") { withAuthCookies(authCookies) }
+                client.get("/freelance/payout-accounts/$createdPayoutAccountId") { withAuthCookies(authCookies) }
             val updatePayoutAccountResponse =
-                client.put("/payout-accounts/$createdPayoutAccountId") {
+                client.put("/freelance/payout-accounts/$createdPayoutAccountId") {
                     withAuthCookies(authCookies)
                     header(HttpHeaders.ContentType, "application/json")
                     setBody(
@@ -214,9 +214,9 @@ class FreelanceRoutesTest {
                     )
                 }
             val deletePayoutAccountResponse =
-                client.delete("/payout-accounts/$createdPayoutAccountId") { withAuthCookies(authCookies) }
+                client.delete("/freelance/payout-accounts/$createdPayoutAccountId") { withAuthCookies(authCookies) }
             val getDeletedPayoutAccountResponse =
-                client.get("/payout-accounts/$createdPayoutAccountId") { withAuthCookies(authCookies) }
+                client.get("/freelance/payout-accounts/$createdPayoutAccountId") { withAuthCookies(authCookies) }
 
             assertEquals(HttpStatusCode.Created, createPayoutAccountResponse.status)
             assertEquals(HttpStatusCode.OK, listPayoutAccountsResponse.status)
@@ -238,13 +238,13 @@ class FreelanceRoutesTest {
             }
 
             val invalidBankResponse =
-                client.post("/payout-accounts") {
+                client.post("/freelance/payout-accounts") {
                     withAuthCookies(authCookies)
                     header(HttpHeaders.ContentType, "application/json")
                     setBody("""{"type":"bank","accountHolder":"Jane Doe"}""")
                 }
             val invalidLightningResponse =
-                client.post("/payout-accounts") {
+                client.post("/freelance/payout-accounts") {
                     withAuthCookies(authCookies)
                     header(HttpHeaders.ContentType, "application/json")
                     setBody("""{"type":"lightning","bankName":"Acme Bank","lightningAddress":"freelancer@getalby.com"}""")
@@ -266,10 +266,10 @@ class FreelanceRoutesTest {
             }
             val projectId = ExposedTestDb.seedFreelanceProject()
 
-            assertEquals(HttpStatusCode.Forbidden, client.get("/clients") { withAuthCookies(authCookies) }.status)
+            assertEquals(HttpStatusCode.Forbidden, client.get("/freelance/clients") { withAuthCookies(authCookies) }.status)
             assertEquals(
                 HttpStatusCode.Forbidden,
-                client.get("/projects/$projectId") { withAuthCookies(authCookies) }.status,
+                client.get("/freelance/projects/$projectId") { withAuthCookies(authCookies) }.status,
             )
         }
 
