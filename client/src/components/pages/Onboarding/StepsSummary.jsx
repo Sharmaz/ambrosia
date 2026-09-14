@@ -8,7 +8,7 @@ import { getBusinessTypeLabelKeys, KNOWN_BUSINESS_TYPES } from "./utils/business
 
 export function WizardSummary({ onboardingData, onEdit }) {
   const summaryTranslations = useTranslations();
-  const nameLabelKey = getBusinessTypeLabelKeys(onboardingData.businessType).nameLabel;
+  const businessNameLabelKey = getBusinessTypeLabelKeys(onboardingData.businessType).nameLabel;
 
   return (
     <div>
@@ -86,7 +86,7 @@ export function WizardSummary({ onboardingData, onEdit }) {
               <p className="text-xs font-medium text-muted-foreground uppercase">{summaryTranslations("step4.sections.businessDetails.title")}</p>
               <div className="mt-3 space-y-2">
                 <div>
-                  <p className="text-xs text-muted-foreground">{summaryTranslations(nameLabelKey)}</p>
+                  <p className="text-xs text-muted-foreground">{summaryTranslations(businessNameLabelKey)}</p>
                   <p className="font-semibold text-foreground">{onboardingData.businessName}</p>
                 </div>
                 {onboardingData.businessType === "freelance" && (
