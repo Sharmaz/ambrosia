@@ -52,6 +52,7 @@ export function buildHandlePay({
   setBtcPaymentConfig,
   setCashPaymentConfig,
   setCardPaymentConfig,
+  setTransferPaymentConfig,
   onResetCart,
   onPay,
   notifyError,
@@ -139,6 +140,19 @@ export function buildHandlePay({
 
       if (paymentMethod === PAYMENT_METHODS.CARD) {
         setCardPaymentConfig({
+          amountDue: paymentAmounts.amountFiat,
+          displayTotal: paymentAmounts.displayTotal,
+          cartItems,
+          paymentAmounts,
+          selectedPaymentMethod,
+          currencyId,
+          methodLabel: paymentMethodData?.name || "",
+        });
+        return;
+      }
+
+      if (paymentMethod === PAYMENT_METHODS.TRANSFER) {
+        setTransferPaymentConfig({
           amountDue: paymentAmounts.amountFiat,
           displayTotal: paymentAmounts.displayTotal,
           cartItems,
@@ -389,6 +403,39 @@ export function buildHandleCardComplete({ getConfig, setConfig, ...context }) {
       }),
       successKey: "success.cardPaid",
       errorKey: "errors.cardComplete",
+      finalize: () => setConfig(null),
+    });
+  };
+}
+
+export function buildHandleTransferComplete({ getConfig, setConfig, ...context }) {
+  return async function handleTransferComplete(completionData) {
+    const config = getConfig();
+    if (!config) return;
+
+    await runDeferredCheckout({
+      ...context,
+      checkoutArgs: {
+        cartItems: config.cartItems || [],
+        paymentAmounts: config.paymentAmounts,
+        selectedPaymentMethod: config.selectedPaymentMethod,
+        currencyId: config.currencyId,
+        transactionId: completionData?.reference || "",
+      },
+      receiptItems: config.cartItems,
+      receiptTotal: config.paymentAmounts.total,
+      receiptDiscountAmount: config.paymentAmounts.discountAmount,
+      receiptTipAmount: config.paymentAmounts.tipAmount,
+      buildOnPayPayload: (storeCheckoutResult) => ({
+        items: config.cartItems,
+        ...config.paymentAmounts,
+        paymentMethod: config.selectedPaymentMethod,
+        ...storeCheckoutResult,
+        methodLabel: config.methodLabel,
+        reference: completionData?.reference,
+      }),
+      successKey: "success.transferPaid",
+      errorKey: "errors.transferComplete",
       finalize: () => setConfig(null),
     });
   };

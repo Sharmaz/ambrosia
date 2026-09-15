@@ -20,8 +20,15 @@ describe("classifyPaymentMethod", () => {
     expect(classifyPaymentMethod("Card")).toBe(PAYMENT_METHODS.CARD);
   });
 
+  it("classifies bank transfer methods in english and spanish", () => {
+    expect(classifyPaymentMethod("Bank Transfer")).toBe(PAYMENT_METHODS.TRANSFER);
+    expect(classifyPaymentMethod("Transferencia")).toBe(PAYMENT_METHODS.TRANSFER);
+    expect(classifyPaymentMethod("Wire Transfer")).toBe(PAYMENT_METHODS.TRANSFER);
+    expect(classifyPaymentMethod("ACH")).toBe(PAYMENT_METHODS.TRANSFER);
+  });
+
   it("returns null for unknown methods", () => {
-    expect(classifyPaymentMethod("Bank Transfer")).toBeNull();
+    expect(classifyPaymentMethod("Voucher")).toBeNull();
     expect(classifyPaymentMethod("")).toBeNull();
     expect(classifyPaymentMethod()).toBeNull();
   });

@@ -2,12 +2,14 @@ export const PAYMENT_METHODS = {
   BTC: "btc",
   CASH: "cash",
   CARD: "card",
+  TRANSFER: "transfer",
 };
 
 const METHOD_MATCHERS = [
   { method: PAYMENT_METHODS.BTC, keywords: ["btc"] },
   { method: PAYMENT_METHODS.CASH, keywords: ["cash", "efectivo"] },
   { method: PAYMENT_METHODS.CARD, keywords: ["credit", "debit", "card"] },
+  { method: PAYMENT_METHODS.TRANSFER, keywords: ["transfer", "transferencia", "wire", "ach"] },
 ];
 
 export function classifyPaymentMethod(methodName = "") {
