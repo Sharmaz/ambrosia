@@ -839,6 +839,7 @@ data class ProductSaleItem(
     val paymentId: String? = null,
     val discountAmount: Double = 0.0,
     val refunded: Boolean = false,
+    val transactionId: String? = null,
 )
 
 @Serializable

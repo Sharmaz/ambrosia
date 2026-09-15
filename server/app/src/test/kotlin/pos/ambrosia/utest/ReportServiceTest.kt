@@ -49,6 +49,7 @@ class ReportServiceTest {
         exchangeRateAtPayment: Double? = null,
         exchangeRateCurrency: String? = null,
         fiatAmountAtPayment: Double? = null,
+        transactionId: String? = null,
     ): Sale {
         val userId = userId ?: ExposedTestDb.seedUser(userName)
         val orderId = ExposedTestDb.seedOrder(userId, createdAt = createdAt, status = orderStatus, total = total)
@@ -58,7 +59,7 @@ class ReportServiceTest {
             ExposedTestDb.seedPayment(
                 methodId = paymentMethodId,
                 currencyId = currencyId,
-                transactionId = "txn-$orderId",
+                transactionId = transactionId ?: "txn-$orderId",
                 amount = total,
                 satoshiAmount = satoshiAmount,
                 exchangeRateAtPayment = exchangeRateAtPayment,
@@ -515,6 +516,25 @@ class ReportServiceTest {
         assertEquals("bob", item.userName)
         assertEquals("BTC", item.paymentMethod)
         assertEquals("2024-03-20T09:15:00", item.saleDate)
+        assertEquals("txn-${sale.orderId}", item.transactionId)
+    }
+
+    @Test
+    fun `blank transactionId is reported as null`() {
+        val sale = seedSale(transactionId = "")
+        addOrderProduct(sale.orderId)
+
+        val report =
+            service.getProductSalesReport(
+                period = null,
+                startDate = null,
+                endDate = null,
+                productName = null,
+                userId = null,
+                paymentMethod = null,
+            )
+
+        assertNull(report.sales[0].transactionId)
     }
 
     @Test

@@ -311,6 +311,7 @@ class ReportService {
                             paymentId = row[PaymentsTable.id].value.toString(),
                             discountAmount = row[OrdersTable.discountAmount],
                             refunded = row[OrdersTable.status] == "refunded",
+                            transactionId = row[PaymentsTable.transactionId].takeIf { it.isNotBlank() },
                         )
                     }
 
