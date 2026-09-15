@@ -1064,4 +1064,27 @@ class ReportServiceTest {
             assertEquals(1, result.size)
             assertNull(result[0].paymentHash)
         }
+
+    @Test
+    fun `getOrdersWithPaymentsFiltered maps transactionId when present`() =
+        runBlocking {
+            val sale = seedSale(paymentMethodName = "Bank Transfer", transactionId = "REF-123")
+
+            val result = service.getOrdersWithPaymentsFiltered()
+
+            assertEquals(1, result.size)
+            assertEquals(sale.orderId, result[0].id)
+            assertEquals("REF-123", result[0].transactionId)
+        }
+
+    @Test
+    fun `getOrdersWithPaymentsFiltered returns null transactionId when blank`() =
+        runBlocking {
+            seedSale(paymentMethodName = "Cash", transactionId = "")
+
+            val result = service.getOrdersWithPaymentsFiltered()
+
+            assertEquals(1, result.size)
+            assertNull(result[0].transactionId)
+        }
 }

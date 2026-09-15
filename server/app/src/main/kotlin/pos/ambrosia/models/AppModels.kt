@@ -243,6 +243,7 @@ data class OrderWithPayment(
     val exchangeRateCurrency: String? = null,
     val fiatAmountAtPayment: Double? = null,
     val paymentHash: String? = null,
+    val transactionId: String? = null,
     val items: List<OrderItem> = emptyList(),
     val refund: StoreRefund? = null,
 )
