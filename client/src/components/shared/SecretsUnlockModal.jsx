@@ -8,7 +8,8 @@ import { useTranslations } from "next-intl";
 import { RequirePermission } from "@/hooks/usePermission";
 import { SECRETS_UNLOCKED_EVENT, unlockSecrets } from "@/services/secretsService";
 import WalletGuard from "@components/auth/WalletGuard";
-import { SecretsExistingPasswordField } from "@components/shared/SecretsExistingPasswordField";
+
+import { SecretsExistingPasswordField } from "./SecretsExistingPasswordField";
 
 export function SecretsUnlockModal({ onClose }) {
   const secretsEncryptionCardTranslations = useTranslations();

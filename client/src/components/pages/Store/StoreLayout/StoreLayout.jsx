@@ -9,15 +9,15 @@ import { useLocale, useTranslations } from "next-intl";
 import { ShiftWidget } from "@/components/turn/ShiftWidget";
 import { useSeedTour } from "@/hooks/tour/useSeedTour";
 import { useWalletTour } from "@/hooks/tour/useWalletTour";
+import { useSecretsLockSignal } from "@/hooks/useSecretsLockSignal";
+import { SecretsUnlockModal } from "@components/shared/SecretsUnlockModal";
 import { storedAssetUrl } from "@components/utils/storedAssetUrl";
 import { useNavigation } from "@hooks/useNavigation";
 import { useConfigurations } from "@providers/configurations/configurationsProvider";
 
 import { BottomNav } from "./BottomNav";
 import { useAdminNotificationSignals } from "./hooks/useAdminNotificationSignals";
-import { useSecretsLockSignal } from "./hooks/useSecretsLockSignal";
 import { MobileDrawer } from "./MobileDrawer";
-import { SecretsUnlockModal } from "./SecretsUnlockModal";
 import { SidebarContent } from "./Sidebar";
 
 export function StoreLayout({ children }) {
