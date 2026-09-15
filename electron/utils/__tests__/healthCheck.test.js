@@ -19,8 +19,8 @@ let logger;
 
 beforeAll(() => {
   installWaitOnMock();
-  healthCheck = require('../healthCheck');
-  logger = require('../logger');
+  healthCheck = require('../healthCheck.cjs');
+  logger = require('../logger.cjs');
 });
 
 function createFakeIncomingMessage(statusCode) {

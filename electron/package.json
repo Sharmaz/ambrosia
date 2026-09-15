@@ -2,7 +2,8 @@
   "name": "ambrosia-pos",
   "version": "0.8.0-beta",
   "description": "Ambrosia POS Desktop Application",
-  "main": "main.js",
+  "main": "main.cjs",
+  "type": "module",
   "scripts": {
     "dev": "npm run build:preload && electron .",
     "dev:splash": "npm run build:preload && cross-env SPLASH_ONLY=true electron .",
@@ -11,12 +12,12 @@
     "lint:fix": "eslint . --fix",
     "test": "vitest run",
     "test:watch": "vitest",
-    "build:preload": "node scripts/build-preload.js",
-    "build:prepare": "node scripts/prepare-resources-wrapper.js",
+    "build:preload": "node scripts/build-preload.cjs",
+    "build:prepare": "node scripts/prepare-resources-wrapper.cjs",
     "build": "npm run build:prepare && electron-builder",
     "pack": "npm run build:prepare && electron-builder --dir",
     "dist": "npm run build:prepare && electron-builder",
-    "clean": "node scripts/clean-build.js",
+    "clean": "node scripts/clean-build.cjs",
     "dist:mac:arm64": "npm run clean && cross-env TARGET_PLATFORM=macos-arm64 npm run build:prepare && electron-builder --mac --arm64 --publish never",
     "dist:mac:x64": "npm run clean && cross-env TARGET_PLATFORM=macos-x64 npm run build:prepare && electron-builder --mac --x64 --publish never",
     "dist:win:x64": "npm run clean && cross-env TARGET_PLATFORM=win-x64 npm run build:prepare && electron-builder --win --x64 --publish never",
@@ -62,7 +63,7 @@
     ],
     "appId": "com.olympus-btc.ambrosia-pos",
     "productName": "AmbrosiaPoS",
-    "afterPack": "./scripts/afterPack.js",
+    "afterPack": "./scripts/afterPack.cjs",
     "directories": {
       "output": "dist",
       "buildResources": "build"
@@ -72,7 +73,7 @@
       "utils/**/*"
     ],
     "files": [
-      "main.js",
+      "main.cjs",
       "preload.js",
       "splash-preload.js",
       "splash.html",

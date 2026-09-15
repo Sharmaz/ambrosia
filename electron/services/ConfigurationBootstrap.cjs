@@ -2,8 +2,8 @@ const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 
-const logger = require('../utils/logger');
-const { getDataDirectory, getPhoenixDataDirectory, getLogsDirectory } = require('../utils/resourcePaths');
+const logger = require('../utils/logger.cjs');
+const { getDataDirectory, getPhoenixDataDirectory, getLogsDirectory } = require('../utils/resourcePaths.cjs');
 
 function generateRandomHex(length) {
   return crypto.randomBytes(length).toString('hex');

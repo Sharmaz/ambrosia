@@ -19,8 +19,8 @@ let logger;
 beforeAll(() => {
   installElectronMock();
   installFindFreePortMock();
-  portAllocator = require('../portAllocator');
-  logger = require('../logger');
+  portAllocator = require('../portAllocator.cjs');
+  logger = require('../logger.cjs');
 });
 
 beforeEach(() => {

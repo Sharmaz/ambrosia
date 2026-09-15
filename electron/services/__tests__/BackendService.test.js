@@ -4,8 +4,8 @@ const { installElectronMock } = require('../../test-utils/electronMock');
 const { createFakeSpawnedProcess, createFakeWriteStream } = require('../../test-utils/fakeChildProcess');
 const { installSpawnMock } = require('../../test-utils/spawnMock');
 const { installTreeKillMock } = require('../../test-utils/treeKillMock');
-const healthCheck = require('../../utils/healthCheck');
-const logger = require('../../utils/logger');
+const healthCheck = require('../../utils/healthCheck.cjs');
+const logger = require('../../utils/logger.cjs');
 
 let BackendService;
 let spawnMock;
@@ -16,7 +16,7 @@ beforeAll(() => {
   spawnMock = installSpawnMock();
   treeKillMock = installTreeKillMock();
   healthCheck.checkBackend = vi.fn();
-  BackendService = require('../BackendService');
+  BackendService = require('../BackendService.cjs');
 });
 
 let fakeSpawnedProcess;

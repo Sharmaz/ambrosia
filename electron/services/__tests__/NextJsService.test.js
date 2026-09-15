@@ -6,8 +6,8 @@ const { createFakeSpawnedProcess, createFakeWriteStream } = require('../../test-
 const { setPlatformAndArch, restorePlatformAndArch } = require('../../test-utils/platformMock');
 const { installSpawnMock } = require('../../test-utils/spawnMock');
 const { installTreeKillMock } = require('../../test-utils/treeKillMock');
-const healthCheck = require('../../utils/healthCheck');
-const logger = require('../../utils/logger');
+const healthCheck = require('../../utils/healthCheck.cjs');
+const logger = require('../../utils/logger.cjs');
 
 let NextJsService;
 let spawnMock;
@@ -18,7 +18,7 @@ beforeAll(() => {
   spawnMock = installSpawnMock();
   treeKillMock = installTreeKillMock();
   healthCheck.checkNextJs = vi.fn();
-  NextJsService = require('../NextJsService');
+  NextJsService = require('../NextJsService.cjs');
 });
 
 let fakeSpawnedProcess;

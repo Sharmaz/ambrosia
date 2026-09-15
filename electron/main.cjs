@@ -3,11 +3,11 @@ const { URL } = require('url');
 
 const { app, BrowserWindow, Menu, Notification, dialog, shell, ipcMain } = require('electron');
 
-const AutoUpdater = require('./services/AutoUpdater');
-const { readConfig, writeConfig } = require('./services/ConfigurationBootstrap');
-const ServiceManager = require('./services/ServiceManager');
-const logger = require('./utils/logger');
-const { getDataDirectory, getLogsDirectory, getPhoenixDataDirectory } = require('./utils/resourcePaths');
+const AutoUpdater = require('./services/AutoUpdater.cjs');
+const { readConfig, writeConfig } = require('./services/ConfigurationBootstrap.cjs');
+const ServiceManager = require('./services/ServiceManager.cjs');
+const logger = require('./utils/logger.cjs');
+const { getDataDirectory, getLogsDirectory, getPhoenixDataDirectory } = require('./utils/resourcePaths.cjs');
 
 // To prevent multiple instances of the application
 const gotTheLock = app.requestSingleInstanceLock();

@@ -9,7 +9,7 @@ let resourcePaths;
 
 beforeAll(() => {
   installElectronMock();
-  resourcePaths = require('../resourcePaths');
+  resourcePaths = require('../resourcePaths.cjs');
 });
 
 beforeEach(() => {

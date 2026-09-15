@@ -5,9 +5,9 @@ const path = require('path');
 const spawn = require('cross-spawn');
 const treeKill = require('tree-kill');
 
-const { checkPhoenixd } = require('../utils/healthCheck');
-const logger = require('../utils/logger');
-const { getPhoenixdPath, getPhoenixDataDirectory, getLogsDirectory, getBasePath } = require('../utils/resourcePaths');
+const { checkPhoenixd } = require('../utils/healthCheck.cjs');
+const logger = require('../utils/logger.cjs');
+const { getPhoenixdPath, getPhoenixDataDirectory, getLogsDirectory, getBasePath } = require('../utils/resourcePaths.cjs');
 
 class PhoenixdService {
   constructor() {

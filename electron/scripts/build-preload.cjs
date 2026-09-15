@@ -6,8 +6,8 @@ const esbuild = require('esbuild');
 const ELECTRON_DIR = path.join(__dirname, '..');
 
 const PRELOAD_TARGETS = [
-  { entry: 'preload.entry.js', outfile: 'preload.js' },
-  { entry: 'splash-preload.entry.js', outfile: 'splash-preload.js' },
+  { entry: 'preload.entry.cjs', outfile: 'preload.js' },
+  { entry: 'splash-preload.entry.cjs', outfile: 'splash-preload.js' },
 ];
 
 function main() {

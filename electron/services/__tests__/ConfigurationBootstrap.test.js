@@ -9,7 +9,7 @@ let configurationBootstrap;
 
 beforeAll(() => {
   installElectronMock();
-  configurationBootstrap = require('../ConfigurationBootstrap');
+  configurationBootstrap = require('../ConfigurationBootstrap.cjs');
 });
 
 const FAKE_HOME_DIRECTORY = '/fake/home';

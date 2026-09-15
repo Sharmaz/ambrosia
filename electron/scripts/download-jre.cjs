@@ -4,8 +4,8 @@ const http = require('http');
 const https = require('https');
 const path = require('path');
 
-const { getBuildPlatform } = require('./platform-utils');
-const { verifySha256, fetchAdoptiumChecksum } = require('./verify-checksum');
+const { getBuildPlatform } = require('./platform-utils.cjs');
+const { verifySha256, fetchAdoptiumChecksum } = require('./verify-checksum.cjs');
 
 const RESOURCES_DIR = path.join(__dirname, '..', 'resources', 'jre');
 

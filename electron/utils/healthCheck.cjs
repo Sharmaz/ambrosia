@@ -2,7 +2,7 @@ const http = require('http');
 
 const waitOn = require('wait-on');
 
-const logger = require('./logger');
+const logger = require('./logger.cjs');
 
 async function waitForHealth(url, options = {}) {
   const {

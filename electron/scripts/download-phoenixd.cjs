@@ -3,8 +3,8 @@ const fs = require('fs');
 const https = require('https');
 const path = require('path');
 
-const { getBuildPlatform } = require('./platform-utils');
-const { verifySha256, fetchSha256SumsChecksum } = require('./verify-checksum');
+const { getBuildPlatform } = require('./platform-utils.cjs');
+const { verifySha256, fetchSha256SumsChecksum } = require('./verify-checksum.cjs');
 
 const PHOENIXD_VERSION = '0.9.0';
 const RESOURCES_DIR = path.join(__dirname, '..', 'resources', 'phoenixd');

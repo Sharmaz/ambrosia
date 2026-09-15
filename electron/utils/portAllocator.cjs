@@ -1,7 +1,7 @@
 const findFreePort = require('find-free-port');
 
-const logger = require('./logger');
-const { isDevelopment } = require('./resourcePaths');
+const logger = require('./logger.cjs');
+const { isDevelopment } = require('./resourcePaths.cjs');
 
 const DEFAULT_PORTS = {
   phoenixd: 9740,

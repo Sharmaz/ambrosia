@@ -32,8 +32,8 @@ const BackendServiceMock = createFakeServiceClass();
 const NextJsServiceMock = createFakeServiceClass();
 
 const { installElectronMock, setIsPackaged } = require('../../test-utils/electronMock');
-const healthCheck = require('../../utils/healthCheck');
-const logger = require('../../utils/logger');
+const healthCheck = require('../../utils/healthCheck.cjs');
+const logger = require('../../utils/logger.cjs');
 
 let ServiceManager;
 let configurationBootstrap;
@@ -41,16 +41,16 @@ let portAllocator;
 
 beforeAll(() => {
   installElectronMock();
-  installServiceClassMock('../PhoenixdService', PhoenixdServiceMock);
-  installServiceClassMock('../BackendService', BackendServiceMock);
-  installServiceClassMock('../NextJsService', NextJsServiceMock);
+  installServiceClassMock('../PhoenixdService.cjs', PhoenixdServiceMock);
+  installServiceClassMock('../BackendService.cjs', BackendServiceMock);
+  installServiceClassMock('../NextJsService.cjs', NextJsServiceMock);
   healthCheck.isPhoenixdRunning = vi.fn();
   healthCheck.isBackendRunning = vi.fn();
-  configurationBootstrap = require('../ConfigurationBootstrap');
-  portAllocator = require('../../utils/portAllocator');
+  configurationBootstrap = require('../ConfigurationBootstrap.cjs');
+  portAllocator = require('../../utils/portAllocator.cjs');
   configurationBootstrap.ensureConfigurations = vi.fn();
   portAllocator.allocatePorts = vi.fn();
-  ServiceManager = require('../ServiceManager');
+  ServiceManager = require('../ServiceManager.cjs');
 });
 
 const allocatedPorts = { phoenixd: 9740, backend: 9154, nextjs: 3000 };

@@ -85,7 +85,7 @@ describe('IPC handlers and notifications', () => {
       shell: { openPath: vi.fn(), openExternal: vi.fn() },
       ipcMain: ipcMainMock,
     });
-    require('../main');
+    require('../main.cjs');
     ipcHandlersByChannel = collectHandlersByChannel(ipcMainMock);
     ipcListenersByChannel = collectListenersByChannel(ipcMainMock);
   });
@@ -206,7 +206,7 @@ describe('single-instance lock', () => {
     });
     vi.spyOn(os, 'homedir').mockReturnValue('/fake/home');
     vi.spyOn(fs, 'existsSync').mockReturnValue(false);
-    await import('../main');
+    await import('../main.cjs');
 
     return appMock;
   }

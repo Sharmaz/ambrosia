@@ -8,7 +8,7 @@ let exposedSplashBridge;
 
 beforeAll(() => {
   installElectronMock({ contextBridge: contextBridgeMock, ipcRenderer: ipcRendererMock });
-  require('../splash-preload.entry');
+  require('../splash-preload.entry.cjs');
   [exposedChannelName, exposedSplashBridge] = contextBridgeMock.exposeInMainWorld.mock.calls[0];
 });
 

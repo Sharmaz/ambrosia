@@ -1,14 +1,14 @@
 const { EventEmitter } = require('events');
 
-const { isPhoenixdRunning, isBackendRunning } = require('../utils/healthCheck');
-const logger = require('../utils/logger');
-const { allocatePorts, DEFAULT_PORTS } = require('../utils/portAllocator');
-const { isDevelopment } = require('../utils/resourcePaths');
+const { isPhoenixdRunning, isBackendRunning } = require('../utils/healthCheck.cjs');
+const logger = require('../utils/logger.cjs');
+const { allocatePorts, DEFAULT_PORTS } = require('../utils/portAllocator.cjs');
+const { isDevelopment } = require('../utils/resourcePaths.cjs');
 
-const BackendService = require('./BackendService');
-const { ensureConfigurations } = require('./ConfigurationBootstrap');
-const NextJsService = require('./NextJsService');
-const PhoenixdService = require('./PhoenixdService');
+const BackendService = require('./BackendService.cjs');
+const { ensureConfigurations } = require('./ConfigurationBootstrap.cjs');
+const NextJsService = require('./NextJsService.cjs');
+const PhoenixdService = require('./PhoenixdService.cjs');
 
 class ServiceManager extends EventEmitter {
   constructor(options = {}) {

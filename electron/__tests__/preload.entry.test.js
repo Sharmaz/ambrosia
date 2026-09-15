@@ -14,7 +14,7 @@ let exposedElectronApi;
 
 beforeAll(() => {
   installElectronMock({ contextBridge: contextBridgeMock, ipcRenderer: ipcRendererMock });
-  require('../preload.entry');
+  require('../preload.entry.cjs');
   [exposedChannelName, exposedElectronApi] = contextBridgeMock.exposeInMainWorld.mock.calls[0];
 });
 

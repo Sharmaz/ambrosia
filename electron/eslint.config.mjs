@@ -20,15 +20,10 @@ const eslintConfig = [
       sourceType: 'module',
       globals: {
         // Node.js globals
-        __dirname: 'readonly',
-        __filename: 'readonly',
         Buffer: 'readonly',
         console: 'readonly',
-        exports: 'writable',
         global: 'readonly',
-        module: 'readonly',
         process: 'readonly',
-        require: 'readonly',
         // Node.js timers
         setTimeout: 'readonly',
         clearTimeout: 'readonly',
@@ -147,6 +142,19 @@ const eslintConfig = [
         mjs: 'never',
       }],
       'import/prefer-default-export': 'off',
+    },
+  },
+  {
+    files: ['**/*.cjs', '**/__tests__/**/*.test.js', 'test-utils/**/*.js'],
+    languageOptions: {
+      sourceType: 'commonjs',
+      globals: {
+        __dirname: 'readonly',
+        __filename: 'readonly',
+        exports: 'writable',
+        module: 'readonly',
+        require: 'readonly',
+      },
     },
   },
   {

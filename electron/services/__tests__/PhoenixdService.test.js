@@ -7,8 +7,8 @@ const { createFakeSpawnedProcess, createFakeWriteStream } = require('../../test-
 const { setPlatformAndArch, restorePlatformAndArch } = require('../../test-utils/platformMock');
 const { installSpawnMock } = require('../../test-utils/spawnMock');
 const { installTreeKillMock } = require('../../test-utils/treeKillMock');
-const healthCheck = require('../../utils/healthCheck');
-const logger = require('../../utils/logger');
+const healthCheck = require('../../utils/healthCheck.cjs');
+const logger = require('../../utils/logger.cjs');
 
 let PhoenixdService;
 let spawnMock;
@@ -20,7 +20,7 @@ beforeAll(() => {
   treeKillMock = installTreeKillMock();
   healthCheck.checkPhoenixd = vi.fn();
   childProcess.exec = vi.fn();
-  PhoenixdService = require('../PhoenixdService');
+  PhoenixdService = require('../PhoenixdService.cjs');
 });
 
 function armAutoExitOnListen(spawnedProcess, exitCode = 0) {

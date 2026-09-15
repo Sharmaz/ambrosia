@@ -5,7 +5,7 @@ const path = require('path');
 const { dialog, ipcMain, shell } = require('electron');
 const { autoUpdater } = require('electron-updater');
 
-const logger = require('../utils/logger');
+const logger = require('../utils/logger.cjs');
 
 const SUPPORTS_AUTO_UPDATE = process.platform === 'win32';
 const UPDATE_EXPIRY_DAYS = 7;
