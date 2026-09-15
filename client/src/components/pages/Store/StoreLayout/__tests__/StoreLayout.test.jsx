@@ -877,7 +877,21 @@ describe("StoreLayout", () => {
 
       renderStoreLayout();
 
-      await waitFor(() => expect(within(getDesktopSidebar()).getByLabelText("Secrets locked")).toBeInTheDocument());
+      await waitFor(() => {
+        const walletLink = within(getDesktopSidebar()).getByText("wallet").closest("a");
+        expect(within(walletLink).getByLabelText("Secrets locked")).toBeInTheDocument();
+      });
+    });
+
+    it("shows the locked badge on the settings nav item too", async () => {
+      getSecretsLockStatus.mockResolvedValue({ encryptionActive: true, locked: true });
+
+      renderStoreLayout();
+
+      await waitFor(() => {
+        const settingsLink = within(getDesktopSidebar()).getByText("settings").closest("a");
+        expect(within(settingsLink).getByLabelText("Secrets locked")).toBeInTheDocument();
+      });
     });
 
     it("does not show the locked badge when secrets are unlocked", async () => {
@@ -893,9 +907,13 @@ describe("StoreLayout", () => {
       getSecretsLockStatus.mockResolvedValue({ encryptionActive: true, locked: true });
 
       renderStoreLayout();
-      await waitFor(() => expect(within(getDesktopSidebar()).getByLabelText("Secrets locked")).toBeInTheDocument());
+      let walletLink;
+      await waitFor(() => {
+        walletLink = within(getDesktopSidebar()).getByText("wallet").closest("a");
+        expect(within(walletLink).getByLabelText("Secrets locked")).toBeInTheDocument();
+      });
 
-      fireEvent.click(within(getDesktopSidebar()).getByLabelText("Secrets locked"));
+      fireEvent.click(within(walletLink).getByLabelText("Secrets locked"));
 
       expect(screen.getByText("secretsEncryptionCard.modalTitle")).toBeInTheDocument();
     });

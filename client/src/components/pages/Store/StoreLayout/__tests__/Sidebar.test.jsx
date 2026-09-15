@@ -126,13 +126,13 @@ describe("SidebarContent", () => {
     it("puts a red background on the wallet item when secretsLocked is true", () => {
       renderSidebar({ availableNavigation: navWithWallet, secretsLocked: true });
 
-      expect(screen.getByText("wallet").closest("a")).toHaveClass("bg-red-600/70");
+      expect(screen.getByText("wallet").closest("a")).toHaveClass("bg-red-800");
     });
 
     it("does not put a red background on the wallet item when secretsLocked is false", () => {
       renderSidebar({ availableNavigation: navWithWallet, secretsLocked: false });
 
-      expect(screen.getByText("wallet").closest("a")).not.toHaveClass("bg-red-600/70");
+      expect(screen.getByText("wallet").closest("a")).not.toHaveClass("bg-red-800");
     });
 
     it("opens the unlock flow instead of navigating when clicking anywhere on the wallet item and secretsLocked is true", () => {

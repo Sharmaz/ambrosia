@@ -14,6 +14,7 @@ import { NavIcon } from "./NavIcon";
 import { NotificationBadge } from "./NotificationBadge";
 
 const WALLET_ROUTE = "/store/wallet";
+const SECRETS_LOCKED_NAV_ROUTES = new Set([WALLET_ROUTE, "/store/cart", "/store/settings"]);
 
 function NavBarButton({ text, icon, href, isActive, id, onClick, badgeCount, isLocked, onLockClick }) {
   const isCriticallyLocked = isLocked && href === WALLET_ROUTE;
@@ -28,7 +29,7 @@ function NavBarButton({ text, icon, href, isActive, id, onClick, badgeCount, isL
   };
 
   const rowStateClassName = isCriticallyLocked
-    ? "bg-red-600/70 text-slate-100 hover:bg-red-600/80"
+    ? "bg-red-800 text-slate-100 hover:bg-red-600/80"
     : isActive
       ? "bg-green-300 text-green-800 hover:bg-green-300 hover:text-green-800"
       : "text-slate-100 hover:bg-green-300 hover:text-green-800";
@@ -49,7 +50,7 @@ function NavBarButton({ text, icon, href, isActive, id, onClick, badgeCount, isL
       <LockedBadge
         isLocked={isLocked}
         onClick={onLockClick}
-        className="ml-auto text-slate-100 rounded-md bg-white/20 p-2"
+        className="ml-auto text-slate-200 rounded-md bg-red-600/80 p-2 hover:cursor-pointer"
       />
     </Link>
   );
@@ -100,7 +101,7 @@ export function SidebarContent({
                 href={item.path}
                 isActive={pathname === item.path || pathname.startsWith(item.path)}
                 badgeCount={item.path === ADMIN_NOTIFICATIONS_ROUTE ? notificationUnreadCount : 0}
-                isLocked={item.path === WALLET_ROUTE && secretsLocked}
+                isLocked={SECRETS_LOCKED_NAV_ROUTES.has(item.path) && secretsLocked}
                 onLockClick={onSecretsLockClick}
                 onClick={onNavClick}
               />
