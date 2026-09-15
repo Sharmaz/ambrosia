@@ -65,7 +65,7 @@ const onboardingEn = {
   step3: {
     titleStore: "Store Details",
     titleRestaurant: "Restaurant Details",
-    titleFreelance: "Professional Details",
+    titleFreelance: "Freelance Details",
     subtitle: "Complete your business information",
     fields: {
       businessrNameLabelStore: "Store name",

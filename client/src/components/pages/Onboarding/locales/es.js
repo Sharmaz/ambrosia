@@ -66,12 +66,12 @@ const onboardingEs = {
   step3: {
     titleStore: "Datos de la tienda",
     titleRestaurant: "Datos del restaurante",
-    titleFreelance: "Datos profesionales",
+    titleFreelance: "Datos de Freelancer",
     subtitle: "Completa la información de tu negocio",
     fields: {
       businessrNameLabelStore: "Nombre de la tienda",
       businessrNameLabelRestaurant: "Nombre del restaurante",
-      businessrNameLabelFreelance: "Nombre profesional",
+      businessrNameLabelFreelance: "Nombre de negocio",
       businessNamePlaceholder: "El Delicioso Negocio",
       businessProfession: "Profesión",
       businessProfessionPlaceholder: "Ej: Diseñador Gráfico",
@@ -91,7 +91,7 @@ const onboardingEs = {
       businessTimezoneError: "Por favor selecciona una zona horaria",
       businessLogoLabelStore: "Logo de la tienda (opcional)",
       businessLogoLabelRestaurant: "Logo del restaurante",
-      businessLogoLabelFreelance: "Logo profesional (opcional)",
+      businessLogoLabelFreelance: "Logo de negocio (opcional)",
       businessLogoUpload: "Sube tu logo",
       businessLogoUploadMessage: "PNG, JPG o GIF (máx. 5MB)",
     },
