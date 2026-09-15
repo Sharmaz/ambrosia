@@ -538,6 +538,7 @@ data class Config(
     val id: Int = 1,
     val businessType: String = "restaurant",
     val businessName: String,
+    val businessProfession: String? = null,
     val businessAddress: String?,
     val businessPhone: String?,
     val businessEmail: String?,
@@ -589,6 +590,21 @@ data class FreelanceProjectUpsert(
     val name: String,
     val status: String = "pending",
     val hourlyRateCents: Int? = null,
+    val isBillable: Boolean = true,
+)
+
+@Serializable
+data class FreelanceTask(
+    val id: String,
+    val name: String,
+    val isBillable: Boolean = true,
+    val isDeleted: Boolean = false,
+    val createdAt: String,
+)
+
+@Serializable
+data class FreelanceTaskUpsert(
+    val name: String,
     val isBillable: Boolean = true,
 )
 
@@ -743,6 +759,7 @@ data class InitialSetupRequest(
     val userPassword: String? = null,
     val userPin: String? = null,
     val businessName: String? = null,
+    val businessProfession: String? = null,
     val businessAddress: String? = null,
     val businessPhone: String? = null,
     val businessEmail: String? = null,

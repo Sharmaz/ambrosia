@@ -10,6 +10,7 @@ import { ImageUploader } from "@components/shared/ImageUploader";
 import { TimezoneInput } from "@components/shared/TimezoneInput";
 import { TIMEZONES } from "@components/utils/timezones";
 
+import { getBusinessTypeLabelKeys } from "./utils/businessTypeLabels";
 import { CURRENCIES_EN } from "./utils/currencies_en";
 import { CURRENCIES_ES } from "./utils/currencies_es";
 
@@ -19,6 +20,7 @@ export function BusinessDetailsStep({ businessData, onChange }) {
   const [rfcError, setRfcError] = useState("");
 
   const CURRENCIES = useMemo(() => (locale === "en" ? CURRENCIES_EN : CURRENCIES_ES), [locale]);
+  const labelKeys = getBusinessTypeLabelKeys(businessData.businessType);
 
   const validateRFC = (rfcValue) => {
     const upperCaseRfc = rfcValue.toUpperCase();
@@ -50,18 +52,28 @@ export function BusinessDetailsStep({ businessData, onChange }) {
   return (
     <div>
       <h2 className="text-xl md:text-2xl font-bold text-green-900 mb-2">
-        {businessData.businessType === "store" ? businessDetailsTranslations("step3.titleStore") : businessDetailsTranslations("step3.titleRestaurant")}
+        {businessDetailsTranslations(labelKeys.title)}
       </h2>
       <p className="text-gray-500 mb-4 md:mb-8">{businessDetailsTranslations("step3.subtitle")}</p>
 
       <div className="space-y-4 md:space-y-6">
         <Input
-          label={businessData.businessType === "store" ? businessDetailsTranslations("step3.fields.businessrNameLabelStore") : businessDetailsTranslations("step3.fields.businessrNameLabelRestaurant")}
+          label={businessDetailsTranslations(labelKeys.nameLabel)}
           type="text"
           placeholder={businessDetailsTranslations("step3.fields.businessNamePlaceholder")}
           value={businessData.businessName}
           onChange={(event) => onChange({ ...businessData, businessName: event.target.value })}
         />
+
+        {businessData.businessType === "freelance" && (
+          <Input
+            label={businessDetailsTranslations("step3.fields.businessProfession")}
+            type="text"
+            placeholder={businessDetailsTranslations("step3.fields.businessProfessionPlaceholder")}
+            value={businessData.businessProfession}
+            onChange={(event) => onChange({ ...businessData, businessProfession: event.target.value })}
+          />
+        )}
 
         <Input
           label={businessDetailsTranslations("step3.fields.businessAddress")}
@@ -122,7 +134,7 @@ export function BusinessDetailsStep({ businessData, onChange }) {
         />
 
         <ImageUploader
-          title={businessData.businessType === "store" ? businessDetailsTranslations("step3.fields.businessLogoLabelStore") : businessDetailsTranslations("step3.fields.businessLogoLabelRestaurant")}
+          title={businessDetailsTranslations(labelKeys.logoLabel)}
           uploadText={businessDetailsTranslations("step3.fields.businessLogoUpload")}
           uploadDescription={businessDetailsTranslations("step3.fields.businessLogoUploadMessage")}
           onChange={(file) => onChange({ ...businessData, businessLogo: file })}

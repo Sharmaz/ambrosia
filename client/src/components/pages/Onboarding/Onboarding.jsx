@@ -39,7 +39,10 @@ const STEP_VALIDATORS = {
     isPinValid(onboardingData.userPin)
   ),
   3: (onboardingData) => (
-    Boolean(onboardingData.businessName) && Boolean(onboardingData.businessCurrency) && Boolean(onboardingData.timezone)
+    Boolean(onboardingData.businessName) &&
+    Boolean(onboardingData.businessCurrency) &&
+    Boolean(onboardingData.timezone) &&
+    (onboardingData.businessType !== "freelance" || Boolean(onboardingData.businessProfession))
   ),
   4: (onboardingData) => (
     onboardingData.walletBackend !== "nwc" ||
@@ -72,6 +75,7 @@ export function Onboarding() {
     userPasswordConfirmation: "",
     userPin: "",
     businessName: "",
+    businessProfession: "",
     businessAddress: "",
     businessPhone: "",
     businessEmail: "",
@@ -197,6 +201,7 @@ export function Onboarding() {
                 businessData={{
                   businessType: onboardingData.businessType,
                   businessName: onboardingData.businessName,
+                  businessProfession: onboardingData.businessProfession,
                   businessAddress: onboardingData.businessAddress,
                   businessPhone: onboardingData.businessPhone,
                   businessEmail: onboardingData.businessEmail,

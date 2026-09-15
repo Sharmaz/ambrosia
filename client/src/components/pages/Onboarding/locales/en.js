@@ -25,11 +25,13 @@ const onboardingEn = {
     businessType: {
       store: "Store",
       restaurant: "Restaurant (Coming soon)",
+      freelance: "Freelancer (Coming soon)",
     },
     descriptions: {
       store: "A retail business selling products directly to consumers.",
       restaurant:
         "A food service business preparing and serving meals to customers.",
+      freelance: "An independent professional billing clients for time and projects.",
     },
   },
   step2: {
@@ -63,11 +65,15 @@ const onboardingEn = {
   step3: {
     titleStore: "Store Details",
     titleRestaurant: "Restaurant Details",
+    titleFreelance: "Freelance Details",
     subtitle: "Complete your business information",
     fields: {
       businessrNameLabelStore: "Store name",
       businessrNameLabelRestaurant: "Restaurant name",
+      businessrNameLabelFreelance: "Business name",
       businessNamePlaceholder: "Awesome Business",
+      businessProfession: "Occupation",
+      businessProfessionPlaceholder: "Eg: Graphic Designer",
       businessAddress: "Address (optional)",
       businessAddressPlaceholder: "Eg: 123 Main St, Apt 4, City",
       businessPhone: "Phone (optional)",
@@ -84,6 +90,7 @@ const onboardingEn = {
       businessTimezoneError: "Please select a timezone",
       businessLogoLabelStore: "Store logo (optional)",
       businessLogoLabelRestaurant: "Restaurant logo",
+      businessLogoLabelFreelance: "Business logo (optional)",
       businessLogoUpload: "Upload your logo",
       businessLogoUploadMessage: "PNG, JPG or GIF (máx. 5MB)",
     },
@@ -128,6 +135,7 @@ const onboardingEn = {
         title: "Business type",
         store: "Store",
         restaurant: "Restaurant",
+        freelance: "Freelancer",
       },
       walletBackend: {
         title: "Lightning backend",
@@ -147,7 +155,7 @@ const onboardingEn = {
       },
       businessDetails: {
         title: "Business details",
-        businessName: "Business name",
+        businessProfession: "Occupation",
         businessAddress: "Address",
         businessPhone: "Phone",
         businessEmail: "Email",
