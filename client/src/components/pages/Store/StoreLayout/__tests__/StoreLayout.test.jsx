@@ -883,15 +883,18 @@ describe("StoreLayout", () => {
       });
     });
 
-    it("shows the locked badge on the settings nav item too", async () => {
+    it("does not show the locked badge on the settings nav item", async () => {
       getSecretsLockStatus.mockResolvedValue({ encryptionActive: true, locked: true });
 
       renderStoreLayout();
 
       await waitFor(() => {
-        const settingsLink = within(getDesktopSidebar()).getByText("settings").closest("a");
-        expect(within(settingsLink).getByLabelText("Secrets locked")).toBeInTheDocument();
+        const walletLink = within(getDesktopSidebar()).getByText("wallet").closest("a");
+        expect(within(walletLink).getByLabelText("Secrets locked")).toBeInTheDocument();
       });
+
+      const settingsLink = within(getDesktopSidebar()).getByText("settings").closest("a");
+      expect(within(settingsLink).queryByLabelText("Secrets locked")).not.toBeInTheDocument();
     });
 
     it("does not show the locked badge when secrets are unlocked", async () => {
