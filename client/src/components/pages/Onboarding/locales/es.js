@@ -25,12 +25,14 @@ const onboardingEs = {
     businessType: {
       store: "Tienda",
       restaurant: "Restaurante (Próximamente)",
+      freelance: "Freelancer (Próximamente)",
     },
     descriptions: {
       store:
         "Venta de productos al por menor. Ideal para tiendas de ropa, electrónica, etc.",
       restaurant:
         "Servicio de alimentos y bebidas. Incluye gestión de mesas y pedidos.",
+      freelance: "Profesional independiente que factura por tiempo y proyectos a sus clientes.",
     },
   },
   step2: {
@@ -64,11 +66,15 @@ const onboardingEs = {
   step3: {
     titleStore: "Datos de la tienda",
     titleRestaurant: "Datos del restaurante",
+    titleFreelance: "Datos de Freelancer",
     subtitle: "Completa la información de tu negocio",
     fields: {
       businessrNameLabelStore: "Nombre de la tienda",
       businessrNameLabelRestaurant: "Nombre del restaurante",
+      businessrNameLabelFreelance: "Nombre de negocio",
       businessNamePlaceholder: "El Delicioso Negocio",
+      businessProfession: "Profesión",
+      businessProfessionPlaceholder: "Ej: Diseñador Gráfico",
       businessAddress: "Dirección (opcional)",
       businessAddressPlaceholder: "Ej: Calle Principal 123, Apartado 4, Ciudad",
       businessPhone: "Teléfono (opcional)",
@@ -85,6 +91,7 @@ const onboardingEs = {
       businessTimezoneError: "Por favor selecciona una zona horaria",
       businessLogoLabelStore: "Logo de la tienda (opcional)",
       businessLogoLabelRestaurant: "Logo del restaurante",
+      businessLogoLabelFreelance: "Logo de negocio (opcional)",
       businessLogoUpload: "Sube tu logo",
       businessLogoUploadMessage: "PNG, JPG o GIF (máx. 5MB)",
     },
@@ -129,6 +136,7 @@ const onboardingEs = {
         title: "Tipo de negocio",
         store: "Tienda",
         restaurant: "Restaurante",
+        freelance: "Freelancer",
       },
       walletBackend: {
         title: "Backend Lightning",
@@ -148,7 +156,7 @@ const onboardingEs = {
       },
       businessDetails: {
         title: "Detalles del negocio",
-        businessName: "Nombre del negocio",
+        businessProfession: "Profesión",
         businessAddress: "Dirección",
         businessPhone: "Teléfono",
         businessEmail: "Correo electrónico",

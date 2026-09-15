@@ -46,6 +46,7 @@ import java.time.ZoneId
 import java.util.UUID
 
 private const val ONBOARDING_PROGRESS_TOKEN_USER_ID = "onboarding"
+private val VALID_BUSINESS_TYPES = setOf("store", "restaurant", "freelance")
 
 private suspend fun ApplicationCall.respondConflictIfInitialSetupCompleted(configService: ConfigService): Boolean {
     if (configService.getConfig() == null) return false
@@ -78,7 +79,7 @@ private fun Route.initialSetupRoutes() {
         if (existingConfig != null) {
             if (!existingConfig.businessTypeConfirmed) {
                 val businessType = initialSetupRequest.businessType
-                if (businessType != "store" && businessType != "restaurant") {
+                if (businessType == null || businessType !in VALID_BUSINESS_TYPES) {
                     call.respond(HttpStatusCode.BadRequest, mapOf("message" to "Invalid business type"))
                     return@post
                 }
@@ -107,10 +108,7 @@ private fun Route.initialSetupRoutes() {
         val businessCurrency = initialSetupRequest.businessCurrency
         val timezone = initialSetupRequest.timezone
 
-        if (
-            businessType != "store" &&
-            businessType != "restaurant"
-        ) {
+        if (businessType == null || businessType !in VALID_BUSINESS_TYPES) {
             call.respond(HttpStatusCode.BadRequest, mapOf("message" to "Invalid business type"))
             return@post
         }
@@ -160,6 +158,7 @@ private fun Route.initialSetupRoutes() {
                         Config(
                             businessType = businessType,
                             businessName = businessName,
+                            businessProfession = initialSetupRequest.businessProfession,
                             businessAddress = initialSetupRequest.businessAddress,
                             businessPhone = initialSetupRequest.businessPhone,
                             businessEmail = initialSetupRequest.businessEmail,

@@ -83,6 +83,25 @@ describe("Step 3 Business Details", () => {
     expect(screen.getByText("step3.titleRestaurant")).toBeInTheDocument();
   });
 
+  it("renders correct title for freelance", () => {
+    renderBusinessDetails({ ...defaultData, businessType: "freelance" });
+    expect(screen.getByText("step3.titleFreelance")).toBeInTheDocument();
+  });
+
+  it("shows the profession field only for freelance", () => {
+    renderBusinessDetails({ ...defaultData, businessType: "store" });
+    expect(screen.queryByPlaceholderText("step3.fields.businessProfessionPlaceholder")).not.toBeInTheDocument();
+  });
+
+  it("calls onChange when profession changes for freelance", () => {
+    renderBusinessDetails({ ...defaultData, businessType: "freelance", businessProfession: "" });
+    const professionInput = screen.getByPlaceholderText("step3.fields.businessProfessionPlaceholder");
+    fireEvent.change(professionInput, { target: { value: "Graphic Designer" } });
+    expect(mockChange).toHaveBeenCalledWith(
+      expect.objectContaining({ businessProfession: "Graphic Designer" }),
+    );
+  });
+
   it("calls onChange when business name changes", () => {
     renderBusinessDetails();
     const input = screen.getByPlaceholderText("step3.fields.businessNamePlaceholder");
