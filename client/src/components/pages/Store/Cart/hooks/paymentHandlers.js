@@ -347,25 +347,25 @@ export function buildHandleBtcComplete({ getConfig, setConfig, ...context }) {
 
 export function buildHandleCashComplete({ getConfig, setConfig, ...context }) {
   return async function handleCashComplete(completionData) {
-    const config = getConfig();
-    if (!config) return;
+    const cashPaymentConfig = getConfig();
+    if (!cashPaymentConfig) return;
 
     await runDeferredCheckout({
       ...context,
       checkoutArgs: {
-        cartItems: config.cartItems || [],
-        paymentAmounts: config.paymentAmounts,
-        selectedPaymentMethod: config.selectedPaymentMethod,
-        currencyId: config.currencyId,
+        cartItems: cashPaymentConfig.cartItems || [],
+        paymentAmounts: cashPaymentConfig.paymentAmounts,
+        selectedPaymentMethod: cashPaymentConfig.selectedPaymentMethod,
+        currencyId: cashPaymentConfig.currencyId,
       },
-      receiptItems: config.cartItems,
-      receiptTotal: config.paymentAmounts.total,
-      receiptDiscountAmount: config.paymentAmounts.discountAmount,
-      receiptTipAmount: config.paymentAmounts.tipAmount,
+      receiptItems: cashPaymentConfig.cartItems,
+      receiptTotal: cashPaymentConfig.paymentAmounts.total,
+      receiptDiscountAmount: cashPaymentConfig.paymentAmounts.discountAmount,
+      receiptTipAmount: cashPaymentConfig.paymentAmounts.tipAmount,
       buildOnPayPayload: (storeCheckoutResult) => ({
-        items: config.cartItems,
-        ...config.paymentAmounts,
-        paymentMethod: config.selectedPaymentMethod,
+        items: cashPaymentConfig.cartItems,
+        ...cashPaymentConfig.paymentAmounts,
+        paymentMethod: cashPaymentConfig.selectedPaymentMethod,
         ...storeCheckoutResult,
         cashReceived: completionData?.cashReceived,
         change: completionData?.change,
@@ -379,27 +379,27 @@ export function buildHandleCashComplete({ getConfig, setConfig, ...context }) {
 
 export function buildHandleCardComplete({ getConfig, setConfig, ...context }) {
   return async function handleCardComplete() {
-    const config = getConfig();
-    if (!config) return;
+    const cardPaymentConfig = getConfig();
+    if (!cardPaymentConfig) return;
 
     await runDeferredCheckout({
       ...context,
       checkoutArgs: {
-        cartItems: config.cartItems || [],
-        paymentAmounts: config.paymentAmounts,
-        selectedPaymentMethod: config.selectedPaymentMethod,
-        currencyId: config.currencyId,
+        cartItems: cardPaymentConfig.cartItems || [],
+        paymentAmounts: cardPaymentConfig.paymentAmounts,
+        selectedPaymentMethod: cardPaymentConfig.selectedPaymentMethod,
+        currencyId: cardPaymentConfig.currencyId,
       },
-      receiptItems: config.cartItems,
-      receiptTotal: config.paymentAmounts.total,
-      receiptDiscountAmount: config.paymentAmounts.discountAmount,
-      receiptTipAmount: config.paymentAmounts.tipAmount,
+      receiptItems: cardPaymentConfig.cartItems,
+      receiptTotal: cardPaymentConfig.paymentAmounts.total,
+      receiptDiscountAmount: cardPaymentConfig.paymentAmounts.discountAmount,
+      receiptTipAmount: cardPaymentConfig.paymentAmounts.tipAmount,
       buildOnPayPayload: (storeCheckoutResult) => ({
-        items: config.cartItems,
-        ...config.paymentAmounts,
-        paymentMethod: config.selectedPaymentMethod,
+        items: cardPaymentConfig.cartItems,
+        ...cardPaymentConfig.paymentAmounts,
+        paymentMethod: cardPaymentConfig.selectedPaymentMethod,
         ...storeCheckoutResult,
-        methodLabel: config.methodLabel,
+        methodLabel: cardPaymentConfig.methodLabel,
       }),
       successKey: "success.cardPaid",
       errorKey: "errors.cardComplete",
@@ -410,28 +410,28 @@ export function buildHandleCardComplete({ getConfig, setConfig, ...context }) {
 
 export function buildHandleTransferComplete({ getConfig, setConfig, ...context }) {
   return async function handleTransferComplete(completionData) {
-    const config = getConfig();
-    if (!config) return;
+    const transferPaymentConfig = getConfig();
+    if (!transferPaymentConfig) return;
 
     await runDeferredCheckout({
       ...context,
       checkoutArgs: {
-        cartItems: config.cartItems || [],
-        paymentAmounts: config.paymentAmounts,
-        selectedPaymentMethod: config.selectedPaymentMethod,
-        currencyId: config.currencyId,
+        cartItems: transferPaymentConfig.cartItems || [],
+        paymentAmounts: transferPaymentConfig.paymentAmounts,
+        selectedPaymentMethod: transferPaymentConfig.selectedPaymentMethod,
+        currencyId: transferPaymentConfig.currencyId,
         transactionId: completionData?.reference || "",
       },
-      receiptItems: config.cartItems,
-      receiptTotal: config.paymentAmounts.total,
-      receiptDiscountAmount: config.paymentAmounts.discountAmount,
-      receiptTipAmount: config.paymentAmounts.tipAmount,
+      receiptItems: transferPaymentConfig.cartItems,
+      receiptTotal: transferPaymentConfig.paymentAmounts.total,
+      receiptDiscountAmount: transferPaymentConfig.paymentAmounts.discountAmount,
+      receiptTipAmount: transferPaymentConfig.paymentAmounts.tipAmount,
       buildOnPayPayload: (storeCheckoutResult) => ({
-        items: config.cartItems,
-        ...config.paymentAmounts,
-        paymentMethod: config.selectedPaymentMethod,
+        items: transferPaymentConfig.cartItems,
+        ...transferPaymentConfig.paymentAmounts,
+        paymentMethod: transferPaymentConfig.selectedPaymentMethod,
         ...storeCheckoutResult,
-        methodLabel: config.methodLabel,
+        methodLabel: transferPaymentConfig.methodLabel,
         reference: completionData?.reference,
       }),
       successKey: "success.transferPaid",
