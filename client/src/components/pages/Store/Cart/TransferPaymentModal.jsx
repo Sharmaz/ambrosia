@@ -88,6 +88,7 @@ export function TransferPaymentModal({
             placeholder={transferTranslations("referencePlaceholder")}
             value={reference}
             onValueChange={setReference}
+            classNames={{ inputWrapper: "shadow-none" }}
           />
         </ModalBody>
         <ModalFooter className="flex justify-between">
