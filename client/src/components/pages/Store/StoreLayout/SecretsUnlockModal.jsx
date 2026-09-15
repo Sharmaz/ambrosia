@@ -2,17 +2,24 @@
 
 import { useState } from "react";
 
-import { addToast, Button, Input, Modal, ModalBody, ModalContent, ModalHeader } from "@heroui/react";
+import { addToast, Button, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader } from "@heroui/react";
 import { useTranslations } from "next-intl";
 
 import { RequirePermission } from "@/hooks/usePermission";
 import { SECRETS_UNLOCKED_EVENT, unlockSecrets } from "@/services/secretsService";
 import WalletGuard from "@components/auth/WalletGuard";
+import { SecretsExistingPasswordField } from "@components/shared/SecretsExistingPasswordField";
 
 export function SecretsUnlockModal({ onClose }) {
   const secretsEncryptionCardTranslations = useTranslations();
   const [unlockPassword, setUnlockPassword] = useState("");
+  const [passwordError, setPasswordError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+
+  const handleUnlockPasswordChange = (enteredPassword) => {
+    setUnlockPassword(enteredPassword);
+    setPasswordError("");
+  };
 
   const handleUnlock = async () => {
     setSubmitting(true);
@@ -25,10 +32,7 @@ export function SecretsUnlockModal({ onClose }) {
       window.dispatchEvent(new Event(SECRETS_UNLOCKED_EVENT));
       onClose?.();
     } catch (unlockSecretsError) {
-      addToast({
-        color: "danger",
-        description: unlockSecretsError.message || secretsEncryptionCardTranslations("secretsEncryptionCard.unlockError"),
-      });
+      setPasswordError(unlockSecretsError.message || secretsEncryptionCardTranslations("secretsEncryptionCard.unlockError"));
     } finally {
       setSubmitting(false);
     }
@@ -42,23 +46,45 @@ export function SecretsUnlockModal({ onClose }) {
       confirmText={secretsEncryptionCardTranslations("secretsEncryptionCard.confirmButton")}
       cancelText={secretsEncryptionCardTranslations("secretsEncryptionCard.cancelButton")}
     >
-      <Modal isOpen onClose={onClose}>
-        <ModalContent>
+      <Modal
+        isOpen
+        onClose={onClose}
+        isDismissable={false}
+        hideCloseButton
+        backdrop="blur"
+        shouldBlockScroll={false}
+        classNames={{
+          backdrop: "backdrop-blur-xs bg-white/10",
+          wrapper: "items-start h-auto",
+          base: "my-auto overflow-hidden",
+        }}
+      >
+        <ModalContent className="rounded-lg">
           <ModalHeader>{secretsEncryptionCardTranslations("secretsEncryptionCard.title")}</ModalHeader>
-          <ModalBody className="pt-0 pb-6 flex flex-col gap-4">
+          <ModalBody className="pt-0 flex flex-col gap-4">
             <p className="text-sm text-gray-500">
               {secretsEncryptionCardTranslations("secretsEncryptionCard.lockedDescription")}
             </p>
             <RequirePermission allOf={["settings_update"]}>
-              <Input
-                label={secretsEncryptionCardTranslations("secretsEncryptionCard.unlockPasswordLabel")}
-                type="password"
-                value={unlockPassword}
-                onValueChange={setUnlockPassword}
+              <SecretsExistingPasswordField
+                unlockPassword={unlockPassword}
+                onUnlockPasswordChange={handleUnlockPasswordChange}
+                passwordError={passwordError}
               />
+            </RequirePermission>
+          </ModalBody>
+          <ModalFooter>
+            <Button
+              variant="bordered"
+              type="button"
+              className="px-6 py-2 border border-border text-foreground hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              onPress={onClose}
+            >
+              {secretsEncryptionCardTranslations("secretsEncryptionCard.cancelButton")}
+            </Button>
+            <RequirePermission allOf={["settings_update"]}>
               <Button
                 color="primary"
-                className="bg-green-800"
                 isDisabled={!unlockPassword || submitting}
                 isLoading={submitting}
                 onPress={handleUnlock}
@@ -66,7 +92,7 @@ export function SecretsUnlockModal({ onClose }) {
                 {secretsEncryptionCardTranslations("secretsEncryptionCard.unlockButton")}
               </Button>
             </RequirePermission>
-          </ModalBody>
+          </ModalFooter>
         </ModalContent>
       </Modal>
     </WalletGuard>

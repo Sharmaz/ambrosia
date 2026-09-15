@@ -92,6 +92,30 @@ describe("SecretsUnlockModal", () => {
     expect(screen.getByText("secretsEncryptionCard.unlockButton")).toBeDisabled();
   });
 
+  it("closes the modal when the inner cancel button is clicked", () => {
+    const onClose = jest.fn();
+    render(<SecretsUnlockModal onClose={onClose} />);
+
+    const cancelButtons = screen.getAllByText("secretsEncryptionCard.cancelButton");
+    const innerCancelButton = cancelButtons.find((button) => button.dataset.testid !== "guard-cancel");
+    fireEvent.click(innerCancelButton);
+
+    expect(onClose).toHaveBeenCalled();
+  });
+
+  it("toggles the password field between hidden and visible", () => {
+    render(<SecretsUnlockModal onClose={jest.fn()} />);
+
+    expect(screen.getByLabelText("secretsEncryptionCard.unlockPasswordLabel")).toHaveAttribute("type", "password");
+
+    const togglePasswordButton = screen.getAllByRole("button").find(
+      (button) => !button.getAttribute("aria-label") && !button.textContent,
+    );
+    fireEvent.click(togglePasswordButton);
+
+    expect(screen.getByLabelText("secretsEncryptionCard.unlockPasswordLabel")).toHaveAttribute("type", "text");
+  });
+
   it("unlocks with the entered password and dispatches SECRETS_UNLOCKED_EVENT", async () => {
     secretsService.unlockSecrets.mockResolvedValue({ message: "Secrets unlocked" });
     const dispatchEventSpy = jest.spyOn(window, "dispatchEvent");
@@ -116,7 +140,7 @@ describe("SecretsUnlockModal", () => {
     dispatchEventSpy.mockRestore();
   });
 
-  it("shows an error toast and does not close when unlocking fails", async () => {
+  it("shows the error inline on the password field and does not close when unlocking fails", async () => {
     secretsService.unlockSecrets.mockRejectedValue(new Error("Invalid credentials"));
     const onClose = jest.fn();
     render(<SecretsUnlockModal onClose={onClose} />);
@@ -128,9 +152,28 @@ describe("SecretsUnlockModal", () => {
       fireEvent.click(screen.getByText("secretsEncryptionCard.unlockButton"));
     });
 
-    expect(addToast).toHaveBeenCalledWith(
-      expect.objectContaining({ color: "danger", description: "Invalid credentials" }),
-    );
+    expect(screen.getByLabelText("secretsEncryptionCard.unlockPasswordLabel")).toBeInvalid();
+    expect(screen.getByText("Invalid credentials")).toBeInTheDocument();
+    expect(addToast).not.toHaveBeenCalledWith(expect.objectContaining({ color: "danger" }));
     expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it("clears the inline error when the password is edited again", async () => {
+    secretsService.unlockSecrets.mockRejectedValue(new Error("Invalid credentials"));
+    render(<SecretsUnlockModal onClose={jest.fn()} />);
+
+    fireEvent.change(screen.getByLabelText("secretsEncryptionCard.unlockPasswordLabel"), {
+      target: { value: "wrong-password" },
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByText("secretsEncryptionCard.unlockButton"));
+    });
+    expect(screen.getByText("Invalid credentials")).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("secretsEncryptionCard.unlockPasswordLabel"), {
+      target: { value: "wrong-password-retry" },
+    });
+
+    expect(screen.queryByText("Invalid credentials")).not.toBeInTheDocument();
   });
 });
