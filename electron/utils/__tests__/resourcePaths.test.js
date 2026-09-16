@@ -2,8 +2,8 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 
-const { installElectronMock, setIsPackaged, resetElectronMock } = require('../../test-utils/electronMock');
-const { setPlatformAndArch, restorePlatformAndArch } = require('../../test-utils/platformMock');
+const { installElectronMock, setIsPackaged, resetElectronMock } = require('../../test-utils/electronMock.js');
+const { setPlatformAndArch, restorePlatformAndArch } = require('../../test-utils/platformMock.js');
 
 let resourcePaths;
 

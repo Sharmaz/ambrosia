@@ -11,7 +11,7 @@ function installFindFreePortMock() {
   };
 }
 
-const { installElectronMock, setIsPackaged, resetElectronMock } = require('../../test-utils/electronMock');
+const { installElectronMock, setIsPackaged, resetElectronMock } = require('../../test-utils/electronMock.js');
 
 let portAllocator;
 let logger;

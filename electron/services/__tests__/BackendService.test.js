@@ -1,9 +1,9 @@
 const fs = require('fs');
 
-const { installElectronMock } = require('../../test-utils/electronMock');
-const { createFakeSpawnedProcess, createFakeWriteStream } = require('../../test-utils/fakeChildProcess');
-const { installSpawnMock } = require('../../test-utils/spawnMock');
-const { installTreeKillMock } = require('../../test-utils/treeKillMock');
+const { installElectronMock } = require('../../test-utils/electronMock.js');
+const { createFakeSpawnedProcess, createFakeWriteStream } = require('../../test-utils/fakeChildProcess.js');
+const { installSpawnMock } = require('../../test-utils/spawnMock.js');
+const { installTreeKillMock } = require('../../test-utils/treeKillMock.js');
 const healthCheck = require('../../utils/healthCheck.cjs');
 const logger = require('../../utils/logger.cjs');
 
@@ -125,10 +125,10 @@ describe('start', () => {
   it('waits for the backend to become healthy before resolving', async () => {
     const backendService = new BackendService();
 
-    const result = await backendService.start(9154, backendConfig);
+    const startedServiceInfo = await backendService.start(9154, backendConfig);
 
     expect(healthCheck.checkBackend).toHaveBeenCalledWith(9154);
-    expect(result).toEqual({ port: 9154 });
+    expect(startedServiceInfo).toEqual({ port: 9154 });
     expect(backendService.getStatus()).toBe('running');
   });
 

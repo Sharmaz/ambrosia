@@ -31,7 +31,7 @@ const PhoenixdServiceMock = createFakeServiceClass();
 const BackendServiceMock = createFakeServiceClass();
 const NextJsServiceMock = createFakeServiceClass();
 
-const { installElectronMock, setIsPackaged } = require('../../test-utils/electronMock');
+const { installElectronMock, setIsPackaged } = require('../../test-utils/electronMock.js');
 const healthCheck = require('../../utils/healthCheck.cjs');
 const logger = require('../../utils/logger.cjs');
 

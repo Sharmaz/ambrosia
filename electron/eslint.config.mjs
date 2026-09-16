@@ -138,8 +138,8 @@ const eslintConfig = [
       'import/no-duplicates': 'error',
       'import/no-unresolved': 'off', // Node.js handles this
       'import/extensions': ['error', 'ignorePackages', {
-        js: 'never',
-        mjs: 'never',
+        js: 'always',
+        mjs: 'always',
       }],
       'import/prefer-default-export': 'off',
     },

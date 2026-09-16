@@ -3,7 +3,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 
-const { installElectronMock } = require('../../test-utils/electronMock');
+const { installElectronMock } = require('../../test-utils/electronMock.js');
 
 let configurationBootstrap;
 

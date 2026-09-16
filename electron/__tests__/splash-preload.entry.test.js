@@ -1,19 +1,22 @@
-const { installElectronMock, resetElectronMock } = require('../test-utils/electronMock');
+const { contextBridgeMock, ipcRendererMock } = vi.hoisted(() => ({
+  contextBridgeMock: { exposeInMainWorld: vi.fn() },
+  ipcRendererMock: { on: vi.fn(), removeListener: vi.fn() },
+}));
 
-const contextBridgeMock = { exposeInMainWorld: vi.fn() };
-const ipcRendererMock = { on: vi.fn(), removeListener: vi.fn() };
+vi.mock('electron', () => ({
+  contextBridge: contextBridgeMock,
+  ipcRenderer: ipcRendererMock,
+}));
 
 let exposedChannelName;
 let exposedSplashBridge;
 
-beforeAll(() => {
-  installElectronMock({ contextBridge: contextBridgeMock, ipcRenderer: ipcRendererMock });
-  require('../splash-preload.entry.cjs');
+beforeAll(async () => {
+  await import('../splash-preload.entry.js');
   [exposedChannelName, exposedSplashBridge] = contextBridgeMock.exposeInMainWorld.mock.calls[0];
 });
 
 beforeEach(() => {
-  resetElectronMock();
   contextBridgeMock.exposeInMainWorld.mockClear();
   ipcRendererMock.on.mockClear();
   ipcRendererMock.removeListener.mockClear();

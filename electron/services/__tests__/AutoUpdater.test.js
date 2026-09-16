@@ -17,8 +17,8 @@ function installElectronUpdaterMock() {
   };
 }
 
-const { installElectronMock } = require('../../test-utils/electronMock');
-const { setPlatformAndArch, restorePlatformAndArch } = require('../../test-utils/platformMock');
+const { installElectronMock } = require('../../test-utils/electronMock.js');
+const { setPlatformAndArch, restorePlatformAndArch } = require('../../test-utils/platformMock.js');
 const logger = require('../../utils/logger.cjs');
 
 const dialogMock = { showMessageBox: vi.fn() };
