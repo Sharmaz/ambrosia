@@ -3,20 +3,18 @@ const fs = require('fs');
 const https = require('https');
 const path = require('path');
 
+const { DOWNLOAD } = require('../utils/constants.js');
+
 const { getBuildPlatform } = require('./platform-utils.cjs');
 const { verifySha256, fetchSha256SumsChecksum } = require('./verify-checksum.cjs');
 
-const PHOENIXD_VERSION = '0.9.0';
+const PHOENIXD_VERSION = DOWNLOAD.PHOENIXD_VERSION;
 const RESOURCES_DIR = path.join(__dirname, '..', 'resources', 'phoenixd');
 
 const GITHUB_BASE = `https://github.com/ACINQ/phoenixd/releases/download/v${PHOENIXD_VERSION}`;
 
-// ACINQ publishes a single SHA256SUMS.asc per release with all hashes.
-// When bumping PHOENIXD_VERSION, no hash changes are needed — the file is fetched at build time.
 const SHA256SUMS_URL = `${GITHUB_BASE}/SHA256SUMS.asc`;
 
-// Phoenixd GitHub release URLs
-// The `archiveFilename` must match exactly what appears in SHA256SUMS.asc.
 const ALL_PHOENIXD_DOWNLOADS = {
   'macos-x64': {
     platform: 'macos-x64',
@@ -38,8 +36,6 @@ const ALL_PHOENIXD_DOWNLOADS = {
   },
   'win-arm64': {
     platform: 'win-arm64',
-    // Note: phoenixd doesn't have native ARM64 support for Windows yet.
-    // We use the JVM version which will run under x64 emulation.
     url: `${GITHUB_BASE}/phoenixd-${PHOENIXD_VERSION}-jvm.zip`,
     archiveFilename: `phoenixd-${PHOENIXD_VERSION}-jvm.zip`,
     filename: 'phoenixd-win-arm64.zip',
@@ -61,40 +57,39 @@ const ALL_PHOENIXD_DOWNLOADS = {
 const currentPlatform = getBuildPlatform();
 const PHOENIXD_DOWNLOADS = [ALL_PHOENIXD_DOWNLOADS[currentPlatform]];
 
-function downloadFile(url, dest, redirectCount = 0) {
-  const MAX_REDIRECTS = 5;
+function downloadFile(url, destination, redirectCount = 0) {
+  const MAX_REDIRECTS = DOWNLOAD.MAX_REDIRECTS;
   return new Promise((resolve, reject) => {
-    const file = fs.createWriteStream(dest);
+    const destinationFileStream = fs.createWriteStream(destination);
 
     console.log(`Downloading: ${url}`);
-    console.log(`To: ${dest}`);
+    console.log(`To: ${destination}`);
 
-    const request = https.get(url, (response) => {
-      // Handle redirects (301, 302, 307, 308)
-      if (response.statusCode === 301 || response.statusCode === 302 ||
-          response.statusCode === 307 || response.statusCode === 308) {
-        const redirectUrl = response.headers.location;
-        file.close();
-        fs.unlinkSync(dest);
+    const downloadRequest = https.get(url, (downloadResponse) => {
+      if (downloadResponse.statusCode === 301 || downloadResponse.statusCode === 302 ||
+          downloadResponse.statusCode === 307 || downloadResponse.statusCode === 308) {
+        const redirectUrl = downloadResponse.headers.location;
+        destinationFileStream.close();
+        fs.unlinkSync(destination);
         if (redirectCount >= MAX_REDIRECTS) {
           reject(new Error(`Too many redirects (max ${MAX_REDIRECTS})`));
           return;
         }
-        console.log(`Following redirect (${response.statusCode}) to: ${redirectUrl}`);
-        downloadFile(redirectUrl, dest, redirectCount + 1).then(resolve).catch(reject);
+        console.log(`Following redirect (${downloadResponse.statusCode}) to: ${redirectUrl}`);
+        downloadFile(redirectUrl, destination, redirectCount + 1).then(resolve).catch(reject);
         return;
       }
 
-      if (response.statusCode !== 200) {
-        reject(new Error(`Failed to download: HTTP ${response.statusCode}`));
+      if (downloadResponse.statusCode !== 200) {
+        reject(new Error(`Failed to download: HTTP ${downloadResponse.statusCode}`));
         return;
       }
 
-      const totalSize = parseInt(response.headers['content-length'], 10);
+      const totalSize = parseInt(downloadResponse.headers['content-length'], 10);
       let downloadedSize = 0;
       let lastPercent = 0;
 
-      response.on('data', (chunk) => {
+      downloadResponse.on('data', (chunk) => {
         downloadedSize += chunk.length;
         const percent = Math.floor((downloadedSize / totalSize) * 100);
         if (percent !== lastPercent && percent % 10 === 0) {
@@ -103,86 +98,78 @@ function downloadFile(url, dest, redirectCount = 0) {
         }
       });
 
-      response.pipe(file);
+      downloadResponse.pipe(destinationFileStream);
 
-      file.on('finish', () => {
-        file.close();
+      destinationFileStream.on('finish', () => {
+        destinationFileStream.close();
         console.log('Download complete!\n');
         resolve();
       });
     });
 
-    request.on('error', (err) => {
-      fs.unlink(dest, () => {});
-      reject(err);
+    downloadRequest.on('error', (requestError) => {
+      fs.unlink(destination, () => {});
+      reject(requestError);
     });
 
-    file.on('error', (err) => {
-      fs.unlink(dest, () => {});
-      reject(err);
+    destinationFileStream.on('error', (fileStreamError) => {
+      fs.unlink(destination, () => {});
+      reject(fileStreamError);
     });
   });
 }
 
-function extractZip(zipPath, destDir) {
+function extractZip(zipPath, destinationDirectory) {
   console.log(`Extracting ${zipPath}...`);
 
-  if (!fs.existsSync(destDir)) {
-    fs.mkdirSync(destDir, { recursive: true });
+  if (!fs.existsSync(destinationDirectory)) {
+    fs.mkdirSync(destinationDirectory, { recursive: true });
   }
 
   try {
-    // Extract zip using platform-appropriate method
     if (process.platform === 'win32') {
-      // Use PowerShell Expand-Archive on Windows (available on Windows 10+)
-      const psCommand = `powershell -Command "Expand-Archive -Path '${zipPath}' -DestinationPath '${destDir}' -Force"`;
-      execSync(psCommand, { stdio: 'inherit' });
+      const powershellCommand = `powershell -Command "Expand-Archive -Path '${zipPath}' -DestinationPath '${destinationDirectory}' -Force"`;
+      execSync(powershellCommand, { stdio: 'inherit' });
     } else {
-      // Use unzip on Unix systems
-      execSync(`unzip -q "${zipPath}" -d "${destDir}"`, { stdio: 'inherit' });
+      execSync(`unzip -q "${zipPath}" -d "${destinationDirectory}"`, { stdio: 'inherit' });
     }
 
-    // Find the extracted directory (usually has version number)
-    const extractedDirs = fs.readdirSync(destDir).filter((f) => {
-      const fullPath = path.join(destDir, f);
+    const extractedDirectories = fs.readdirSync(destinationDirectory).filter((entryName) => {
+      const fullPath = path.join(destinationDirectory, entryName);
       return fs.statSync(fullPath).isDirectory();
     });
 
-    if (extractedDirs.length > 0) {
-      const extractedDir = path.join(destDir, extractedDirs[0]);
-      const files = fs.readdirSync(extractedDir);
+    if (extractedDirectories.length > 0) {
+      const extractedDirectory = path.join(destinationDirectory, extractedDirectories[0]);
+      const childEntryNames = fs.readdirSync(extractedDirectory);
 
-      // Move contents up to destDir
-      files.forEach((file) => {
-        const oldPath = path.join(extractedDir, file);
-        const newPath = path.join(destDir, file);
+      childEntryNames.forEach((entryName) => {
+        const oldPath = path.join(extractedDirectory, entryName);
+        const newPath = path.join(destinationDirectory, entryName);
         if (fs.existsSync(newPath)) {
           fs.rmSync(newPath, { recursive: true, force: true });
         }
         fs.renameSync(oldPath, newPath);
       });
 
-      // Remove the extracted directory
-      fs.rmSync(extractedDir, { recursive: true, force: true });
+      fs.rmSync(extractedDirectory, { recursive: true, force: true });
     }
 
-    console.log(`Extracted to: ${destDir}\n`);
-  } catch (error) {
-    console.error(`Error extracting archive: ${error.message}`);
-    throw error;
+    console.log(`Extracted to: ${destinationDirectory}\n`);
+  } catch (extractionError) {
+    console.error(`Error extracting archive: ${extractionError.message}`);
+    throw extractionError;
   }
 }
 
 async function downloadAndExtractPhoenixd(platform, url, archiveFilename, filename) {
-  const platformDir = path.join(RESOURCES_DIR, platform);
+  const platformDirectory = path.join(RESOURCES_DIR, platform);
   const downloadPath = path.join(RESOURCES_DIR, filename);
 
-  // Check if already downloaded
-  // JVM version (Windows) has bin/phoenixd.bat structure
   const isJvmVersion = url.includes('jvm');
   const phoenixdExecutable = isJvmVersion ? path.join('bin', 'phoenixd.bat') :
     platform.startsWith('win') ? 'phoenixd.exe' : 'phoenixd';
-  const phoenixdPath = path.join(platformDir, phoenixdExecutable);
+  const phoenixdPath = path.join(platformDirectory, phoenixdExecutable);
 
   if (fs.existsSync(phoenixdPath)) {
     console.log(`✓ Phoenixd for ${platform} already exists, skipping download\n`);
@@ -192,15 +179,12 @@ async function downloadAndExtractPhoenixd(platform, url, archiveFilename, filena
   console.log(`\n=== Downloading Phoenixd for ${platform} ===`);
 
   try {
-    // Create directories
     if (!fs.existsSync(RESOURCES_DIR)) {
       fs.mkdirSync(RESOURCES_DIR, { recursive: true });
     }
 
-    // Download
     await downloadFile(url, downloadPath);
 
-    // Verify integrity using ACINQ's SHA256SUMS.asc before extracting
     try {
       console.log(`Fetching checksums from: ${SHA256SUMS_URL}`);
       const expectedHash = await fetchSha256SumsChecksum(SHA256SUMS_URL, archiveFilename);
@@ -210,13 +194,10 @@ async function downloadAndExtractPhoenixd(platform, url, archiveFilename, filena
       throw new Error(`Integrity check failed: ${checksumError.message}`);
     }
 
-    // Extract
-    extractZip(downloadPath, platformDir);
+    extractZip(downloadPath, platformDirectory);
 
-    // Verify phoenixd exists
     if (fs.existsSync(phoenixdPath)) {
       console.log(`✓ Successfully installed Phoenixd for ${platform}`);
-      // Make executable on Unix systems
       if (!platform.startsWith('win')) {
         fs.chmodSync(phoenixdPath, 0o755);
       }
@@ -224,11 +205,10 @@ async function downloadAndExtractPhoenixd(platform, url, archiveFilename, filena
       throw new Error(`Phoenixd executable not found at ${phoenixdPath}`);
     }
 
-    // Clean up archive
     fs.unlinkSync(downloadPath);
-  } catch (error) {
-    console.error(`✗ Failed to download Phoenixd for ${platform}: ${error.message}`);
-    throw error;
+  } catch (installError) {
+    console.error(`✗ Failed to download Phoenixd for ${platform}: ${installError.message}`);
+    throw installError;
   }
 }
 
@@ -237,11 +217,11 @@ async function main() {
   console.log(`  Downloading Phoenixd ${PHOENIXD_VERSION} for ${currentPlatform}`);
   console.log('===========================================\n');
 
-  for (const phoenixd of PHOENIXD_DOWNLOADS) {
+  for (const phoenixdDownload of PHOENIXD_DOWNLOADS) {
     try {
-      await downloadAndExtractPhoenixd(phoenixd.platform, phoenixd.url, phoenixd.archiveFilename, phoenixd.filename);
-    } catch (error) {
-      console.error(`Failed to download Phoenixd for ${phoenixd.platform}:`, error);
+      await downloadAndExtractPhoenixd(phoenixdDownload.platform, phoenixdDownload.url, phoenixdDownload.archiveFilename, phoenixdDownload.filename);
+    } catch (phoenixdInstallError) {
+      console.error(`Failed to download Phoenixd for ${phoenixdDownload.platform}:`, phoenixdInstallError);
       process.exit(1);
     }
   }
@@ -252,7 +232,7 @@ async function main() {
   process.exit(0);
 }
 
-main().catch((error) => {
-  console.error('Fatal error:', error);
+main().catch((fatalError) => {
+  console.error('Fatal error:', fatalError);
   process.exit(1);
 });

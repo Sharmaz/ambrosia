@@ -5,7 +5,7 @@ const { createFakeSpawnedProcess, createFakeWriteStream } = require('../../test-
 const { installSpawnMock } = require('../../test-utils/spawnMock.js');
 const { installTreeKillMock } = require('../../test-utils/treeKillMock.js');
 const healthCheck = require('../../utils/healthCheck.cjs');
-const logger = require('../../utils/logger.cjs');
+const { logger } = require('../../utils/logger.js');
 
 let BackendService;
 let spawnMock;

@@ -33,7 +33,7 @@ const NextJsServiceMock = createFakeServiceClass();
 
 const { installElectronMock, setIsPackaged } = require('../../test-utils/electronMock.js');
 const healthCheck = require('../../utils/healthCheck.cjs');
-const logger = require('../../utils/logger.cjs');
+const { logger } = require('../../utils/logger.js');
 
 let ServiceManager;
 let configurationBootstrap;
@@ -186,7 +186,7 @@ describe('_startAll in production mode', () => {
   it('emits service:started for each service and all:started at the end', async () => {
     const serviceManager = new ServiceManager();
     const startedServiceNames = [];
-    serviceManager.on('service:started', (event) => startedServiceNames.push(event.service));
+    serviceManager.on('service:started', ({ service }) => startedServiceNames.push(service));
     const allStarted = vi.fn();
     serviceManager.on('all:started', allStarted);
 
@@ -351,11 +351,11 @@ describe('restartService', () => {
     const serviceManager = new ServiceManager();
     await serviceManager.startAll();
     NextJsServiceMock.createdInstances[0].start.mockRejectedValueOnce(new Error('restart failed'));
-    const serviceError = vi.fn();
-    serviceManager.on('service:error', serviceError);
+    const serviceErrorListener = vi.fn();
+    serviceManager.on('service:error', serviceErrorListener);
 
     await expect(serviceManager.restartService('nextjs')).rejects.toThrow('restart failed');
-    expect(serviceError).toHaveBeenCalledWith({ service: 'nextjs', error: expect.any(Error) });
+    expect(serviceErrorListener).toHaveBeenCalledWith({ service: 'nextjs', serviceError: expect.any(Error) });
   });
 });
 
@@ -365,12 +365,12 @@ describe('health monitor', () => {
     const serviceManager = new ServiceManager();
     await serviceManager.startAll();
     BackendServiceMock.createdInstances[0].getStatus.mockReturnValue('error');
-    const serviceError = vi.fn();
-    serviceManager.on('service:error', serviceError);
+    const serviceErrorListener = vi.fn();
+    serviceManager.on('service:error', serviceErrorListener);
 
     await vi.advanceTimersByTimeAsync(30000);
 
-    expect(serviceError).toHaveBeenCalledWith({ service: 'backend', error: expect.any(Error) });
+    expect(serviceErrorListener).toHaveBeenCalledWith({ service: 'backend', serviceError: expect.any(Error) });
     vi.useRealTimers();
   });
 
@@ -380,12 +380,12 @@ describe('health monitor', () => {
     const serviceManager = new ServiceManager();
     await serviceManager.startAll();
     PhoenixdServiceMock.createdInstances[0].getStatus.mockReturnValue('error');
-    const serviceError = vi.fn();
-    serviceManager.on('service:error', serviceError);
+    const serviceErrorListener = vi.fn();
+    serviceManager.on('service:error', serviceErrorListener);
 
     await vi.advanceTimersByTimeAsync(30000);
 
-    expect(serviceError).not.toHaveBeenCalledWith(expect.objectContaining({ service: 'phoenixd' }));
+    expect(serviceErrorListener).not.toHaveBeenCalledWith(expect.objectContaining({ service: 'phoenixd' }));
     vi.useRealTimers();
   });
 
@@ -395,12 +395,12 @@ describe('health monitor', () => {
     await serviceManager.startAll();
     await serviceManager.stopAll();
     BackendServiceMock.createdInstances[0].getStatus.mockReturnValue('error');
-    const serviceError = vi.fn();
-    serviceManager.on('service:error', serviceError);
+    const serviceErrorListener = vi.fn();
+    serviceManager.on('service:error', serviceErrorListener);
 
     await vi.advanceTimersByTimeAsync(30000);
 
-    expect(serviceError).not.toHaveBeenCalled();
+    expect(serviceErrorListener).not.toHaveBeenCalled();
     vi.useRealTimers();
   });
 });

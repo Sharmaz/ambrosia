@@ -1,7 +1,8 @@
 const { EventEmitter } = require('events');
 
+const { HEALTH, STARTUP } = require('../utils/constants.js');
 const { isPhoenixdRunning, isBackendRunning } = require('../utils/healthCheck.cjs');
-const logger = require('../utils/logger.cjs');
+const { logger } = require('../utils/logger.js');
 const { allocatePorts, DEFAULT_PORTS } = require('../utils/portAllocator.cjs');
 const { isDevelopment } = require('../utils/resourcePaths.cjs');
 
@@ -20,7 +21,6 @@ class ServiceManager extends EventEmitter {
     this.ports = null;
     this.configs = null;
     this.phoenixdRemoteConfigured = false;
-    // Track which services are external (not managed by us)
     this.externalServices = {
       phoenixd: false,
       backend: false,
@@ -28,10 +28,8 @@ class ServiceManager extends EventEmitter {
   }
 
   async startAll() {
-    const STARTUP_TIMEOUT_MS = 2 * 60 * 1000; // 2 minutes
-
     const timeoutPromise = new Promise((_, reject) => {
-      setTimeout(() => reject(new Error('Startup timed out after 2 minutes')), STARTUP_TIMEOUT_MS);
+      setTimeout(() => reject(new Error('Startup timed out after 2 minutes')), STARTUP.TIMEOUT_MILLISECONDS);
     });
 
     return Promise.race([this._startAll(), timeoutPromise]);
@@ -56,13 +54,13 @@ class ServiceManager extends EventEmitter {
         logger.log('  - backend: http://localhost:9154');
 
         logger.log('[ServiceManager] Starting Next.js service...');
-        const result = await this.nextjsService.start(this.ports.nextjs, {
+        const startedServiceInfo = await this.nextjsService.start(this.ports.nextjs, {
           host: 'localhost',
           port: this.ports.backend,
         });
         this.emit('service:started', { service: 'nextjs', port: this.ports.nextjs });
         logger.log('[ServiceManager] All services started successfully');
-        return result.url;
+        return startedServiceInfo.url;
       }
 
       logger.log('[ServiceManager] Production mode: starting all bundled services');
@@ -109,7 +107,7 @@ class ServiceManager extends EventEmitter {
       this.emit('service:started', { service: 'backend', port: this.ports.backend });
 
       logger.log('[ServiceManager] Step 3: Starting Next.js...');
-      const result = await this.nextjsService.start(this.ports.nextjs, {
+      const startedServiceInfo = await this.nextjsService.start(this.ports.nextjs, {
         host: '127.0.0.1',
         port: this.ports.backend,
       });
@@ -119,28 +117,26 @@ class ServiceManager extends EventEmitter {
       this.startHealthMonitor();
       this.emit('all:started');
 
-      return result.url;
-    } catch (error) {
-      logger.error('[ServiceManager] Failed to start services:', error);
-      this.emit('service:error', { error });
+      return startedServiceInfo.url;
+    } catch (startupError) {
+      logger.error('[ServiceManager] Failed to start services:', startupError);
+      this.emit('service:error', { serviceError: startupError });
       await this.stopAll();
-      throw error;
+      throw startupError;
     }
   }
 
   startHealthMonitor() {
-    const INTERVAL_MS = 30 * 1000; // 30 seconds
-
     this._healthMonitor = setInterval(() => {
       const statuses = this.getServiceStatuses();
       for (const [service, status] of Object.entries(statuses)) {
         if (this.externalServices[service]) continue;
         if (status === 'error' || status === 'stopped') {
           logger.warn(`[ServiceManager] Health monitor: ${service} is ${status}, emitting event`);
-          this.emit('service:error', { service, error: new Error(`${service} is ${status}`) });
+          this.emit('service:error', { service, serviceError: new Error(`${service} is ${status}`) });
         }
       }
-    }, INTERVAL_MS);
+    }, HEALTH.MONITOR_INTERVAL_MILLISECONDS);
   }
 
   stopHealthMonitor() {
@@ -157,30 +153,28 @@ class ServiceManager extends EventEmitter {
     try {
       logger.log('[ServiceManager] Stopping Next.js...');
       await this.nextjsService.stop();
-    } catch (error) {
-      logger.error('[ServiceManager] Error stopping Next.js:', error);
+    } catch (stopNextJsError) {
+      logger.error('[ServiceManager] Error stopping Next.js:', stopNextJsError);
     }
 
     if (!this.devMode) {
-      // Only stop backend if we started it (not external)
       if (!this.externalServices.backend) {
         try {
           logger.log('[ServiceManager] Stopping Backend...');
           await this.backendService.stop();
-        } catch (error) {
-          logger.error('[ServiceManager] Error stopping Backend:', error);
+        } catch (stopBackendError) {
+          logger.error('[ServiceManager] Error stopping Backend:', stopBackendError);
         }
       } else {
         logger.log('[ServiceManager] Backend is external, not stopping');
       }
 
-      // Only stop phoenixd if we started it (not external)
       if (!this.externalServices.phoenixd) {
         try {
           logger.log('[ServiceManager] Stopping Phoenixd...');
           await this.phoenixdService.stop();
-        } catch (error) {
-          logger.error('[ServiceManager] Error stopping Phoenixd:', error);
+        } catch (stopPhoenixdError) {
+          logger.error('[ServiceManager] Error stopping Phoenixd:', stopPhoenixdError);
         }
       } else {
         logger.log('[ServiceManager] Phoenixd is external, not stopping');
@@ -243,10 +237,10 @@ class ServiceManager extends EventEmitter {
       }
       logger.log(`[ServiceManager] ${serviceName} restarted successfully`);
       this.emit('service:restarted', { service: serviceName });
-    } catch (error) {
-      logger.error(`[ServiceManager] Failed to restart ${serviceName}:`, error);
-      this.emit('service:error', { service: serviceName, error });
-      throw error;
+    } catch (restartError) {
+      logger.error(`[ServiceManager] Failed to restart ${serviceName}:`, restartError);
+      this.emit('service:error', { service: serviceName, serviceError: restartError });
+      throw restartError;
     }
   }
 

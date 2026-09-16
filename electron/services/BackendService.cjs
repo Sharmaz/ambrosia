@@ -4,9 +4,16 @@ const path = require('path');
 const spawn = require('cross-spawn');
 const treeKill = require('tree-kill');
 
+const { STARTUP } = require('../utils/constants.js');
 const { checkBackend } = require('../utils/healthCheck.cjs');
-const logger = require('../utils/logger.cjs');
+const { logger } = require('../utils/logger.js');
 const { getJavaPath, getBackendJarPath, getLogsDirectory } = require('../utils/resourcePaths.cjs');
+
+const CONFLICTING_JAVA_ENV_VARS = ['JAVA_TOOL_OPTIONS', 'JDK_JAVA_OPTIONS', '_JAVA_OPTIONS', 'JAVA_OPTS', 'JAVA_HOME'];
+
+function stripConflictingJavaEnvVars(environment) {
+  CONFLICTING_JAVA_ENV_VARS.forEach((envVarName) => delete environment[envVarName]);
+}
 
 class BackendService {
   constructor() {
@@ -16,7 +23,7 @@ class BackendService {
     this.logStream = null;
   }
 
-  async start(port, config) {
+  async start(port, startupConfig) {
     if (this.process) {
       throw new Error('Backend service is already running');
     }
@@ -27,13 +34,13 @@ class BackendService {
     try {
       const javaPath = getJavaPath();
       const jarPath = getBackendJarPath();
-      const logsDir = getLogsDirectory();
+      const logsDirectory = getLogsDirectory();
 
-      if (!fs.existsSync(logsDir)) {
-        fs.mkdirSync(logsDir, { recursive: true });
+      if (!fs.existsSync(logsDirectory)) {
+        fs.mkdirSync(logsDirectory, { recursive: true });
       }
 
-      const logFile = path.join(logsDir, `backend-${new Date().toISOString().split('T')[0]}.log`);
+      const logFile = path.join(logsDirectory, `backend-${new Date().toISOString().split('T')[0]}.log`);
       this.logStream = fs.createWriteStream(logFile, { flags: 'a' });
 
       const args = [
@@ -42,19 +49,14 @@ class BackendService {
         `--http-bind-ip=127.0.0.1`,
         `--http-bind-port=${port}`,
       ];
-      if (!config.phoenixdRemoteConfigured) {
-        args.push(`--phoenixd-url=http://localhost:${config.phoenixdPort}`);
+      if (!startupConfig.phoenixdRemoteConfigured) {
+        args.push(`--phoenixd-url=http://localhost:${startupConfig.phoenixdPort}`);
       }
 
-      // Secrets passed as env vars to avoid exposure in `ps aux` and log files.
-      // Java-related env vars are stripped to prevent interference from other JDK/JRE
-      // installations on the system (e.g. JAVA_TOOL_OPTIONS set by Oracle JDK on Windows).
       const env = { ...process.env };
-      ['JAVA_TOOL_OPTIONS', 'JDK_JAVA_OPTIONS', '_JAVA_OPTIONS', 'JAVA_OPTS', 'JAVA_HOME'].forEach(
-        (key) => delete env[key],
-      );
-      env.PHOENIXD_PASSWORD = config.phoenixPassword;
-      env.PHOENIXD_WEBHOOK_SECRET = config.webhookSecret;
+      stripConflictingJavaEnvVars(env);
+      env.PHOENIXD_PASSWORD = startupConfig.phoenixPassword;
+      env.PHOENIXD_WEBHOOK_SECRET = startupConfig.webhookSecret;
 
       logger.log(`[BackendService] Starting backend at port ${port}...`);
 
@@ -66,24 +68,24 @@ class BackendService {
 
       this.process = spawnedProcess;
 
-      spawnedProcess.stdout.on('data', (data) => {
-        const message = data.toString();
-        logger.log(`[Backend] ${message.trim()}`);
+      spawnedProcess.stdout.on('data', (chunk) => {
+        const outputText = chunk.toString();
+        logger.log(`[Backend] ${outputText.trim()}`);
         if (this.logStream) {
-          this.logStream.write(`[${new Date().toISOString()}] ${message}`);
+          this.logStream.write(`[${new Date().toISOString()}] ${outputText}`);
         }
       });
 
-      spawnedProcess.stderr.on('data', (data) => {
-        const message = data.toString();
-        logger.error(`[Backend ERROR] ${message.trim()}`);
+      spawnedProcess.stderr.on('data', (chunk) => {
+        const outputText = chunk.toString();
+        logger.error(`[Backend ERROR] ${outputText.trim()}`);
         if (this.logStream) {
-          this.logStream.write(`[${new Date().toISOString()}] ERROR: ${message}`);
+          this.logStream.write(`[${new Date().toISOString()}] ERROR: ${outputText}`);
         }
       });
 
-      spawnedProcess.on('error', (error) => {
-        logger.error('[BackendService] Failed to start:', error);
+      spawnedProcess.on('error', (spawnError) => {
+        logger.error('[BackendService] Failed to start:', spawnError);
         if (this.process === spawnedProcess) {
           this.status = 'error';
           this.cleanup();
@@ -105,11 +107,11 @@ class BackendService {
       logger.log('[BackendService] Backend is running and healthy');
 
       return { port };
-    } catch (error) {
-      logger.error('[BackendService] Startup failed:', error);
+    } catch (startupError) {
+      logger.error('[BackendService] Startup failed:', startupError);
       this.status = 'error';
       await this.stop();
-      throw error;
+      throw startupError;
     }
   }
 
@@ -124,9 +126,9 @@ class BackendService {
     return new Promise((resolve) => {
       const pid = this.process.pid;
 
-      treeKill(pid, 'SIGTERM', (err) => {
-        if (err) {
-          logger.error('[BackendService] Failed to kill process tree:', err);
+      treeKill(pid, 'SIGTERM', (killError) => {
+        if (killError) {
+          logger.error('[BackendService] Failed to kill process tree:', killError);
           treeKill(pid, 'SIGKILL', () => {
             this.cleanup();
             resolve();
@@ -146,7 +148,7 @@ class BackendService {
             resolve();
           });
         }
-      }, 10000);
+      }, STARTUP.BACKEND_FORCE_KILL_TIMEOUT_MILLISECONDS);
     });
   }
 

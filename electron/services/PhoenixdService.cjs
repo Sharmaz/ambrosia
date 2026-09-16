@@ -5,9 +5,16 @@ const path = require('path');
 const spawn = require('cross-spawn');
 const treeKill = require('tree-kill');
 
+const { STARTUP } = require('../utils/constants.js');
 const { checkPhoenixd } = require('../utils/healthCheck.cjs');
-const logger = require('../utils/logger.cjs');
+const { logger } = require('../utils/logger.js');
 const { getPhoenixdPath, getPhoenixDataDirectory, getLogsDirectory, getBasePath } = require('../utils/resourcePaths.cjs');
+
+const CONFLICTING_JAVA_ENV_VARS = ['JAVA_TOOL_OPTIONS', 'JDK_JAVA_OPTIONS', '_JAVA_OPTIONS', 'JAVA_OPTS', 'JAVA_HOME'];
+
+function stripConflictingJavaEnvVars(environment) {
+  CONFLICTING_JAVA_ENV_VARS.forEach((envVarName) => delete environment[envVarName]);
+}
 
 class PhoenixdService {
   constructor() {
@@ -27,21 +34,20 @@ class PhoenixdService {
 
     try {
       const phoenixdPath = getPhoenixdPath();
-      const dataDir = getPhoenixDataDirectory();
-      const logsDir = getLogsDirectory();
+      const dataDirectory = getPhoenixDataDirectory();
+      const logsDirectory = getLogsDirectory();
 
-      if (!fs.existsSync(dataDir)) {
-        fs.mkdirSync(dataDir, { recursive: true });
+      if (!fs.existsSync(dataDirectory)) {
+        fs.mkdirSync(dataDirectory, { recursive: true });
       }
 
-      if (!fs.existsSync(logsDir)) {
-        fs.mkdirSync(logsDir, { recursive: true });
+      if (!fs.existsSync(logsDirectory)) {
+        fs.mkdirSync(logsDirectory, { recursive: true });
       }
 
-      const logFile = path.join(logsDir, `phoenixd-${new Date().toISOString().split('T')[0]}.log`);
+      const logFile = path.join(logsDirectory, `phoenixd-${new Date().toISOString().split('T')[0]}.log`);
       this.logStream = fs.createWriteStream(logFile, { flags: 'a' });
 
-      // Only pass args that are not already in phoenix.conf (secrets stay in config file)
       const args = [
         '--agree-to-terms-of-service',
         `--http-bind-ip=127.0.0.1`,
@@ -50,26 +56,17 @@ class PhoenixdService {
 
       logger.log(`[PhoenixdService] Starting phoenixd at port ${port}...`);
 
-      // Set JAVA_HOME for phoenixd when using JVM version.
-      // Windows (both x64 and ARM64) uses the JVM version of phoenixd (phoenixd.bat calls java
-      // internally), so we must point it at the bundled JRE and strip any system Java env vars
-      // that could override it (e.g. a stale JAVA_HOME left by an uninstalled JDK).
       const env = { ...process.env };
 
       if (process.platform === 'win32') {
-        // Both win-x64 and win-arm64 use the JVM phoenixd version with the bundled x64 JRE.
         const bundledJreHome = path.join(getBasePath(), 'jre', 'win-x64');
-        ['JAVA_TOOL_OPTIONS', 'JDK_JAVA_OPTIONS', '_JAVA_OPTIONS', 'JAVA_OPTS', 'JAVA_HOME'].forEach(
-          (key) => delete env[key],
-        );
+        stripConflictingJavaEnvVars(env);
         env.JAVA_HOME = bundledJreHome;
         logger.log(`[PhoenixdService] Using bundled x64 JRE for phoenixd JVM version (${process.arch})`);
         logger.log(`[PhoenixdService] JAVA_HOME: ${bundledJreHome}`);
       } else if (process.platform === 'linux' && process.arch === 'arm64') {
-        // Linux ARM64: phoenixd has native ARM64 binary, no JRE needed
         logger.log(`[PhoenixdService] Using native ARM64 phoenixd binary (Linux ARM64)`);
       } else {
-        // Other platforms: native binaries (macOS ARM64/x64, Linux x64)
         logger.log(`[PhoenixdService] Using native phoenixd binary for ${process.platform}-${process.arch}`);
       }
 
@@ -81,33 +78,32 @@ class PhoenixdService {
 
       this.process = spawnedProcess;
 
-      spawnedProcess.stdout.on('data', (data) => {
-        const message = data.toString();
-        logger.log(`[Phoenixd] ${message.trim()}`);
+      spawnedProcess.stdout.on('data', (chunk) => {
+        const outputText = chunk.toString();
+        logger.log(`[Phoenixd] ${outputText.trim()}`);
         if (this.logStream) {
-          this.logStream.write(`[${new Date().toISOString()}] ${message}`);
+          this.logStream.write(`[${new Date().toISOString()}] ${outputText}`);
         }
       });
 
-      spawnedProcess.stderr.on('data', (data) => {
-        const message = data.toString();
-        logger.error(`[Phoenixd ERROR] ${message.trim()}`);
+      spawnedProcess.stderr.on('data', (chunk) => {
+        const outputText = chunk.toString();
+        logger.error(`[Phoenixd ERROR] ${outputText.trim()}`);
         if (this.logStream) {
-          this.logStream.write(`[${new Date().toISOString()}] ERROR: ${message}`);
+          this.logStream.write(`[${new Date().toISOString()}] ERROR: ${outputText}`);
         }
       });
 
-      spawnedProcess.on('error', (error) => {
-        logger.error('[PhoenixdService] Failed to start:', error);
+      spawnedProcess.on('error', (spawnError) => {
+        logger.error('[PhoenixdService] Failed to start:', spawnError);
         this.status = 'error';
         if (this.process === spawnedProcess) this.cleanup();
       });
 
       spawnedProcess.on('close', (code) => {
         logger.log(`[PhoenixdService] Process exited with code ${code}`);
-        // Only cleanup if this process is still the active one.
-        // Avoids overwriting this.process after a restart has already set a new process.
-        if (this.process === spawnedProcess) {
+        const isStillTheActiveProcess = this.process === spawnedProcess;
+        if (isStillTheActiveProcess) {
           this.status = 'stopped';
           this.cleanup();
         }
@@ -120,11 +116,11 @@ class PhoenixdService {
       logger.log('[PhoenixdService] Phoenixd is running and healthy');
 
       return { port };
-    } catch (error) {
-      logger.error('[PhoenixdService] Startup failed:', error);
+    } catch (startupError) {
+      logger.error('[PhoenixdService] Startup failed:', startupError);
       this.status = 'error';
       await this.stop();
-      throw error;
+      throw startupError;
     }
   }
 
@@ -174,11 +170,11 @@ class PhoenixdService {
           this.cleanup();
           resolve();
         });
-      }, 5000);
+      }, STARTUP.FORCE_KILL_TIMEOUT_MILLISECONDS);
 
-      treeKill(pid, 'SIGTERM', (err) => {
-        if (err) {
-          logger.error('[PhoenixdService] Failed to send SIGTERM:', err);
+      treeKill(pid, 'SIGTERM', (killError) => {
+        if (killError) {
+          logger.error('[PhoenixdService] Failed to send SIGTERM:', killError);
           clearTimeout(forceKillTimer);
           processToKill.removeListener('exit', onExit);
           treeKill(pid, 'SIGKILL', () => {

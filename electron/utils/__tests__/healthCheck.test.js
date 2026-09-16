@@ -20,7 +20,7 @@ let logger;
 beforeAll(() => {
   installWaitOnMock();
   healthCheck = require('../healthCheck.cjs');
-  logger = require('../logger.cjs');
+  ({ logger } = require('../logger.js'));
 });
 
 function createFakeIncomingMessage(statusCode) {
@@ -219,7 +219,7 @@ describe('makeHttpRequest', () => {
 
     await expect(healthCheck.makeHttpRequest('http://localhost:9154/api/data')).resolves.toEqual({
       statusCode: 200,
-      data: 'chunk-1chunk-2',
+      responseBody: 'chunk-1chunk-2',
     });
   });
 

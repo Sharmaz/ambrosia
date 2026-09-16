@@ -5,8 +5,8 @@ async function loadLoggerWithEnv(envOverrides) {
   delete process.env.NODE_ENV;
   Object.assign(process.env, envOverrides);
   vi.resetModules();
-  const loggerModule = await import('../logger.cjs');
-  return loggerModule.default;
+  const loggerModule = await import('../logger.js');
+  return loggerModule.logger;
 }
 
 describe('logger', () => {

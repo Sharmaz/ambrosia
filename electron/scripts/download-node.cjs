@@ -3,14 +3,14 @@ const fs = require('fs');
 const https = require('https');
 const path = require('path');
 
+const { DOWNLOAD } = require('../utils/constants.js');
+
 const { getBuildPlatform } = require('./platform-utils.cjs');
 const { verifySha256, fetchSha256SumsChecksum } = require('./verify-checksum.cjs');
 
 const NODE_VERSION = 'v24.15.0';
 const RESOURCES_DIR = path.join(__dirname, '..', 'resources', 'node');
 
-// Node.js publishes SHASUMS256.txt per release with all platform hashes.
-// When bumping NODE_VERSION, no hash changes needed — fetched at build time.
 const SHASUMS_URL = `https://nodejs.org/dist/${NODE_VERSION}/SHASUMS256.txt`;
 
 const ALL_DOWNLOADS = {
@@ -49,31 +49,31 @@ const ALL_DOWNLOADS = {
 const currentPlatform = getBuildPlatform();
 const DOWNLOADS = [ALL_DOWNLOADS[currentPlatform]];
 
-const MAX_REDIRECTS = 5;
+const MAX_REDIRECTS = DOWNLOAD.MAX_REDIRECTS;
 
 function downloadFile(url, destination, redirectCount = 0) {
   return new Promise((resolve, reject) => {
     console.log(`Downloading: ${url}`);
-    const file = fs.createWriteStream(destination);
+    const destinationFileStream = fs.createWriteStream(destination);
 
-    https.get(url, (response) => {
-      if (response.statusCode === 301 || response.statusCode === 302 ||
-          response.statusCode === 307 || response.statusCode === 308) {
-        file.close();
+    https.get(url, (downloadResponse) => {
+      if (downloadResponse.statusCode === 301 || downloadResponse.statusCode === 302 ||
+          downloadResponse.statusCode === 307 || downloadResponse.statusCode === 308) {
+        destinationFileStream.close();
         if (redirectCount >= MAX_REDIRECTS) {
           reject(new Error(`Too many redirects (max ${MAX_REDIRECTS})`));
           return;
         }
-        return downloadFile(response.headers.location, destination, redirectCount + 1)
+        return downloadFile(downloadResponse.headers.location, destination, redirectCount + 1)
           .then(resolve)
           .catch(reject);
       }
 
-      const totalSize = parseInt(response.headers['content-length'], 10);
+      const totalSize = parseInt(downloadResponse.headers['content-length'], 10);
       let downloadedSize = 0;
       let lastPercent = 0;
 
-      response.on('data', (chunk) => {
+      downloadResponse.on('data', (chunk) => {
         downloadedSize += chunk.length;
         const percent = Math.floor((downloadedSize / totalSize) * 100);
         if (percent !== lastPercent && percent % 10 === 0) {
@@ -82,41 +82,38 @@ function downloadFile(url, destination, redirectCount = 0) {
         }
       });
 
-      response.pipe(file);
+      downloadResponse.pipe(destinationFileStream);
 
-      file.on('finish', () => {
-        file.close();
+      destinationFileStream.on('finish', () => {
+        destinationFileStream.close();
         console.log('✓ Download complete\n');
         resolve();
       });
-    }).on('error', (err) => {
+    }).on('error', (requestError) => {
       fs.unlink(destination, () => {});
-      reject(err);
+      reject(requestError);
     });
   });
 }
 
-function extractArchive(archivePath, platform, destDir) {
+function extractArchive(archivePath, platform, destinationDirectory) {
   console.log(`Extracting: ${path.basename(archivePath)}`);
 
   if (platform.startsWith('win')) {
-    // Windows - use PowerShell for zip extraction
-    const psCommand = `powershell -Command "Expand-Archive -Path '${archivePath}' -DestinationPath '${destDir}' -Force"`;
-    execSync(psCommand, { stdio: 'inherit' });
+    const powershellCommand = `powershell -Command "Expand-Archive -Path '${archivePath}' -DestinationPath '${destinationDirectory}' -Force"`;
+    execSync(powershellCommand, { stdio: 'inherit' });
 
-    // Move files from nested directory
-    const extractedDir = path.join(destDir, path.basename(archivePath, '.zip'));
-    const files = fs.readdirSync(extractedDir);
-    files.forEach((file) => {
+    const extractedDirectory = path.join(destinationDirectory, path.basename(archivePath, '.zip'));
+    const childEntryNames = fs.readdirSync(extractedDirectory);
+    childEntryNames.forEach((entryName) => {
       fs.renameSync(
-        path.join(extractedDir, file),
-        path.join(destDir, file),
+        path.join(extractedDirectory, entryName),
+        path.join(destinationDirectory, entryName),
       );
     });
-    fs.rmSync(extractedDir, { recursive: true, force: true });
+    fs.rmSync(extractedDirectory, { recursive: true, force: true });
   } else {
-    // macOS/Linux - use tar
-    execSync(`tar -xzf "${archivePath}" -C "${destDir}" --strip-components=1`, { stdio: 'inherit' });
+    execSync(`tar -xzf "${archivePath}" -C "${destinationDirectory}" --strip-components=1`, { stdio: 'inherit' });
   }
 
   console.log('✓ Extraction complete\n');
@@ -128,56 +125,48 @@ async function main() {
   console.log('===========================================');
   console.log(`Platform: ${currentPlatform}\n`);
 
-  // Create resources directory
   if (!fs.existsSync(RESOURCES_DIR)) {
     fs.mkdirSync(RESOURCES_DIR, { recursive: true });
   }
 
-  for (const download of DOWNLOADS) {
-    const platformDir = path.join(RESOURCES_DIR, download.platform);
-    const archivePath = path.join(RESOURCES_DIR, download.filename);
+  for (const nodeDownload of DOWNLOADS) {
+    const platformDirectory = path.join(RESOURCES_DIR, nodeDownload.platform);
+    const archivePath = path.join(RESOURCES_DIR, nodeDownload.filename);
 
-    // Check if already downloaded
-    const nodeBinary = download.platform.startsWith('win')
-      ? path.join(platformDir, 'node.exe')
-      : path.join(platformDir, 'bin', 'node');
+    const nodeBinary = nodeDownload.platform.startsWith('win')
+      ? path.join(platformDirectory, 'node.exe')
+      : path.join(platformDirectory, 'bin', 'node');
 
     if (fs.existsSync(nodeBinary)) {
-      console.log(`✓ Node.js ${download.platform} already exists, skipping...\n`);
+      console.log(`✓ Node.js ${nodeDownload.platform} already exists, skipping...\n`);
       continue;
     }
 
-    console.log(`Processing: ${download.platform}`);
+    console.log(`Processing: ${nodeDownload.platform}`);
 
-    // Download
-    await downloadFile(download.url, archivePath);
+    await downloadFile(nodeDownload.url, archivePath);
 
-    // Verify integrity using Node.js official SHASUMS256.txt
     try {
       console.log(`Fetching checksums from: ${SHASUMS_URL}`);
-      const expectedHash = await fetchSha256SumsChecksum(SHASUMS_URL, download.filename);
+      const expectedHash = await fetchSha256SumsChecksum(SHASUMS_URL, nodeDownload.filename);
       await verifySha256(archivePath, expectedHash);
     } catch (checksumError) {
       fs.unlinkSync(archivePath);
       throw new Error(`Integrity check failed: ${checksumError.message}`);
     }
 
-    // Create platform directory
-    if (!fs.existsSync(platformDir)) {
-      fs.mkdirSync(platformDir, { recursive: true });
+    if (!fs.existsSync(platformDirectory)) {
+      fs.mkdirSync(platformDirectory, { recursive: true });
     }
 
-    // Extract
-    extractArchive(archivePath, download.platform, platformDir);
+    extractArchive(archivePath, nodeDownload.platform, platformDirectory);
 
-    // Clean up archive
     fs.unlinkSync(archivePath);
 
-    // Verify
     if (fs.existsSync(nodeBinary)) {
-      console.log(`✓ Node.js ${download.platform} installed successfully\n`);
+      console.log(`✓ Node.js ${nodeDownload.platform} installed successfully\n`);
     } else {
-      throw new Error(`Failed to extract Node.js for ${download.platform}`);
+      throw new Error(`Failed to extract Node.js for ${nodeDownload.platform}`);
     }
   }
 
@@ -188,7 +177,7 @@ async function main() {
 
 main()
   .then(() => process.exit(0))
-  .catch((error) => {
-    console.error('\n✗ Error:', error.message);
+  .catch((fatalError) => {
+    console.error('\n✗ Error:', fatalError.message);
     process.exit(1);
   });

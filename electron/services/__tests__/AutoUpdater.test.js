@@ -19,7 +19,7 @@ function installElectronUpdaterMock() {
 
 const { installElectronMock } = require('../../test-utils/electronMock.js');
 const { setPlatformAndArch, restorePlatformAndArch } = require('../../test-utils/platformMock.js');
-const logger = require('../../utils/logger.cjs');
+const { logger } = require('../../utils/logger.js');
 
 const dialogMock = { showMessageBox: vi.fn() };
 const ipcMainMock = { handle: vi.fn(), removeHandler: vi.fn() };
