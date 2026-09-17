@@ -1,13 +1,15 @@
-const fs = require('fs');
-const path = require('path');
+import fs from 'fs';
+import { createRequire } from 'module';
+import path from 'path';
 
+import { STARTUP } from '../utils/constants.js';
+import { healthCheck } from '../utils/healthCheck.js';
+import { logger } from '../utils/logger.js';
+import { getJavaPath, getBackendJarPath, getLogsDirectory } from '../utils/resourcePaths.js';
+
+const require = createRequire(import.meta.url);
 const spawn = require('cross-spawn');
 const treeKill = require('tree-kill');
-
-const { STARTUP } = require('../utils/constants.js');
-const { checkBackend } = require('../utils/healthCheck.cjs');
-const { logger } = require('../utils/logger.js');
-const { getJavaPath, getBackendJarPath, getLogsDirectory } = require('../utils/resourcePaths.cjs');
 
 const CONFLICTING_JAVA_ENV_VARS = ['JAVA_TOOL_OPTIONS', 'JDK_JAVA_OPTIONS', '_JAVA_OPTIONS', 'JAVA_OPTS', 'JAVA_HOME'];
 
@@ -15,7 +17,7 @@ function stripConflictingJavaEnvVars(environment) {
   CONFLICTING_JAVA_ENV_VARS.forEach((envVarName) => delete environment[envVarName]);
 }
 
-class BackendService {
+export default class BackendService {
   constructor() {
     this.process = null;
     this.status = 'stopped';
@@ -43,14 +45,14 @@ class BackendService {
       const logFile = path.join(logsDirectory, `backend-${new Date().toISOString().split('T')[0]}.log`);
       this.logStream = fs.createWriteStream(logFile, { flags: 'a' });
 
-      const args = [
+      const commandArguments = [
         '-jar',
         jarPath,
         `--http-bind-ip=127.0.0.1`,
         `--http-bind-port=${port}`,
       ];
       if (!startupConfig.phoenixdRemoteConfigured) {
-        args.push(`--phoenixd-url=http://localhost:${startupConfig.phoenixdPort}`);
+        commandArguments.push(`--phoenixd-url=http://localhost:${startupConfig.phoenixdPort}`);
       }
 
       const env = { ...process.env };
@@ -60,7 +62,7 @@ class BackendService {
 
       logger.log(`[BackendService] Starting backend at port ${port}...`);
 
-      const spawnedProcess = spawn(javaPath, args, {
+      const spawnedProcess = spawn(javaPath, commandArguments, {
         stdio: ['ignore', 'pipe', 'pipe'],
         detached: false,
         env,
@@ -101,7 +103,7 @@ class BackendService {
       });
 
       logger.log('[BackendService] Waiting for backend to be healthy...');
-      await checkBackend(port);
+      await healthCheck.checkBackend(port);
 
       this.status = 'running';
       logger.log('[BackendService] Backend is running and healthy');
@@ -172,5 +174,3 @@ class BackendService {
     return this.port;
   }
 }
-
-module.exports = BackendService;

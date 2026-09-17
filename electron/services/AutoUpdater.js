@@ -1,17 +1,19 @@
-const fs = require('fs');
-const os = require('os');
-const path = require('path');
+import fs from 'fs';
+import { createRequire } from 'module';
+import os from 'os';
+import path from 'path';
 
+import { logger } from '../utils/logger.js';
+
+const require = createRequire(import.meta.url);
 const { dialog, ipcMain, shell } = require('electron');
 const { autoUpdater } = require('electron-updater');
-
-const { logger } = require('../utils/logger.js');
 
 const SUPPORTS_AUTO_UPDATE = process.platform === 'win32';
 const UPDATE_EXPIRY_DAYS = 7;
 const UPDATE_STATE_FILE = path.join(os.homedir(), '.Ambrosia-POS', 'pending-update.json');
 
-class AutoUpdater {
+export default class AutoUpdater {
   constructor(mainWindow, { onMenuUpdate, releaseUrl } = {}) {
     this.mainWindow = mainWindow;
     this.checkInterval = null;
@@ -78,9 +80,9 @@ class AutoUpdater {
   }
 
   _setupEvents() {
-    autoUpdater.on('update-available', (info) => {
-      logger.log('[AutoUpdater] Update available:', info.version);
-      this.pendingVersion = info.version;
+    autoUpdater.on('update-available', (updateInfo) => {
+      logger.log('[AutoUpdater] Update available:', updateInfo.version);
+      this.pendingVersion = updateInfo.version;
       this.isManualCheck = false;
 
       if (SUPPORTS_AUTO_UPDATE) {
@@ -88,16 +90,16 @@ class AutoUpdater {
         autoUpdater.downloadUpdate();
       } else {
         this.onMenuUpdate({
-          label: `Update Available: ${info.version}`,
+          label: `Update Available: ${updateInfo.version}`,
           enabled: true,
-          click: () => this._showUpdateAvailableDialog(info.version),
+          click: () => this._showUpdateAvailableDialog(updateInfo.version),
         });
-        this._sendToRenderer('update:available', { version: info.version });
+        this._sendToRenderer('update:available', { version: updateInfo.version });
       }
     });
 
-    autoUpdater.on('update-not-available', (info) => {
-      logger.log('[AutoUpdater] Up to date:', info.version);
+    autoUpdater.on('update-not-available', (updateInfo) => {
+      logger.log('[AutoUpdater] Up to date:', updateInfo.version);
       this.onMenuUpdate({ label: 'Check for Updates...', enabled: true });
       if (this.isManualCheck) {
         this.isManualCheck = false;
@@ -105,28 +107,28 @@ class AutoUpdater {
           type: 'info',
           title: 'No Updates Available',
           message: 'You\'re up to date!',
-          detail: `Ambrosia POS ${info.version} is the latest version.`,
+          detail: `Ambrosia POS ${updateInfo.version} is the latest version.`,
           buttons: ['OK'],
         });
       }
     });
 
-    autoUpdater.on('download-progress', (progress) => {
-      logger.log('[AutoUpdater] Download progress:', `${progress.percent.toFixed(1)}%`);
+    autoUpdater.on('download-progress', (downloadProgress) => {
+      logger.log('[AutoUpdater] Download progress:', `${downloadProgress.percent.toFixed(1)}%`);
     });
 
-    autoUpdater.on('update-downloaded', (info) => {
-      logger.log('[AutoUpdater] Update downloaded:', info.version);
-      this._saveUpdateState(info.version);
+    autoUpdater.on('update-downloaded', (updateInfo) => {
+      logger.log('[AutoUpdater] Update downloaded:', updateInfo.version);
+      this._saveUpdateState(updateInfo.version);
       this.onMenuUpdate({
-        label: `Restart to Update to ${info.version}`,
+        label: `Restart to Update to ${updateInfo.version}`,
         enabled: true,
         click: () => {
           this._clearUpdateState();
           autoUpdater.quitAndInstall(false, true);
         },
       });
-      this._sendToRenderer('update:downloaded', { version: info.version });
+      this._sendToRenderer('update:downloaded', { version: updateInfo.version });
     });
 
     autoUpdater.on('error', (updaterError) => {
@@ -231,5 +233,3 @@ class AutoUpdater {
     ipcMain.removeHandler('update:open-release');
   }
 }
-
-module.exports = AutoUpdater;

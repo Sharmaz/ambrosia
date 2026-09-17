@@ -1,14 +1,16 @@
-const { exec } = require('child_process');
-const fs = require('fs');
-const path = require('path');
+import { exec } from 'child_process';
+import fs from 'fs';
+import { createRequire } from 'module';
+import path from 'path';
 
+import { STARTUP } from '../utils/constants.js';
+import { healthCheck } from '../utils/healthCheck.js';
+import { logger } from '../utils/logger.js';
+import { getPhoenixdPath, getPhoenixDataDirectory, getLogsDirectory, getBasePath } from '../utils/resourcePaths.js';
+
+const require = createRequire(import.meta.url);
 const spawn = require('cross-spawn');
 const treeKill = require('tree-kill');
-
-const { STARTUP } = require('../utils/constants.js');
-const { checkPhoenixd } = require('../utils/healthCheck.cjs');
-const { logger } = require('../utils/logger.js');
-const { getPhoenixdPath, getPhoenixDataDirectory, getLogsDirectory, getBasePath } = require('../utils/resourcePaths.cjs');
 
 const CONFLICTING_JAVA_ENV_VARS = ['JAVA_TOOL_OPTIONS', 'JDK_JAVA_OPTIONS', '_JAVA_OPTIONS', 'JAVA_OPTS', 'JAVA_HOME'];
 
@@ -16,7 +18,7 @@ function stripConflictingJavaEnvVars(environment) {
   CONFLICTING_JAVA_ENV_VARS.forEach((envVarName) => delete environment[envVarName]);
 }
 
-class PhoenixdService {
+export default class PhoenixdService {
   constructor() {
     this.process = null;
     this.status = 'stopped';
@@ -48,7 +50,7 @@ class PhoenixdService {
       const logFile = path.join(logsDirectory, `phoenixd-${new Date().toISOString().split('T')[0]}.log`);
       this.logStream = fs.createWriteStream(logFile, { flags: 'a' });
 
-      const args = [
+      const commandArguments = [
         '--agree-to-terms-of-service',
         `--http-bind-ip=127.0.0.1`,
         `--http-bind-port=${port}`,
@@ -70,7 +72,7 @@ class PhoenixdService {
         logger.log(`[PhoenixdService] Using native phoenixd binary for ${process.platform}-${process.arch}`);
       }
 
-      const spawnedProcess = spawn(phoenixdPath, args, {
+      const spawnedProcess = spawn(phoenixdPath, commandArguments, {
         stdio: ['ignore', 'pipe', 'pipe'],
         detached: false,
         env,
@@ -110,7 +112,7 @@ class PhoenixdService {
       });
 
       logger.log('[PhoenixdService] Waiting for phoenixd to be healthy...');
-      await checkPhoenixd(port);
+      await healthCheck.checkPhoenixd(port);
 
       this.status = 'running';
       logger.log('[PhoenixdService] Phoenixd is running and healthy');
@@ -206,5 +208,3 @@ class PhoenixdService {
     return this.port;
   }
 }
-
-module.exports = PhoenixdService;

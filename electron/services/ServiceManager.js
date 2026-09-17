@@ -1,20 +1,20 @@
-const { EventEmitter } = require('events');
+import { EventEmitter } from 'events';
 
-const { HEALTH, STARTUP } = require('../utils/constants.js');
-const { isPhoenixdRunning, isBackendRunning } = require('../utils/healthCheck.cjs');
-const { logger } = require('../utils/logger.js');
-const { allocatePorts, DEFAULT_PORTS } = require('../utils/portAllocator.cjs');
-const { isDevelopment } = require('../utils/resourcePaths.cjs');
+import { HEALTH, STARTUP } from '../utils/constants.js';
+import { healthCheck } from '../utils/healthCheck.js';
+import { logger } from '../utils/logger.js';
+import { portAllocator, DEFAULT_PORTS } from '../utils/portAllocator.js';
+import { isDevelopment } from '../utils/resourcePaths.js';
 
-const BackendService = require('./BackendService.cjs');
-const { ensureConfigurations } = require('./ConfigurationBootstrap.cjs');
-const NextJsService = require('./NextJsService.cjs');
-const PhoenixdService = require('./PhoenixdService.cjs');
+import BackendService from './BackendService.js';
+import { configurationBootstrap } from './ConfigurationBootstrap.js';
+import NextJsService from './NextJsService.js';
+import PhoenixdService from './PhoenixdService.js';
 
-class ServiceManager extends EventEmitter {
+export default class ServiceManager extends EventEmitter {
   constructor(options = {}) {
     super();
-    this.devMode = options.devMode || isDevelopment();
+    this.developmentMode = options.developmentMode || isDevelopment();
     this.phoenixdService = new PhoenixdService();
     this.backendService = new BackendService();
     this.nextjsService = new NextJsService();
@@ -39,15 +39,15 @@ class ServiceManager extends EventEmitter {
     try {
       logger.log('[ServiceManager] Starting all services...');
 
-      this.ports = await allocatePorts();
+      this.ports = await portAllocator.allocatePorts();
       logger.log('[ServiceManager] Allocated ports:', this.ports);
 
       logger.log('[ServiceManager] Ensuring configurations...');
-      this.configs = await ensureConfigurations(this.ports);
+      this.configs = await configurationBootstrap.ensureConfigurations(this.ports);
 
       const phoenixConfig = this.configs.phoenix;
 
-      if (this.devMode) {
+      if (this.developmentMode) {
         logger.log('[ServiceManager] Development mode: skipping phoenixd and backend startup');
         logger.log('[ServiceManager] Assuming external services at:');
         logger.log('  - phoenixd: http://localhost:9740');
@@ -75,7 +75,7 @@ class ServiceManager extends EventEmitter {
         this.emit('service:started', { service: 'phoenixd', port: this.ports.phoenixd, skipped: true });
       } else {
         logger.log('[ServiceManager] Step 1: Checking for existing Phoenixd...');
-        const phoenixdAlreadyRunning = await isPhoenixdRunning(DEFAULT_PORTS.phoenixd);
+        const phoenixdAlreadyRunning = await healthCheck.isPhoenixdRunning(DEFAULT_PORTS.phoenixd);
 
         if (phoenixdAlreadyRunning) {
           logger.log(`[ServiceManager] Phoenixd already running on port ${DEFAULT_PORTS.phoenixd}, reusing...`);
@@ -89,7 +89,7 @@ class ServiceManager extends EventEmitter {
       }
 
       logger.log('[ServiceManager] Step 2: Checking for existing Backend...');
-      const backendAlreadyRunning = await isBackendRunning(DEFAULT_PORTS.backend);
+      const backendAlreadyRunning = await healthCheck.isBackendRunning(DEFAULT_PORTS.backend);
 
       if (backendAlreadyRunning) {
         logger.log(`[ServiceManager] Backend already running on port ${DEFAULT_PORTS.backend}, reusing...`);
@@ -157,7 +157,7 @@ class ServiceManager extends EventEmitter {
       logger.error('[ServiceManager] Error stopping Next.js:', stopNextJsError);
     }
 
-    if (!this.devMode) {
+    if (!this.developmentMode) {
       if (!this.externalServices.backend) {
         try {
           logger.log('[ServiceManager] Stopping Backend...');
@@ -244,9 +244,7 @@ class ServiceManager extends EventEmitter {
     }
   }
 
-  isDevMode() {
-    return this.devMode;
+  isDevelopmentMode() {
+    return this.developmentMode;
   }
 }
-
-module.exports = ServiceManager;

@@ -19,7 +19,8 @@ function installElectronUpdaterMock() {
 
 const { installElectronMock } = require('../../test-utils/electronMock.js');
 const { setPlatformAndArch, restorePlatformAndArch } = require('../../test-utils/platformMock.js');
-const { logger } = require('../../utils/logger.js');
+
+let logger;
 
 const dialogMock = { showMessageBox: vi.fn() };
 const ipcMainMock = { handle: vi.fn(), removeHandler: vi.fn() };
@@ -42,7 +43,8 @@ function ipcHandlerFor(channel) {
 
 async function loadFreshAutoUpdater() {
   vi.resetModules();
-  const autoUpdaterModule = await import('../AutoUpdater.cjs');
+  const autoUpdaterModule = await import('../AutoUpdater.js');
+  ({ logger } = await import('../../utils/logger.js'));
   return autoUpdaterModule.default;
 }
 

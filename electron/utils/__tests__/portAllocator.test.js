@@ -1,26 +1,21 @@
-const findFreePortPath = require.resolve('find-free-port');
-let findFreePortMock;
+const { findFreePortMock } = vi.hoisted(() => ({
+  findFreePortMock: vi.fn(),
+}));
 
-function installFindFreePortMock() {
-  findFreePortMock = vi.fn();
-  require.cache[findFreePortPath] = {
-    id: findFreePortPath,
-    filename: findFreePortPath,
-    loaded: true,
-    exports: findFreePortMock,
-  };
-}
+vi.mock('find-free-port', () => ({
+  default: findFreePortMock,
+}));
 
 const { installElectronMock, setIsPackaged, resetElectronMock } = require('../../test-utils/electronMock.js');
 
 let portAllocator;
+let DEFAULT_PORTS;
 let logger;
 
-beforeAll(() => {
+beforeAll(async () => {
   installElectronMock();
-  installFindFreePortMock();
-  portAllocator = require('../portAllocator.cjs');
-  ({ logger } = require('../logger.js'));
+  ({ portAllocator, DEFAULT_PORTS } = await import('../portAllocator.js'));
+  ({ logger } = await import('../logger.js'));
 });
 
 beforeEach(() => {
@@ -36,7 +31,7 @@ afterEach(() => {
 
 describe('DEFAULT_PORTS', () => {
   it('exposes the default phoenixd, backend, and nextjs ports', () => {
-    expect(portAllocator.DEFAULT_PORTS).toEqual({
+    expect(DEFAULT_PORTS).toEqual({
       phoenixd: 9740,
       backend: 9154,
       nextjs: 3000,

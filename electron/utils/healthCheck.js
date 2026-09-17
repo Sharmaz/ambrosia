@@ -1,9 +1,9 @@
-const http = require('http');
+import http from 'http';
 
-const waitOn = require('wait-on');
+import waitOn from 'wait-on';
 
-const { HEALTH } = require('./constants.js');
-const { logger } = require('./logger.js');
+import { HEALTH } from './constants.js';
+import { logger } from './logger.js';
 
 async function waitForHealth(url, options = {}) {
   const {
@@ -148,7 +148,7 @@ async function isNextJsRunning(port) {
   );
 }
 
-module.exports = {
+export const healthCheck = {
   waitForHealth,
   checkPhoenixd,
   checkBackend,

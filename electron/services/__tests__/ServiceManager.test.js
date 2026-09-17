@@ -1,56 +1,53 @@
-function createFakeServiceClass() {
-  const createdInstances = [];
+const { PhoenixdServiceMock, BackendServiceMock, NextJsServiceMock } = vi.hoisted(() => {
+  function createFakeServiceClass() {
+    const createdInstances = [];
 
-  function FakeService() {
-    const instance = {
-      start: vi.fn().mockResolvedValue({ port: 0, url: 'http://localhost:0' }),
-      stop: vi.fn().mockResolvedValue(undefined),
-      getStatus: vi.fn().mockReturnValue('stopped'),
-      getPort: vi.fn().mockReturnValue(null),
-    };
-    createdInstances.push(instance);
-    return instance;
+    function FakeService() {
+      const instance = {
+        start: vi.fn().mockResolvedValue({ port: 0, url: 'http://localhost:0' }),
+        stop: vi.fn().mockResolvedValue(undefined),
+        getStatus: vi.fn().mockReturnValue('stopped'),
+        getPort: vi.fn().mockReturnValue(null),
+      };
+      createdInstances.push(instance);
+      return instance;
+    }
+
+    const FakeServiceClass = vi.fn(FakeService);
+    FakeServiceClass.createdInstances = createdInstances;
+    return FakeServiceClass;
   }
 
-  const FakeServiceClass = vi.fn(FakeService);
-  FakeServiceClass.createdInstances = createdInstances;
-  return FakeServiceClass;
-}
-
-function installServiceClassMock(modulePath, FakeServiceClass) {
-  const resolvedPath = require.resolve(modulePath);
-  require.cache[resolvedPath] = {
-    id: resolvedPath,
-    filename: resolvedPath,
-    loaded: true,
-    exports: FakeServiceClass,
+  return {
+    PhoenixdServiceMock: createFakeServiceClass(),
+    BackendServiceMock: createFakeServiceClass(),
+    NextJsServiceMock: createFakeServiceClass(),
   };
-}
+});
 
-const PhoenixdServiceMock = createFakeServiceClass();
-const BackendServiceMock = createFakeServiceClass();
-const NextJsServiceMock = createFakeServiceClass();
+vi.mock('../PhoenixdService.js', () => ({ default: PhoenixdServiceMock }));
+vi.mock('../BackendService.js', () => ({ default: BackendServiceMock }));
+vi.mock('../NextJsService.js', () => ({ default: NextJsServiceMock }));
 
 const { installElectronMock, setIsPackaged } = require('../../test-utils/electronMock.js');
-const healthCheck = require('../../utils/healthCheck.cjs');
-const { logger } = require('../../utils/logger.js');
 
+let healthCheck;
+let logger;
 let ServiceManager;
 let configurationBootstrap;
 let portAllocator;
 
-beforeAll(() => {
+beforeAll(async () => {
   installElectronMock();
-  installServiceClassMock('../PhoenixdService.cjs', PhoenixdServiceMock);
-  installServiceClassMock('../BackendService.cjs', BackendServiceMock);
-  installServiceClassMock('../NextJsService.cjs', NextJsServiceMock);
+  ({ healthCheck } = await import('../../utils/healthCheck.js'));
+  ({ logger } = await import('../../utils/logger.js'));
+  ({ configurationBootstrap } = await import('../ConfigurationBootstrap.js'));
+  ({ portAllocator } = await import('../../utils/portAllocator.js'));
   healthCheck.isPhoenixdRunning = vi.fn();
   healthCheck.isBackendRunning = vi.fn();
-  configurationBootstrap = require('../ConfigurationBootstrap.cjs');
-  portAllocator = require('../../utils/portAllocator.cjs');
   configurationBootstrap.ensureConfigurations = vi.fn();
   portAllocator.allocatePorts = vi.fn();
-  ServiceManager = require('../ServiceManager.cjs');
+  ({ default: ServiceManager } = await import('../ServiceManager.js'));
 });
 
 const allocatedPorts = { phoenixd: 9740, backend: 9154, nextjs: 3000 };
@@ -84,12 +81,12 @@ afterEach(() => {
 });
 
 describe('constructor', () => {
-  it('reflects isDevelopment() as devMode when no override is given', () => {
+  it('reflects isDevelopment() as developmentMode when no override is given', () => {
     setIsPackaged(false);
 
     const serviceManager = new ServiceManager();
 
-    expect(serviceManager.isDevMode()).toBe(true);
+    expect(serviceManager.isDevelopmentMode()).toBe(true);
   });
 
   it('starts with no external services', () => {

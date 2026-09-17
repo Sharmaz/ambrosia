@@ -1,10 +1,10 @@
-const findFreePort = require('find-free-port');
+import findFreePort from 'find-free-port';
 
-const { PORTS } = require('./constants.js');
-const { logger } = require('./logger.js');
-const { isDevelopment } = require('./resourcePaths.cjs');
+import { PORTS } from './constants.js';
+import { logger } from './logger.js';
+import { isDevelopment } from './resourcePaths.js';
 
-const DEFAULT_PORTS = {
+export const DEFAULT_PORTS = {
   phoenixd: PORTS.PHOENIXD_DEFAULT,
   backend: PORTS.BACKEND_DEFAULT,
   nextjs: PORTS.NEXTJS_DEFAULT,
@@ -45,7 +45,6 @@ async function allocatePorts() {
   }
 }
 
-module.exports = {
+export const portAllocator = {
   allocatePorts,
-  DEFAULT_PORTS,
 };

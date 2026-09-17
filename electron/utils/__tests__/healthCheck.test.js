@@ -1,26 +1,20 @@
 const { EventEmitter } = require('events');
 const http = require('http');
 
-const waitOnPath = require.resolve('wait-on');
-let waitOnMock;
+const { waitOnMock } = vi.hoisted(() => ({
+  waitOnMock: vi.fn(),
+}));
 
-function installWaitOnMock() {
-  waitOnMock = vi.fn();
-  require.cache[waitOnPath] = {
-    id: waitOnPath,
-    filename: waitOnPath,
-    loaded: true,
-    exports: waitOnMock,
-  };
-}
+vi.mock('wait-on', () => ({
+  default: waitOnMock,
+}));
 
 let healthCheck;
 let logger;
 
-beforeAll(() => {
-  installWaitOnMock();
-  healthCheck = require('../healthCheck.cjs');
-  ({ logger } = require('../logger.js'));
+beforeAll(async () => {
+  ({ healthCheck } = await import('../healthCheck.js'));
+  ({ logger } = await import('../logger.js'));
 });
 
 function createFakeIncomingMessage(statusCode) {

@@ -6,7 +6,7 @@ const { createFakeSpawnedProcess, createFakeWriteStream } = require('../../test-
 const { setPlatformAndArch, restorePlatformAndArch } = require('../../test-utils/platformMock.js');
 const { installSpawnMock } = require('../../test-utils/spawnMock.js');
 const { installTreeKillMock } = require('../../test-utils/treeKillMock.js');
-const healthCheck = require('../../utils/healthCheck.cjs');
+const { healthCheck } = require('../../utils/healthCheck.js');
 const { logger } = require('../../utils/logger.js');
 
 let NextJsService;
@@ -18,7 +18,7 @@ beforeAll(() => {
   spawnMock = installSpawnMock();
   treeKillMock = installTreeKillMock();
   healthCheck.checkNextJs = vi.fn();
-  NextJsService = require('../NextJsService.cjs');
+  NextJsService = require('../NextJsService.js').default;
 });
 
 let fakeSpawnedProcess;
@@ -75,9 +75,9 @@ describe('start', () => {
 
     await nextJsService.start(3000);
 
-    const [command, args] = spawnMock.mock.calls[0];
+    const [command, commandArguments] = spawnMock.mock.calls[0];
     expect(command).toBe('npm');
-    expect(args).toEqual(['run', 'dev', '--', '-p', '3000']);
+    expect(commandArguments).toEqual(['run', 'dev', '--', '-p', '3000']);
   });
 
   it('does not check for server.js in development mode', async () => {
@@ -95,9 +95,9 @@ describe('start', () => {
 
     await nextJsService.start(3000);
 
-    const [command, args] = spawnMock.mock.calls[0];
+    const [command, commandArguments] = spawnMock.mock.calls[0];
     expect(command).toBe(path.join('/fake/resources', 'node', 'macos-arm64', 'bin', 'node'));
-    expect(args).toEqual([expect.stringContaining('server.js')]);
+    expect(commandArguments).toEqual([expect.stringContaining('server.js')]);
   });
 
   it('throws when server.js is missing in production mode', async () => {

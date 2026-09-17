@@ -1,15 +1,17 @@
-const fs = require('fs');
-const path = require('path');
+import fs from 'fs';
+import { createRequire } from 'module';
+import path from 'path';
 
+import { STARTUP } from '../utils/constants.js';
+import { healthCheck } from '../utils/healthCheck.js';
+import { logger } from '../utils/logger.js';
+import { getClientPath, getLogsDirectory, isDevelopment, getNodePath } from '../utils/resourcePaths.js';
+
+const require = createRequire(import.meta.url);
 const spawn = require('cross-spawn');
 const treeKill = require('tree-kill');
 
-const { STARTUP } = require('../utils/constants.js');
-const { checkNextJs } = require('../utils/healthCheck.cjs');
-const { logger } = require('../utils/logger.js');
-const { getClientPath, getLogsDirectory, isDevelopment, getNodePath } = require('../utils/resourcePaths.cjs');
-
-class NextJsService {
+export default class NextJsService {
   constructor() {
     this.process = null;
     this.status = 'stopped';
@@ -36,21 +38,21 @@ class NextJsService {
       const logFile = path.join(logsDirectory, `nextjs-${new Date().toISOString().split('T')[0]}.log`);
       this.logStream = fs.createWriteStream(logFile, { flags: 'a' });
 
-      const isDev = isDevelopment();
-      let command, args, cwd;
+      const isDevelopmentMode = isDevelopment();
+      let command, commandArguments, cwd;
 
-      if (isDev) {
+      if (isDevelopmentMode) {
         command = 'npm';
-        args = ['run', 'dev', '--', '-p', port.toString()];
+        commandArguments = ['run', 'dev', '--', '-p', port.toString()];
         cwd = clientPath;
       } else {
         command = getNodePath();
-        args = [path.join(clientPath, 'server.js')];
+        commandArguments = [path.join(clientPath, 'server.js')];
         cwd = clientPath;
       }
 
       logger.log(`[NextJsService] Starting Next.js at port ${port}...`);
-      logger.log(`[NextJsService] Command: ${command} ${args.join(' ')}`);
+      logger.log(`[NextJsService] Command: ${command} ${commandArguments.join(' ')}`);
       logger.log(`[NextJsService] Working directory: ${cwd}`);
       logger.log(`[NextJsService] Environment PORT: ${port}`);
 
@@ -60,7 +62,7 @@ class NextJsService {
 
       logger.log(`[NextJsService] Backend configuration: ${apiUrl}`);
 
-      if (!isDev) {
+      if (!isDevelopmentMode) {
         const serverJsPath = path.join(cwd, 'server.js');
         if (!fs.existsSync(serverJsPath)) {
           throw new Error(`server.js not found at: ${serverJsPath}`);
@@ -86,7 +88,7 @@ class NextJsService {
       });
 
       logger.log(`[NextJsService] Spawning process...`);
-      const spawnedProcess = spawn(command, args, {
+      const spawnedProcess = spawn(command, commandArguments, {
         cwd,
         stdio: ['ignore', 'pipe', 'pipe'],
         detached: false,
@@ -133,7 +135,7 @@ class NextJsService {
       });
 
       logger.log('[NextJsService] Waiting for Next.js to be healthy...');
-      await checkNextJs(port);
+      await healthCheck.checkNextJs(port);
 
       this.status = 'running';
       logger.log('[NextJsService] Next.js is running and healthy');
@@ -208,5 +210,3 @@ class NextJsService {
     return this.port ? `http://localhost:${this.port}` : null;
   }
 }
-
-module.exports = NextJsService;

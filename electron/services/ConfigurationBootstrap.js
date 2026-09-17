@@ -1,9 +1,9 @@
-const crypto = require('crypto');
-const fs = require('fs');
-const path = require('path');
+import crypto from 'crypto';
+import fs from 'fs';
+import path from 'path';
 
-const { logger } = require('../utils/logger.js');
-const { getDataDirectory, getPhoenixDataDirectory, getLogsDirectory } = require('../utils/resourcePaths.cjs');
+import { logger } from '../utils/logger.js';
+import { getDataDirectory, getPhoenixDataDirectory, getLogsDirectory } from '../utils/resourcePaths.js';
 
 function generateRandomHex(length) {
   return crypto.randomBytes(length).toString('hex');
@@ -125,7 +125,7 @@ async function ensureConfigurations(ports) {
   };
 }
 
-module.exports = {
+export const configurationBootstrap = {
   configExists,
   ensureConfigurations,
   readConfig,

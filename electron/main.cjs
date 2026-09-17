@@ -3,12 +3,12 @@ const { URL } = require('url');
 
 const { app, BrowserWindow, Menu, Notification, dialog, shell, ipcMain } = require('electron');
 
-const AutoUpdater = require('./services/AutoUpdater.cjs');
-const { readConfig, writeConfig } = require('./services/ConfigurationBootstrap.cjs');
-const ServiceManager = require('./services/ServiceManager.cjs');
+const AutoUpdater = require('./services/AutoUpdater.js').default;
+const { configurationBootstrap } = require('./services/ConfigurationBootstrap.js');
+const ServiceManager = require('./services/ServiceManager.js').default;
 const { STARTUP } = require('./utils/constants.js');
 const { logger } = require('./utils/logger.js');
-const { getDataDirectory, getLogsDirectory, getPhoenixDataDirectory } = require('./utils/resourcePaths.cjs');
+const { getDataDirectory, getLogsDirectory, getPhoenixDataDirectory } = require('./utils/resourcePaths.js');
 
 const gotTheLock = app.requestSingleInstanceLock();
 app.setName('Ambrosia');
@@ -402,12 +402,12 @@ async function initializeApp() {
       logger.log('[Electron] All services are running');
     });
 
-    if (serviceManager.isDevMode()) {
+    if (serviceManager.isDevelopmentMode()) {
       updateSplash(null, 33, 'Development mode');
       updateSplash('nextjs', 66, 'Starting Frontend...');
     } else {
       const ambrosiaConfigPath = path.join(getDataDirectory(), 'ambrosia.conf');
-      const nwcUriConfigured = Boolean(readConfig(ambrosiaConfigPath)['nwc-uri']);
+      const nwcUriConfigured = Boolean(configurationBootstrap.readConfig(ambrosiaConfigPath)['nwc-uri']);
       updateSplash(
         'phoenixd',
         10,
@@ -452,7 +452,7 @@ ipcMain.handle('services:get-statuses', () => {
   return {
     statuses: serviceManager.getServiceStatuses(),
     ports: serviceManager.getPorts(),
-    devMode: serviceManager.isDevMode(),
+    devMode: serviceManager.isDevelopmentMode(),
   };
 });
 
@@ -491,7 +491,7 @@ ipcMain.handle('phoenixd:get-auto-liquidity', () => {
   if (serviceManager?.configs?.ambrosia?.['nwc-uri']) {
     return { nwcConfigured: true };
   }
-  const phoenixConfig = readConfig(phoenixConfigPath);
+  const phoenixConfig = configurationBootstrap.readConfig(phoenixConfigPath);
   return phoenixConfig['auto-liquidity'] ?? 'off';
 });
 
@@ -506,11 +506,11 @@ ipcMain.handle('phoenixd:set-auto-liquidity', async (_event, autoLiquiditySettin
     throw new Error('A restart is already in progress');
   }
 
-  const phoenixConfig = readConfig(phoenixConfigPath);
+  const phoenixConfig = configurationBootstrap.readConfig(phoenixConfigPath);
   phoenixConfig['auto-liquidity'] = autoLiquiditySetting;
-  writeConfig(phoenixConfigPath, phoenixConfig);
+  configurationBootstrap.writeConfig(phoenixConfigPath, phoenixConfig);
 
-  if (!serviceManager.isDevMode()) {
+  if (!serviceManager.isDevelopmentMode()) {
     if (serviceManager.externalServices.phoenixd) {
       return { requiresManualRestart: true };
     }

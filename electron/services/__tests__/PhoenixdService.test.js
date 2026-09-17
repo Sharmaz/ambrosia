@@ -7,7 +7,7 @@ const { createFakeSpawnedProcess, createFakeWriteStream } = require('../../test-
 const { setPlatformAndArch, restorePlatformAndArch } = require('../../test-utils/platformMock.js');
 const { installSpawnMock } = require('../../test-utils/spawnMock.js');
 const { installTreeKillMock } = require('../../test-utils/treeKillMock.js');
-const healthCheck = require('../../utils/healthCheck.cjs');
+const { healthCheck } = require('../../utils/healthCheck.js');
 const { logger } = require('../../utils/logger.js');
 
 let PhoenixdService;
@@ -20,7 +20,7 @@ beforeAll(() => {
   treeKillMock = installTreeKillMock();
   healthCheck.checkPhoenixd = vi.fn();
   childProcess.exec = vi.fn();
-  PhoenixdService = require('../PhoenixdService.cjs');
+  PhoenixdService = require('../PhoenixdService.js').default;
 });
 
 function armAutoExitOnListen(spawnedProcess, exitCode = 0) {
@@ -88,7 +88,7 @@ describe('start', () => {
     expect(fs.mkdirSync).not.toHaveBeenCalled();
   });
 
-  it('spawns phoenixd with the port and terms-of-service args', async () => {
+  it('spawns phoenixd with the port and terms-of-service arguments', async () => {
     const phoenixdService = new PhoenixdService();
 
     await phoenixdService.start(9740);
