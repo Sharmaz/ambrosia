@@ -35,7 +35,7 @@ if exist "%NODE_CHECK%" (
     echo [OK] Node.js already downloaded for %PLATFORM%, skipping...
 ) else (
     echo [WARNING] Downloading Node.js ^(this may take a while^)...
-    node scripts\download-node.cjs
+    node scripts\download-node.js
     if errorlevel 1 (
         echo [ERROR] Node.js download failed
         exit /b 1
@@ -53,7 +53,7 @@ if exist "%JRE_CHECK%" (
     echo [OK] JRE already downloaded for %PLATFORM%, skipping...
 ) else (
     echo [WARNING] Downloading JRE 21 ^(this may take a while^)...
-    node scripts\download-jre.cjs
+    node scripts\download-jre.js
     if errorlevel 1 (
         echo [ERROR] JRE download failed
         exit /b 1
@@ -71,7 +71,7 @@ if exist "%PHOENIXD_CHECK%" (
     echo [OK] Phoenixd already downloaded for %PLATFORM%, skipping...
 ) else (
     echo [WARNING] Downloading Phoenixd binaries...
-    node scripts\download-phoenixd.cjs
+    node scripts\download-phoenixd.js
     if errorlevel 1 (
         echo [ERROR] Phoenixd download failed
         exit /b 1
@@ -83,7 +83,7 @@ echo.
 echo === Step 4: Build Backend JAR ===
 echo.
 
-node scripts\build-backend.cjs
+node scripts\build-backend.js
 if errorlevel 1 (
     echo [ERROR] Backend build failed
     exit /b 1
@@ -94,7 +94,7 @@ echo.
 echo === Step 5: Build Next.js Client ===
 echo.
 
-node scripts\build-client.cjs
+node scripts\build-client.js
 if errorlevel 1 (
     echo [ERROR] Client build failed
     exit /b 1
@@ -105,7 +105,7 @@ echo.
 echo === Step 6: Bundle Preload Scripts ===
 echo.
 
-node scripts\build-preload.cjs
+node scripts\build-preload.js
 if errorlevel 1 (
     echo [ERROR] Preload bundling failed
     exit /b 1

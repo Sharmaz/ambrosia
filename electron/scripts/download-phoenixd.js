@@ -1,15 +1,15 @@
-const { execSync } = require('child_process');
-const fs = require('fs');
-const https = require('https');
-const path = require('path');
+import { execSync } from 'child_process';
+import fs from 'fs';
+import https from 'https';
+import path from 'path';
 
-const { DOWNLOAD } = require('../utils/constants.js');
+import { DOWNLOAD } from '../utils/constants.js';
 
-const { getBuildPlatform } = require('./platform-utils.cjs');
-const { verifySha256, fetchSha256SumsChecksum } = require('./verify-checksum.cjs');
+import { getBuildPlatform } from './platform-utils.js';
+import { verifySha256, fetchSha256SumsChecksum } from './verify-checksum.js';
 
 const PHOENIXD_VERSION = DOWNLOAD.PHOENIXD_VERSION;
-const RESOURCES_DIR = path.join(__dirname, '..', 'resources', 'phoenixd');
+const RESOURCES_DIRECTORY = path.join(import.meta.dirname, '..', 'resources', 'phoenixd');
 
 const GITHUB_BASE = `https://github.com/ACINQ/phoenixd/releases/download/v${PHOENIXD_VERSION}`;
 
@@ -18,39 +18,39 @@ const SHA256SUMS_URL = `${GITHUB_BASE}/SHA256SUMS.asc`;
 const ALL_PHOENIXD_DOWNLOADS = {
   'macos-x64': {
     platform: 'macos-x64',
-    url: `${GITHUB_BASE}/phoenixd-${PHOENIXD_VERSION}-macos-x64.zip`,
+    downloadUrl: `${GITHUB_BASE}/phoenixd-${PHOENIXD_VERSION}-macos-x64.zip`,
     archiveFilename: `phoenixd-${PHOENIXD_VERSION}-macos-x64.zip`,
-    filename: 'phoenixd-macos-x64.zip',
+    localFilename: 'phoenixd-macos-x64.zip',
   },
   'macos-arm64': {
     platform: 'macos-arm64',
-    url: `${GITHUB_BASE}/phoenixd-${PHOENIXD_VERSION}-macos-arm64.zip`,
+    downloadUrl: `${GITHUB_BASE}/phoenixd-${PHOENIXD_VERSION}-macos-arm64.zip`,
     archiveFilename: `phoenixd-${PHOENIXD_VERSION}-macos-arm64.zip`,
-    filename: 'phoenixd-macos-arm64.zip',
+    localFilename: 'phoenixd-macos-arm64.zip',
   },
   'win-x64': {
     platform: 'win-x64',
-    url: `${GITHUB_BASE}/phoenixd-${PHOENIXD_VERSION}-jvm.zip`,
+    downloadUrl: `${GITHUB_BASE}/phoenixd-${PHOENIXD_VERSION}-jvm.zip`,
     archiveFilename: `phoenixd-${PHOENIXD_VERSION}-jvm.zip`,
-    filename: 'phoenixd-win-x64.zip',
+    localFilename: 'phoenixd-win-x64.zip',
   },
   'win-arm64': {
     platform: 'win-arm64',
-    url: `${GITHUB_BASE}/phoenixd-${PHOENIXD_VERSION}-jvm.zip`,
+    downloadUrl: `${GITHUB_BASE}/phoenixd-${PHOENIXD_VERSION}-jvm.zip`,
     archiveFilename: `phoenixd-${PHOENIXD_VERSION}-jvm.zip`,
-    filename: 'phoenixd-win-arm64.zip',
+    localFilename: 'phoenixd-win-arm64.zip',
   },
   'linux-x64': {
     platform: 'linux-x64',
-    url: `${GITHUB_BASE}/phoenixd-${PHOENIXD_VERSION}-linux-x64.zip`,
+    downloadUrl: `${GITHUB_BASE}/phoenixd-${PHOENIXD_VERSION}-linux-x64.zip`,
     archiveFilename: `phoenixd-${PHOENIXD_VERSION}-linux-x64.zip`,
-    filename: 'phoenixd-linux-x64.zip',
+    localFilename: 'phoenixd-linux-x64.zip',
   },
   'linux-arm64': {
     platform: 'linux-arm64',
-    url: `${GITHUB_BASE}/phoenixd-${PHOENIXD_VERSION}-linux-arm64.zip`,
+    downloadUrl: `${GITHUB_BASE}/phoenixd-${PHOENIXD_VERSION}-linux-arm64.zip`,
     archiveFilename: `phoenixd-${PHOENIXD_VERSION}-linux-arm64.zip`,
-    filename: 'phoenixd-linux-arm64.zip',
+    localFilename: 'phoenixd-linux-arm64.zip',
   },
 };
 
@@ -162,13 +162,19 @@ function extractZip(zipPath, destinationDirectory) {
   }
 }
 
-async function downloadAndExtractPhoenixd(platform, url, archiveFilename, filename) {
-  const platformDirectory = path.join(RESOURCES_DIR, platform);
-  const downloadPath = path.join(RESOURCES_DIR, filename);
+async function downloadAndExtractPhoenixd(platform, downloadUrl, archiveFilename, localFilename) {
+  const platformDirectory = path.join(RESOURCES_DIRECTORY, platform);
+  const downloadPath = path.join(RESOURCES_DIRECTORY, localFilename);
 
-  const isJvmVersion = url.includes('jvm');
-  const phoenixdExecutable = isJvmVersion ? path.join('bin', 'phoenixd.bat') :
-    platform.startsWith('win') ? 'phoenixd.exe' : 'phoenixd';
+  const isJvmVersion = downloadUrl.includes('jvm');
+  let phoenixdExecutable;
+  if (isJvmVersion) {
+    phoenixdExecutable = path.join('bin', 'phoenixd.bat');
+  } else if (platform.startsWith('win')) {
+    phoenixdExecutable = 'phoenixd.exe';
+  } else {
+    phoenixdExecutable = 'phoenixd';
+  }
   const phoenixdPath = path.join(platformDirectory, phoenixdExecutable);
 
   if (fs.existsSync(phoenixdPath)) {
@@ -179,11 +185,11 @@ async function downloadAndExtractPhoenixd(platform, url, archiveFilename, filena
   console.log(`\n=== Downloading Phoenixd for ${platform} ===`);
 
   try {
-    if (!fs.existsSync(RESOURCES_DIR)) {
-      fs.mkdirSync(RESOURCES_DIR, { recursive: true });
+    if (!fs.existsSync(RESOURCES_DIRECTORY)) {
+      fs.mkdirSync(RESOURCES_DIRECTORY, { recursive: true });
     }
 
-    await downloadFile(url, downloadPath);
+    await downloadFile(downloadUrl, downloadPath);
 
     try {
       console.log(`Fetching checksums from: ${SHA256SUMS_URL}`);
@@ -219,7 +225,7 @@ async function main() {
 
   for (const phoenixdDownload of PHOENIXD_DOWNLOADS) {
     try {
-      await downloadAndExtractPhoenixd(phoenixdDownload.platform, phoenixdDownload.url, phoenixdDownload.archiveFilename, phoenixdDownload.filename);
+      await downloadAndExtractPhoenixd(phoenixdDownload.platform, phoenixdDownload.downloadUrl, phoenixdDownload.archiveFilename, phoenixdDownload.localFilename);
     } catch (phoenixdInstallError) {
       console.error(`Failed to download Phoenixd for ${phoenixdDownload.platform}:`, phoenixdInstallError);
       process.exit(1);

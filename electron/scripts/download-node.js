@@ -1,53 +1,53 @@
-const { execSync } = require('child_process');
-const fs = require('fs');
-const https = require('https');
-const path = require('path');
+import { execSync } from 'child_process';
+import fs from 'fs';
+import https from 'https';
+import path from 'path';
 
-const { DOWNLOAD } = require('../utils/constants.js');
+import { DOWNLOAD } from '../utils/constants.js';
 
-const { getBuildPlatform } = require('./platform-utils.cjs');
-const { verifySha256, fetchSha256SumsChecksum } = require('./verify-checksum.cjs');
+import { getBuildPlatform } from './platform-utils.js';
+import { verifySha256, fetchSha256SumsChecksum } from './verify-checksum.js';
 
 const NODE_VERSION = 'v24.15.0';
-const RESOURCES_DIR = path.join(__dirname, '..', 'resources', 'node');
+const RESOURCES_DIRECTORY = path.join(import.meta.dirname, '..', 'resources', 'node');
 
 const SHASUMS_URL = `https://nodejs.org/dist/${NODE_VERSION}/SHASUMS256.txt`;
 
-const ALL_DOWNLOADS = {
+const ALL_NODE_DOWNLOADS = {
   'macos-x64': {
     platform: 'macos-x64',
-    url: `https://nodejs.org/dist/${NODE_VERSION}/node-${NODE_VERSION}-darwin-x64.tar.gz`,
+    downloadUrl: `https://nodejs.org/dist/${NODE_VERSION}/node-${NODE_VERSION}-darwin-x64.tar.gz`,
     filename: `node-${NODE_VERSION}-darwin-x64.tar.gz`,
   },
   'macos-arm64': {
     platform: 'macos-arm64',
-    url: `https://nodejs.org/dist/${NODE_VERSION}/node-${NODE_VERSION}-darwin-arm64.tar.gz`,
+    downloadUrl: `https://nodejs.org/dist/${NODE_VERSION}/node-${NODE_VERSION}-darwin-arm64.tar.gz`,
     filename: `node-${NODE_VERSION}-darwin-arm64.tar.gz`,
   },
   'win-x64': {
     platform: 'win-x64',
-    url: `https://nodejs.org/dist/${NODE_VERSION}/node-${NODE_VERSION}-win-x64.zip`,
+    downloadUrl: `https://nodejs.org/dist/${NODE_VERSION}/node-${NODE_VERSION}-win-x64.zip`,
     filename: `node-${NODE_VERSION}-win-x64.zip`,
   },
   'win-arm64': {
     platform: 'win-arm64',
-    url: `https://nodejs.org/dist/${NODE_VERSION}/node-${NODE_VERSION}-win-arm64.zip`,
+    downloadUrl: `https://nodejs.org/dist/${NODE_VERSION}/node-${NODE_VERSION}-win-arm64.zip`,
     filename: `node-${NODE_VERSION}-win-arm64.zip`,
   },
   'linux-x64': {
     platform: 'linux-x64',
-    url: `https://nodejs.org/dist/${NODE_VERSION}/node-${NODE_VERSION}-linux-x64.tar.gz`,
+    downloadUrl: `https://nodejs.org/dist/${NODE_VERSION}/node-${NODE_VERSION}-linux-x64.tar.gz`,
     filename: `node-${NODE_VERSION}-linux-x64.tar.gz`,
   },
   'linux-arm64': {
     platform: 'linux-arm64',
-    url: `https://nodejs.org/dist/${NODE_VERSION}/node-${NODE_VERSION}-linux-arm64.tar.gz`,
+    downloadUrl: `https://nodejs.org/dist/${NODE_VERSION}/node-${NODE_VERSION}-linux-arm64.tar.gz`,
     filename: `node-${NODE_VERSION}-linux-arm64.tar.gz`,
   },
 };
 
 const currentPlatform = getBuildPlatform();
-const DOWNLOADS = [ALL_DOWNLOADS[currentPlatform]];
+const NODE_DOWNLOADS = [ALL_NODE_DOWNLOADS[currentPlatform]];
 
 const MAX_REDIRECTS = DOWNLOAD.MAX_REDIRECTS;
 
@@ -125,13 +125,13 @@ async function main() {
   console.log('===========================================');
   console.log(`Platform: ${currentPlatform}\n`);
 
-  if (!fs.existsSync(RESOURCES_DIR)) {
-    fs.mkdirSync(RESOURCES_DIR, { recursive: true });
+  if (!fs.existsSync(RESOURCES_DIRECTORY)) {
+    fs.mkdirSync(RESOURCES_DIRECTORY, { recursive: true });
   }
 
-  for (const nodeDownload of DOWNLOADS) {
-    const platformDirectory = path.join(RESOURCES_DIR, nodeDownload.platform);
-    const archivePath = path.join(RESOURCES_DIR, nodeDownload.filename);
+  for (const nodeDownload of NODE_DOWNLOADS) {
+    const platformDirectory = path.join(RESOURCES_DIRECTORY, nodeDownload.platform);
+    const archivePath = path.join(RESOURCES_DIRECTORY, nodeDownload.filename);
 
     const nodeBinary = nodeDownload.platform.startsWith('win')
       ? path.join(platformDirectory, 'node.exe')
@@ -144,7 +144,7 @@ async function main() {
 
     console.log(`Processing: ${nodeDownload.platform}`);
 
-    await downloadFile(nodeDownload.url, archivePath);
+    await downloadFile(nodeDownload.downloadUrl, archivePath);
 
     try {
       console.log(`Fetching checksums from: ${SHASUMS_URL}`);

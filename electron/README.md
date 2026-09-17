@@ -26,7 +26,7 @@ npm run dist:linux:arm64 # Linux ARM64
 
 ## Tech stack
 
-- **Electron** (main process: CommonJS/Node.js, renderer: Chromium)
+- **Electron** (main process: ESM/Node.js, renderer: Chromium)
 - **electron-builder** for cross-platform packaging and installers
 - **electron-updater** for auto-updates
 - **cross-spawn** + **tree-kill** for child process management
@@ -98,15 +98,15 @@ Any channel not on the whitelist is silently dropped. Arguments are sanitized by
 
 ## Build pipeline
 
-`npm run build` runs `scripts/prepare-resources-wrapper.cjs` before electron-builder. The wrapper calls:
+`npm run build` runs `scripts/prepare-resources-wrapper.js` before electron-builder. The wrapper calls:
 
 | Script | What it does |
 | --- | --- |
-| `download-phoenixd.cjs` | Downloads the platform-specific phoenixd binary |
-| `download-jre.cjs` | Downloads a JRE for the target platform |
-| `download-node.cjs` | Downloads Node.js for the Next.js standalone server |
-| `build-backend.cjs` | Builds the Kotlin JAR (detects the version dynamically) |
-| `build-client.cjs` | Copies the Next.js standalone build from `client/.next/standalone` |
+| `download-phoenixd.js` | Downloads the platform-specific phoenixd binary |
+| `download-jre.js` | Downloads a JRE for the target platform |
+| `download-node.js` | Downloads Node.js for the Next.js standalone server |
+| `build-backend.js` | Builds the Kotlin JAR (detects the version dynamically) |
+| `build-client.js` | Copies the Next.js standalone build from `client/.next/standalone` |
 
 All resources land in `electron/resources/` and are bundled via electron-builder's `extraResources` key in `package.json`.
 
@@ -130,14 +130,14 @@ electron/
 │   ├── logger.js                    # Silent in production unless DEBUG=true; warn/error always print
 │   └── constants.js                 # Timeouts, port ranges, version constants
 ├── scripts/
-│   ├── prepare-resources-wrapper.cjs # Orchestrates the full pre-build pipeline
-│   ├── download-phoenixd.cjs
-│   ├── download-jre.cjs
-│   ├── download-node.cjs
-│   ├── build-backend.cjs
-│   ├── build-client.cjs
-│   ├── platform-utils.cjs            # Shared platform/arch detection helpers
-│   └── clean-build.cjs
+│   ├── prepare-resources-wrapper.js # Orchestrates the full pre-build pipeline
+│   ├── download-phoenixd.js
+│   ├── download-jre.js
+│   ├── download-node.js
+│   ├── build-backend.js
+│   ├── build-client.js
+│   ├── platform-utils.js            # Shared platform/arch detection helpers
+│   └── clean-build.js
 ├── build/                           # electron-builder assets
 │   ├── icon.icns / icon.ico / icon.png
 │   ├── entitlements.mac.plist

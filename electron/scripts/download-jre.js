@@ -1,15 +1,15 @@
-const { execSync } = require('child_process');
-const fs = require('fs');
-const http = require('http');
-const https = require('https');
-const path = require('path');
+import { execSync } from 'child_process';
+import fs from 'fs';
+import http from 'http';
+import https from 'https';
+import path from 'path';
 
-const { DOWNLOAD } = require('../utils/constants.js');
+import { DOWNLOAD } from '../utils/constants.js';
 
-const { getBuildPlatform } = require('./platform-utils.cjs');
-const { verifySha256, fetchAdoptiumChecksum } = require('./verify-checksum.cjs');
+import { getBuildPlatform } from './platform-utils.js';
+import { verifySha256, fetchAdoptiumChecksum } from './verify-checksum.js';
 
-const RESOURCES_DIR = path.join(__dirname, '..', 'resources', 'jre');
+const RESOURCES_DIRECTORY = path.join(import.meta.dirname, '..', 'resources', 'jre');
 
 const JRE_VERSION = DOWNLOAD.JRE_VERSION;
 const ADOPTIUM_ASSETS = `https://api.adoptium.net/v3/assets/latest/${JRE_VERSION}/hotspot`;
@@ -17,37 +17,37 @@ const ADOPTIUM_ASSETS = `https://api.adoptium.net/v3/assets/latest/${JRE_VERSION
 const ALL_JRE_DOWNLOADS = {
   'macos-x64': {
     platform: 'macos-x64',
-    url: `https://api.adoptium.net/v3/binary/latest/${JRE_VERSION}/ga/mac/x64/jre/hotspot/normal/eclipse?project=jdk`,
+    downloadUrl: `https://api.adoptium.net/v3/binary/latest/${JRE_VERSION}/ga/mac/x64/jre/hotspot/normal/eclipse?project=jdk`,
     checksumApiUrl: `${ADOPTIUM_ASSETS}?architecture=x64&image_type=jre&os=mac&project=jdk&vendor=eclipse`,
     filename: 'jre-macos-x64.tar.gz',
   },
   'macos-arm64': {
     platform: 'macos-arm64',
-    url: `https://api.adoptium.net/v3/binary/latest/${JRE_VERSION}/ga/mac/aarch64/jre/hotspot/normal/eclipse?project=jdk`,
+    downloadUrl: `https://api.adoptium.net/v3/binary/latest/${JRE_VERSION}/ga/mac/aarch64/jre/hotspot/normal/eclipse?project=jdk`,
     checksumApiUrl: `${ADOPTIUM_ASSETS}?architecture=aarch64&image_type=jre&os=mac&project=jdk&vendor=eclipse`,
     filename: 'jre-macos-arm64.tar.gz',
   },
   'win-x64': {
     platform: 'win-x64',
-    url: `https://api.adoptium.net/v3/binary/latest/${JRE_VERSION}/ga/windows/x64/jre/hotspot/normal/eclipse?project=jdk`,
+    downloadUrl: `https://api.adoptium.net/v3/binary/latest/${JRE_VERSION}/ga/windows/x64/jre/hotspot/normal/eclipse?project=jdk`,
     checksumApiUrl: `${ADOPTIUM_ASSETS}?architecture=x64&image_type=jre&os=windows&project=jdk&vendor=eclipse`,
     filename: 'jre-win-x64.zip',
   },
   'win-arm64': {
     platform: 'win-arm64',
-    url: `https://api.adoptium.net/v3/binary/latest/${JRE_VERSION}/ga/windows/aarch64/jre/hotspot/normal/eclipse?project=jdk`,
+    downloadUrl: `https://api.adoptium.net/v3/binary/latest/${JRE_VERSION}/ga/windows/aarch64/jre/hotspot/normal/eclipse?project=jdk`,
     checksumApiUrl: `${ADOPTIUM_ASSETS}?architecture=aarch64&image_type=jre&os=windows&project=jdk&vendor=eclipse`,
     filename: 'jre-win-arm64.zip',
   },
   'linux-x64': {
     platform: 'linux-x64',
-    url: `https://api.adoptium.net/v3/binary/latest/${JRE_VERSION}/ga/linux/x64/jre/hotspot/normal/eclipse?project=jdk`,
+    downloadUrl: `https://api.adoptium.net/v3/binary/latest/${JRE_VERSION}/ga/linux/x64/jre/hotspot/normal/eclipse?project=jdk`,
     checksumApiUrl: `${ADOPTIUM_ASSETS}?architecture=x64&image_type=jre&os=linux&project=jdk&vendor=eclipse`,
     filename: 'jre-linux-x64.tar.gz',
   },
   'linux-arm64': {
     platform: 'linux-arm64',
-    url: `https://api.adoptium.net/v3/binary/latest/${JRE_VERSION}/ga/linux/aarch64/jre/hotspot/normal/eclipse?project=jdk`,
+    downloadUrl: `https://api.adoptium.net/v3/binary/latest/${JRE_VERSION}/ga/linux/aarch64/jre/hotspot/normal/eclipse?project=jdk`,
     checksumApiUrl: `${ADOPTIUM_ASSETS}?architecture=aarch64&image_type=jre&os=linux&project=jdk&vendor=eclipse`,
     filename: 'jre-linux-arm64.tar.gz',
   },
@@ -205,9 +205,9 @@ function extractArchive(archivePath, platform, destinationDirectory) {
   }
 }
 
-async function downloadAndExtractJRE(platform, url, checksumApiUrl, filename) {
-  const platformDirectory = path.join(RESOURCES_DIR, platform);
-  const downloadPath = path.join(RESOURCES_DIR, filename);
+async function downloadAndExtractJRE(platform, downloadUrl, checksumApiUrl, filename) {
+  const platformDirectory = path.join(RESOURCES_DIRECTORY, platform);
+  const downloadPath = path.join(RESOURCES_DIRECTORY, filename);
 
   if (fs.existsSync(platformDirectory) && fs.readdirSync(platformDirectory).length > 0) {
     console.log(`✓ JRE for ${platform} already exists, skipping download\n`);
@@ -217,11 +217,11 @@ async function downloadAndExtractJRE(platform, url, checksumApiUrl, filename) {
   console.log(`\n=== Downloading JRE for ${platform} ===`);
 
   try {
-    if (!fs.existsSync(RESOURCES_DIR)) {
-      fs.mkdirSync(RESOURCES_DIR, { recursive: true });
+    if (!fs.existsSync(RESOURCES_DIRECTORY)) {
+      fs.mkdirSync(RESOURCES_DIRECTORY, { recursive: true });
     }
 
-    await downloadFile(url, downloadPath);
+    await downloadFile(downloadUrl, downloadPath);
 
     try {
       console.log(`Fetching checksum from Adoptium API: ${checksumApiUrl}`);
@@ -261,7 +261,7 @@ async function main() {
   await Promise.all(
     JRE_DOWNLOADS.map(async (jreDownload) => {
       try {
-        await downloadAndExtractJRE(jreDownload.platform, jreDownload.url, jreDownload.checksumApiUrl, jreDownload.filename);
+        await downloadAndExtractJRE(jreDownload.platform, jreDownload.downloadUrl, jreDownload.checksumApiUrl, jreDownload.filename);
       } catch (jreInstallError) {
         console.error(`Failed to download JRE for ${jreDownload.platform}:`, jreInstallError);
         process.exit(1);
