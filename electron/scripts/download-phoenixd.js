@@ -1,10 +1,10 @@
 import { execSync } from 'child_process';
 import fs from 'fs';
-import https from 'https';
 import path from 'path';
 
 import { DOWNLOAD } from '../utils/constants.js';
 
+import { downloadFile, flattenSingleNestedDirectory } from './download-utils.js';
 import { getBuildPlatform } from './platform-utils.js';
 import { verifySha256, fetchSha256SumsChecksum } from './verify-checksum.js';
 
@@ -57,68 +57,6 @@ const ALL_PHOENIXD_DOWNLOADS = {
 const currentPlatform = getBuildPlatform();
 const PHOENIXD_DOWNLOADS = [ALL_PHOENIXD_DOWNLOADS[currentPlatform]];
 
-function downloadFile(url, destination, redirectCount = 0) {
-  const MAX_REDIRECTS = DOWNLOAD.MAX_REDIRECTS;
-  return new Promise((resolve, reject) => {
-    const destinationFileStream = fs.createWriteStream(destination);
-
-    console.log(`Downloading: ${url}`);
-    console.log(`To: ${destination}`);
-
-    const downloadRequest = https.get(url, (downloadResponse) => {
-      if (downloadResponse.statusCode === 301 || downloadResponse.statusCode === 302 ||
-          downloadResponse.statusCode === 307 || downloadResponse.statusCode === 308) {
-        const redirectUrl = downloadResponse.headers.location;
-        destinationFileStream.close();
-        fs.unlinkSync(destination);
-        if (redirectCount >= MAX_REDIRECTS) {
-          reject(new Error(`Too many redirects (max ${MAX_REDIRECTS})`));
-          return;
-        }
-        console.log(`Following redirect (${downloadResponse.statusCode}) to: ${redirectUrl}`);
-        downloadFile(redirectUrl, destination, redirectCount + 1).then(resolve).catch(reject);
-        return;
-      }
-
-      if (downloadResponse.statusCode !== 200) {
-        reject(new Error(`Failed to download: HTTP ${downloadResponse.statusCode}`));
-        return;
-      }
-
-      const totalSize = parseInt(downloadResponse.headers['content-length'], 10);
-      let downloadedSize = 0;
-      let lastPercent = 0;
-
-      downloadResponse.on('data', (chunk) => {
-        downloadedSize += chunk.length;
-        const percent = Math.floor((downloadedSize / totalSize) * 100);
-        if (percent !== lastPercent && percent % 10 === 0) {
-          console.log(`Progress: ${percent}% (${(downloadedSize / 1024 / 1024).toFixed(1)}MB / ${(totalSize / 1024 / 1024).toFixed(1)}MB)`);
-          lastPercent = percent;
-        }
-      });
-
-      downloadResponse.pipe(destinationFileStream);
-
-      destinationFileStream.on('finish', () => {
-        destinationFileStream.close();
-        console.log('Download complete!\n');
-        resolve();
-      });
-    });
-
-    downloadRequest.on('error', (requestError) => {
-      fs.unlink(destination, () => {});
-      reject(requestError);
-    });
-
-    destinationFileStream.on('error', (fileStreamError) => {
-      fs.unlink(destination, () => {});
-      reject(fileStreamError);
-    });
-  });
-}
-
 function extractZip(zipPath, destinationDirectory) {
   console.log(`Extracting ${zipPath}...`);
 
@@ -134,26 +72,7 @@ function extractZip(zipPath, destinationDirectory) {
       execSync(`unzip -q "${zipPath}" -d "${destinationDirectory}"`, { stdio: 'inherit' });
     }
 
-    const extractedDirectories = fs.readdirSync(destinationDirectory).filter((entryName) => {
-      const fullPath = path.join(destinationDirectory, entryName);
-      return fs.statSync(fullPath).isDirectory();
-    });
-
-    if (extractedDirectories.length > 0) {
-      const extractedDirectory = path.join(destinationDirectory, extractedDirectories[0]);
-      const childEntryNames = fs.readdirSync(extractedDirectory);
-
-      childEntryNames.forEach((entryName) => {
-        const oldPath = path.join(extractedDirectory, entryName);
-        const newPath = path.join(destinationDirectory, entryName);
-        if (fs.existsSync(newPath)) {
-          fs.rmSync(newPath, { recursive: true, force: true });
-        }
-        fs.renameSync(oldPath, newPath);
-      });
-
-      fs.rmSync(extractedDirectory, { recursive: true, force: true });
-    }
+    flattenSingleNestedDirectory(destinationDirectory);
 
     console.log(`Extracted to: ${destinationDirectory}\n`);
   } catch (extractionError) {
@@ -184,38 +103,33 @@ async function downloadAndExtractPhoenixd(platform, downloadUrl, archiveFilename
 
   console.log(`\n=== Downloading Phoenixd for ${platform} ===`);
 
-  try {
-    if (!fs.existsSync(RESOURCES_DIRECTORY)) {
-      fs.mkdirSync(RESOURCES_DIRECTORY, { recursive: true });
-    }
-
-    await downloadFile(downloadUrl, downloadPath);
-
-    try {
-      console.log(`Fetching checksums from: ${SHA256SUMS_URL}`);
-      const expectedHash = await fetchSha256SumsChecksum(SHA256SUMS_URL, archiveFilename);
-      await verifySha256(downloadPath, expectedHash);
-    } catch (checksumError) {
-      fs.unlinkSync(downloadPath);
-      throw new Error(`Integrity check failed: ${checksumError.message}`);
-    }
-
-    extractZip(downloadPath, platformDirectory);
-
-    if (fs.existsSync(phoenixdPath)) {
-      console.log(`✓ Successfully installed Phoenixd for ${platform}`);
-      if (!platform.startsWith('win')) {
-        fs.chmodSync(phoenixdPath, 0o755);
-      }
-    } else {
-      throw new Error(`Phoenixd executable not found at ${phoenixdPath}`);
-    }
-
-    fs.unlinkSync(downloadPath);
-  } catch (installError) {
-    console.error(`✗ Failed to download Phoenixd for ${platform}: ${installError.message}`);
-    throw installError;
+  if (!fs.existsSync(RESOURCES_DIRECTORY)) {
+    fs.mkdirSync(RESOURCES_DIRECTORY, { recursive: true });
   }
+
+  await downloadFile(downloadUrl, downloadPath);
+
+  try {
+    console.log(`Fetching checksums from: ${SHA256SUMS_URL}`);
+    const expectedHash = await fetchSha256SumsChecksum(SHA256SUMS_URL, archiveFilename);
+    await verifySha256(downloadPath, expectedHash);
+  } catch (checksumError) {
+    fs.unlinkSync(downloadPath);
+    throw new Error(`Integrity check failed: ${checksumError.message}`);
+  }
+
+  extractZip(downloadPath, platformDirectory);
+
+  if (fs.existsSync(phoenixdPath)) {
+    console.log(`✓ Successfully installed Phoenixd for ${platform}`);
+    if (!platform.startsWith('win')) {
+      fs.chmodSync(phoenixdPath, 0o755);
+    }
+  } else {
+    throw new Error(`Phoenixd executable not found at ${phoenixdPath}`);
+  }
+
+  fs.unlinkSync(downloadPath);
 }
 
 async function main() {
@@ -223,14 +137,16 @@ async function main() {
   console.log(`  Downloading Phoenixd ${PHOENIXD_VERSION} for ${currentPlatform}`);
   console.log('===========================================\n');
 
-  for (const phoenixdDownload of PHOENIXD_DOWNLOADS) {
-    try {
-      await downloadAndExtractPhoenixd(phoenixdDownload.platform, phoenixdDownload.downloadUrl, phoenixdDownload.archiveFilename, phoenixdDownload.localFilename);
-    } catch (phoenixdInstallError) {
-      console.error(`Failed to download Phoenixd for ${phoenixdDownload.platform}:`, phoenixdInstallError);
-      process.exit(1);
-    }
-  }
+  await Promise.all(
+    PHOENIXD_DOWNLOADS.map(async (phoenixdDownload) => {
+      try {
+        await downloadAndExtractPhoenixd(phoenixdDownload.platform, phoenixdDownload.downloadUrl, phoenixdDownload.archiveFilename, phoenixdDownload.localFilename);
+      } catch (phoenixdInstallError) {
+        console.error(`Failed to download Phoenixd for ${phoenixdDownload.platform}:`, phoenixdInstallError);
+        process.exit(1);
+      }
+    }),
+  );
 
   console.log('\n===========================================');
   console.log(`  ✓ Phoenixd download for ${currentPlatform} complete!`);
