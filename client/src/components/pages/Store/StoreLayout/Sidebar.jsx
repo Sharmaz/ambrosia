@@ -7,8 +7,6 @@ import { LogOut } from "lucide-react";
 
 import { ADMIN_NOTIFICATIONS_ROUTE } from "@/lib/adminNotifications";
 
-import ambrosia from "../../../../../public/ambrosia.svg";
-
 import { LockedBadge } from "./LockedBadge";
 import { NavIcon } from "./NavIcon";
 import { NotificationBadge } from "./NotificationBadge";
@@ -72,7 +70,7 @@ export function SidebarContent({
       <div className="flex flex-col items-center p-4 border-b border-green-300">
         <Link href="/" onClick={onNavClick}>
           <Image
-            src={logoSrc || ambrosia}
+            src={logoSrc || "/ambrosia.svg"}
             alt="ambrosia"
             width={160}
             height={160}
