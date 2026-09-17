@@ -44,7 +44,7 @@ export function BitcoinPaymentModal({
     loading,
     isSecretsLocked,
     generateInvoice,
-    reset,
+    resetInvoiceState,
   } = useBitcoinInvoice({
     amountFiat: isOpen ? amountFiat : null,
     currencyAcronym,
@@ -86,7 +86,7 @@ export function BitcoinPaymentModal({
   }, [currentHash, invoice, satsAmount, paymentId, onComplete, onPayment, setInvoiceHash]);
 
   const handleClose = () => {
-    reset();
+    resetInvoiceState();
     onClose?.();
   };
 

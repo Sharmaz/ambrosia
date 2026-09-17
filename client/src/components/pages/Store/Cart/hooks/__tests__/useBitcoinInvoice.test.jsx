@@ -150,7 +150,7 @@ describe("useBitcoinInvoice", () => {
     await waitFor(() => expect(screen.getByTestId("invoice")).toHaveTextContent("yes"));
 
     act(() => {
-      latestState.reset();
+      latestState.resetInvoiceState();
     });
 
     expect(screen.getByTestId("invoice")).toHaveTextContent("no");

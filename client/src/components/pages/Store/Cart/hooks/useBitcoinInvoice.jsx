@@ -19,7 +19,7 @@ export function useBitcoinInvoice({
   const [loading, setLoading] = useState(false);
   const [isSecretsLocked, setIsSecretsLocked] = useState(false);
 
-  const reset = useCallback(() => {
+  const resetInvoiceState = useCallback(() => {
     setInvoice(null);
     setSatsAmount(null);
     setIsSecretsLocked(false);
@@ -56,12 +56,12 @@ export function useBitcoinInvoice({
 
   useEffect(() => {
     if (!autoGenerate) {
-      reset();
+      resetInvoiceState();
       return;
     }
 
     generateInvoice();
-  }, [autoGenerate, generateInvoice, reset]);
+  }, [autoGenerate, generateInvoice, resetInvoiceState]);
 
   return {
     invoice,
@@ -69,6 +69,6 @@ export function useBitcoinInvoice({
     loading,
     isSecretsLocked,
     generateInvoice,
-    reset,
+    resetInvoiceState,
   };
 }
