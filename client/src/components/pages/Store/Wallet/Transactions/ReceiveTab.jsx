@@ -49,14 +49,14 @@ export function ReceiveTab({ invoiceActions, currentRate }) {
       : null;
     try {
       setIsLoading(true);
-      const res = await createInvoice({
+      const createdInvoice = await createInvoice({
         amountSat,
         description: invoiceDesc,
         exchangeRate: currentRate ?? null,
         exchangeRateCurrency: currentRate != null ? (currency?.acronym?.toLowerCase() ?? null) : null,
         fiatAmount,
       });
-      invoiceActions.createInvoice(res);
+      invoiceActions.createInvoice(createdInvoice);
       resetAmounts();
       setInvoiceDesc("");
       addToast({
@@ -65,9 +65,9 @@ export function ReceiveTab({ invoiceActions, currentRate }) {
         variant: "solid",
         color: "success",
       });
-    } catch (err) {
-      console.error(err);
-      const isSecretsLocked = isSecretsLockedError(err);
+    } catch (createInvoiceError) {
+      console.error(createInvoiceError);
+      const isSecretsLocked = isSecretsLockedError(createInvoiceError);
       addToast({
         title: walletTranslations("errorTitle"),
         description: walletTranslations(
@@ -112,7 +112,7 @@ export function ReceiveTab({ invoiceActions, currentRate }) {
             label={walletTranslations("payments.receive.invoiceDescriptionLabel")}
             placeholder={walletTranslations("payments.receive.invoiceDescriptionPlaceholder")}
             value={invoiceDesc}
-            onChange={(e) => setInvoiceDesc(e.target.value)}
+            onChange={(event) => setInvoiceDesc(event.target.value)}
             isDisabled={isLoading}
             classNames={{
               inputWrapper: "border border-default-200 bg-white shadow-none",
