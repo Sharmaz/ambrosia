@@ -3,19 +3,22 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import { SeedCardLocked } from "../SeedCardLocked";
 
 jest.mock("@heroui/react", () => ({
-  Button: ({ onPress, children, ...props }) => (
-    <button type="button" onClick={onPress} {...props}>{children}</button>
-  ),
   Card: ({ children }) => <div>{children}</div>,
   CardHeader: ({ children }) => <div>{children}</div>,
   CardBody: ({ children }) => <div>{children}</div>,
   CardFooter: ({ children }) => <div>{children}</div>,
 }));
 
-const t = (key) => key;
+jest.mock("@components/shared/SecretsGatedRevealButton", () => ({
+  SecretsGatedRevealButton: ({ onReveal, revealLabel }) => (
+    <button type="button" onClick={onReveal}>{revealLabel}</button>
+  ),
+}));
+
+const seedCardTranslations = (translationKey) => translationKey;
 
 function renderLocked(props = {}) {
-  return render(<SeedCardLocked seedCardTranslations={t} onReveal={jest.fn()} {...props} />);
+  return render(<SeedCardLocked seedCardTranslations={seedCardTranslations} onReveal={jest.fn()} {...props} />);
 }
 
 describe("SeedCardLocked", () => {
@@ -35,7 +38,7 @@ describe("SeedCardLocked", () => {
       expect(screen.getByText("cardSeed.description")).toBeInTheDocument();
     });
 
-    it("renders the reveal button", () => {
+    it("passes the reveal button label to SecretsGatedRevealButton", () => {
       renderLocked();
       expect(screen.getByText("cardSeed.revealButton")).toBeInTheDocument();
     });

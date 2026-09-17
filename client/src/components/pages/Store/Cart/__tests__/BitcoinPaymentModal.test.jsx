@@ -22,7 +22,7 @@ let mockInvoiceState = {
   satsAmount: null,
   loading: false,
   generateInvoice: jest.fn(),
-  reset: jest.fn(),
+  resetInvoiceState: jest.fn(),
 };
 
 jest.mock("../hooks/useBitcoinInvoice", () => ({
@@ -61,7 +61,7 @@ describe("BitcoinPaymentModal", () => {
       satsAmount: null,
       loading: false,
       generateInvoice: jest.fn(),
-      reset: jest.fn(),
+      resetInvoiceState: jest.fn(),
     };
     mockSetInvoiceHash.mockClear();
     mockPaymentHandlers = [];
@@ -90,6 +90,14 @@ describe("BitcoinPaymentModal", () => {
       renderModal();
 
       expect(screen.getByText("serviceUnavailable")).toBeInTheDocument();
+    });
+
+    it("shows a secrets-locked-specific message when secrets encryption is locked", () => {
+      mockInvoiceState = { ...mockInvoiceState, isSecretsLocked: true };
+      renderModal();
+
+      expect(screen.getByText("secretsLockedError")).toBeInTheDocument();
+      expect(screen.queryByText("serviceUnavailable")).not.toBeInTheDocument();
     });
 
     it("calls generateInvoice on retry", () => {
@@ -315,13 +323,13 @@ describe("BitcoinPaymentModal", () => {
       expect(screen.getByText("cancel")).toBeInTheDocument();
     });
 
-    it("calls reset and onClose when cancel is pressed", () => {
+    it("calls resetInvoiceState and onClose when cancel is pressed", () => {
       const onClose = jest.fn();
       renderModal({ onClose });
 
       fireEvent.click(screen.getByText("cancel"));
 
-      expect(mockInvoiceState.reset).toHaveBeenCalled();
+      expect(mockInvoiceState.resetInvoiceState).toHaveBeenCalled();
       expect(onClose).toHaveBeenCalled();
     });
 
