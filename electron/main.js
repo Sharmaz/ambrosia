@@ -1,14 +1,16 @@
-const path = require('path');
-const { URL } = require('url');
+import { createRequire } from 'module';
+import path from 'path';
+import { URL } from 'url';
 
+import AutoUpdater from './services/AutoUpdater.js';
+import { configurationBootstrap } from './services/ConfigurationBootstrap.js';
+import ServiceManager from './services/ServiceManager.js';
+import { STARTUP } from './utils/constants.js';
+import { logger } from './utils/logger.js';
+import { getDataDirectory, getLogsDirectory, getPhoenixDataDirectory } from './utils/resourcePaths.js';
+
+const require = createRequire(import.meta.url);
 const { app, BrowserWindow, Menu, Notification, dialog, shell, ipcMain } = require('electron');
-
-const AutoUpdater = require('./services/AutoUpdater.js').default;
-const { configurationBootstrap } = require('./services/ConfigurationBootstrap.js');
-const ServiceManager = require('./services/ServiceManager.js').default;
-const { STARTUP } = require('./utils/constants.js');
-const { logger } = require('./utils/logger.js');
-const { getDataDirectory, getLogsDirectory, getPhoenixDataDirectory } = require('./utils/resourcePaths.js');
 
 const gotTheLock = app.requestSingleInstanceLock();
 app.setName('Ambrosia');
@@ -130,13 +132,13 @@ function createSplashScreen() {
     alwaysOnTop: true,
     resizable: false,
     webPreferences: {
-      preload: path.join(__dirname, 'splash-preload.js'),
+      preload: path.join(import.meta.dirname, 'splash-preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
     },
   });
 
-  splashWindow.loadFile(path.join(__dirname, 'splash.html'));
+  splashWindow.loadFile(path.join(import.meta.dirname, 'splash.html'));
 
   splashWindow.on('closed', () => {
     splashWindow = null;
@@ -152,7 +154,7 @@ function createWindow(url) {
     minWidth: 1024,
     minHeight: 650,
     webPreferences: {
-      preload: path.join(__dirname, 'preload.js'),
+      preload: path.join(import.meta.dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,

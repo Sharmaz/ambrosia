@@ -2,7 +2,7 @@
   "name": "ambrosia-pos",
   "version": "0.8.0-beta",
   "description": "Ambrosia POS Desktop Application",
-  "main": "main.cjs",
+  "main": "main.js",
   "type": "module",
   "scripts": {
     "dev": "npm run build:preload && electron .",
@@ -73,7 +73,7 @@
       "utils/**/*"
     ],
     "files": [
-      "main.cjs",
+      "main.js",
       "preload.js",
       "splash-preload.js",
       "splash.html",
