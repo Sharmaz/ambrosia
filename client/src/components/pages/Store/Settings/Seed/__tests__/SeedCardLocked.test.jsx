@@ -15,10 +15,10 @@ jest.mock("@components/shared/SecretsGatedRevealButton", () => ({
   ),
 }));
 
-const t = (key) => key;
+const seedCardTranslations = (translationKey) => translationKey;
 
 function renderLocked(props = {}) {
-  return render(<SeedCardLocked seedCardTranslations={t} onReveal={jest.fn()} {...props} />);
+  return render(<SeedCardLocked seedCardTranslations={seedCardTranslations} onReveal={jest.fn()} {...props} />);
 }
 
 describe("SeedCardLocked", () => {
