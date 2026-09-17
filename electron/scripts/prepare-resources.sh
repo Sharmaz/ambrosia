@@ -75,7 +75,7 @@ if [ -f "$NODE_CHECK" ]; then
     print_status "Node.js already downloaded for $PLATFORM, skipping..."
 else
     print_warning "Downloading Node.js (this may take a while)..."
-    node scripts/download-node.js
+    node scripts/download-node.cjs
     print_status "Node.js download complete"
 fi
 
@@ -94,7 +94,7 @@ if [ -f "$JRE_CHECK" ]; then
     print_status "JRE already downloaded for $PLATFORM, skipping..."
 else
     print_warning "Downloading JRE 21 (this may take a while)..."
-    node scripts/download-jre.js
+    node scripts/download-jre.cjs
     print_status "JRE download complete"
 fi
 
@@ -113,7 +113,7 @@ if [ -f "$PHOENIXD_CHECK" ]; then
     print_status "Phoenixd already downloaded for $PLATFORM, skipping..."
 else
     print_warning "Downloading Phoenixd binaries..."
-    node scripts/download-phoenixd.js
+    node scripts/download-phoenixd.cjs
     print_status "Phoenixd download complete"
 fi
 
@@ -121,21 +121,21 @@ echo ""
 echo "=== Step 4: Build Backend JAR ==="
 echo ""
 
-node scripts/build-backend.js
+node scripts/build-backend.cjs
 print_status "Backend build complete"
 
 echo ""
 echo "=== Step 5: Build Next.js Client ==="
 echo ""
 
-node scripts/build-client.js
+node scripts/build-client.cjs
 print_status "Client build complete"
 
 echo ""
 echo "=== Step 6: Bundle Preload Scripts ==="
 echo ""
 
-node scripts/build-preload.js
+node scripts/build-preload.cjs
 print_status "Preload bundling complete"
 
 echo ""
