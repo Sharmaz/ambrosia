@@ -1,5 +1,8 @@
 "use client";
 
+import { useState } from "react";
+
+import { Tab, Tabs } from "@heroui/react";
 import { useTranslations } from "next-intl";
 
 import { PageHeader } from "@/components/shared/PageHeader";
@@ -27,44 +30,113 @@ import { TicketTemplates } from "./TicketTemplates";
 import { Tips } from "./Tips";
 import { Tutorials } from "./Tutorials";
 
+function TabPanel({ children }) {
+  return <div className="flex flex-col gap-6">{children}</div>;
+}
+
 export function Settings() {
   const settingsTranslations = useTranslations("settings");
   const { isAdmin } = useNavigation();
+  const [activeTab, setActiveTab] = useState("business");
+
+  const availableTabs = [
+    { key: "business", label: settingsTranslations("categories.business") },
+    { key: "preferences", label: settingsTranslations("categories.preferences") },
+    (isAdmin || isElectron) && { key: "wallet", label: settingsTranslations("categories.wallet") },
+    isAdmin && { key: "backup", label: settingsTranslations("categories.backup") },
+    { key: "devices", label: settingsTranslations("categories.devices") },
+    { key: "printing", label: settingsTranslations("categories.printing") },
+    isAdmin && { key: "system", label: settingsTranslations("categories.system") },
+    isAdmin && { key: "help", label: settingsTranslations("categories.help") },
+  ].filter(Boolean);
 
   return (
     <>
       <PageHeader title={settingsTranslations("title")} subtitle={settingsTranslations("subtitle")} />
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
-        <div className="flex flex-col gap-6">
-          <StoreInfo />
-          <Currency />
-          <Tips />
-          <Language />
-          <Display />
-          {isAdmin && (
-            <>
-              <Seed />
-              <ExportData />
-              <ImportData />
-              <NwcConnectionCard />
-              <PhoenixdRemoteCard />
-              <SystemCard />
-              <SecretsEncryptionCard />
-              <Tutorials />
-            </>
-          )}
+      <Tabs
+        selectedKey={activeTab}
+        onSelectionChange={setActiveTab}
+        aria-label={settingsTranslations("title")}
+        variant="solid"
+        classNames={{
+          base: "bg-white rounded-xl p-1 shadow-sm w-full",
+          tabList: "gap-0 bg-transparent p-0 overflow-x-auto flex-nowrap",
+          cursor: "bg-forest shadow-none rounded-lg",
+          tab: "px-4 py-2 h-auto w-auto! rounded-lg shrink-0 data-[hover=true]:bg-forest/10",
+          tabContent: "group-data-[selected=true]:text-white text-gray-500 group-data-[hover=true]:text-forest text-sm font-medium",
+          panel: "hidden",
+        }}
+      >
+        {availableTabs.map(({ key, label }) => (
+          <Tab key={key} title={label} />
+        ))}
+      </Tabs>
+
+      <div className="flex flex-col lg:flex-row-reverse gap-6 lg:items-start mt-6">
+        <div className="hidden lg:block lg:w-80 lg:shrink-0">
+          <QRUrl />
         </div>
 
-        <div className="flex flex-col gap-6">
-          <QRUrl />
-          <SecureConnection />
-          <Printers />
-          <TicketTemplates />
-          {isAdmin && <NotificationPreferencesCard />}
+        <div className="flex-1 min-w-0">
+          {activeTab === "business" && (
+            <TabPanel>
+              <StoreInfo />
+              <Currency />
+              <Tips />
+            </TabPanel>
+          )}
 
-          {isElectron && <LightningCard />}
-          {!isElectron && <InstallPWA />}
+          {activeTab === "preferences" && (
+            <TabPanel>
+              <Language />
+              <Display />
+            </TabPanel>
+          )}
+
+          {activeTab === "wallet" && (isAdmin || isElectron) && (
+            <TabPanel>
+              {isAdmin && <Seed />}
+              {isElectron && <LightningCard />}
+              {isAdmin && <NwcConnectionCard />}
+              {isAdmin && <PhoenixdRemoteCard />}
+              {isAdmin && <SecretsEncryptionCard />}
+            </TabPanel>
+          )}
+
+          {activeTab === "backup" && isAdmin && (
+            <TabPanel>
+              <ExportData />
+              <ImportData />
+            </TabPanel>
+          )}
+
+          {activeTab === "devices" && (
+            <TabPanel>
+              <SecureConnection />
+              {!isElectron && <InstallPWA />}
+            </TabPanel>
+          )}
+
+          {activeTab === "printing" && (
+            <TabPanel>
+              <Printers />
+              <TicketTemplates />
+            </TabPanel>
+          )}
+
+          {activeTab === "system" && isAdmin && (
+            <TabPanel>
+              <SystemCard />
+              <NotificationPreferencesCard />
+            </TabPanel>
+          )}
+
+          {activeTab === "help" && isAdmin && (
+            <TabPanel>
+              <Tutorials />
+            </TabPanel>
+          )}
         </div>
       </div>
     </>

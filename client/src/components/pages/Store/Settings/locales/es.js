@@ -13,6 +13,16 @@ import tutorialsEs from "../Tutorials/locales/es";
 
 const settingsEs = {
   settings: {
+    categories: {
+      business: "Negocio",
+      preferences: "Preferencias",
+      wallet: "Bitcoin y Wallet",
+      backup: "Backup y datos",
+      devices: "Dispositivos y conexión",
+      printing: "Impresión",
+      system: "Sistema",
+      help: "Ayuda",
+    },
     secureConnection: {
       title: "Conexión segura",
       subtitle: "Certificado de esta unidad Ambrosia",
