@@ -637,6 +637,62 @@ data class PayoutAccountUpsert(
 )
 
 @Serializable
+data class CreateInvoiceRequest(
+    val clientId: String,
+    val periodStart: String,
+    val periodEnd: String,
+    val payoutAccountId: String? = null,
+)
+
+@Serializable
+data class InvoiceLineItemResponse(
+    val id: String,
+    val projectId: String,
+    val projectName: String,
+    val taskId: String,
+    val taskName: String,
+    val quantityMinutes: Int,
+    val rateCents: Int,
+    val amountCents: Int,
+    val createdAt: String,
+)
+
+@Serializable
+data class InvoiceResponse(
+    val id: String,
+    val invoiceYear: Int,
+    val invoiceNumber: String,
+    val clientId: String,
+    val clientName: String,
+    val status: String,
+    val currencyId: String,
+    val currencyAcronym: String,
+    val periodStart: String,
+    val periodEnd: String,
+    val totalCents: Int,
+    val payoutSnapshot: String? = null,
+    val paymentMethod: String,
+    val paymentHash: String? = null,
+    val bolt11: String? = null,
+    val createdAt: String,
+    val lineItems: List<InvoiceLineItemResponse> = emptyList(),
+)
+
+@Serializable
+data class InvoicePayoutSnapshot(
+    val id: String,
+    val type: String,
+    val accountHolder: String? = null,
+    val bankName: String? = null,
+    val accountNumber: String? = null,
+    val currencyId: String? = null,
+    val swift: String? = null,
+    val iban: String? = null,
+    val clabe: String? = null,
+    val lightningAddress: String? = null,
+)
+
+@Serializable
 data class ProductOptionValue(
     val id: String? = null,
     val optionTypeId: String? = null,
