@@ -182,7 +182,7 @@ class InvoiceService {
         val payoutAccountId = selectedPayoutAccountId ?: client.payoutAccountId?.value?.toString()
         val payoutAccount =
             payoutAccountId
-                ?.let { parseUuid(it, "payoutAccountId") }
+                ?.let { payoutAccountIdValue -> parseUuid(payoutAccountIdValue, "payoutAccountId") }
                 ?.let { payoutAccountUuid -> PayoutAccountEntity.findById(payoutAccountUuid) }
                 ?.takeIf { payoutAccountEntity -> !payoutAccountEntity.isDeleted }
                 ?: throw InvalidTimeEntryException("A valid bank payout account is required")
