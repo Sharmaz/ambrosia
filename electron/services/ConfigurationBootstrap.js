@@ -31,24 +31,24 @@ function readConfig(configPath) {
   }
 
   const configFileContent = fs.readFileSync(configPath, 'utf-8');
-  const config = {};
+  const configEntries = {};
 
   configFileContent.split('\n').forEach((line) => {
     const trimmedLine = line.trim();
     if (trimmedLine && !trimmedLine.startsWith('#')) {
       const [key, ...valueParts] = trimmedLine.split('=');
       if (key && valueParts.length > 0) {
-        config[key.trim()] = valueParts.join('=').trim();
+        configEntries[key.trim()] = valueParts.join('=').trim();
       }
     }
   });
 
-  return config;
+  return configEntries;
 }
 
-function writeConfig(configPath, config) {
-  const lines = Object.entries(config).map(([key, value]) => `${key}=${value}`);
-  fs.writeFileSync(configPath, `${lines.join('\n')}\n`, { encoding: 'utf-8', mode: 0o600 });
+function writeConfig(configPath, configEntries) {
+  const configFileLines = Object.entries(configEntries).map(([key, value]) => `${key}=${value}`);
+  fs.writeFileSync(configPath, `${configFileLines.join('\n')}\n`, { encoding: 'utf-8', mode: 0o600 });
   logger.log(`[ConfigurationBootstrap] Written configuration to: ${configPath}`);
 }
 
