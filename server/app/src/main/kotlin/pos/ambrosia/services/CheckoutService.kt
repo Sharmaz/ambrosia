@@ -230,6 +230,14 @@ class CheckoutService(
                 if (incomingPayment?.isPaid != true) {
                     return@withLock CheckoutResult.NotPaid
                 }
+
+                val expectedSatoshiAmount = request.satoshiAmount
+                if (expectedSatoshiAmount == null || incomingPayment.receivedSat < expectedSatoshiAmount) {
+                    return@withLock CheckoutResult.Invalid(
+                        "checkout_underpaid",
+                        "Checkout payment does not cover the order amount",
+                    )
+                }
             }
 
             when (val result = performCheckout(request)) {
