@@ -5,10 +5,8 @@ services:
     restart: unless-stopped
     networks:
       - default
-    ports:
-      - "9740:9740"
     volumes:
-      - phoenixd_datadir:/phoenix/.phoenix 
+      - phoenixd_datadir:/phoenix/.phoenix
 
   ambrosia:
     build: server/
