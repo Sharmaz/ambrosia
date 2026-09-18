@@ -13,6 +13,7 @@ import pos.ambrosia.db.tables.RoleEntity
 import pos.ambrosia.db.tables.UserEntity
 import pos.ambrosia.db.tables.UsersTable
 import pos.ambrosia.models.AuthResponse
+import java.security.MessageDigest
 import java.util.Date
 import java.util.UUID
 import java.util.concurrent.TimeUnit
@@ -83,13 +84,14 @@ class TokenService(
                 .create()
                 .withAudience(audience)
                 .withIssuer(issuer)
+                .withJWTId(UUID.randomUUID().toString())
                 .withClaim("userId", user.id)
                 .withClaim("type", "refresh")
                 .withClaim("realm", "Ambrosia-Server")
                 .withExpiresAt(Date(System.currentTimeMillis() + TimeUnit.DAYS.toMillis(30)))
                 .sign(algorithm)
 
-        saveRefreshTokenToDatabase(user.id, refreshToken)
+        saveRefreshTokenToDatabase(user.id, hashRefreshToken(refreshToken))
         return refreshToken
     }
 
@@ -196,7 +198,7 @@ class TokenService(
             transaction {
                 val user =
                     UserEntity
-                        .find { (UsersTable.refreshToken eq refreshToken) and (UsersTable.isDeleted eq false) }
+                        .find { (UsersTable.refreshToken eq hashRefreshToken(refreshToken)) and (UsersTable.isDeleted eq false) }
                         .firstOrNull()
 
                 if (user == null) {
@@ -238,10 +240,10 @@ class TokenService(
 
     private fun saveRefreshTokenToDatabase(
         userId: String,
-        refreshToken: String,
+        refreshTokenHash: String,
     ) {
         transaction {
-            UserEntity.findById(UUID.fromString(userId))?.refreshToken = refreshToken
+            UserEntity.findById(UUID.fromString(userId))?.refreshToken = refreshTokenHash
         }
     }
 
@@ -262,8 +264,13 @@ class TokenService(
 
     private fun isRefreshTokenInDatabase(refreshToken: String): Boolean =
         transaction {
-            UserEntity.find { UsersTable.refreshToken eq refreshToken }.any()
+            UserEntity.find { UsersTable.refreshToken eq hashRefreshToken(refreshToken) }.any()
         }
 
     private fun isTokenExpired(expiresAt: Date): Boolean = expiresAt.before(Date())
+
+    private fun hashRefreshToken(refreshToken: String): String {
+        val digestBytes = MessageDigest.getInstance("SHA-256").digest(refreshToken.toByteArray(Charsets.UTF_8))
+        return digestBytes.joinToString("") { "%02x".format(it) }
+    }
 }
