@@ -59,7 +59,7 @@ export function useCartPayment({ onPay, onResetCart } = {}) {
   const btc = useBtcPayment(handlerContext);
   const cash = usePaymentChannel(buildHandleCashComplete, handlerContext);
   const card = usePaymentChannel(buildHandleCardComplete, handlerContext);
-  const transfer = usePaymentChannel(buildHandleTransferComplete, handlerContext);
+  const bankTransfer = usePaymentChannel(buildHandleTransferComplete, handlerContext);
 
   const handlePay = useMemo(
     () => buildHandlePay({
@@ -70,7 +70,7 @@ export function useCartPayment({ onPay, onResetCart } = {}) {
       setBtcPaymentConfig: btc.setConfig,
       setCashPaymentConfig: cash.setConfig,
       setCardPaymentConfig: card.setConfig,
-      setTransferPaymentConfig: transfer.setConfig,
+      setTransferPaymentConfig: bankTransfer.setConfig,
       onResetCart,
       onPay,
       notifyError,
@@ -98,7 +98,7 @@ export function useCartPayment({ onPay, onResetCart } = {}) {
       btc.setConfig,
       cash.setConfig,
       card.setConfig,
-      transfer.setConfig,
+      bankTransfer.setConfig,
     ],
   );
 
@@ -118,8 +118,8 @@ export function useCartPayment({ onPay, onResetCart } = {}) {
   );
 
   const transferPayment = useMemo(
-    () => ({ config: transfer.config, onComplete: transfer.onComplete, onClose: transfer.onClose }),
-    [transfer.config, transfer.onComplete, transfer.onClose],
+    () => ({ config: bankTransfer.config, onComplete: bankTransfer.onComplete, onClose: bankTransfer.onClose }),
+    [bankTransfer.config, bankTransfer.onComplete, bankTransfer.onClose],
   );
 
   return {
