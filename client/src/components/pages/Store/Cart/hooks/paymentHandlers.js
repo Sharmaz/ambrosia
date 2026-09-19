@@ -408,13 +408,13 @@ export function buildHandleCardComplete({ getConfig, setConfig, ...context }) {
   };
 }
 
-export function buildHandleTransferComplete({ getConfig, setConfig, ...context }) {
+export function buildHandleTransferComplete({ getConfig, setConfig, ...handlerContext }) {
   return async function handleTransferComplete(completionData) {
     const transferPaymentConfig = getConfig();
     if (!transferPaymentConfig) return;
 
     await runDeferredCheckout({
-      ...context,
+      ...handlerContext,
       checkoutArgs: {
         cartItems: transferPaymentConfig.cartItems || [],
         paymentAmounts: transferPaymentConfig.paymentAmounts,
