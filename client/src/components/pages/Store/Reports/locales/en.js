@@ -35,6 +35,7 @@ const reportsEn = {
     tabs: {
       orders: "Orders",
       products: "Products",
+      shifts: "Shifts",
     },
     export: {
       error: "Could not export the CSV report",
@@ -113,6 +114,25 @@ const reportsEn = {
       ofLabel: "of",
       paginationAria: "Sales pagination",
       tableAriaLabel: "Sales detail",
+    },
+    shiftsReport: {
+      title: "Shifts",
+      subtitle: "Cash-closing history for the selected period",
+      records: "records",
+      empty: "No shifts found for the selected period",
+      export: "Export CSV",
+      user: "User",
+      openedAt: "Opened",
+      closedAt: "Closed",
+      initialAmount: "Initial Amount",
+      finalAmount: "Final Amount",
+      difference: "Difference",
+      totalExpected: "Expected Total",
+      totalActual: "Actual Total",
+      totalDifference: "Cumulative Difference",
+      shiftCount: "Shifts",
+      paginationAria: "Shifts pagination",
+      tableAriaLabel: "Shifts detail",
     },
     close: {
       modalTitle: "Confirm Shift Close",

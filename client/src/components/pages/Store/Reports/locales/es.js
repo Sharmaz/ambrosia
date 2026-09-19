@@ -35,6 +35,7 @@ const reportsEs = {
     tabs: {
       orders: "Órdenes",
       products: "Productos",
+      shifts: "Turnos",
     },
     export: {
       error: "No se pudo exportar el reporte CSV",
@@ -113,6 +114,25 @@ const reportsEs = {
       ofLabel: "de",
       paginationAria: "Paginación de ventas",
       tableAriaLabel: "Detalle de ventas",
+    },
+    shiftsReport: {
+      title: "Turnos",
+      subtitle: "Historial de cortes de caja del período seleccionado",
+      records: "registros",
+      empty: "No se encontraron turnos en el período seleccionado",
+      export: "Exportar CSV",
+      user: "Usuario",
+      openedAt: "Apertura",
+      closedAt: "Cierre",
+      initialAmount: "Monto Inicial",
+      finalAmount: "Monto Final",
+      difference: "Diferencia",
+      totalExpected: "Total Esperado",
+      totalActual: "Total Real",
+      totalDifference: "Diferencia Acumulada",
+      shiftCount: "Turnos",
+      paginationAria: "Paginación de turnos",
+      tableAriaLabel: "Detalle de turnos",
     },
     close: {
       modalTitle: "Confirmar Cierre de Turno",
