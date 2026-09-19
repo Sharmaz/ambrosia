@@ -34,6 +34,9 @@ jest.mock("../Shifts", () => ({
       ))}
     </div>
   ),
+  ShiftsAnalyticsCard: ({ shifts }) => (
+    <div data-testid="shifts-analytics-card" data-length={shifts.length} />
+  ),
 }));
 
 jest.mock("../Filters", () => ({
@@ -457,7 +460,24 @@ describe("Reports", () => {
       switchToShiftsTab();
       expect(screen.getByTestId("shifts-report-card")).toBeInTheDocument();
       expect(screen.getByTestId("shift-item")).toHaveTextContent("shift-1");
+      expect(screen.getByTestId("shifts-analytics-card")).toBeInTheDocument();
       expect(capturedStats).toHaveLength(4);
+    });
+
+    it("does not render ShiftsAnalyticsCard when there are no shifts in the period", () => {
+      mockCanViewShiftsReport = () => true;
+      mockUseShiftsReport = () => makeUseShiftsReport({
+        shiftsReportData: {
+          shifts: [],
+          totalExpectedAmount: 0,
+          totalFinalAmount: 0,
+          totalDifference: 0,
+        },
+      });
+      render(<Reports />);
+      switchToShiftsTab();
+      expect(screen.queryByTestId("shifts-analytics-card")).not.toBeInTheDocument();
+      expect(screen.getByTestId("shifts-report-card")).toBeInTheDocument();
     });
 
     it("converts shift dollar amounts to cents before formatAmount instead of passing them through as-is", () => {

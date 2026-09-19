@@ -131,6 +131,7 @@ const reportsEn = {
       totalActual: "Actual Total",
       totalDifference: "Cumulative Difference",
       shiftCount: "Shifts",
+      differenceOverTime: "Difference by Day",
       paginationAria: "Shifts pagination",
       tableAriaLabel: "Shifts detail",
     },

@@ -131,6 +131,7 @@ const reportsEs = {
       totalActual: "Total Real",
       totalDifference: "Diferencia Acumulada",
       shiftCount: "Turnos",
+      differenceOverTime: "Diferencia por Día",
       paginationAria: "Paginación de turnos",
       tableAriaLabel: "Detalle de turnos",
     },

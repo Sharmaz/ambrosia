@@ -20,7 +20,7 @@ import { useShiftsReport } from "./hooks/useShiftsReport";
 import { useSummaryData } from "./hooks/useSummaryData";
 import { OrdersDetailCard } from "./Orders";
 import { SalesDetailCard } from "./Sales";
-import { ShiftsReportCard } from "./Shifts";
+import { ShiftsAnalyticsCard, ShiftsReportCard } from "./Shifts";
 import { ReportSkeleton, SummaryCard } from "./Summary";
 
 export default function Reports() {
@@ -242,6 +242,13 @@ export default function Reports() {
       {activeTab === "shifts" && canViewShiftsReport && shiftsReportData && (
         <div role="tabpanel" className="space-y-6">
           <SummaryCard stats={shiftStats} />
+          {shiftsReportData.shifts.length > 0 && (
+            <ShiftsAnalyticsCard
+              shifts={shiftsReportData.shifts}
+              byPaymentMethod={shiftsReportData.byPaymentMethod}
+              formatCurrency={formatShiftAmount}
+            />
+          )}
           <ShiftsReportCard shifts={shiftsReportData.shifts} formatCurrency={formatShiftAmount} />
         </div>
       )}
