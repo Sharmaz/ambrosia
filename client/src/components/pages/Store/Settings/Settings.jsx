@@ -12,6 +12,7 @@ import { isElectron } from "@lib/isElectron";
 import { Currency } from "./Currency";
 import { Display } from "./Display";
 import { ExportData } from "./ExportData";
+import { useSettingsAvailability } from "./hooks/useSettingsAvailability";
 import { ImportData } from "./ImportData";
 import { InstallPWA } from "./InstallPWA";
 import { Language } from "./Language";
@@ -38,17 +39,7 @@ export function Settings() {
   const settingsTranslations = useTranslations("settings");
   const { isAdmin } = useNavigation();
   const [activeTab, setActiveTab] = useState("business");
-
-  const availableTabs = [
-    { key: "business", label: settingsTranslations("categories.business") },
-    { key: "preferences", label: settingsTranslations("categories.preferences") },
-    (isAdmin || isElectron) && { key: "wallet", label: settingsTranslations("categories.wallet") },
-    isAdmin && { key: "backup", label: settingsTranslations("categories.backup") },
-    { key: "devices", label: settingsTranslations("categories.devices") },
-    { key: "printing", label: settingsTranslations("categories.printing") },
-    isAdmin && { key: "system", label: settingsTranslations("categories.system") },
-    isAdmin && { key: "help", label: settingsTranslations("categories.help") },
-  ].filter(Boolean);
+  const { availableTabs, secureConnectionAvailable, installPWAAvailable, devicesTabAvailable } = useSettingsAvailability({ isAdmin });
 
   return (
     <>
@@ -94,13 +85,13 @@ export function Settings() {
             </TabPanel>
           )}
 
-          {activeTab === "wallet" && (isAdmin || isElectron) && (
+          {activeTab === "wallet" && isAdmin && (
             <TabPanel>
-              {isAdmin && <Seed />}
+              <Seed />
               {isElectron && <LightningCard />}
-              {isAdmin && <NwcConnectionCard />}
-              {isAdmin && <PhoenixdRemoteCard />}
-              {isAdmin && <SecretsEncryptionCard />}
+              <NwcConnectionCard />
+              <PhoenixdRemoteCard />
+              <SecretsEncryptionCard />
             </TabPanel>
           )}
 
@@ -111,10 +102,10 @@ export function Settings() {
             </TabPanel>
           )}
 
-          {activeTab === "devices" && (
+          {activeTab === "devices" && devicesTabAvailable && (
             <TabPanel>
-              <SecureConnection />
-              {!isElectron && <InstallPWA />}
+              {secureConnectionAvailable && <SecureConnection />}
+              {installPWAAvailable && <InstallPWA />}
             </TabPanel>
           )}
 
