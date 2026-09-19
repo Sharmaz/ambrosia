@@ -59,7 +59,7 @@ describe("OrderDetailsModal", () => {
 
   it("renders order details and handles close", () => {
     const onClose = jest.fn();
-    const formatAmount = jest.fn((value) => `fmt-${value}`);
+    const formatAmount = jest.fn((amount) => `fmt-${amount}`);
     const order = {
       id: "order-1",
       userName: "Luis",
@@ -107,7 +107,7 @@ describe("OrderDetailsModal", () => {
         order={order}
         isOpen
         onClose={jest.fn()}
-        formatAmount={(value) => `fmt-${value}`}
+        formatAmount={(amount) => `fmt-${amount}`}
       />,
     );
 
@@ -130,7 +130,7 @@ describe("OrderDetailsModal", () => {
         order={order}
         isOpen
         onClose={jest.fn()}
-        formatAmount={(value) => `fmt-${value}`}
+        formatAmount={(amount) => `fmt-${amount}`}
       />,
     );
 
@@ -138,7 +138,7 @@ describe("OrderDetailsModal", () => {
   });
 
   it("renders AmountDisplay for BTC orders with satoshiAmount", () => {
-    const formatAmount = jest.fn((value) => `fmt-${value}`);
+    const formatAmount = jest.fn((amount) => `fmt-${amount}`);
     const btcOrder = {
       id: "order-btc",
       userName: "Ana",
@@ -168,7 +168,7 @@ describe("OrderDetailsModal", () => {
   });
 
   it("uses formatAmount for non-BTC orders", () => {
-    const formatAmount = jest.fn((value) => `fmt-${value}`);
+    const formatAmount = jest.fn((amount) => `fmt-${amount}`);
     const cashOrder = {
       id: "order-cash",
       userName: "Luis",
@@ -194,7 +194,7 @@ describe("OrderDetailsModal", () => {
   });
 
   it("renders tip as secondary information aligned with the amount column", () => {
-    const formatAmount = jest.fn((value) => `fmt-${value}`);
+    const formatAmount = jest.fn((amount) => `fmt-${amount}`);
 
     render(
       <OrderDetailsModal
@@ -229,7 +229,7 @@ describe("OrderDetailsModal", () => {
   });
 
   it("shows the refund button only for paid orders", () => {
-    const formatAmount = jest.fn((value) => `fmt-${value}`);
+    const formatAmount = jest.fn((amount) => `fmt-${amount}`);
     const { rerender } = render(
       <OrderDetailsModal
         order={{ id: "order-1", status: "paid", total: 10 }}
@@ -263,7 +263,7 @@ describe("OrderDetailsModal", () => {
 
   it("hides the refund button for a paid order when the user lacks orders_refund", () => {
     mockCanRefund = false;
-    const formatAmount = jest.fn((value) => `fmt-${value}`);
+    const formatAmount = jest.fn((amount) => `fmt-${amount}`);
 
     render(
       <OrderDetailsModal
@@ -287,7 +287,7 @@ describe("OrderDetailsModal", () => {
         isOpen
         onClose={jest.fn()}
         onRefunded={onRefunded}
-        formatAmount={jest.fn((value) => `fmt-${value}`)}
+        formatAmount={jest.fn((amount) => `fmt-${amount}`)}
       />,
     );
 
@@ -317,7 +317,7 @@ describe("OrderDetailsModal", () => {
         order={order}
         isOpen
         onClose={jest.fn()}
-        formatAmount={jest.fn((value) => `fmt-${value}`)}
+        formatAmount={jest.fn((amount) => `fmt-${amount}`)}
       />,
     );
 
