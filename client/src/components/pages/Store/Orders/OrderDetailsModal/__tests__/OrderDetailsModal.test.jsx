@@ -137,6 +137,32 @@ describe("OrderDetailsModal", () => {
     expect(screen.queryByText("details.reference")).not.toBeInTheDocument();
   });
 
+  it("shows a truncated reference with a copy button for BTC invoices", () => {
+    const longInvoice = "lntb720n1p42ud4ypp5syxmv3c9y0lx3udvneypkutnt923ynhp5ps076v5a7c4uft";
+    const order = {
+      id: "order-1",
+      userName: "Luis",
+      status: "paid",
+      paymentMethod: "BTC",
+      total: 25,
+      createdAt: "2024-01-01T10:00:00Z",
+      transactionId: longInvoice,
+    };
+
+    render(
+      <OrderDetailsModal
+        order={order}
+        isOpen
+        onClose={jest.fn()}
+        formatAmount={(amount) => `fmt-${amount}`}
+      />,
+    );
+
+    expect(screen.getByText("details.reference")).toBeInTheDocument();
+    expect(screen.queryByText(longInvoice)).not.toBeInTheDocument();
+    expect(screen.getByTitle(longInvoice)).toBeInTheDocument();
+  });
+
   it("renders AmountDisplay for BTC orders with satoshiAmount", () => {
     const formatAmount = jest.fn((amount) => `fmt-${amount}`);
     const btcOrder = {
