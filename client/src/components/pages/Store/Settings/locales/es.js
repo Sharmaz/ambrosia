@@ -13,6 +13,7 @@ import tutorialsEs from "../Tutorials/locales/es";
 
 const settingsEs = {
   settings: {
+    appVersion: "AmbrosiaPoS v",
     categories: {
       business: "Negocio",
       preferences: "Preferencias",

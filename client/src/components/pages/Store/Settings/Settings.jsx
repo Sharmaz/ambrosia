@@ -43,7 +43,16 @@ export function Settings() {
 
   return (
     <>
-      <PageHeader title={settingsTranslations("title")} subtitle={settingsTranslations("subtitle")} />
+      <PageHeader
+        title={settingsTranslations("title")}
+        subtitle={settingsTranslations("subtitle")}
+        actions={(
+          <span className="text-sm font-medium text-gray-800 bg-white px-4 py-2 rounded-full shadow-lg">
+            {settingsTranslations("appVersion")}
+            {process.env.NEXT_PUBLIC_APP_VERSION}
+          </span>
+        )}
+      />
 
       <Tabs
         selectedKey={activeTab}
