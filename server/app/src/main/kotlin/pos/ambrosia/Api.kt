@@ -30,11 +30,11 @@ import pos.ambrosia.api.configureClients
 import pos.ambrosia.api.configureConfig
 import pos.ambrosia.api.configureCurrency
 import pos.ambrosia.api.configureDishes
+import pos.ambrosia.api.configureFreelanceInvoices
 import pos.ambrosia.api.configureFreelanceReports
 import pos.ambrosia.api.configureHealth
 import pos.ambrosia.api.configureIngredients
 import pos.ambrosia.api.configureInitialSetup
-import pos.ambrosia.api.configureInvoices
 import pos.ambrosia.api.configureOrders
 import pos.ambrosia.api.configurePaymentWebsocket
 import pos.ambrosia.api.configurePayments
@@ -128,7 +128,7 @@ class Api {
         configurePayoutAccounts()
         configureProjects()
         configureTasks()
-        configureInvoices()
+        configureFreelanceInvoices()
         configureCurrency()
         configureTimeEntries()
         configureFreelanceReports()

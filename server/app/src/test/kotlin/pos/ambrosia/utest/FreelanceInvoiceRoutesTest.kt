@@ -14,9 +14,9 @@ import io.ktor.server.testing.testApplication
 import kotlinx.serialization.json.Json
 import org.junit.After
 import org.junit.Before
-import pos.ambrosia.api.configureInvoices
+import pos.ambrosia.api.configureFreelanceInvoices
 import pos.ambrosia.api.handler
-import pos.ambrosia.models.InvoiceResponse
+import pos.ambrosia.models.FreelanceInvoiceResponse
 import pos.ambrosia.utils.ExposedTestDb
 import pos.ambrosia.utils.grantPermissions
 import pos.ambrosia.utils.installNonAdminAuth
@@ -25,7 +25,7 @@ import java.io.File
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
-class InvoiceRoutesTest {
+class FreelanceInvoiceRoutesTest {
     private lateinit var databaseFile: File
 
     @Before
@@ -39,13 +39,13 @@ class InvoiceRoutesTest {
     }
 
     @Test
-    fun `invoice routes require matching permissions`() =
+    fun `freelance invoice routes require matching permissions`() =
         testApplication {
             val authWithoutPermission = installNonAdminAuth("invoice-no-permission", "invoice-no-permission-user")
             application {
                 install(ContentNegotiation) { json() }
                 handler()
-                configureInvoices()
+                configureFreelanceInvoices()
             }
 
             assertEquals(HttpStatusCode.Unauthorized, client.get("/freelance/invoices").status)
@@ -56,95 +56,98 @@ class InvoiceRoutesTest {
         }
 
     @Test
-    fun `post creates draft invoice and get returns the invoice detail`() =
+    fun `post creates draft freelance invoice and get returns the invoice detail`() =
         testApplication {
             val authWithPermission = installNonAdminAuth("invoice-create-read", "invoice-create-read-user")
             grantPermissions("invoice-create-read", "invoices_create", "invoices_read")
-            val invoiceFixture = createInvoiceFixture()
+            val freelanceInvoiceFixture = createFreelanceInvoiceFixture()
             application {
                 install(ContentNegotiation) { json() }
                 handler()
-                configureInvoices()
+                configureFreelanceInvoices()
             }
 
-            val createInvoiceResponse =
+            val createFreelanceInvoiceResponse =
                 client.post("/freelance/invoices") {
                     withAuthCookies(authWithPermission)
                     header(HttpHeaders.ContentType, "application/json")
                     setBody(
                         """{
-                            "clientId":"${invoiceFixture.clientId}",
+                            "clientId":"${freelanceInvoiceFixture.clientId}",
                             "periodStart":"2026-08-17",
                             "periodEnd":"2026-08-23"
                         }""",
                     )
                 }
-            val createdInvoice = Json.decodeFromString<InvoiceResponse>(createInvoiceResponse.bodyAsText())
+            val createdFreelanceInvoice = Json.decodeFromString<FreelanceInvoiceResponse>(createFreelanceInvoiceResponse.bodyAsText())
             val listInvoicesResponse = client.get("/freelance/invoices") { withAuthCookies(authWithPermission) }
-            val listedInvoices = Json.decodeFromString<List<InvoiceResponse>>(listInvoicesResponse.bodyAsText())
-            val getInvoiceResponse = client.get("/freelance/invoices/${createdInvoice.id}") { withAuthCookies(authWithPermission) }
-            val retrievedInvoice = Json.decodeFromString<InvoiceResponse>(getInvoiceResponse.bodyAsText())
+            val listedFreelanceInvoices = Json.decodeFromString<List<FreelanceInvoiceResponse>>(listInvoicesResponse.bodyAsText())
+            val getFreelanceInvoiceResponse =
+                client.get("/freelance/invoices/${createdFreelanceInvoice.id}") {
+                    withAuthCookies(authWithPermission)
+                }
+            val retrievedFreelanceInvoice = Json.decodeFromString<FreelanceInvoiceResponse>(getFreelanceInvoiceResponse.bodyAsText())
 
-            assertEquals(HttpStatusCode.Created, createInvoiceResponse.status)
+            assertEquals(HttpStatusCode.Created, createFreelanceInvoiceResponse.status)
             assertEquals(HttpStatusCode.OK, listInvoicesResponse.status)
-            assertEquals(HttpStatusCode.OK, getInvoiceResponse.status)
-            assertEquals(createdInvoice.id, listedInvoices.single().id)
-            assertEquals(createdInvoice.id, retrievedInvoice.id)
-            assertEquals(10_000, retrievedInvoice.totalCents)
-            assertEquals(1, retrievedInvoice.lineItems.size)
+            assertEquals(HttpStatusCode.OK, getFreelanceInvoiceResponse.status)
+            assertEquals(createdFreelanceInvoice.id, listedFreelanceInvoices.single().id)
+            assertEquals(createdFreelanceInvoice.id, retrievedFreelanceInvoice.id)
+            assertEquals(10_000, retrievedFreelanceInvoice.totalCents)
+            assertEquals(1, retrievedFreelanceInvoice.lineItems.size)
         }
 
     @Test
-    fun `missing invoice returns not found`() =
+    fun `missing freelance invoice returns not found`() =
         testApplication {
             val authWithPermission = installNonAdminAuth("invoice-read", "invoice-read-user")
             grantPermissions("invoice-read", "invoices_read")
             application {
                 install(ContentNegotiation) { json() }
                 handler()
-                configureInvoices()
+                configureFreelanceInvoices()
             }
 
-            val missingInvoiceResponse =
+            val missingFreelanceInvoiceResponse =
                 client.get("/freelance/invoices/00000000-0000-0000-0000-000000000000") {
                     withAuthCookies(authWithPermission)
                 }
 
-            assertEquals(HttpStatusCode.NotFound, missingInvoiceResponse.status)
+            assertEquals(HttpStatusCode.NotFound, missingFreelanceInvoiceResponse.status)
         }
 
     @Test
-    fun `invalid invoice payload returns bad request`() =
+    fun `invalid freelance invoice payload returns bad request`() =
         testApplication {
             val authWithPermission = installNonAdminAuth("invoice-create", "invoice-create-user")
             grantPermissions("invoice-create", "invoices_create")
             application {
                 install(ContentNegotiation) { json() }
                 handler()
-                configureInvoices()
+                configureFreelanceInvoices()
             }
 
-            val invalidInvoiceResponse =
+            val invalidFreelanceInvoiceResponse =
                 client.post("/freelance/invoices") {
                     withAuthCookies(authWithPermission)
                     header(HttpHeaders.ContentType, "application/json")
                     setBody("""{"clientId":"not-a-uuid"}""")
                 }
 
-            assertEquals(HttpStatusCode.BadRequest, invalidInvoiceResponse.status)
+            assertEquals(HttpStatusCode.BadRequest, invalidFreelanceInvoiceResponse.status)
         }
 
-    private fun createInvoiceFixture(): InvoiceRouteFixture {
+    private fun createFreelanceInvoiceFixture(): FreelanceInvoiceRouteFixture {
         val currencyId = ExposedTestDb.seedCurrency("USD")
         val payoutAccountId = ExposedTestDb.seedPayoutAccount(currencyId = currencyId)
         val clientId = ExposedTestDb.seedFreelanceClient(currencyId = currencyId, payoutAccountId = payoutAccountId)
         val projectId = ExposedTestDb.seedFreelanceProject(clientId = clientId, hourlyRateCents = 10_000)
         val taskId = ExposedTestDb.seedTask("Development")
         ExposedTestDb.seedTimeEntry(projectId, taskId, entryDate = "2026-08-19", durationMinutes = 60)
-        return InvoiceRouteFixture(clientId = clientId)
+        return FreelanceInvoiceRouteFixture(clientId = clientId)
     }
 
-    private data class InvoiceRouteFixture(
+    private data class FreelanceInvoiceRouteFixture(
         val clientId: String,
     )
 }

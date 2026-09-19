@@ -24,10 +24,10 @@ import pos.ambrosia.db.tables.TaskEntity
 import pos.ambrosia.db.tables.TasksTable
 import pos.ambrosia.db.tables.TimeEntriesTable
 import pos.ambrosia.db.tables.TimeEntryEntity
-import pos.ambrosia.models.CreateInvoiceRequest
-import pos.ambrosia.models.InvoiceLineItemResponse
-import pos.ambrosia.models.InvoicePayoutSnapshot
-import pos.ambrosia.models.InvoiceResponse
+import pos.ambrosia.models.CreateFreelanceInvoiceRequest
+import pos.ambrosia.models.FreelanceInvoiceLineItemResponse
+import pos.ambrosia.models.FreelanceInvoicePayoutSnapshot
+import pos.ambrosia.models.FreelanceInvoiceResponse
 import pos.ambrosia.utils.InvalidTimeEntryException
 import pos.ambrosia.utils.ResourceNotFoundException
 import java.math.BigDecimal
@@ -38,18 +38,18 @@ import java.time.format.DateTimeFormatter
 import java.time.format.DateTimeParseException
 import java.util.UUID
 
-class InvoiceService {
-    fun createDraftInvoice(createInvoiceRequest: CreateInvoiceRequest): InvoiceResponse =
+class FreelanceInvoiceService {
+    fun createDraftInvoice(createFreelanceInvoiceRequest: CreateFreelanceInvoiceRequest): FreelanceInvoiceResponse =
         transaction {
-            val periodStartDate = parseDate(createInvoiceRequest.periodStart, "periodStart")
-            val periodEndDate = parseDate(createInvoiceRequest.periodEnd, "periodEnd")
+            val periodStartDate = parseDate(createFreelanceInvoiceRequest.periodStart, "periodStart")
+            val periodEndDate = parseDate(createFreelanceInvoiceRequest.periodEnd, "periodEnd")
             if (periodStartDate > periodEndDate) {
                 throw InvalidTimeEntryException("periodStart must be before or equal to periodEnd")
             }
 
             val requestedClient =
                 ClientEntity
-                    .findById(parseUuid(createInvoiceRequest.clientId, "clientId"))
+                    .findById(parseUuid(createFreelanceInvoiceRequest.clientId, "clientId"))
                     ?.takeIf { client -> !client.isDeleted }
                     ?: throw ResourceNotFoundException("Client not found")
             val clientProjects =
@@ -82,7 +82,7 @@ class InvoiceService {
                 TaskEntity
                     .find { TasksTable.id inList uninvoicedTimeEntries.map { timeEntry -> timeEntry.taskId }.distinct() }
                     .associateBy { task -> task.id }
-            val draftInvoice =
+            val draftFreelanceInvoice =
                 InvoiceEntity.new(UUID.randomUUID()) {
                     invoiceYear = periodStartDate.year
                     invoiceNumber = nextInvoiceNumber(periodStartDate.year)
@@ -97,16 +97,16 @@ class InvoiceService {
                             val rateCents = project.hourlyRateCents ?: requestedClient.hourlyRateCents
                             calculateAmountCents(rateCents, timeEntry.durationMinutes)
                         }
-                    payoutSnapshot = buildPayoutSnapshot(requestedClient, createInvoiceRequest.payoutAccountId)
+                    payoutSnapshot = buildPayoutSnapshot(requestedClient, createFreelanceInvoiceRequest.payoutAccountId)
                     paymentMethod = requestedClient.paymentMethod
                     paymentHash = null
                     bolt11 = null
                     createdAt = currentTimestamp
                 }
 
-            val invoiceLineItems =
+            val freelanceInvoiceLineItems =
                 buildInvoiceLineItems(
-                    draftInvoice = draftInvoice,
+                    draftInvoice = draftFreelanceInvoice,
                     timeEntries = uninvoicedTimeEntries,
                     projectReferences = projectReferences,
                     taskReferences = taskReferences,
@@ -114,26 +114,26 @@ class InvoiceService {
                     createdAt = currentTimestamp,
                 )
             uninvoicedTimeEntries.forEach { timeEntry ->
-                timeEntry.invoiceId = draftInvoice.id
+                timeEntry.invoiceId = draftFreelanceInvoice.id
                 timeEntry.isLocked = true
             }
 
-            toInvoiceResponse(draftInvoice, invoiceLineItems)
+            toFreelanceInvoiceResponse(draftFreelanceInvoice, freelanceInvoiceLineItems)
         }
 
-    fun getInvoices(): List<InvoiceResponse> =
+    fun getFreelanceInvoices(): List<FreelanceInvoiceResponse> =
         transaction {
             InvoiceEntity
                 .all()
                 .orderBy(InvoicesTable.createdAt to SortOrder.DESC)
-                .map { invoice -> toInvoiceResponse(invoice) }
+                .map { freelanceInvoice -> toFreelanceInvoiceResponse(freelanceInvoice) }
         }
 
-    fun getInvoiceById(invoiceId: String): InvoiceResponse? =
+    fun getFreelanceInvoiceById(freelanceInvoiceId: String): FreelanceInvoiceResponse? =
         transaction {
             InvoiceEntity
-                .findById(parseUuid(invoiceId, "invoiceId"))
-                ?.let { invoice -> toInvoiceResponse(invoice) }
+                .findById(parseUuid(freelanceInvoiceId, "freelanceInvoiceId"))
+                ?.let { freelanceInvoice -> toFreelanceInvoiceResponse(freelanceInvoice) }
         }
 
     private fun buildInvoiceLineItems(
@@ -147,7 +147,7 @@ class InvoiceService {
         timeEntries
             .groupBy { timeEntry ->
                 val project = projectReferences.getValue(timeEntry.projectId)
-                InvoiceLineItemKey(
+                FreelanceInvoiceLineItemKey(
                     projectId = timeEntry.projectId,
                     taskId = timeEntry.taskId,
                     rateCents = project.hourlyRateCents ?: clientHourlyRateCents,
@@ -189,7 +189,7 @@ class InvoiceService {
         if (payoutAccount.type != "bank") throw InvalidTimeEntryException("Payout account must be a bank account")
 
         return Json.encodeToString(
-            InvoicePayoutSnapshot(
+            FreelanceInvoicePayoutSnapshot(
                 id = payoutAccount.id.value.toString(),
                 type = payoutAccount.type,
                 accountHolder = payoutAccount.accountHolder,
@@ -204,10 +204,10 @@ class InvoiceService {
         )
     }
 
-    private fun toInvoiceResponse(
+    private fun toFreelanceInvoiceResponse(
         invoice: InvoiceEntity,
-        invoiceLineItems: List<InvoiceLineItemEntity>? = null,
-    ): InvoiceResponse {
+        freelanceInvoiceLineItems: List<InvoiceLineItemEntity>? = null,
+    ): FreelanceInvoiceResponse {
         val client =
             ClientEntity.findById(invoice.clientId)
                 ?: throw ResourceNotFoundException("Client not found")
@@ -215,7 +215,7 @@ class InvoiceService {
             CurrencyEntity.findById(invoice.currencyId)
                 ?: throw ResourceNotFoundException("Currency not found")
         val resolvedInvoiceLineItems =
-            invoiceLineItems
+            freelanceInvoiceLineItems
                 ?: InvoiceLineItemEntity
                     .find { InvoiceLineItemsTable.invoiceId eq invoice.id }
                     .toList()
@@ -238,7 +238,7 @@ class InvoiceService {
                     .associateBy { task -> task.id }
             }
 
-        return InvoiceResponse(
+        return FreelanceInvoiceResponse(
             id = invoice.id.value.toString(),
             invoiceYear = invoice.invoiceYear,
             invoiceNumber = invoice.invoiceNumber,
@@ -259,7 +259,7 @@ class InvoiceService {
                 resolvedInvoiceLineItems.map { invoiceLineItem ->
                     val project = projectReferences.getValue(invoiceLineItem.projectId)
                     val task = taskReferences.getValue(invoiceLineItem.taskId)
-                    InvoiceLineItemResponse(
+                    FreelanceInvoiceLineItemResponse(
                         id = invoiceLineItem.id.value.toString(),
                         projectId = project.id.value.toString(),
                         projectName = project.name,
@@ -282,7 +282,7 @@ class InvoiceService {
         return "$invoiceYear-${(invoiceCountForYear + 1).toString().padStart(6, '0')}"
     }
 
-    private data class InvoiceLineItemKey(
+    private data class FreelanceInvoiceLineItemKey(
         val projectId: EntityID<UUID>,
         val taskId: EntityID<UUID>,
         val rateCents: Int,

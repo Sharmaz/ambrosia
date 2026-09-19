@@ -8,9 +8,9 @@ import org.junit.After
 import org.junit.Before
 import pos.ambrosia.db.tables.TimeEntriesTable
 import pos.ambrosia.db.tables.TimeEntryEntity
-import pos.ambrosia.models.CreateInvoiceRequest
-import pos.ambrosia.models.InvoicePayoutSnapshot
-import pos.ambrosia.services.InvoiceService
+import pos.ambrosia.models.CreateFreelanceInvoiceRequest
+import pos.ambrosia.models.FreelanceInvoicePayoutSnapshot
+import pos.ambrosia.services.FreelanceInvoiceService
 import pos.ambrosia.utils.ExposedTestDb
 import pos.ambrosia.utils.InvalidTimeEntryException
 import java.io.File
@@ -22,9 +22,9 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-class InvoiceServiceTest {
+class FreelanceInvoiceServiceTest {
     private lateinit var databaseFile: File
-    private val invoiceService = InvoiceService()
+    private val freelanceInvoiceService = FreelanceInvoiceService()
 
     @Before
     fun setUp() {
@@ -38,41 +38,41 @@ class InvoiceServiceTest {
 
     @Test
     fun `creates draft invoice from uninvoiced billable time entries`() {
-        val invoiceFixture = createInvoiceFixture()
+        val freelanceInvoiceFixture = createFreelanceInvoiceFixture()
         val firstTimeEntryId =
             ExposedTestDb.seedTimeEntry(
-                invoiceFixture.projectId,
-                invoiceFixture.developmentTaskId,
+                freelanceInvoiceFixture.projectId,
+                freelanceInvoiceFixture.developmentTaskId,
                 entryDate = "2026-08-19",
                 durationMinutes = 60,
             )
         val secondTimeEntryId =
             ExposedTestDb.seedTimeEntry(
-                invoiceFixture.projectId,
-                invoiceFixture.designTaskId,
+                freelanceInvoiceFixture.projectId,
+                freelanceInvoiceFixture.designTaskId,
                 entryDate = "2026-08-20",
                 durationMinutes = 30,
             )
 
-        val createdInvoice =
-            invoiceService.createDraftInvoice(
-                CreateInvoiceRequest(
-                    clientId = invoiceFixture.clientId,
+        val createdFreelanceInvoice =
+            freelanceInvoiceService.createDraftInvoice(
+                CreateFreelanceInvoiceRequest(
+                    clientId = freelanceInvoiceFixture.clientId,
                     periodStart = "2026-08-17",
                     periodEnd = "2026-08-23",
                 ),
             )
 
-        assertEquals("draft", createdInvoice.status)
-        assertEquals("USD", createdInvoice.currencyAcronym)
-        assertEquals(15_000, createdInvoice.totalCents)
-        assertEquals("bank", createdInvoice.paymentMethod)
-        assertNull(createdInvoice.paymentHash)
-        assertNull(createdInvoice.bolt11)
-        assertEquals(2, createdInvoice.lineItems.size)
-        assertEquals(setOf(10_000, 5_000), createdInvoice.lineItems.map { invoiceLineItem -> invoiceLineItem.amountCents }.toSet())
-        assertTrue(timeEntryIsLocked(firstTimeEntryId, createdInvoice.id))
-        assertTrue(timeEntryIsLocked(secondTimeEntryId, createdInvoice.id))
+        assertEquals("draft", createdFreelanceInvoice.status)
+        assertEquals("USD", createdFreelanceInvoice.currencyAcronym)
+        assertEquals(15_000, createdFreelanceInvoice.totalCents)
+        assertEquals("bank", createdFreelanceInvoice.paymentMethod)
+        assertNull(createdFreelanceInvoice.paymentHash)
+        assertNull(createdFreelanceInvoice.bolt11)
+        assertEquals(2, createdFreelanceInvoice.lineItems.size)
+        assertEquals(setOf(10_000, 5_000), createdFreelanceInvoice.lineItems.map { invoiceLineItem -> invoiceLineItem.amountCents }.toSet())
+        assertTrue(timeEntryIsLocked(firstTimeEntryId, createdFreelanceInvoice.id))
+        assertTrue(timeEntryIsLocked(secondTimeEntryId, createdFreelanceInvoice.id))
     }
 
     @Test
@@ -84,9 +84,9 @@ class InvoiceServiceTest {
         val taskId = ExposedTestDb.seedTask("Development")
         ExposedTestDb.seedTimeEntry(projectId, taskId, entryDate = "2026-08-19", durationMinutes = 60)
 
-        val createdInvoice =
-            invoiceService.createDraftInvoice(
-                CreateInvoiceRequest(
+        val createdFreelanceInvoice =
+            freelanceInvoiceService.createDraftInvoice(
+                CreateFreelanceInvoiceRequest(
                     clientId = clientId,
                     periodStart = "2026-08-17",
                     periodEnd = "2026-08-23",
@@ -94,7 +94,7 @@ class InvoiceServiceTest {
             )
 
         val payoutSnapshot =
-            Json.decodeFromString<InvoicePayoutSnapshot>(assertNotNull(createdInvoice.payoutSnapshot))
+            Json.decodeFromString<FreelanceInvoicePayoutSnapshot>(assertNotNull(createdFreelanceInvoice.payoutSnapshot))
         assertEquals(payoutAccountId, payoutSnapshot.id)
         assertEquals("bank", payoutSnapshot.type)
         assertEquals(currencyId, payoutSnapshot.currencyId)
@@ -102,68 +102,68 @@ class InvoiceServiceTest {
 
     @Test
     fun `ignores entries outside the invoice scope`() {
-        val invoiceFixture = createInvoiceFixture()
+        val freelanceInvoiceFixture = createFreelanceInvoiceFixture()
         ExposedTestDb.seedTimeEntry(
-            invoiceFixture.projectId,
-            invoiceFixture.developmentTaskId,
+            freelanceInvoiceFixture.projectId,
+            freelanceInvoiceFixture.developmentTaskId,
             entryDate = "2026-08-19",
             durationMinutes = 60,
         )
         ExposedTestDb.seedTimeEntry(
-            invoiceFixture.projectId,
-            invoiceFixture.developmentTaskId,
+            freelanceInvoiceFixture.projectId,
+            freelanceInvoiceFixture.developmentTaskId,
             entryDate = "2026-08-30",
             durationMinutes = 60,
         )
         ExposedTestDb.seedTimeEntry(
-            invoiceFixture.nonBillableProjectId,
-            invoiceFixture.developmentTaskId,
+            freelanceInvoiceFixture.nonBillableProjectId,
+            freelanceInvoiceFixture.developmentTaskId,
             entryDate = "2026-08-19",
             durationMinutes = 60,
             isBillable = false,
         )
         ExposedTestDb.seedTimeEntry(
-            invoiceFixture.otherProjectId,
-            invoiceFixture.developmentTaskId,
+            freelanceInvoiceFixture.otherProjectId,
+            freelanceInvoiceFixture.developmentTaskId,
             entryDate = "2026-08-19",
             durationMinutes = 60,
         )
 
-        val createdInvoice =
-            invoiceService.createDraftInvoice(
-                CreateInvoiceRequest(
-                    clientId = invoiceFixture.clientId,
+        val createdFreelanceInvoice =
+            freelanceInvoiceService.createDraftInvoice(
+                CreateFreelanceInvoiceRequest(
+                    clientId = freelanceInvoiceFixture.clientId,
                     periodStart = "2026-08-17",
                     periodEnd = "2026-08-23",
                 ),
             )
 
-        assertEquals(10_000, createdInvoice.totalCents)
-        assertEquals(1, createdInvoice.lineItems.size)
+        assertEquals(10_000, createdFreelanceInvoice.totalCents)
+        assertEquals(1, createdFreelanceInvoice.lineItems.size)
     }
 
     @Test
     fun `does not invoice the same time entries twice`() {
-        val invoiceFixture = createInvoiceFixture()
+        val freelanceInvoiceFixture = createFreelanceInvoiceFixture()
         ExposedTestDb.seedTimeEntry(
-            invoiceFixture.projectId,
-            invoiceFixture.developmentTaskId,
+            freelanceInvoiceFixture.projectId,
+            freelanceInvoiceFixture.developmentTaskId,
             entryDate = "2026-08-19",
             durationMinutes = 60,
         )
 
-        invoiceService.createDraftInvoice(
-            CreateInvoiceRequest(
-                clientId = invoiceFixture.clientId,
+        freelanceInvoiceService.createDraftInvoice(
+            CreateFreelanceInvoiceRequest(
+                clientId = freelanceInvoiceFixture.clientId,
                 periodStart = "2026-08-17",
                 periodEnd = "2026-08-23",
             ),
         )
 
         assertFailsWith<InvalidTimeEntryException> {
-            invoiceService.createDraftInvoice(
-                CreateInvoiceRequest(
-                    clientId = invoiceFixture.clientId,
+            freelanceInvoiceService.createDraftInvoice(
+                CreateFreelanceInvoiceRequest(
+                    clientId = freelanceInvoiceFixture.clientId,
                     periodStart = "2026-08-17",
                     periodEnd = "2026-08-23",
                 ),
@@ -171,7 +171,7 @@ class InvoiceServiceTest {
         }
     }
 
-    private fun createInvoiceFixture(): InvoiceFixture {
+    private fun createFreelanceInvoiceFixture(): FreelanceInvoiceFixture {
         val currencyId = ExposedTestDb.seedCurrency("USD")
         val payoutAccountId = ExposedTestDb.seedPayoutAccount(currencyId = currencyId)
         val clientId = ExposedTestDb.seedFreelanceClient(currencyId = currencyId, payoutAccountId = payoutAccountId)
@@ -180,7 +180,7 @@ class InvoiceServiceTest {
         val nonBillableProjectId =
             ExposedTestDb.seedFreelanceProject(clientId = clientId, name = "Internal", isBillable = false)
         val otherProjectId = ExposedTestDb.seedFreelanceProject(clientId = otherClientId, name = "Other")
-        return InvoiceFixture(
+        return FreelanceInvoiceFixture(
             clientId = clientId,
             projectId = projectId,
             nonBillableProjectId = nonBillableProjectId,
@@ -203,7 +203,7 @@ class InvoiceServiceTest {
             timeEntry.isLocked && timeEntry.invoiceId?.value?.toString() == invoiceId
         }
 
-    private data class InvoiceFixture(
+    private data class FreelanceInvoiceFixture(
         val clientId: String,
         val projectId: String,
         val nonBillableProjectId: String,

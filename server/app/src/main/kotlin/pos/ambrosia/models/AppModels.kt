@@ -637,7 +637,7 @@ data class PayoutAccountUpsert(
 )
 
 @Serializable
-data class CreateInvoiceRequest(
+data class CreateFreelanceInvoiceRequest(
     val clientId: String,
     val periodStart: String,
     val periodEnd: String,
@@ -645,7 +645,7 @@ data class CreateInvoiceRequest(
 )
 
 @Serializable
-data class InvoiceLineItemResponse(
+data class FreelanceInvoiceLineItemResponse(
     val id: String,
     val projectId: String,
     val projectName: String,
@@ -658,7 +658,7 @@ data class InvoiceLineItemResponse(
 )
 
 @Serializable
-data class InvoiceResponse(
+data class FreelanceInvoiceResponse(
     val id: String,
     val invoiceYear: Int,
     val invoiceNumber: String,
@@ -675,11 +675,11 @@ data class InvoiceResponse(
     val paymentHash: String? = null,
     val bolt11: String? = null,
     val createdAt: String,
-    val lineItems: List<InvoiceLineItemResponse> = emptyList(),
+    val lineItems: List<FreelanceInvoiceLineItemResponse> = emptyList(),
 )
 
 @Serializable
-data class InvoicePayoutSnapshot(
+data class FreelanceInvoicePayoutSnapshot(
     val id: String,
     val type: String,
     val accountHolder: String? = null,
