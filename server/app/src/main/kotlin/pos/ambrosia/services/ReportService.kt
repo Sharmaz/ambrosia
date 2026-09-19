@@ -34,6 +34,7 @@ import pos.ambrosia.models.OrderWithPaymentFilters
 import pos.ambrosia.models.ProductSaleItem
 import pos.ambrosia.models.ProductSalesReport
 import pos.ambrosia.models.StoreRefund
+import pos.ambrosia.utils.SqlDateFunctions
 import java.sql.Connection
 import java.sql.PreparedStatement
 import java.sql.ResultSet
@@ -91,9 +92,6 @@ class ReportService {
     private val validSortOrders = setOf("asc", "desc")
 
     private fun currentConnection(): Connection = (TransactionManager.current().connection as JdbcConnectionImpl).connection
-
-    private fun dateFunc(column: org.jetbrains.exposed.v1.core.Expression<String>) =
-        CustomFunction<String>("date", VarCharColumnType(), column)
 
     private fun lowerFunc(column: org.jetbrains.exposed.v1.core.Expression<String>) =
         CustomFunction<String>("lower", VarCharColumnType(), column)
@@ -277,8 +275,8 @@ class ReportService {
                 query = query.andWhere { OrdersTable.createdAt less end }
             } else {
                 dateRange?.let { (start, end) ->
-                    query = query.andWhere { dateFunc(OrdersTable.createdAt) greaterEq start }
-                    query = query.andWhere { dateFunc(OrdersTable.createdAt) lessEq end }
+                    query = query.andWhere { SqlDateFunctions.dateOnly(OrdersTable.createdAt) greaterEq start }
+                    query = query.andWhere { SqlDateFunctions.dateOnly(OrdersTable.createdAt) lessEq end }
                 }
             }
             productName?.let { name ->
@@ -366,8 +364,8 @@ class ReportService {
             query = query.andWhere { RefundsTable.refundedAt less end }
         } else {
             dateRange?.let { (start, end) ->
-                query = query.andWhere { dateFunc(RefundsTable.refundedAt) greaterEq start }
-                query = query.andWhere { dateFunc(RefundsTable.refundedAt) lessEq end }
+                query = query.andWhere { SqlDateFunctions.dateOnly(RefundsTable.refundedAt) greaterEq start }
+                query = query.andWhere { SqlDateFunctions.dateOnly(RefundsTable.refundedAt) lessEq end }
             }
         }
         productName?.let { name -> query = query.andWhere { ProductsTable.name like "%$name%" } }
@@ -481,7 +479,7 @@ class ReportService {
                 OrdersTable
                     .selectAll()
                     .where {
-                        (dateFunc(OrdersTable.createdAt) eq date) and
+                        (SqlDateFunctions.dateOnly(OrdersTable.createdAt) eq date) and
                             (OrdersTable.status eq "paid") and
                             (OrdersTable.isDeleted eq false)
                     }.sumOf { it[OrdersTable.total] }
