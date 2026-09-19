@@ -41,6 +41,21 @@ export async function openTurn(userId, initialAmount = 0) {
   return await parseJsonResponse(openShiftResponse, null);
 }
 
+export async function getShiftsReport(filters = {}) {
+  const params = new URLSearchParams();
+  if (filters.period) params.set("period", filters.period);
+  if (filters.startDate) params.set("startDate", filters.startDate);
+  if (filters.endDate) params.set("endDate", filters.endDate);
+
+  const shiftsReportResponse = await httpClient(`/shifts/report?${params.toString()}`, {
+    skipForbiddenRedirect: true,
+  });
+  if (!shiftsReportResponse.ok) {
+    throw await buildParsedHttpError(shiftsReportResponse, "Failed to get shifts report");
+  }
+  return await parseJsonResponse(shiftsReportResponse, null);
+}
+
 export async function closeTurn(openTurnId, finalAmount = null, difference = null) {
   const body = JSON.stringify({ finalAmount, difference });
   const closeShiftResponse = await httpClient(`/shifts/${openTurnId}/close`, {

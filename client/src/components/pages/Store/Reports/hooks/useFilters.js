@@ -13,7 +13,7 @@ function getUtcOffsetMinutes() {
   return new Date().getTimezoneOffset();
 }
 
-function buildReportQuery(filters) {
+export function buildReportQuery(filters) {
   if (filters.activePeriod) return { period: filters.activePeriod };
   if (filters.startDate && filters.endDate) {
     return { startDate: filters.startDate, endDate: filters.endDate, utcOffsetMinutes: getUtcOffsetMinutes() };

@@ -5,7 +5,7 @@ jest.mock("@/lib/http", () => ({
 
 import { httpClient, parseJsonResponse } from "@/lib/http";
 
-import { getTurnOpen, openTurn, closeTurn } from "../shiftsService";
+import { getTurnOpen, openTurn, closeTurn, getShiftsReport } from "../shiftsService";
 
 function makeResponse(status, ok = true) {
   return { status, ok };
@@ -164,6 +164,64 @@ describe("shiftsService", () => {
       const result = await closeTurn(7, 100, 0);
 
       expect(result).toEqual({ id: 7, closed: true });
+    });
+  });
+
+  describe("getShiftsReport", () => {
+    const reportFixture = {
+      shifts: [],
+      totalInitialAmount: 0,
+      totalFinalAmount: 0,
+      totalExpectedAmount: 0,
+      totalDifference: 0,
+      byPaymentMethod: [],
+    };
+
+    it("sends GET to /shifts/report with period", async () => {
+      httpClient.mockResolvedValue(makeResponse(200));
+      parseJsonResponse.mockResolvedValue(reportFixture);
+
+      await getShiftsReport({ period: "month" });
+
+      expect(httpClient).toHaveBeenCalledWith("/shifts/report?period=month", { skipForbiddenRedirect: true });
+    });
+
+    it("sends GET to /shifts/report with startDate and endDate", async () => {
+      httpClient.mockResolvedValue(makeResponse(200));
+      parseJsonResponse.mockResolvedValue(reportFixture);
+
+      await getShiftsReport({ startDate: "2024-01-01", endDate: "2024-01-31" });
+
+      const url = httpClient.mock.calls[0][0];
+      expect(url).toContain("startDate=2024-01-01");
+      expect(url).toContain("endDate=2024-01-31");
+    });
+
+    it("sends GET to /shifts/report with no query string when no filters are provided", async () => {
+      httpClient.mockResolvedValue(makeResponse(200));
+      parseJsonResponse.mockResolvedValue(reportFixture);
+
+      await getShiftsReport();
+
+      expect(httpClient).toHaveBeenCalledWith("/shifts/report?", { skipForbiddenRedirect: true });
+    });
+
+    it("throws when response is not ok", async () => {
+      httpClient.mockResolvedValue({ status: 403, ok: false });
+
+      await expect(getShiftsReport({ period: "month" })).rejects.toMatchObject({
+        message: "Failed to get shifts report",
+        status: 403,
+      });
+    });
+
+    it("returns the parsed response on success", async () => {
+      httpClient.mockResolvedValue(makeResponse(200));
+      parseJsonResponse.mockResolvedValue(reportFixture);
+
+      const result = await getShiftsReport({ period: "month" });
+
+      expect(result).toEqual(reportFixture);
     });
   });
 });
