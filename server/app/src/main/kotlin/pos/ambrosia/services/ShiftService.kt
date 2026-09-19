@@ -1,16 +1,31 @@
 package pos.ambrosia.services
 
+import org.jetbrains.exposed.v1.core.JoinType
 import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.dao.id.EntityID
 import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.core.greaterEq
+import org.jetbrains.exposed.v1.core.lessEq
+import org.jetbrains.exposed.v1.jdbc.andWhere
+import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
+import pos.ambrosia.db.tables.PaymentMethodsTable
+import pos.ambrosia.db.tables.PaymentsTable
 import pos.ambrosia.db.tables.ShiftEntity
 import pos.ambrosia.db.tables.ShiftsTable
+import pos.ambrosia.db.tables.TicketPaymentsTable
+import pos.ambrosia.db.tables.TicketsTable
 import pos.ambrosia.db.tables.UserEntity
 import pos.ambrosia.db.tables.UsersTable
 import pos.ambrosia.logger
 import pos.ambrosia.models.Shift
+import pos.ambrosia.models.ShiftPaymentMethodTotal
+import pos.ambrosia.models.ShiftSummary
+import pos.ambrosia.models.ShiftsReport
+import pos.ambrosia.utils.SqlDateFunctions
+import java.time.DayOfWeek
+import java.time.LocalDate
 import java.time.LocalTime
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
@@ -105,6 +120,119 @@ class ShiftService {
                     .map { toModel(it) }
             logger.info("Retrieved ${shifts.size} shifts for date: $date")
             shifts
+        }
+
+    private fun resolveDateRange(
+        period: String?,
+        startDate: String?,
+        endDate: String?,
+    ): Pair<String, String>? {
+        if (period != null) {
+            val today = LocalDate.now(configService.getConfiguredZoneId())
+            val start =
+                when (period) {
+                    "day" -> today
+
+                    "week" -> today.with(DayOfWeek.MONDAY)
+
+                    "month" -> today.withDayOfMonth(1)
+
+                    "year" -> today.withDayOfYear(1)
+
+                    else -> throw IllegalArgumentException(
+                        "Invalid period: $period. Must be day, week, month, or year",
+                    )
+                }
+            return Pair(start.toString(), today.toString())
+        }
+        if (startDate != null && endDate != null) return Pair(startDate, endDate)
+        return null
+    }
+
+    fun getShiftsByRange(
+        startDate: String,
+        endDate: String,
+    ): List<Shift> =
+        transaction {
+            val shifts =
+                ShiftEntity
+                    .find {
+                        (ShiftsTable.shiftDate greaterEq startDate) and
+                            (ShiftsTable.shiftDate lessEq endDate) and
+                            (ShiftsTable.isDeleted eq false)
+                    }.orderBy(ShiftsTable.shiftDate to SortOrder.DESC, ShiftsTable.startTime to SortOrder.DESC)
+                    .map { toModel(it) }
+            logger.info("Retrieved ${shifts.size} shifts between $startDate and $endDate")
+            shifts
+        }
+
+    private fun getPaymentMethodTotals(
+        startDate: String,
+        endDate: String,
+    ): List<ShiftPaymentMethodTotal> =
+        transaction {
+            val join =
+                TicketsTable
+                    .join(TicketPaymentsTable, JoinType.INNER, TicketsTable.id, TicketPaymentsTable.ticketId)
+                    .join(PaymentsTable, JoinType.INNER, PaymentsTable.id, TicketPaymentsTable.paymentId)
+                    .join(PaymentMethodsTable, JoinType.INNER, PaymentMethodsTable.id, PaymentsTable.methodId)
+
+            val amountsByMethodName =
+                join
+                    .selectAll()
+                    .andWhere { SqlDateFunctions.dateOnly(TicketsTable.ticketDate) greaterEq startDate }
+                    .andWhere { SqlDateFunctions.dateOnly(TicketsTable.ticketDate) lessEq endDate }
+                    .map { row -> row[PaymentMethodsTable.name] to row[TicketsTable.totalAmount] }
+
+            amountsByMethodName
+                .groupBy({ it.first }, { it.second })
+                .map { (methodName, amounts) -> ShiftPaymentMethodTotal(name = methodName, total = amounts.sum()) }
+                .sortedByDescending { it.total }
+        }
+
+    fun getShiftsReport(
+        period: String?,
+        startDate: String?,
+        endDate: String?,
+    ): ShiftsReport =
+        transaction {
+            val (start, end) =
+                resolveDateRange(period, startDate, endDate)
+                    ?: throw IllegalArgumentException("Either period or both startDate and endDate must be provided")
+
+            val userNamesById =
+                UserEntity.all().associate { it.id.value.toString() to it.name }
+
+            val shifts =
+                getShiftsByRange(start, end).map { shift ->
+                    ShiftSummary(
+                        id = shift.id!!,
+                        userId = shift.userId,
+                        userName = userNamesById[shift.userId] ?: shift.userId,
+                        shiftDate = shift.shiftDate,
+                        startTime = shift.startTime,
+                        endTime = shift.endTime,
+                        initialAmount = shift.initialAmount,
+                        finalAmount = shift.finalAmount,
+                        difference = shift.difference,
+                    )
+                }
+
+            val totalInitialAmount = shifts.sumOf { it.initialAmount }
+            val totalFinalAmount = shifts.sumOf { it.finalAmount ?: 0.0 }
+            val totalDifference = shifts.sumOf { it.difference ?: 0.0 }
+
+            val report =
+                ShiftsReport(
+                    shifts = shifts,
+                    totalInitialAmount = totalInitialAmount,
+                    totalFinalAmount = totalFinalAmount,
+                    totalExpectedAmount = totalFinalAmount - totalDifference,
+                    totalDifference = totalDifference,
+                    byPaymentMethod = getPaymentMethodTotals(start, end),
+                )
+            logger.info("Shifts report between $start and $end: ${shifts.size} shifts")
+            report
         }
 
     private fun findOpenShift(userId: String?): Shift? {

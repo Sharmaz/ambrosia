@@ -357,6 +357,35 @@ data class CloseShiftRequest(
     val difference: Double? = null,
 )
 
+@Serializable
+data class ShiftSummary(
+    val id: String,
+    val userId: String,
+    val userName: String,
+    val shiftDate: String,
+    val startTime: String,
+    val endTime: String?,
+    val initialAmount: Double,
+    val finalAmount: Double?,
+    val difference: Double?,
+)
+
+@Serializable
+data class ShiftPaymentMethodTotal(
+    val name: String,
+    val total: Double,
+)
+
+@Serializable
+data class ShiftsReport(
+    val shifts: List<ShiftSummary>,
+    val totalInitialAmount: Double,
+    val totalFinalAmount: Double,
+    val totalExpectedAmount: Double,
+    val totalDifference: Double,
+    val byPaymentMethod: List<ShiftPaymentMethodTotal>,
+)
+
 @Serializable data class RolePassword(
     val password: String,
 )
