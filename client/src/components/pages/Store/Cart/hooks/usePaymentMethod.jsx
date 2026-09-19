@@ -7,15 +7,15 @@ import { useFetchList } from "@/lib/http/useFetchList";
 import { classifyPaymentMethod, PAYMENT_METHODS } from "../utils/paymentMethods";
 
 function sortWithBtcFirst(paymentMethods) {
-  const decorated = paymentMethods.map((method) => ({
+  const methodsWithBtcFlag = paymentMethods.map((method) => ({
     method,
     isBtc: classifyPaymentMethod(method?.name) === PAYMENT_METHODS.BTC,
   }));
-  decorated.sort((entryA, entryB) => {
-    if (entryA.isBtc !== entryB.isBtc) return entryA.isBtc ? -1 : 1;
-    return (entryA.method?.name || "").localeCompare(entryB.method?.name || "", undefined, { sensitivity: "base" });
+  methodsWithBtcFlag.sort((firstEntry, secondEntry) => {
+    if (firstEntry.isBtc !== secondEntry.isBtc) return firstEntry.isBtc ? -1 : 1;
+    return (firstEntry.method?.name || "").localeCompare(secondEntry.method?.name || "", undefined, { sensitivity: "base" });
   });
-  return decorated.map((entry) => entry.method);
+  return methodsWithBtcFlag.map((entry) => entry.method);
 }
 
 export function usePaymentMethods() {
