@@ -542,6 +542,15 @@ ipcMain.handle('secrets:clear-unlock-password', () => {
   unlockPasswordStore.clear();
 });
 
+function getLinuxPasswordStoreBackend() {
+  const isKdeSession = Boolean(process.env.KDE_FULL_SESSION) || /kde/i.test(process.env.XDG_CURRENT_DESKTOP || '');
+  return isKdeSession ? 'kwallet6' : 'gnome-libsecret';
+}
+
+if (process.platform === 'linux') {
+  app.commandLine.appendSwitch('password-store', getLinuxPasswordStoreBackend());
+}
+
 app.whenReady().then(initializeApp);
 
 app.on('activate', () => {

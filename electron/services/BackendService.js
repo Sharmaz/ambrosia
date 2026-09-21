@@ -7,6 +7,8 @@ import { healthCheck } from '../utils/healthCheck.js';
 import { logger } from '../utils/logger.js';
 import { getJavaPath, getBackendJarPath, getLogsDirectory } from '../utils/resourcePaths.js';
 
+import { unlockPasswordStore } from './UnlockPasswordStore.js';
+
 const require = createRequire(import.meta.url);
 const spawn = require('cross-spawn');
 const treeKill = require('tree-kill');
@@ -59,6 +61,11 @@ export default class BackendService {
       stripConflictingJavaEnvVars(env);
       env.PHOENIXD_PASSWORD = startupConfig.phoenixPassword;
       env.PHOENIXD_WEBHOOK_SECRET = startupConfig.webhookSecret;
+
+      const unlockPassword = unlockPasswordStore.read();
+      if (unlockPassword) {
+        env.AUTO_UNLOCK_PASSWORD = unlockPassword;
+      }
 
       logger.log(`[BackendService] Starting backend at port ${port}...`);
 
