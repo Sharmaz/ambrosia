@@ -643,6 +643,8 @@ data class CreateFreelanceInvoiceRequest(
     val periodStart: String,
     val periodEnd: String,
     val payoutAccountId: String? = null,
+    val exchangeRate: Double? = null,
+    val exchangeRateCurrency: String? = null,
 )
 
 @Serializable
