@@ -13,6 +13,17 @@ import tutorialsEn from "../Tutorials/locales/en";
 
 const settingsEn = {
   settings: {
+    appVersion: "AmbrosiaPoS v",
+    categories: {
+      business: "Business",
+      preferences: "Preferences",
+      wallet: "Bitcoin & Wallet",
+      backup: "Backup & Data",
+      devices: "Devices & Connection",
+      printing: "Printing",
+      system: "System",
+      help: "Help",
+    },
     secureConnection: {
       title: "Secure connection",
       subtitle: "Certificate for this Ambrosia unit",

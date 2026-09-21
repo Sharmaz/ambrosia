@@ -209,15 +209,20 @@ afterEach(() => {
 describe("Settings page", () => {
   describe("Rendering", () => {
     it("renders store info, currency, and language cards", async () => {
+      const user = userEvent.setup();
+
       await act(async () => {
         renderSettings();
       });
       expect(screen.getByText("cardInfo.title")).toBeInTheDocument();
       expect(screen.getByText("cardCurrency.title")).toBeInTheDocument();
+
+      await user.click(screen.getByText("categories.preferences"));
       expect(screen.getByText("cardLanguage.title")).toBeInTheDocument();
     });
 
     it("renders notification preferences card only for admins", async () => {
+      const user = userEvent.setup();
       jest.spyOn(useNavigationHook, "useNavigation").mockReturnValue({
         availableFeatures: {},
         availableNavigation: defaultNavigation,
@@ -232,6 +237,7 @@ describe("Settings page", () => {
         renderSettings();
       });
 
+      await user.click(screen.getByText("categories.system"));
       await waitFor(() => expect(screen.getByText("cardNotifications.title")).toBeInTheDocument());
       expect(screen.getByText("cardNotifications.walletTitle")).toBeInTheDocument();
       expect(screen.getByText("cardNotifications.inApp")).toBeInTheDocument();
@@ -275,6 +281,7 @@ describe("Settings page", () => {
         renderSettings();
       });
 
+      await user.click(screen.getByText("categories.system"));
       await waitFor(() => expect(screen.getByText("cardNotifications.push")).toBeInTheDocument());
       await user.click(screen.getByText("cardNotifications.push"));
 
@@ -462,6 +469,7 @@ describe("Settings page", () => {
     });
 
     it("shows Seed, NwcConnection, PhoenixdRemote, Tutorials, ExportData, and ImportData for an admin role", async () => {
+      const user = userEvent.setup();
       jest.spyOn(useNavigationHook, "useNavigation").mockReturnValue({
         availableFeatures: {},
         availableNavigation: defaultNavigation,
@@ -476,12 +484,17 @@ describe("Settings page", () => {
         renderSettings();
       });
 
+      await user.click(screen.getByText("categories.wallet"));
       expect(screen.getByText("cardSeed.title")).toBeInTheDocument();
       expect(screen.getByText("nwcConnection.manageButton")).toBeInTheDocument();
       expect(screen.getByText("phoenixdRemoteCard.manageButton")).toBeInTheDocument();
-      expect(screen.getByText("cardTours.title")).toBeInTheDocument();
+
+      await user.click(screen.getByText("categories.backup"));
       expect(screen.getByText("cardExportData.title")).toBeInTheDocument();
       expect(screen.getByText("cardImportData.title")).toBeInTheDocument();
+
+      await user.click(screen.getByText("categories.help"));
+      expect(screen.getByText("cardTours.title")).toBeInTheDocument();
     });
   });
 
@@ -568,16 +581,49 @@ describe("Settings page", () => {
       expect(screen.queryByText("manageButton")).not.toBeInTheDocument();
     });
 
-    it("renders LightningCard when in Electron context", async () => {
+    it("renders LightningCard for an admin role in Electron context", async () => {
+      const user = userEvent.setup();
+      global.__mockIsElectron = true;
+      jest.spyOn(useNavigationHook, "useNavigation").mockReturnValue({
+        availableFeatures: {},
+        availableNavigation: defaultNavigation,
+        isAuth: true,
+        isAdmin: true,
+        isLoading: false,
+        user: { userName: "admin", isAdmin: true },
+        logout: mockLogout,
+      });
+
+      await act(async () => {
+        renderSettings();
+      });
+
+      await user.click(screen.getByText("categories.wallet"));
+      expect(screen.getByText("manageButton")).toBeInTheDocument();
+
+      global.__mockIsElectron = false;
+    });
+
+    it("does not offer the Bitcoin & Wallet tab for a non-admin role even in Electron context", async () => {
       global.__mockIsElectron = true;
 
       await act(async () => {
         renderSettings();
       });
 
-      expect(screen.getByText("manageButton")).toBeInTheDocument();
+      expect(screen.queryByText("categories.wallet")).not.toBeInTheDocument();
 
       global.__mockIsElectron = false;
+    });
+  });
+
+  describe("Devices & Connection tab availability", () => {
+    it("does not offer the Devices & Connection tab when neither SecureConnection nor InstallPWA would render anything", async () => {
+      await act(async () => {
+        renderSettings();
+      });
+
+      expect(screen.queryByText("categories.devices")).not.toBeInTheDocument();
     });
   });
 
