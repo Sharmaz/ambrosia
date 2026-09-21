@@ -11,8 +11,10 @@ import {
   SECRETS_UNLOCKED_EVENT,
   unlockSecrets,
 } from "@/services/secretsService";
+import { clearUnlockPassword, getStorageBackend, saveUnlockPassword } from "@/services/unlockPasswordStoreService";
 import WalletGuard from "@components/auth/WalletGuard";
 import { SecretsExistingPasswordField } from "@components/shared/SecretsExistingPasswordField";
+import { SecretsRememberPasswordCheckbox } from "@components/shared/SecretsRememberPasswordCheckbox";
 import { SecretsUnlockPasswordField } from "@components/shared/SecretsUnlockPasswordField";
 
 const PASSWORD_ACTION_BUTTON_CLASS_NAME = "bg-green-800 h-8 min-w-16 px-3 rounded-small sm:h-10 sm:min-w-20 sm:px-4 sm:rounded-medium";
@@ -24,6 +26,8 @@ export function SecretsEncryptionCardDetails({ onHide, secretsEncryptionCardTran
   const [unlockPasswordConfirmation, setUnlockPasswordConfirmation] = useState("");
   const [unlockPasswordError, setUnlockPasswordError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [storageBackend, setStorageBackend] = useState(null);
+  const [rememberUnlockPassword, setRememberUnlockPassword] = useState(false);
 
   const handleUnlockPasswordChange = (enteredPassword) => {
     setUnlockPassword(enteredPassword);
@@ -40,12 +44,18 @@ export function SecretsEncryptionCardDetails({ onHide, secretsEncryptionCardTran
         description: secretsEncryptionCardTranslations("secretsEncryptionCard.statusLoadError"),
       });
     }
+    setStorageBackend(await getStorageBackend());
   };
 
   const handleActivate = async () => {
     setSubmitting(true);
     try {
       await activateSecretsEncryption(unlockPassword);
+      if (rememberUnlockPassword) {
+        await saveUnlockPassword(unlockPassword).catch(() => {});
+      } else {
+        await clearUnlockPassword().catch(() => {});
+      }
       addToast({ color: "success", description: secretsEncryptionCardTranslations("secretsEncryptionCard.activateSuccess") });
       setSecretsStatus({ encryptionActive: true, locked: false });
       window.dispatchEvent(new Event(SECRETS_UNLOCKED_EVENT));
@@ -101,6 +111,12 @@ export function SecretsEncryptionCardDetails({ onHide, secretsEncryptionCardTran
               onUnlockPasswordConfirmationChange={setUnlockPasswordConfirmation}
             />
           </RequirePermission>
+
+          <SecretsRememberPasswordCheckbox
+            storageBackend={storageBackend}
+            rememberUnlockPassword={rememberUnlockPassword}
+            onRememberUnlockPasswordChange={setRememberUnlockPassword}
+          />
 
           <div className="flex gap-2">
             <RequirePermission allOf={["settings_update"]}>
