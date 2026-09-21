@@ -19,6 +19,7 @@ function installElectronUpdaterMock() {
 }
 
 const { installElectronMock, setSelectedStorageBackend, resetElectronMock } = require('../test-utils/electronMock.js');
+const { setPlatformAndArch, restorePlatformAndArch } = require('../test-utils/platformMock.js');
 const { installSpawnMock } = require('../test-utils/spawnMock.js');
 const { installTreeKillMock } = require('../test-utils/treeKillMock.js');
 
@@ -46,7 +47,33 @@ function createFakeElectronApp() {
     getVersion: vi.fn().mockReturnValue('0.8.0-beta'),
     isPackaged: false,
     name: 'Ambrosia',
+    commandLine: { appendSwitch: vi.fn() },
   };
+}
+
+async function loadFreshMain(configureAppMock) {
+  const appMock = createFakeElectronApp();
+  const ipcMainMock = { handle: vi.fn(), on: vi.fn() };
+  if (configureAppMock) configureAppMock(appMock);
+
+  vi.resetModules();
+  installSpawnMock();
+  installTreeKillMock();
+  installElectronUpdaterMock();
+  installElectronMock({
+    app: appMock,
+    BrowserWindow: vi.fn(),
+    Menu: { buildFromTemplate: vi.fn().mockReturnValue({ items: [] }), setApplicationMenu: vi.fn() },
+    Notification: createFakeNotificationClass(),
+    dialog: { showMessageBox: vi.fn(), showErrorBox: vi.fn() },
+    shell: { openPath: vi.fn(), openExternal: vi.fn() },
+    ipcMain: ipcMainMock,
+  });
+  vi.spyOn(os, 'homedir').mockReturnValue('/fake/home');
+  vi.spyOn(fs, 'existsSync').mockReturnValue(false);
+  await import('../main.js');
+
+  return appMock;
 }
 
 function collectHandlersByChannel(ipcMainMock) {
@@ -238,28 +265,9 @@ describe('IPC handlers and notifications', () => {
 
 describe('single-instance lock', () => {
   async function loadFreshMainWithLock(lockAcquired) {
-    const appMock = createFakeElectronApp();
-    appMock.requestSingleInstanceLock.mockReturnValue(lockAcquired);
-    const ipcMainMock = { handle: vi.fn(), on: vi.fn() };
-
-    vi.resetModules();
-    installSpawnMock();
-    installTreeKillMock();
-    installElectronUpdaterMock();
-    installElectronMock({
-      app: appMock,
-      BrowserWindow: vi.fn(),
-      Menu: { buildFromTemplate: vi.fn().mockReturnValue({ items: [] }), setApplicationMenu: vi.fn() },
-      Notification: createFakeNotificationClass(),
-      dialog: { showMessageBox: vi.fn(), showErrorBox: vi.fn() },
-      shell: { openPath: vi.fn(), openExternal: vi.fn() },
-      ipcMain: ipcMainMock,
+    return loadFreshMain((appMock) => {
+      appMock.requestSingleInstanceLock.mockReturnValue(lockAcquired);
     });
-    vi.spyOn(os, 'homedir').mockReturnValue('/fake/home');
-    vi.spyOn(fs, 'existsSync').mockReturnValue(false);
-    await import('../main.js');
-
-    return appMock;
   }
 
   afterEach(() => {
@@ -276,5 +284,47 @@ describe('single-instance lock', () => {
     const appMock = await loadFreshMainWithLock(true);
 
     expect(appMock.on).toHaveBeenCalledWith('second-instance', expect.any(Function));
+  });
+});
+
+describe('Linux password-store backend', () => {
+  async function loadFreshMainWithPlatform(platform, environmentVariableOverrides = {}) {
+    setPlatformAndArch(platform, 'x64');
+    delete process.env.KDE_FULL_SESSION;
+    delete process.env.XDG_CURRENT_DESKTOP;
+    Object.assign(process.env, environmentVariableOverrides);
+
+    return loadFreshMain();
+  }
+
+  afterEach(() => {
+    restorePlatformAndArch();
+    delete process.env.KDE_FULL_SESSION;
+    delete process.env.XDG_CURRENT_DESKTOP;
+    vi.restoreAllMocks();
+  });
+
+  it('does not force a backend outside Linux', async () => {
+    const appMock = await loadFreshMainWithPlatform('darwin');
+
+    expect(appMock.commandLine.appendSwitch).not.toHaveBeenCalled();
+  });
+
+  it('forces gnome-libsecret on Linux when no KDE session is detected', async () => {
+    const appMock = await loadFreshMainWithPlatform('linux');
+
+    expect(appMock.commandLine.appendSwitch).toHaveBeenCalledWith('password-store', 'gnome-libsecret');
+  });
+
+  it('forces kwallet6 on Linux when KDE_FULL_SESSION is set', async () => {
+    const appMock = await loadFreshMainWithPlatform('linux', { KDE_FULL_SESSION: 'true' });
+
+    expect(appMock.commandLine.appendSwitch).toHaveBeenCalledWith('password-store', 'kwallet6');
+  });
+
+  it('forces kwallet6 on Linux when XDG_CURRENT_DESKTOP mentions KDE', async () => {
+    const appMock = await loadFreshMainWithPlatform('linux', { XDG_CURRENT_DESKTOP: 'KDE' });
+
+    expect(appMock.commandLine.appendSwitch).toHaveBeenCalledWith('password-store', 'kwallet6');
   });
 });
