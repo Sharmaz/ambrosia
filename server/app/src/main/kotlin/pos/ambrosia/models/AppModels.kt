@@ -648,6 +648,12 @@ data class CreateFreelanceInvoiceRequest(
 )
 
 @Serializable
+data class PayFreelanceInvoiceRequest(
+    val amountCents: Int? = null,
+    val transactionId: String? = null,
+)
+
+@Serializable
 data class FreelanceInvoiceLineItemResponse(
     val id: String,
     val projectId: String,
