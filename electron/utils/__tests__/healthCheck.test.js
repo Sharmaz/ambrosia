@@ -1,26 +1,20 @@
 const { EventEmitter } = require('events');
 const http = require('http');
 
-const waitOnPath = require.resolve('wait-on');
-let waitOnMock;
+const { waitOnMock } = vi.hoisted(() => ({
+  waitOnMock: vi.fn(),
+}));
 
-function installWaitOnMock() {
-  waitOnMock = vi.fn();
-  require.cache[waitOnPath] = {
-    id: waitOnPath,
-    filename: waitOnPath,
-    loaded: true,
-    exports: waitOnMock,
-  };
-}
+vi.mock('wait-on', () => ({
+  default: waitOnMock,
+}));
 
 let healthCheck;
 let logger;
 
-beforeAll(() => {
-  installWaitOnMock();
-  healthCheck = require('../healthCheck');
-  logger = require('../logger');
+beforeAll(async () => {
+  ({ healthCheck } = await import('../healthCheck.js'));
+  ({ logger } = await import('../logger.js'));
 });
 
 function createFakeIncomingMessage(statusCode) {
@@ -219,7 +213,7 @@ describe('makeHttpRequest', () => {
 
     await expect(healthCheck.makeHttpRequest('http://localhost:9154/api/data')).resolves.toEqual({
       statusCode: 200,
-      data: 'chunk-1chunk-2',
+      responseBody: 'chunk-1chunk-2',
     });
   });
 

@@ -18,9 +18,9 @@ function installElectronUpdaterMock() {
   };
 }
 
-const { installElectronMock } = require('../test-utils/electronMock');
-const { installSpawnMock } = require('../test-utils/spawnMock');
-const { installTreeKillMock } = require('../test-utils/treeKillMock');
+const { installElectronMock } = require('../test-utils/electronMock.js');
+const { installSpawnMock } = require('../test-utils/spawnMock.js');
+const { installTreeKillMock } = require('../test-utils/treeKillMock.js');
 
 function createFakeNotificationClass() {
   const createdInstances = [];
@@ -35,7 +35,7 @@ function createFakeNotificationClass() {
   return FakeNotification;
 }
 
-function createElectronAppMock() {
+function createFakeElectronApp() {
   return {
     requestSingleInstanceLock: vi.fn().mockReturnValue(true),
     setName: vi.fn(),
@@ -66,7 +66,7 @@ function collectListenersByChannel(ipcMainMock) {
 }
 
 describe('IPC handlers and notifications', () => {
-  const appMock = createElectronAppMock();
+  const appMock = createFakeElectronApp();
   const NotificationMock = createFakeNotificationClass();
   const ipcMainMock = { handle: vi.fn(), on: vi.fn() };
   let ipcHandlersByChannel;
@@ -85,7 +85,7 @@ describe('IPC handlers and notifications', () => {
       shell: { openPath: vi.fn(), openExternal: vi.fn() },
       ipcMain: ipcMainMock,
     });
-    require('../main');
+    require('../main.js');
     ipcHandlersByChannel = collectHandlersByChannel(ipcMainMock);
     ipcListenersByChannel = collectListenersByChannel(ipcMainMock);
   });
@@ -187,7 +187,7 @@ describe('IPC handlers and notifications', () => {
 
 describe('single-instance lock', () => {
   async function loadFreshMainWithLock(lockAcquired) {
-    const appMock = createElectronAppMock();
+    const appMock = createFakeElectronApp();
     appMock.requestSingleInstanceLock.mockReturnValue(lockAcquired);
     const ipcMainMock = { handle: vi.fn(), on: vi.fn() };
 
@@ -206,7 +206,7 @@ describe('single-instance lock', () => {
     });
     vi.spyOn(os, 'homedir').mockReturnValue('/fake/home');
     vi.spyOn(fs, 'existsSync').mockReturnValue(false);
-    await import('../main');
+    await import('../main.js');
 
     return appMock;
   }

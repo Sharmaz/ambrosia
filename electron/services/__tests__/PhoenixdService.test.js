@@ -2,13 +2,13 @@ const childProcess = require('child_process');
 const fs = require('fs');
 const path = require('path');
 
-const { installElectronMock } = require('../../test-utils/electronMock');
-const { createFakeSpawnedProcess, createFakeWriteStream } = require('../../test-utils/fakeChildProcess');
-const { setPlatformAndArch, restorePlatformAndArch } = require('../../test-utils/platformMock');
-const { installSpawnMock } = require('../../test-utils/spawnMock');
-const { installTreeKillMock } = require('../../test-utils/treeKillMock');
-const healthCheck = require('../../utils/healthCheck');
-const logger = require('../../utils/logger');
+const { installElectronMock } = require('../../test-utils/electronMock.js');
+const { createFakeSpawnedProcess, createFakeWriteStream } = require('../../test-utils/fakeChildProcess.js');
+const { setPlatformAndArch, restorePlatformAndArch } = require('../../test-utils/platformMock.js');
+const { installSpawnMock } = require('../../test-utils/spawnMock.js');
+const { installTreeKillMock } = require('../../test-utils/treeKillMock.js');
+const { healthCheck } = require('../../utils/healthCheck.js');
+const { logger } = require('../../utils/logger.js');
 
 let PhoenixdService;
 let spawnMock;
@@ -20,7 +20,7 @@ beforeAll(() => {
   treeKillMock = installTreeKillMock();
   healthCheck.checkPhoenixd = vi.fn();
   childProcess.exec = vi.fn();
-  PhoenixdService = require('../PhoenixdService');
+  PhoenixdService = require('../PhoenixdService.js').default;
 });
 
 function armAutoExitOnListen(spawnedProcess, exitCode = 0) {
@@ -88,7 +88,7 @@ describe('start', () => {
     expect(fs.mkdirSync).not.toHaveBeenCalled();
   });
 
-  it('spawns phoenixd with the port and terms-of-service args', async () => {
+  it('spawns phoenixd with the port and terms-of-service arguments', async () => {
     const phoenixdService = new PhoenixdService();
 
     await phoenixdService.start(9740);
@@ -123,10 +123,10 @@ describe('start', () => {
   it('waits for phoenixd to become healthy before resolving', async () => {
     const phoenixdService = new PhoenixdService();
 
-    const result = await phoenixdService.start(9740);
+    const startedServiceInfo = await phoenixdService.start(9740);
 
     expect(healthCheck.checkPhoenixd).toHaveBeenCalledWith(9740);
-    expect(result).toEqual({ port: 9740 });
+    expect(startedServiceInfo).toEqual({ port: 9740 });
     expect(phoenixdService.getStatus()).toBe('running');
   });
 

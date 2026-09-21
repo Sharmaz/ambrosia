@@ -1,11 +1,11 @@
 const fs = require('fs');
 
-const { installElectronMock } = require('../../test-utils/electronMock');
-const { createFakeSpawnedProcess, createFakeWriteStream } = require('../../test-utils/fakeChildProcess');
-const { installSpawnMock } = require('../../test-utils/spawnMock');
-const { installTreeKillMock } = require('../../test-utils/treeKillMock');
-const healthCheck = require('../../utils/healthCheck');
-const logger = require('../../utils/logger');
+const { installElectronMock } = require('../../test-utils/electronMock.js');
+const { createFakeSpawnedProcess, createFakeWriteStream } = require('../../test-utils/fakeChildProcess.js');
+const { installSpawnMock } = require('../../test-utils/spawnMock.js');
+const { installTreeKillMock } = require('../../test-utils/treeKillMock.js');
+const { healthCheck } = require('../../utils/healthCheck.js');
+const { logger } = require('../../utils/logger.js');
 
 let BackendService;
 let spawnMock;
@@ -16,7 +16,7 @@ beforeAll(() => {
   spawnMock = installSpawnMock();
   treeKillMock = installTreeKillMock();
   healthCheck.checkBackend = vi.fn();
-  BackendService = require('../BackendService');
+  BackendService = require('../BackendService.js').default;
 });
 
 let fakeSpawnedProcess;
@@ -76,14 +76,14 @@ describe('start', () => {
     expect(fs.mkdirSync).not.toHaveBeenCalled();
   });
 
-  it('spawns java with the jar path and port args', async () => {
+  it('spawns java with the jar path and port command arguments', async () => {
     const backendService = new BackendService();
 
     await backendService.start(9154, backendConfig);
 
-    const [javaPath, args] = spawnMock.mock.calls[0];
+    const [javaPath, commandArguments] = spawnMock.mock.calls[0];
     expect(javaPath).toBe('java');
-    expect(args).toEqual(expect.arrayContaining([
+    expect(commandArguments).toEqual(expect.arrayContaining([
       '-jar',
       '--http-bind-ip=127.0.0.1',
       '--http-bind-port=9154',
@@ -91,13 +91,13 @@ describe('start', () => {
     ]));
   });
 
-  it('omits the phoenixd-url arg when a remote phoenixd node is configured', async () => {
+  it('omits the phoenixd-url command argument when a remote phoenixd node is configured', async () => {
     const backendService = new BackendService();
 
     await backendService.start(9154, { ...backendConfig, phoenixdRemoteConfigured: true });
 
-    const [, args] = spawnMock.mock.calls[0];
-    expect(args).not.toEqual(expect.arrayContaining([expect.stringContaining('--phoenixd-url')]));
+    const [, commandArguments] = spawnMock.mock.calls[0];
+    expect(commandArguments).not.toEqual(expect.arrayContaining([expect.stringContaining('--phoenixd-url')]));
   });
 
   it('passes the phoenixd password and webhook secret as env vars', async () => {
@@ -125,10 +125,10 @@ describe('start', () => {
   it('waits for the backend to become healthy before resolving', async () => {
     const backendService = new BackendService();
 
-    const result = await backendService.start(9154, backendConfig);
+    const startedServiceInfo = await backendService.start(9154, backendConfig);
 
     expect(healthCheck.checkBackend).toHaveBeenCalledWith(9154);
-    expect(result).toEqual({ port: 9154 });
+    expect(startedServiceInfo).toEqual({ port: 9154 });
     expect(backendService.getStatus()).toBe('running');
   });
 

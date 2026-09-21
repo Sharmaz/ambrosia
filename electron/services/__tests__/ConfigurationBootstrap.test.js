@@ -3,13 +3,13 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 
-const { installElectronMock } = require('../../test-utils/electronMock');
+const { installElectronMock } = require('../../test-utils/electronMock.js');
 
 let configurationBootstrap;
 
 beforeAll(() => {
   installElectronMock();
-  configurationBootstrap = require('../ConfigurationBootstrap');
+  ({ configurationBootstrap } = require('../ConfigurationBootstrap.js'));
 });
 
 const FAKE_HOME_DIRECTORY = '/fake/home';
@@ -22,8 +22,8 @@ function installFakeFileSystem() {
   fakeFiles = new Map();
   vi.spyOn(fs, 'existsSync').mockImplementation((filePath) => fakeFiles.has(filePath));
   vi.spyOn(fs, 'mkdirSync').mockImplementation(() => {});
-  vi.spyOn(fs, 'writeFileSync').mockImplementation((filePath, content) => {
-    fakeFiles.set(filePath, content);
+  vi.spyOn(fs, 'writeFileSync').mockImplementation((filePath, fileContent) => {
+    fakeFiles.set(filePath, fileContent);
   });
   vi.spyOn(fs, 'readFileSync').mockImplementation((filePath) => fakeFiles.get(filePath));
 }
