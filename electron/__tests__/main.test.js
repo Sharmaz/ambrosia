@@ -18,7 +18,7 @@ function installElectronUpdaterMock() {
   };
 }
 
-const { installElectronMock } = require('../test-utils/electronMock.js');
+const { installElectronMock, setSelectedStorageBackend, resetElectronMock } = require('../test-utils/electronMock.js');
 const { installSpawnMock } = require('../test-utils/spawnMock.js');
 const { installTreeKillMock } = require('../test-utils/treeKillMock.js');
 
@@ -149,6 +149,57 @@ describe('IPC handlers and notifications', () => {
     it('rejects before the service manager has been created', async () => {
       await expect(ipcHandlersByChannel['phoenixd:set-auto-liquidity']({}, 'medium'))
         .rejects.toThrow('ServiceManager not initialized');
+    });
+  });
+
+  describe('secrets:get-storage-backend', () => {
+    afterEach(() => {
+      resetElectronMock();
+    });
+
+    it('returns the backend reported by safeStorage', () => {
+      setSelectedStorageBackend('kwallet');
+
+      expect(ipcHandlersByChannel['secrets:get-storage-backend']()).toBe('kwallet');
+    });
+
+    it('returns basic_text when no keyring is available', () => {
+      setSelectedStorageBackend('basic_text');
+
+      expect(ipcHandlersByChannel['secrets:get-storage-backend']()).toBe('basic_text');
+    });
+  });
+
+  describe('secrets:save-unlock-password', () => {
+    it('encrypts the password and writes it to the unlock password file', () => {
+      vi.spyOn(fs, 'writeFileSync').mockImplementation(() => {});
+
+      ipcHandlersByChannel['secrets:save-unlock-password']({}, 'correct horse battery staple');
+
+      expect(fs.writeFileSync).toHaveBeenCalledWith(
+        '/fake/home/.Ambrosia-POS/.unlock-key',
+        expect.any(Buffer),
+        { mode: 0o600 },
+      );
+    });
+  });
+
+  describe('secrets:clear-unlock-password', () => {
+    it('removes the unlock password file when it exists', () => {
+      fs.existsSync.mockReturnValue(true);
+      vi.spyOn(fs, 'unlinkSync').mockImplementation(() => {});
+
+      ipcHandlersByChannel['secrets:clear-unlock-password']();
+
+      expect(fs.unlinkSync).toHaveBeenCalledWith('/fake/home/.Ambrosia-POS/.unlock-key');
+    });
+
+    it('does nothing when no unlock password file exists', () => {
+      vi.spyOn(fs, 'unlinkSync').mockImplementation(() => {});
+
+      ipcHandlersByChannel['secrets:clear-unlock-password']();
+
+      expect(fs.unlinkSync).not.toHaveBeenCalled();
     });
   });
 
