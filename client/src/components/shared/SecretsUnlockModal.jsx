@@ -1,21 +1,29 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { addToast, Button, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader } from "@heroui/react";
 import { useTranslations } from "next-intl";
 
 import { RequirePermission } from "@/hooks/usePermission";
 import { SECRETS_UNLOCKED_EVENT, unlockSecrets } from "@/services/secretsService";
+import { clearUnlockPassword, getStorageBackend, saveUnlockPassword } from "@/services/unlockPasswordStoreService";
 import WalletGuard from "@components/auth/WalletGuard";
 
 import { SecretsExistingPasswordField } from "./SecretsExistingPasswordField";
+import { SecretsRememberPasswordCheckbox } from "./SecretsRememberPasswordCheckbox";
 
 export function SecretsUnlockModal({ onClose }) {
   const secretsEncryptionCardTranslations = useTranslations();
   const [unlockPassword, setUnlockPassword] = useState("");
   const [passwordError, setPasswordError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [storageBackend, setStorageBackend] = useState(null);
+  const [rememberUnlockPassword, setRememberUnlockPassword] = useState(false);
+
+  useEffect(() => {
+    getStorageBackend().then(setStorageBackend);
+  }, []);
 
   const handleUnlockPasswordChange = (enteredPassword) => {
     setUnlockPassword(enteredPassword);
@@ -26,6 +34,11 @@ export function SecretsUnlockModal({ onClose }) {
     setSubmitting(true);
     try {
       await unlockSecrets(unlockPassword);
+      if (rememberUnlockPassword) {
+        await saveUnlockPassword(unlockPassword).catch(() => {});
+      } else {
+        await clearUnlockPassword().catch(() => {});
+      }
       addToast({
         color: "success",
         description: secretsEncryptionCardTranslations("secretsEncryptionCard.unlockSuccess"),
@@ -73,6 +86,11 @@ export function SecretsUnlockModal({ onClose }) {
                 passwordError={passwordError}
               />
             </RequirePermission>
+            <SecretsRememberPasswordCheckbox
+              storageBackend={storageBackend}
+              rememberUnlockPassword={rememberUnlockPassword}
+              onRememberUnlockPasswordChange={setRememberUnlockPassword}
+            />
           </ModalBody>
           <ModalFooter>
             <Button
