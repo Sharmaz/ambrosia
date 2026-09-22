@@ -18,6 +18,8 @@ import pos.ambrosia.services.LightningBackend
 
 class FakeLightningBackend(
     private val label: String,
+    private val incomingPaymentIsPaid: Boolean = true,
+    private val incomingPaymentReceivedSat: Long = 0,
 ) : LightningBackend {
     var closed = false
         private set
@@ -55,9 +57,9 @@ class FakeLightningBackend(
         IncomingPayment(
             type = "incoming_payment",
             subType = "lightning",
-            paymentHash = label,
-            isPaid = true,
-            receivedSat = 0,
+            paymentHash = paymentHash,
+            isPaid = incomingPaymentIsPaid,
+            receivedSat = incomingPaymentReceivedSat,
             fees = 0,
             createdAt = 0,
         )
