@@ -2,7 +2,13 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 
-const { installElectronMock, setSelectedStorageBackend, resetElectronMock } = require('../../test-utils/electronMock.js');
+const {
+  installElectronMock,
+  setSelectedStorageBackend,
+  setEncryptionAvailable,
+  resetElectronMock,
+} = require('../../test-utils/electronMock.js');
+const { setPlatformAndArch, restorePlatformAndArch } = require('../../test-utils/platformMock.js');
 
 let unlockPasswordStore;
 
@@ -37,17 +43,34 @@ beforeEach(() => {
 afterEach(() => {
   vi.restoreAllMocks();
   resetElectronMock();
+  restorePlatformAndArch();
 });
 
 describe('getStorageBackend', () => {
-  it('returns the backend reported by safeStorage', () => {
+  it('returns the backend reported by safeStorage on Linux', () => {
+    setPlatformAndArch('linux', 'x64');
     setSelectedStorageBackend('kwallet');
 
     expect(unlockPasswordStore.getStorageBackend()).toBe('kwallet');
   });
 
-  it('returns basic_text when no keyring is available', () => {
+  it('returns basic_text on Linux when no keyring is available', () => {
+    setPlatformAndArch('linux', 'x64');
     setSelectedStorageBackend('basic_text');
+
+    expect(unlockPasswordStore.getStorageBackend()).toBe('basic_text');
+  });
+
+  it('returns native on macOS/Windows when encryption is available', () => {
+    setPlatformAndArch('darwin', 'arm64');
+    setEncryptionAvailable(true);
+
+    expect(unlockPasswordStore.getStorageBackend()).toBe('native');
+  });
+
+  it('returns basic_text on macOS/Windows when encryption is not available', () => {
+    setPlatformAndArch('darwin', 'arm64');
+    setEncryptionAvailable(false);
 
     expect(unlockPasswordStore.getStorageBackend()).toBe('basic_text');
   });

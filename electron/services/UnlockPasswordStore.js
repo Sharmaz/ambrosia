@@ -15,7 +15,10 @@ function getUnlockPasswordFilePath() {
 }
 
 function getStorageBackend() {
-  return safeStorage.getSelectedStorageBackend();
+  if (process.platform === 'linux') {
+    return safeStorage.getSelectedStorageBackend();
+  }
+  return safeStorage.isEncryptionAvailable() ? 'native' : 'basic_text';
 }
 
 function save(unlockPassword) {

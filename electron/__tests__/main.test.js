@@ -18,7 +18,12 @@ function installElectronUpdaterMock() {
   };
 }
 
-const { installElectronMock, setSelectedStorageBackend, resetElectronMock } = require('../test-utils/electronMock.js');
+const {
+  installElectronMock,
+  setSelectedStorageBackend,
+  setEncryptionAvailable,
+  resetElectronMock,
+} = require('../test-utils/electronMock.js');
 const { setPlatformAndArch, restorePlatformAndArch } = require('../test-utils/platformMock.js');
 const { installSpawnMock } = require('../test-utils/spawnMock.js');
 const { installTreeKillMock } = require('../test-utils/treeKillMock.js');
@@ -182,16 +187,33 @@ describe('IPC handlers and notifications', () => {
   describe('secrets:get-storage-backend', () => {
     afterEach(() => {
       resetElectronMock();
+      restorePlatformAndArch();
     });
 
-    it('returns the backend reported by safeStorage', () => {
+    it('returns the backend reported by safeStorage on Linux', () => {
+      setPlatformAndArch('linux', 'x64');
       setSelectedStorageBackend('kwallet');
 
       expect(ipcHandlersByChannel['secrets:get-storage-backend']()).toBe('kwallet');
     });
 
-    it('returns basic_text when no keyring is available', () => {
+    it('returns basic_text on Linux when no keyring is available', () => {
+      setPlatformAndArch('linux', 'x64');
       setSelectedStorageBackend('basic_text');
+
+      expect(ipcHandlersByChannel['secrets:get-storage-backend']()).toBe('basic_text');
+    });
+
+    it('returns native on macOS/Windows when encryption is available', () => {
+      setPlatformAndArch('darwin', 'arm64');
+      setEncryptionAvailable(true);
+
+      expect(ipcHandlersByChannel['secrets:get-storage-backend']()).toBe('native');
+    });
+
+    it('returns basic_text on macOS/Windows when encryption is not available', () => {
+      setPlatformAndArch('darwin', 'arm64');
+      setEncryptionAvailable(false);
 
       expect(ipcHandlersByChannel['secrets:get-storage-backend']()).toBe('basic_text');
     });

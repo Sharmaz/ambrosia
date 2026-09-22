@@ -2,6 +2,7 @@ const crypto = require('crypto');
 
 let isPackaged = false;
 let selectedStorageBackend = 'gnome_libsecret';
+let encryptionAvailable = true;
 
 const SAFE_STORAGE_MOCK_KEY = crypto.createHash('sha256').update('electron-mock-safe-storage-test-key').digest();
 
@@ -30,6 +31,7 @@ const electronModuleExports = {
   },
   safeStorage: {
     getSelectedStorageBackend: () => selectedStorageBackend,
+    isEncryptionAvailable: () => encryptionAvailable,
     encryptString,
     decryptString,
   },
@@ -54,14 +56,20 @@ function setSelectedStorageBackend(newSelectedStorageBackend) {
   selectedStorageBackend = newSelectedStorageBackend;
 }
 
+function setEncryptionAvailable(newEncryptionAvailable) {
+  encryptionAvailable = newEncryptionAvailable;
+}
+
 function resetElectronMock() {
   isPackaged = false;
   selectedStorageBackend = 'gnome_libsecret';
+  encryptionAvailable = true;
 }
 
 module.exports = {
   installElectronMock,
   setIsPackaged,
   setSelectedStorageBackend,
+  setEncryptionAvailable,
   resetElectronMock,
 };
