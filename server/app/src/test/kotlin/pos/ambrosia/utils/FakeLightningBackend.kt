@@ -57,7 +57,7 @@ class FakeLightningBackend(
         IncomingPayment(
             type = "incoming_payment",
             subType = "lightning",
-            paymentHash = paymentHash,
+            paymentHash = label,
             isPaid = incomingPaymentIsPaid,
             receivedSat = incomingPaymentReceivedSat,
             fees = 0,
