@@ -276,6 +276,14 @@ describe("SecretsEncryptionCardDetails", () => {
       expect(screen.getByTestId("remember-checkbox-storage-backend")).toHaveTextContent("gnome-libsecret");
     });
 
+    it("falls back to basic_text when the storage backend check fails", async () => {
+      unlockPasswordStoreService.getStorageBackend.mockRejectedValue(new Error("IPC error"));
+      renderDetails();
+      await authorize();
+
+      expect(screen.getByTestId("remember-checkbox-storage-backend")).toHaveTextContent("basic_text");
+    });
+
     it("saves the unlock password when activating with the checkbox checked", async () => {
       unlockPasswordStoreService.getStorageBackend.mockResolvedValue("gnome-libsecret");
       secretsService.activateSecretsEncryption.mockResolvedValue({ message: "Secrets encryption activated" });

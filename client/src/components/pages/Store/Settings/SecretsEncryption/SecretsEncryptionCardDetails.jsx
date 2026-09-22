@@ -44,7 +44,12 @@ export function SecretsEncryptionCardDetails({ onHide, secretsEncryptionCardTran
         description: secretsEncryptionCardTranslations("secretsEncryptionCard.statusLoadError"),
       });
     }
-    setStorageBackend(await getStorageBackend());
+    try {
+      setStorageBackend(await getStorageBackend());
+    } catch (storageBackendError) {
+      console.error(storageBackendError);
+      setStorageBackend("basic_text");
+    }
   };
 
   const handleActivate = async () => {
