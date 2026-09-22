@@ -1,26 +1,26 @@
-const crypto = require('crypto');
-const fs = require('fs');
-const path = require('path');
+import crypto from 'crypto';
+import fs from 'fs';
+import path from 'path';
 
-const logger = require('../utils/logger');
-const { getDataDirectory, getPhoenixDataDirectory, getLogsDirectory } = require('../utils/resourcePaths');
+import { logger } from '../utils/logger.js';
+import { getDataDirectory, getPhoenixDataDirectory, getLogsDirectory } from '../utils/resourcePaths.js';
 
 function generateRandomHex(length) {
   return crypto.randomBytes(length).toString('hex');
 }
 
-function ensureDirectoryExists(dir) {
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
-    logger.log(`[ConfigurationBootstrap] Created directory: ${dir}`);
+function ensureDirectoryExists(directoryPath) {
+  if (!fs.existsSync(directoryPath)) {
+    fs.mkdirSync(directoryPath, { recursive: true });
+    logger.log(`[ConfigurationBootstrap] Created directory: ${directoryPath}`);
   }
 }
 
 function configExists() {
-  const dataDir = getDataDirectory();
-  const phoenixDir = getPhoenixDataDirectory();
-  const ambrosiaConfig = path.join(dataDir, 'ambrosia.conf');
-  const phoenixConfig = path.join(phoenixDir, 'phoenix.conf');
+  const dataDirectory = getDataDirectory();
+  const phoenixDirectory = getPhoenixDataDirectory();
+  const ambrosiaConfig = path.join(dataDirectory, 'ambrosia.conf');
+  const phoenixConfig = path.join(phoenixDirectory, 'phoenix.conf');
 
   return fs.existsSync(ambrosiaConfig) && fs.existsSync(phoenixConfig);
 }
@@ -30,39 +30,39 @@ function readConfig(configPath) {
     return {};
   }
 
-  const content = fs.readFileSync(configPath, 'utf-8');
-  const config = {};
+  const configFileContent = fs.readFileSync(configPath, 'utf-8');
+  const configEntries = {};
 
-  content.split('\n').forEach((line) => {
-    const trimmed = line.trim();
-    if (trimmed && !trimmed.startsWith('#')) {
-      const [key, ...valueParts] = trimmed.split('=');
+  configFileContent.split('\n').forEach((line) => {
+    const trimmedLine = line.trim();
+    if (trimmedLine && !trimmedLine.startsWith('#')) {
+      const [key, ...valueParts] = trimmedLine.split('=');
       if (key && valueParts.length > 0) {
-        config[key.trim()] = valueParts.join('=').trim();
+        configEntries[key.trim()] = valueParts.join('=').trim();
       }
     }
   });
 
-  return config;
+  return configEntries;
 }
 
-function writeConfig(configPath, config) {
-  const lines = Object.entries(config).map(([key, value]) => `${key}=${value}`);
-  fs.writeFileSync(configPath, `${lines.join('\n')}\n`, { encoding: 'utf-8', mode: 0o600 });
+function writeConfig(configPath, configEntries) {
+  const configFileLines = Object.entries(configEntries).map(([key, value]) => `${key}=${value}`);
+  fs.writeFileSync(configPath, `${configFileLines.join('\n')}\n`, { encoding: 'utf-8', mode: 0o600 });
   logger.log(`[ConfigurationBootstrap] Written configuration to: ${configPath}`);
 }
 
 async function ensureConfigurations(ports) {
-  const dataDir = getDataDirectory();
-  const phoenixDir = getPhoenixDataDirectory();
-  const logsDir = getLogsDirectory();
+  const dataDirectory = getDataDirectory();
+  const phoenixDirectory = getPhoenixDataDirectory();
+  const logsDirectory = getLogsDirectory();
 
-  ensureDirectoryExists(dataDir);
-  ensureDirectoryExists(phoenixDir);
-  ensureDirectoryExists(logsDir);
+  ensureDirectoryExists(dataDirectory);
+  ensureDirectoryExists(phoenixDirectory);
+  ensureDirectoryExists(logsDirectory);
 
-  const ambrosiaConfigPath = path.join(dataDir, 'ambrosia.conf');
-  const phoenixConfigPath = path.join(phoenixDir, 'phoenix.conf');
+  const ambrosiaConfigPath = path.join(dataDirectory, 'ambrosia.conf');
+  const phoenixConfigPath = path.join(phoenixDirectory, 'phoenix.conf');
 
   let ambrosiaConfig = readConfig(ambrosiaConfigPath);
   let phoenixConfig = readConfig(phoenixConfigPath);
@@ -125,7 +125,7 @@ async function ensureConfigurations(ports) {
   };
 }
 
-module.exports = {
+export const configurationBootstrap = {
   configExists,
   ensureConfigurations,
   readConfig,

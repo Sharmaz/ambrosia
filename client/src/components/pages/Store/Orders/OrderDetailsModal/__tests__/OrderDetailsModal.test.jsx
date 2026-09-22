@@ -59,7 +59,7 @@ describe("OrderDetailsModal", () => {
 
   it("renders order details and handles close", () => {
     const onClose = jest.fn();
-    const formatAmount = jest.fn((value) => `fmt-${value}`);
+    const formatAmount = jest.fn((amount) => `fmt-${amount}`);
     const order = {
       id: "order-1",
       userName: "Luis",
@@ -91,8 +91,80 @@ describe("OrderDetailsModal", () => {
     expect(onClose).toHaveBeenCalled();
   });
 
+  it("shows the reference number when the order has one", () => {
+    const order = {
+      id: "order-1",
+      userName: "Luis",
+      status: "paid",
+      paymentMethod: "Bank Transfer",
+      total: 25,
+      createdAt: "2024-01-01T10:00:00Z",
+      transactionId: "REF-123",
+    };
+
+    render(
+      <OrderDetailsModal
+        order={order}
+        isOpen
+        onClose={jest.fn()}
+        formatAmount={(amount) => `fmt-${amount}`}
+      />,
+    );
+
+    expect(screen.getByText("details.reference")).toBeInTheDocument();
+    expect(screen.getByText("REF-123")).toBeInTheDocument();
+  });
+
+  it("does not show a reference field when the order has none", () => {
+    const order = {
+      id: "order-1",
+      userName: "Luis",
+      status: "paid",
+      paymentMethod: "Cash",
+      total: 25,
+      createdAt: "2024-01-01T10:00:00Z",
+    };
+
+    render(
+      <OrderDetailsModal
+        order={order}
+        isOpen
+        onClose={jest.fn()}
+        formatAmount={(amount) => `fmt-${amount}`}
+      />,
+    );
+
+    expect(screen.queryByText("details.reference")).not.toBeInTheDocument();
+  });
+
+  it("shows a truncated reference with a copy button for BTC invoices", () => {
+    const longInvoice = "lntb720n1p42ud4ypp5syxmv3c9y0lx3udvneypkutnt923ynhp5ps076v5a7c4uft";
+    const order = {
+      id: "order-1",
+      userName: "Luis",
+      status: "paid",
+      paymentMethod: "BTC",
+      total: 25,
+      createdAt: "2024-01-01T10:00:00Z",
+      transactionId: longInvoice,
+    };
+
+    render(
+      <OrderDetailsModal
+        order={order}
+        isOpen
+        onClose={jest.fn()}
+        formatAmount={(amount) => `fmt-${amount}`}
+      />,
+    );
+
+    expect(screen.getByText("details.reference")).toBeInTheDocument();
+    expect(screen.queryByText(longInvoice)).not.toBeInTheDocument();
+    expect(screen.getByTitle(longInvoice)).toBeInTheDocument();
+  });
+
   it("renders AmountDisplay for BTC orders with satoshiAmount", () => {
-    const formatAmount = jest.fn((value) => `fmt-${value}`);
+    const formatAmount = jest.fn((amount) => `fmt-${amount}`);
     const btcOrder = {
       id: "order-btc",
       userName: "Ana",
@@ -122,7 +194,7 @@ describe("OrderDetailsModal", () => {
   });
 
   it("uses formatAmount for non-BTC orders", () => {
-    const formatAmount = jest.fn((value) => `fmt-${value}`);
+    const formatAmount = jest.fn((amount) => `fmt-${amount}`);
     const cashOrder = {
       id: "order-cash",
       userName: "Luis",
@@ -148,7 +220,7 @@ describe("OrderDetailsModal", () => {
   });
 
   it("renders tip as secondary information aligned with the amount column", () => {
-    const formatAmount = jest.fn((value) => `fmt-${value}`);
+    const formatAmount = jest.fn((amount) => `fmt-${amount}`);
 
     render(
       <OrderDetailsModal
@@ -183,7 +255,7 @@ describe("OrderDetailsModal", () => {
   });
 
   it("shows the refund button only for paid orders", () => {
-    const formatAmount = jest.fn((value) => `fmt-${value}`);
+    const formatAmount = jest.fn((amount) => `fmt-${amount}`);
     const { rerender } = render(
       <OrderDetailsModal
         order={{ id: "order-1", status: "paid", total: 10 }}
@@ -217,7 +289,7 @@ describe("OrderDetailsModal", () => {
 
   it("hides the refund button for a paid order when the user lacks orders_refund", () => {
     mockCanRefund = false;
-    const formatAmount = jest.fn((value) => `fmt-${value}`);
+    const formatAmount = jest.fn((amount) => `fmt-${amount}`);
 
     render(
       <OrderDetailsModal
@@ -241,7 +313,7 @@ describe("OrderDetailsModal", () => {
         isOpen
         onClose={jest.fn()}
         onRefunded={onRefunded}
-        formatAmount={jest.fn((value) => `fmt-${value}`)}
+        formatAmount={jest.fn((amount) => `fmt-${amount}`)}
       />,
     );
 
@@ -271,7 +343,7 @@ describe("OrderDetailsModal", () => {
         order={order}
         isOpen
         onClose={jest.fn()}
-        formatAmount={jest.fn((value) => `fmt-${value}`)}
+        formatAmount={jest.fn((amount) => `fmt-${amount}`)}
       />,
     );
 

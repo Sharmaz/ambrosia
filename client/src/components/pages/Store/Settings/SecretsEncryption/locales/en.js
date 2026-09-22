@@ -19,6 +19,8 @@ const secretsEncryptionCardEn = {
     unlockSuccess: "Secrets unlocked",
     unlockError: "Could not unlock secrets — check the password",
     unlockedDescription: "Secrets encryption is active and unlocked.",
+    rememberOnThisDevice: "Remember on this device",
+    rememberUnavailableTooltip: "Not available — no secure system keyring was found on this device.",
   },
 };
 

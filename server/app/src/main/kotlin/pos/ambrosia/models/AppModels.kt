@@ -243,6 +243,7 @@ data class OrderWithPayment(
     val exchangeRateCurrency: String? = null,
     val fiatAmountAtPayment: Double? = null,
     val paymentHash: String? = null,
+    val transactionId: String? = null,
     val items: List<OrderItem> = emptyList(),
     val refund: StoreRefund? = null,
 )
@@ -666,6 +667,70 @@ data class PayoutAccountUpsert(
 )
 
 @Serializable
+data class CreateFreelanceInvoiceRequest(
+    val clientId: String,
+    val periodStart: String,
+    val periodEnd: String,
+    val payoutAccountId: String? = null,
+    val exchangeRate: Double? = null,
+    val exchangeRateCurrency: String? = null,
+)
+
+@Serializable
+data class PayFreelanceInvoiceRequest(
+    val amountCents: Int? = null,
+    val transactionId: String? = null,
+)
+
+@Serializable
+data class FreelanceInvoiceLineItemResponse(
+    val id: String,
+    val projectId: String,
+    val projectName: String,
+    val taskId: String,
+    val taskName: String,
+    val quantityMinutes: Int,
+    val rateCents: Int,
+    val amountCents: Int,
+    val createdAt: String,
+)
+
+@Serializable
+data class FreelanceInvoiceResponse(
+    val id: String,
+    val invoiceYear: Int,
+    val invoiceNumber: String,
+    val clientId: String,
+    val clientName: String,
+    val status: String,
+    val currencyId: String,
+    val currencyAcronym: String,
+    val periodStart: String,
+    val periodEnd: String,
+    val totalCents: Int,
+    val payoutSnapshot: String? = null,
+    val paymentMethod: String,
+    val paymentHash: String? = null,
+    val bolt11: String? = null,
+    val createdAt: String,
+    val lineItems: List<FreelanceInvoiceLineItemResponse> = emptyList(),
+)
+
+@Serializable
+data class FreelanceInvoicePayoutSnapshot(
+    val id: String,
+    val type: String,
+    val accountHolder: String? = null,
+    val bankName: String? = null,
+    val accountNumber: String? = null,
+    val currencyId: String? = null,
+    val swift: String? = null,
+    val iban: String? = null,
+    val clabe: String? = null,
+    val lightningAddress: String? = null,
+)
+
+@Serializable
 data class ProductOptionValue(
     val id: String? = null,
     val optionTypeId: String? = null,
@@ -885,6 +950,7 @@ data class ProductSaleItem(
     val paymentId: String? = null,
     val discountAmount: Double = 0.0,
     val refunded: Boolean = false,
+    val transactionId: String? = null,
 )
 
 @Serializable

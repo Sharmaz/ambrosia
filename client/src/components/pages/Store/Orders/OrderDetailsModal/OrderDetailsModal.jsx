@@ -6,6 +6,7 @@ import { Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Button } from
 import { useTranslations } from "next-intl";
 
 import { AmountDisplay } from "@/components/shared/AmountDisplay";
+import { CopyableValueRow } from "@/components/shared/CopyableValueRow";
 import { OrderProductsTable } from "@/components/shared/OrderProductsTable";
 import { StatusChip } from "@/components/shared/StatusChip";
 import { usePermission } from "@/hooks/usePermission";
@@ -13,7 +14,6 @@ import formatDate from "@lib/formatDate";
 
 import { RefundModal } from "../RefundModal";
 
-import { HashRow } from "./HashRow";
 import { MetaField } from "./MetaField";
 import { RefundInfo } from "./RefundInfo";
 
@@ -35,6 +35,7 @@ export function OrderDetailsModal({ order, isOpen, onClose, onRefunded, formatAm
     exchangeRateCurrency,
     fiatAmountAtPayment,
     paymentHash,
+    transactionId,
     items,
     refund,
   } = order ?? {};
@@ -74,11 +75,20 @@ export function OrderDetailsModal({ order, isOpen, onClose, onRefunded, formatAm
                     label={ordersTranslations("details.status")}
                     value={status ? <StatusChip status={status} /> : "—"}
                   />
+                  {transactionId && (
+                    <div className="col-span-2">
+                      <CopyableValueRow
+                        label={ordersTranslations("details.reference")}
+                        fullValue={transactionId}
+                        copyLabel={ordersTranslations("details.lightning.copy")}
+                      />
+                    </div>
+                  )}
                   {paymentHash && (
                     <div className="col-span-2">
-                      <HashRow
+                      <CopyableValueRow
                         label={ordersTranslations("details.lightning.paymentHash")}
-                        value={paymentHash}
+                        fullValue={paymentHash}
                         copyLabel={ordersTranslations("details.lightning.copy")}
                       />
                     </div>

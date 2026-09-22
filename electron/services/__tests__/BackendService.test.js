@@ -1,13 +1,14 @@
 const fs = require('fs');
 
-const { installElectronMock } = require('../../test-utils/electronMock');
-const { createFakeSpawnedProcess, createFakeWriteStream } = require('../../test-utils/fakeChildProcess');
-const { installSpawnMock } = require('../../test-utils/spawnMock');
-const { installTreeKillMock } = require('../../test-utils/treeKillMock');
-const healthCheck = require('../../utils/healthCheck');
-const logger = require('../../utils/logger');
+const { installElectronMock } = require('../../test-utils/electronMock.js');
+const { createFakeSpawnedProcess, createFakeWriteStream } = require('../../test-utils/fakeChildProcess.js');
+const { installSpawnMock } = require('../../test-utils/spawnMock.js');
+const { installTreeKillMock } = require('../../test-utils/treeKillMock.js');
+const { healthCheck } = require('../../utils/healthCheck.js');
+const { logger } = require('../../utils/logger.js');
 
 let BackendService;
+let unlockPasswordStore;
 let spawnMock;
 let treeKillMock;
 
@@ -16,7 +17,9 @@ beforeAll(() => {
   spawnMock = installSpawnMock();
   treeKillMock = installTreeKillMock();
   healthCheck.checkBackend = vi.fn();
-  BackendService = require('../BackendService');
+  ({ unlockPasswordStore } = require('../UnlockPasswordStore.js'));
+  unlockPasswordStore.read = vi.fn();
+  BackendService = require('../BackendService.js').default;
 });
 
 let fakeSpawnedProcess;
@@ -28,6 +31,7 @@ beforeEach(() => {
   spawnMock.mockReset().mockReturnValue(fakeSpawnedProcess);
   treeKillMock.mockReset().mockImplementation((_pid, _signal, callback) => callback());
   healthCheck.checkBackend.mockReset().mockResolvedValue(true);
+  unlockPasswordStore.read.mockReset().mockReturnValue(null);
   vi.spyOn(fs, 'readdirSync').mockReturnValue(['ambrosia-0.8.0-beta.jar']);
   vi.spyOn(fs, 'existsSync').mockReturnValue(true);
   vi.spyOn(fs, 'mkdirSync').mockImplementation(() => {});
@@ -76,14 +80,14 @@ describe('start', () => {
     expect(fs.mkdirSync).not.toHaveBeenCalled();
   });
 
-  it('spawns java with the jar path and port args', async () => {
+  it('spawns java with the jar path and port command arguments', async () => {
     const backendService = new BackendService();
 
     await backendService.start(9154, backendConfig);
 
-    const [javaPath, args] = spawnMock.mock.calls[0];
+    const [javaPath, commandArguments] = spawnMock.mock.calls[0];
     expect(javaPath).toBe('java');
-    expect(args).toEqual(expect.arrayContaining([
+    expect(commandArguments).toEqual(expect.arrayContaining([
       '-jar',
       '--http-bind-ip=127.0.0.1',
       '--http-bind-port=9154',
@@ -91,13 +95,13 @@ describe('start', () => {
     ]));
   });
 
-  it('omits the phoenixd-url arg when a remote phoenixd node is configured', async () => {
+  it('omits the phoenixd-url command argument when a remote phoenixd node is configured', async () => {
     const backendService = new BackendService();
 
     await backendService.start(9154, { ...backendConfig, phoenixdRemoteConfigured: true });
 
-    const [, args] = spawnMock.mock.calls[0];
-    expect(args).not.toEqual(expect.arrayContaining([expect.stringContaining('--phoenixd-url')]));
+    const [, commandArguments] = spawnMock.mock.calls[0];
+    expect(commandArguments).not.toEqual(expect.arrayContaining([expect.stringContaining('--phoenixd-url')]));
   });
 
   it('passes the phoenixd password and webhook secret as env vars', async () => {
@@ -108,6 +112,25 @@ describe('start', () => {
     const [, , spawnOptions] = spawnMock.mock.calls[0];
     expect(spawnOptions.env.PHOENIXD_PASSWORD).toBe('phoenix-password');
     expect(spawnOptions.env.PHOENIXD_WEBHOOK_SECRET).toBe('webhook-secret');
+  });
+
+  it('sets AUTO_UNLOCK_PASSWORD when a password was saved', async () => {
+    unlockPasswordStore.read.mockReturnValue('saved-unlock-password');
+    const backendService = new BackendService();
+
+    await backendService.start(9154, backendConfig);
+
+    const [, , spawnOptions] = spawnMock.mock.calls[0];
+    expect(spawnOptions.env.AUTO_UNLOCK_PASSWORD).toBe('saved-unlock-password');
+  });
+
+  it('omits AUTO_UNLOCK_PASSWORD when no password was saved', async () => {
+    const backendService = new BackendService();
+
+    await backendService.start(9154, backendConfig);
+
+    const [, , spawnOptions] = spawnMock.mock.calls[0];
+    expect(spawnOptions.env.AUTO_UNLOCK_PASSWORD).toBeUndefined();
   });
 
   it('strips JAVA_* env vars before spawning', async () => {
@@ -125,10 +148,10 @@ describe('start', () => {
   it('waits for the backend to become healthy before resolving', async () => {
     const backendService = new BackendService();
 
-    const result = await backendService.start(9154, backendConfig);
+    const startedServiceInfo = await backendService.start(9154, backendConfig);
 
     expect(healthCheck.checkBackend).toHaveBeenCalledWith(9154);
-    expect(result).toEqual({ port: 9154 });
+    expect(startedServiceInfo).toEqual({ port: 9154 });
     expect(backendService.getStatus()).toBe('running');
   });
 

@@ -1,25 +1,28 @@
-const { installElectronMock, resetElectronMock } = require('../test-utils/electronMock');
+const { contextBridgeMock, ipcRendererMock } = vi.hoisted(() => ({
+  contextBridgeMock: { exposeInMainWorld: vi.fn() },
+  ipcRendererMock: {
+    send: vi.fn(),
+    invoke: vi.fn(),
+    on: vi.fn(),
+    once: vi.fn(),
+    removeListener: vi.fn(),
+  },
+}));
 
-const contextBridgeMock = { exposeInMainWorld: vi.fn() };
-const ipcRendererMock = {
-  send: vi.fn(),
-  invoke: vi.fn(),
-  on: vi.fn(),
-  once: vi.fn(),
-  removeListener: vi.fn(),
-};
+vi.mock('electron', () => ({
+  contextBridge: contextBridgeMock,
+  ipcRenderer: ipcRendererMock,
+}));
 
 let exposedChannelName;
 let exposedElectronApi;
 
-beforeAll(() => {
-  installElectronMock({ contextBridge: contextBridgeMock, ipcRenderer: ipcRendererMock });
-  require('../preload.entry');
+beforeAll(async () => {
+  await import('../preload.entry.js');
   [exposedChannelName, exposedElectronApi] = contextBridgeMock.exposeInMainWorld.mock.calls[0];
 });
 
 beforeEach(() => {
-  resetElectronMock();
   contextBridgeMock.exposeInMainWorld.mockClear();
   ipcRendererMock.send.mockClear();
   ipcRendererMock.invoke.mockClear();

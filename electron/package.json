@@ -3,6 +3,7 @@
   "version": "0.8.0-beta",
   "description": "Ambrosia POS Desktop Application",
   "main": "main.js",
+  "type": "module",
   "scripts": {
     "dev": "npm run build:preload && electron .",
     "dev:splash": "npm run build:preload && cross-env SPLASH_ONLY=true electron .",
