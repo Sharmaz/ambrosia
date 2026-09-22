@@ -372,7 +372,7 @@ class FreelanceInvoiceService(
                 ?: throw InvalidTimeEntryException("A positive amountCents is required for bank invoice payments")
 
         return VerifiedFreelanceInvoicePayment(
-            paymentMethodName = "Cash",
+            paymentMethodName = "Bank Transfer",
             transactionId = payFreelanceInvoiceRequest.transactionId.orEmpty(),
             amountCents = paidAmountCents,
         )
