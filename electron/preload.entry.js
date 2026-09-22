@@ -11,6 +11,9 @@ const INVOKE_CHANNELS = [
   'phoenixd:get-auto-liquidity',
   'phoenixd:set-auto-liquidity',
   'app:relaunch',
+  'secrets:get-storage-backend',
+  'secrets:save-unlock-password',
+  'secrets:clear-unlock-password',
 ];
 
 const RECEIVE_CHANNELS = [

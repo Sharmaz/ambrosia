@@ -5,6 +5,7 @@ import { URL } from 'url';
 import AutoUpdater from './services/AutoUpdater.js';
 import { configurationBootstrap } from './services/ConfigurationBootstrap.js';
 import ServiceManager from './services/ServiceManager.js';
+import { unlockPasswordStore } from './services/UnlockPasswordStore.js';
 import { STARTUP } from './utils/constants.js';
 import { logger } from './utils/logger.js';
 import { getDataDirectory, getLogsDirectory, getPhoenixDataDirectory } from './utils/resourcePaths.js';
@@ -530,6 +531,25 @@ ipcMain.handle('phoenixd:set-auto-liquidity', async (_event, autoLiquiditySettin
 
   return true;
 });
+
+ipcMain.handle('secrets:get-storage-backend', () => unlockPasswordStore.getStorageBackend());
+
+ipcMain.handle('secrets:save-unlock-password', (_event, unlockPassword) => {
+  unlockPasswordStore.save(unlockPassword);
+});
+
+ipcMain.handle('secrets:clear-unlock-password', () => {
+  unlockPasswordStore.clear();
+});
+
+function getLinuxPasswordStoreBackend() {
+  const isKdeSession = Boolean(process.env.KDE_FULL_SESSION) || /kde/i.test(process.env.XDG_CURRENT_DESKTOP || '');
+  return isKdeSession ? 'kwallet6' : 'gnome-libsecret';
+}
+
+if (process.platform === 'linux') {
+  app.commandLine.appendSwitch('password-store', getLinuxPasswordStoreBackend());
+}
 
 app.whenReady().then(initializeApp);
 

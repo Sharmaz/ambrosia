@@ -1,9 +1,26 @@
 import { addToast } from "@heroui/react";
-import { render, screen, fireEvent, act } from "@testing-library/react";
+import { render, screen, fireEvent, act, waitFor } from "@testing-library/react";
 
 import * as secretsService from "@/services/secretsService";
+import * as unlockPasswordStoreService from "@/services/unlockPasswordStoreService";
 
 import { SecretsUnlockModal } from "../SecretsUnlockModal";
+
+jest.mock("@/services/unlockPasswordStoreService");
+
+jest.mock("@components/shared/SecretsRememberPasswordCheckbox", () => ({
+  SecretsRememberPasswordCheckbox: ({ storageBackend, rememberUnlockPassword, onRememberUnlockPasswordChange }) => (
+    <div>
+      <span data-testid="remember-checkbox-storage-backend">{storageBackend}</span>
+      <input
+        data-testid="remember-checkbox"
+        type="checkbox"
+        checked={rememberUnlockPassword}
+        onChange={(event) => onRememberUnlockPasswordChange(event.target.checked)}
+      />
+    </div>
+  ),
+}));
 
 jest.mock("@heroui/react", () => {
   const actual = jest.requireActual("@heroui/react");
@@ -52,14 +69,17 @@ jest.mock("@components/auth/WalletGuard", () => function MockWalletGuard({ child
 const originalError = console.error;
 
 beforeEach(() => {
-  console.error = (...args) => {
+  console.error = (...consoleErrorArguments) => {
     if (
-      typeof args[0] === "string" &&
-      (args[0].includes("onAnimationComplete") ||
-        args[0].includes("Unknown event handler property"))
+      typeof consoleErrorArguments[0] === "string" &&
+      (consoleErrorArguments[0].includes("onAnimationComplete") ||
+        consoleErrorArguments[0].includes("Unknown event handler property"))
     ) return;
-    originalError.call(console, ...args);
+    originalError.call(console, ...consoleErrorArguments);
   };
+  unlockPasswordStoreService.getStorageBackend.mockResolvedValue(null);
+  unlockPasswordStoreService.saveUnlockPassword.mockResolvedValue(true);
+  unlockPasswordStoreService.clearUnlockPassword.mockResolvedValue(true);
 });
 
 afterEach(() => {
@@ -175,5 +195,64 @@ describe("SecretsUnlockModal", () => {
     });
 
     expect(screen.queryByText("Invalid credentials")).not.toBeInTheDocument();
+  });
+
+  describe("Remember on this device checkbox", () => {
+    it("passes the fetched storage backend to the checkbox", async () => {
+      unlockPasswordStoreService.getStorageBackend.mockResolvedValue("gnome-libsecret");
+      render(<SecretsUnlockModal onClose={jest.fn()} />);
+
+      await waitFor(() => (
+        expect(screen.getByTestId("remember-checkbox-storage-backend")).toHaveTextContent("gnome-libsecret")
+      ));
+    });
+
+    it("falls back to basic_text when the storage backend check fails", async () => {
+      unlockPasswordStoreService.getStorageBackend.mockRejectedValue(new Error("IPC error"));
+      render(<SecretsUnlockModal onClose={jest.fn()} />);
+
+      await waitFor(() => (
+        expect(screen.getByTestId("remember-checkbox-storage-backend")).toHaveTextContent("basic_text")
+      ));
+    });
+
+    it("saves the unlock password when unlocking with the checkbox checked", async () => {
+      unlockPasswordStoreService.getStorageBackend.mockResolvedValue("gnome-libsecret");
+      secretsService.unlockSecrets.mockResolvedValue({ message: "Secrets unlocked" });
+      render(<SecretsUnlockModal onClose={jest.fn()} />);
+
+      await waitFor(() => (
+        expect(screen.getByTestId("remember-checkbox-storage-backend")).toHaveTextContent("gnome-libsecret")
+      ));
+      fireEvent.click(screen.getByTestId("remember-checkbox"));
+      fireEvent.change(screen.getByLabelText("secretsEncryptionCard.unlockPasswordLabel"), {
+        target: { value: "correct-unlock-password" },
+      });
+      await act(async () => {
+        fireEvent.click(screen.getByText("secretsEncryptionCard.unlockButton"));
+      });
+
+      expect(unlockPasswordStoreService.saveUnlockPassword).toHaveBeenCalledWith("correct-unlock-password");
+      expect(unlockPasswordStoreService.clearUnlockPassword).not.toHaveBeenCalled();
+    });
+
+    it("clears any saved unlock password when unlocking with the checkbox unchecked", async () => {
+      unlockPasswordStoreService.getStorageBackend.mockResolvedValue("gnome-libsecret");
+      secretsService.unlockSecrets.mockResolvedValue({ message: "Secrets unlocked" });
+      render(<SecretsUnlockModal onClose={jest.fn()} />);
+
+      await waitFor(() => (
+        expect(screen.getByTestId("remember-checkbox-storage-backend")).toHaveTextContent("gnome-libsecret")
+      ));
+      fireEvent.change(screen.getByLabelText("secretsEncryptionCard.unlockPasswordLabel"), {
+        target: { value: "correct-unlock-password" },
+      });
+      await act(async () => {
+        fireEvent.click(screen.getByText("secretsEncryptionCard.unlockButton"));
+      });
+
+      expect(unlockPasswordStoreService.clearUnlockPassword).toHaveBeenCalled();
+      expect(unlockPasswordStoreService.saveUnlockPassword).not.toHaveBeenCalled();
+    });
   });
 });

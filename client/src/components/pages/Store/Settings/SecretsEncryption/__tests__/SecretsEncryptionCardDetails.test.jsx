@@ -1,12 +1,29 @@
 import { render, screen, fireEvent, act } from "@testing-library/react";
 
 import * as secretsService from "@/services/secretsService";
+import * as unlockPasswordStoreService from "@/services/unlockPasswordStoreService";
 
 import { SecretsEncryptionCardDetails } from "../SecretsEncryptionCardDetails";
 
 jest.mock("@/hooks/usePermission");
 
 jest.mock("@/services/secretsService");
+
+jest.mock("@/services/unlockPasswordStoreService");
+
+jest.mock("@components/shared/SecretsRememberPasswordCheckbox", () => ({
+  SecretsRememberPasswordCheckbox: ({ storageBackend, rememberUnlockPassword, onRememberUnlockPasswordChange }) => (
+    <div>
+      <span data-testid="remember-checkbox-storage-backend">{storageBackend}</span>
+      <input
+        data-testid="remember-checkbox"
+        type="checkbox"
+        checked={rememberUnlockPassword}
+        onChange={(event) => onRememberUnlockPasswordChange(event.target.checked)}
+      />
+    </div>
+  ),
+}));
 
 jest.mock("@heroui/react", () => ({
   addToast: jest.fn(),
@@ -81,6 +98,12 @@ async function authorize() {
 }
 
 describe("SecretsEncryptionCardDetails", () => {
+  beforeEach(() => {
+    unlockPasswordStoreService.getStorageBackend.mockResolvedValue(null);
+    unlockPasswordStoreService.saveUnlockPassword.mockResolvedValue(true);
+    unlockPasswordStoreService.clearUnlockPassword.mockResolvedValue(true);
+  });
+
   afterEach(() => {
     jest.clearAllMocks();
   });
@@ -237,6 +260,69 @@ describe("SecretsEncryptionCardDetails", () => {
       expect(addToast).toHaveBeenCalledWith(
         expect.objectContaining({ color: "danger", description: "Could not reach the server" }),
       );
+    });
+  });
+
+  describe("Remember on this device checkbox", () => {
+    beforeEach(() => {
+      secretsService.getSecretsStatus.mockResolvedValue({ encryptionActive: false, locked: false });
+    });
+
+    it("passes the fetched storage backend to the checkbox", async () => {
+      unlockPasswordStoreService.getStorageBackend.mockResolvedValue("gnome-libsecret");
+      renderDetails();
+      await authorize();
+
+      expect(screen.getByTestId("remember-checkbox-storage-backend")).toHaveTextContent("gnome-libsecret");
+    });
+
+    it("falls back to basic_text when the storage backend check fails", async () => {
+      unlockPasswordStoreService.getStorageBackend.mockRejectedValue(new Error("IPC error"));
+      renderDetails();
+      await authorize();
+
+      expect(screen.getByTestId("remember-checkbox-storage-backend")).toHaveTextContent("basic_text");
+    });
+
+    it("saves the unlock password when activating with the checkbox checked", async () => {
+      unlockPasswordStoreService.getStorageBackend.mockResolvedValue("gnome-libsecret");
+      secretsService.activateSecretsEncryption.mockResolvedValue({ message: "Secrets encryption activated" });
+      renderDetails();
+      await authorize();
+
+      fireEvent.click(screen.getByTestId("remember-checkbox"));
+      fireEvent.change(screen.getByTestId("secrets-unlock-password-field"), {
+        target: { value: "correct-unlock-password" },
+      });
+      fireEvent.change(screen.getByTestId("secrets-unlock-password-confirm-field"), {
+        target: { value: "correct-unlock-password" },
+      });
+      await act(async () => {
+        fireEvent.click(screen.getByText("secretsEncryptionCard.activateButton"));
+      });
+
+      expect(unlockPasswordStoreService.saveUnlockPassword).toHaveBeenCalledWith("correct-unlock-password");
+      expect(unlockPasswordStoreService.clearUnlockPassword).not.toHaveBeenCalled();
+    });
+
+    it("clears any saved unlock password when activating with the checkbox unchecked", async () => {
+      unlockPasswordStoreService.getStorageBackend.mockResolvedValue("gnome-libsecret");
+      secretsService.activateSecretsEncryption.mockResolvedValue({ message: "Secrets encryption activated" });
+      renderDetails();
+      await authorize();
+
+      fireEvent.change(screen.getByTestId("secrets-unlock-password-field"), {
+        target: { value: "correct-unlock-password" },
+      });
+      fireEvent.change(screen.getByTestId("secrets-unlock-password-confirm-field"), {
+        target: { value: "correct-unlock-password" },
+      });
+      await act(async () => {
+        fireEvent.click(screen.getByText("secretsEncryptionCard.activateButton"));
+      });
+
+      expect(unlockPasswordStoreService.clearUnlockPassword).toHaveBeenCalled();
+      expect(unlockPasswordStoreService.saveUnlockPassword).not.toHaveBeenCalled();
     });
   });
 

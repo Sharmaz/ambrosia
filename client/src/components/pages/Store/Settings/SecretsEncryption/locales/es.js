@@ -19,6 +19,8 @@ const secretsEncryptionCardEs = {
     unlockSuccess: "Secretos desbloqueados",
     unlockError: "No se pudo desbloquear los secretos — revisa la contraseña",
     unlockedDescription: "El cifrado de secretos está activo y desbloqueado.",
+    rememberOnThisDevice: "Recordar en este dispositivo",
+    rememberUnavailableTooltip: "No disponible — no se encontró un keyring seguro del sistema en este dispositivo.",
   },
 };
 

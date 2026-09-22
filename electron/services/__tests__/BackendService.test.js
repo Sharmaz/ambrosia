@@ -8,6 +8,7 @@ const { healthCheck } = require('../../utils/healthCheck.js');
 const { logger } = require('../../utils/logger.js');
 
 let BackendService;
+let unlockPasswordStore;
 let spawnMock;
 let treeKillMock;
 
@@ -16,6 +17,8 @@ beforeAll(() => {
   spawnMock = installSpawnMock();
   treeKillMock = installTreeKillMock();
   healthCheck.checkBackend = vi.fn();
+  ({ unlockPasswordStore } = require('../UnlockPasswordStore.js'));
+  unlockPasswordStore.read = vi.fn();
   BackendService = require('../BackendService.js').default;
 });
 
@@ -28,6 +31,7 @@ beforeEach(() => {
   spawnMock.mockReset().mockReturnValue(fakeSpawnedProcess);
   treeKillMock.mockReset().mockImplementation((_pid, _signal, callback) => callback());
   healthCheck.checkBackend.mockReset().mockResolvedValue(true);
+  unlockPasswordStore.read.mockReset().mockReturnValue(null);
   vi.spyOn(fs, 'readdirSync').mockReturnValue(['ambrosia-0.8.0-beta.jar']);
   vi.spyOn(fs, 'existsSync').mockReturnValue(true);
   vi.spyOn(fs, 'mkdirSync').mockImplementation(() => {});
@@ -108,6 +112,25 @@ describe('start', () => {
     const [, , spawnOptions] = spawnMock.mock.calls[0];
     expect(spawnOptions.env.PHOENIXD_PASSWORD).toBe('phoenix-password');
     expect(spawnOptions.env.PHOENIXD_WEBHOOK_SECRET).toBe('webhook-secret');
+  });
+
+  it('sets AUTO_UNLOCK_PASSWORD when a password was saved', async () => {
+    unlockPasswordStore.read.mockReturnValue('saved-unlock-password');
+    const backendService = new BackendService();
+
+    await backendService.start(9154, backendConfig);
+
+    const [, , spawnOptions] = spawnMock.mock.calls[0];
+    expect(spawnOptions.env.AUTO_UNLOCK_PASSWORD).toBe('saved-unlock-password');
+  });
+
+  it('omits AUTO_UNLOCK_PASSWORD when no password was saved', async () => {
+    const backendService = new BackendService();
+
+    await backendService.start(9154, backendConfig);
+
+    const [, , spawnOptions] = spawnMock.mock.calls[0];
+    expect(spawnOptions.env.AUTO_UNLOCK_PASSWORD).toBeUndefined();
   });
 
   it('strips JAVA_* env vars before spawning', async () => {
