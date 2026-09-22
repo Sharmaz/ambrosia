@@ -10,13 +10,22 @@ import org.jetbrains.exposed.v1.core.greaterEq
 import org.jetbrains.exposed.v1.core.inList
 import org.jetbrains.exposed.v1.core.isNull
 import org.jetbrains.exposed.v1.core.lessEq
+import org.jetbrains.exposed.v1.jdbc.insert
+import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import pos.ambrosia.db.tables.ClientEntity
+import pos.ambrosia.db.tables.ClientsTable
 import pos.ambrosia.db.tables.CurrencyEntity
+import pos.ambrosia.db.tables.CurrencyTable
 import pos.ambrosia.db.tables.InvoiceEntity
 import pos.ambrosia.db.tables.InvoiceLineItemEntity
 import pos.ambrosia.db.tables.InvoiceLineItemsTable
+import pos.ambrosia.db.tables.InvoicePaymentsTable
 import pos.ambrosia.db.tables.InvoicesTable
+import pos.ambrosia.db.tables.PaymentEntity
+import pos.ambrosia.db.tables.PaymentMethodEntity
+import pos.ambrosia.db.tables.PaymentMethodsTable
+import pos.ambrosia.db.tables.PaymentsTable
 import pos.ambrosia.db.tables.PayoutAccountEntity
 import pos.ambrosia.db.tables.ProjectEntity
 import pos.ambrosia.db.tables.ProjectsTable
@@ -28,6 +37,9 @@ import pos.ambrosia.models.CreateFreelanceInvoiceRequest
 import pos.ambrosia.models.FreelanceInvoiceLineItemResponse
 import pos.ambrosia.models.FreelanceInvoicePayoutSnapshot
 import pos.ambrosia.models.FreelanceInvoiceResponse
+import pos.ambrosia.models.PayFreelanceInvoiceRequest
+import pos.ambrosia.models.WalletInvoiceRate
+import pos.ambrosia.models.phoenix.CreateInvoiceRequest
 import pos.ambrosia.utils.InvalidTimeEntryException
 import pos.ambrosia.utils.ResourceNotFoundException
 import java.math.BigDecimal
@@ -38,8 +50,44 @@ import java.time.format.DateTimeFormatter
 import java.time.format.DateTimeParseException
 import java.util.UUID
 
-class FreelanceInvoiceService {
-    fun createDraftInvoice(createFreelanceInvoiceRequest: CreateFreelanceInvoiceRequest): FreelanceInvoiceResponse =
+class FreelanceInvoiceService(
+    private val lightningBackend: LightningBackend = ActiveLightningBackend,
+    private val walletRateService: WalletRateService = WalletRateService(),
+) {
+    suspend fun createDraftInvoice(createFreelanceInvoiceRequest: CreateFreelanceInvoiceRequest): FreelanceInvoiceResponse {
+        val preparedFreelanceInvoice = prepareDraftFreelanceInvoice(createFreelanceInvoiceRequest)
+        val lightningInvoiceData = createLightningInvoiceIfNeeded(preparedFreelanceInvoice, createFreelanceInvoiceRequest)
+        val createdFreelanceInvoice = persistDraftFreelanceInvoice(preparedFreelanceInvoice, lightningInvoiceData)
+        lightningInvoiceData?.let { createdLightningInvoiceData ->
+            walletRateService.saveInvoiceRate(
+                WalletInvoiceRate(
+                    paymentHash = createdLightningInvoiceData.paymentHash,
+                    satoshiAmount = createdLightningInvoiceData.satoshiAmount,
+                    exchangeRate = createdLightningInvoiceData.exchangeRate,
+                    exchangeRateCurrency = createdLightningInvoiceData.exchangeRateCurrency,
+                    fiatAmount = createdLightningInvoiceData.fiatAmount,
+                ),
+            )
+        }
+        return createdFreelanceInvoice
+    }
+
+    suspend fun payFreelanceInvoice(
+        freelanceInvoiceId: String,
+        payFreelanceInvoiceRequest: PayFreelanceInvoiceRequest,
+    ): FreelanceInvoiceResponse {
+        val preparedFreelanceInvoicePayment = prepareFreelanceInvoicePayment(freelanceInvoiceId)
+        val verifiedFreelanceInvoicePayment =
+            when (preparedFreelanceInvoicePayment.paymentMethod) {
+                "lightning" -> verifyLightningFreelanceInvoicePayment(preparedFreelanceInvoicePayment)
+                "bank" -> verifyBankFreelanceInvoicePayment(payFreelanceInvoiceRequest)
+                else -> throw InvalidTimeEntryException("Unsupported invoice payment method")
+            }
+
+        return persistFreelanceInvoicePayment(preparedFreelanceInvoicePayment, verifiedFreelanceInvoicePayment)
+    }
+
+    private fun prepareDraftFreelanceInvoice(createFreelanceInvoiceRequest: CreateFreelanceInvoiceRequest): PreparedFreelanceInvoice =
         transaction {
             val periodStartDate = parseDate(createFreelanceInvoiceRequest.periodStart, "periodStart")
             val periodEndDate = parseDate(createFreelanceInvoiceRequest.periodEnd, "periodEnd")
@@ -76,44 +124,134 @@ class FreelanceInvoiceService {
                 throw InvalidTimeEntryException("No uninvoiced billable time entries found for this period")
             }
 
-            val currentTimestamp = LocalDateTime.now().toString()
             val projectReferences = clientProjects.associateBy { project -> project.id }
-            val taskReferences =
-                TaskEntity
-                    .find { TasksTable.id inList uninvoicedTimeEntries.map { timeEntry -> timeEntry.taskId }.distinct() }
-                    .associateBy { task -> task.id }
+            val preparedLineItems =
+                uninvoicedTimeEntries
+                    .groupBy { timeEntry ->
+                        val project = projectReferences.getValue(timeEntry.projectId)
+                        FreelanceInvoiceLineItemKey(
+                            projectId = timeEntry.projectId,
+                            taskId = timeEntry.taskId,
+                            rateCents = project.hourlyRateCents ?: requestedClient.hourlyRateCents,
+                        )
+                    }.map { (freelanceInvoiceLineItemKey, timeEntriesForLineItem) ->
+                        val project = projectReferences.getValue(freelanceInvoiceLineItemKey.projectId)
+                        val task =
+                            TaskEntity.findById(freelanceInvoiceLineItemKey.taskId)
+                                ?: throw ResourceNotFoundException("Task not found")
+                        PreparedFreelanceInvoiceLineItem(
+                            projectId = freelanceInvoiceLineItemKey.projectId.value,
+                            projectName = project.name,
+                            taskId = freelanceInvoiceLineItemKey.taskId.value,
+                            taskName = task.name,
+                            quantityMinutes = timeEntriesForLineItem.sumOf { timeEntry -> timeEntry.durationMinutes },
+                            rateCents = freelanceInvoiceLineItemKey.rateCents,
+                            amountCents =
+                                timeEntriesForLineItem.sumOf { timeEntry ->
+                                    calculateAmountCents(freelanceInvoiceLineItemKey.rateCents, timeEntry.durationMinutes)
+                                },
+                        )
+                    }.sortedWith(
+                        compareBy<PreparedFreelanceInvoiceLineItem> { preparedLineItem ->
+                            preparedLineItem.projectName
+                        }.thenBy { preparedLineItem ->
+                            preparedLineItem.taskName
+                        },
+                    )
+            PreparedFreelanceInvoice(
+                invoiceYear = periodStartDate.year,
+                clientId = requestedClient.id.value,
+                currencyId = requestedClient.currencyId.value,
+                periodStart = periodStartDate.toString(),
+                periodEnd = periodEndDate.toString(),
+                totalCents = preparedLineItems.sumOf { preparedLineItem -> preparedLineItem.amountCents },
+                payoutSnapshot = buildPayoutSnapshot(requestedClient, createFreelanceInvoiceRequest.payoutAccountId),
+                paymentMethod = requestedClient.paymentMethod,
+                lineItems = preparedLineItems,
+                timeEntryIds = uninvoicedTimeEntries.map { timeEntry -> timeEntry.id.value },
+            )
+        }
+
+    private suspend fun createLightningInvoiceIfNeeded(
+        preparedFreelanceInvoice: PreparedFreelanceInvoice,
+        createFreelanceInvoiceRequest: CreateFreelanceInvoiceRequest,
+    ): LightningFreelanceInvoiceData? {
+        if (preparedFreelanceInvoice.paymentMethod != "lightning") return null
+
+        val exchangeRate =
+            createFreelanceInvoiceRequest.exchangeRate
+                ?.takeIf { requestedExchangeRate -> requestedExchangeRate > 0 }
+                ?: throw InvalidTimeEntryException("A positive exchangeRate is required for Lightning invoices")
+        val exchangeRateCurrency =
+            createFreelanceInvoiceRequest.exchangeRateCurrency
+                ?.takeIf { requestedExchangeRateCurrency -> requestedExchangeRateCurrency.isNotBlank() }
+                ?: throw InvalidTimeEntryException("exchangeRateCurrency is required for Lightning invoices")
+        val fiatAmount = preparedFreelanceInvoice.totalCents.toDouble() / 100
+        val satoshiAmount = calculateSatoshiAmount(preparedFreelanceInvoice.totalCents, exchangeRate)
+        val createdLightningInvoice =
+            lightningBackend.createInvoice(
+                CreateInvoiceRequest(
+                    description = "Freelance invoice ${preparedFreelanceInvoice.periodStart} to ${preparedFreelanceInvoice.periodEnd}",
+                    amountSat = satoshiAmount,
+                    exchangeRate = exchangeRate,
+                    exchangeRateCurrency = exchangeRateCurrency,
+                    fiatAmount = fiatAmount,
+                ),
+            )
+
+        return LightningFreelanceInvoiceData(
+            paymentHash = createdLightningInvoice.paymentHash,
+            bolt11 = createdLightningInvoice.serialized,
+            satoshiAmount = satoshiAmount,
+            exchangeRate = exchangeRate,
+            exchangeRateCurrency = exchangeRateCurrency,
+            fiatAmount = fiatAmount,
+        )
+    }
+
+    private fun persistDraftFreelanceInvoice(
+        preparedFreelanceInvoice: PreparedFreelanceInvoice,
+        lightningFreelanceInvoiceData: LightningFreelanceInvoiceData?,
+    ): FreelanceInvoiceResponse =
+        transaction {
+            val currentTimestamp = LocalDateTime.now().toString()
             val draftFreelanceInvoice =
                 InvoiceEntity.new(UUID.randomUUID()) {
-                    invoiceYear = periodStartDate.year
-                    invoiceNumber = nextInvoiceNumber(periodStartDate.year)
-                    clientId = requestedClient.id
+                    invoiceYear = preparedFreelanceInvoice.invoiceYear
+                    invoiceNumber = nextInvoiceNumber(preparedFreelanceInvoice.invoiceYear)
+                    clientId = EntityID(preparedFreelanceInvoice.clientId, ClientsTable)
                     status = "draft"
-                    currencyId = requestedClient.currencyId
-                    periodStart = periodStartDate.toString()
-                    periodEnd = periodEndDate.toString()
-                    totalCents =
-                        uninvoicedTimeEntries.sumOf { timeEntry ->
-                            val project = projectReferences.getValue(timeEntry.projectId)
-                            val rateCents = project.hourlyRateCents ?: requestedClient.hourlyRateCents
-                            calculateAmountCents(rateCents, timeEntry.durationMinutes)
-                        }
-                    payoutSnapshot = buildPayoutSnapshot(requestedClient, createFreelanceInvoiceRequest.payoutAccountId)
-                    paymentMethod = requestedClient.paymentMethod
-                    paymentHash = null
-                    bolt11 = null
+                    currencyId = EntityID(preparedFreelanceInvoice.currencyId, CurrencyTable)
+                    periodStart = preparedFreelanceInvoice.periodStart
+                    periodEnd = preparedFreelanceInvoice.periodEnd
+                    totalCents = preparedFreelanceInvoice.totalCents
+                    payoutSnapshot = preparedFreelanceInvoice.payoutSnapshot
+                    paymentMethod = preparedFreelanceInvoice.paymentMethod
+                    paymentHash = lightningFreelanceInvoiceData?.paymentHash
+                    bolt11 = lightningFreelanceInvoiceData?.bolt11
                     createdAt = currentTimestamp
                 }
 
             val freelanceInvoiceLineItems =
-                buildInvoiceLineItems(
+                createInvoiceLineItems(
                     draftInvoice = draftFreelanceInvoice,
-                    timeEntries = uninvoicedTimeEntries,
-                    projectReferences = projectReferences,
-                    taskReferences = taskReferences,
-                    clientHourlyRateCents = requestedClient.hourlyRateCents,
+                    preparedLineItems = preparedFreelanceInvoice.lineItems,
                     createdAt = currentTimestamp,
                 )
-            uninvoicedTimeEntries.forEach { timeEntry ->
+            val timeEntriesToLock =
+                TimeEntryEntity
+                    .find {
+                        TimeEntriesTable.id inList
+                            preparedFreelanceInvoice.timeEntryIds.map { timeEntryId ->
+                                EntityID(timeEntryId, TimeEntriesTable)
+                            }
+                    }.toList()
+            val hasAlreadyInvoicedTimeEntry =
+                timeEntriesToLock.any { timeEntry -> timeEntry.invoiceId != null }
+            if (timeEntriesToLock.size != preparedFreelanceInvoice.timeEntryIds.size || hasAlreadyInvoicedTimeEntry) {
+                throw InvalidTimeEntryException("One or more time entries have already been invoiced")
+            }
+            timeEntriesToLock.forEach { timeEntry ->
                 timeEntry.invoiceId = draftFreelanceInvoice.id
                 timeEntry.isLocked = true
             }
@@ -136,43 +274,23 @@ class FreelanceInvoiceService {
                 ?.let { freelanceInvoice -> toFreelanceInvoiceResponse(freelanceInvoice) }
         }
 
-    private fun buildInvoiceLineItems(
+    private fun createInvoiceLineItems(
         draftInvoice: InvoiceEntity,
-        timeEntries: List<TimeEntryEntity>,
-        projectReferences: Map<EntityID<UUID>, ProjectEntity>,
-        taskReferences: Map<EntityID<UUID>, TaskEntity>,
-        clientHourlyRateCents: Int,
+        preparedLineItems: List<PreparedFreelanceInvoiceLineItem>,
         createdAt: String,
     ): List<InvoiceLineItemEntity> =
-        timeEntries
-            .groupBy { timeEntry ->
-                val project = projectReferences.getValue(timeEntry.projectId)
-                FreelanceInvoiceLineItemKey(
-                    projectId = timeEntry.projectId,
-                    taskId = timeEntry.taskId,
-                    rateCents = project.hourlyRateCents ?: clientHourlyRateCents,
-                )
-            }.map { (invoiceLineItemKey, timeEntriesForLineItem) ->
-                val quantityMinutes = timeEntriesForLineItem.sumOf { timeEntry -> timeEntry.durationMinutes }
+        preparedLineItems
+            .map { preparedLineItem ->
                 InvoiceLineItemEntity.new(UUID.randomUUID()) {
                     invoiceId = draftInvoice.id
-                    projectId = invoiceLineItemKey.projectId
-                    taskId = invoiceLineItemKey.taskId
-                    this.quantityMinutes = quantityMinutes
-                    rateCents = invoiceLineItemKey.rateCents
-                    amountCents =
-                        timeEntriesForLineItem.sumOf { timeEntry ->
-                            calculateAmountCents(invoiceLineItemKey.rateCents, timeEntry.durationMinutes)
-                        }
+                    projectId = EntityID(preparedLineItem.projectId, ProjectsTable)
+                    taskId = EntityID(preparedLineItem.taskId, TasksTable)
+                    quantityMinutes = preparedLineItem.quantityMinutes
+                    rateCents = preparedLineItem.rateCents
+                    amountCents = preparedLineItem.amountCents
                     this.createdAt = createdAt
                 }
-            }.sortedWith(
-                compareBy<InvoiceLineItemEntity> { invoiceLineItem ->
-                    projectReferences.getValue(invoiceLineItem.projectId).name
-                }.thenBy { invoiceLineItem ->
-                    taskReferences.getValue(invoiceLineItem.taskId).name
-                },
-            )
+            }
 
     private fun buildPayoutSnapshot(
         client: ClientEntity,
@@ -203,6 +321,176 @@ class FreelanceInvoiceService {
             ),
         )
     }
+
+    private fun prepareFreelanceInvoicePayment(freelanceInvoiceId: String): PreparedFreelanceInvoicePayment =
+        transaction {
+            val freelanceInvoice =
+                InvoiceEntity.findById(parseUuid(freelanceInvoiceId, "freelanceInvoiceId"))
+                    ?: throw ResourceNotFoundException("Freelance invoice not found")
+            if (freelanceInvoice.status == "paid") {
+                throw InvalidTimeEntryException("Freelance invoice is already paid")
+            }
+
+            PreparedFreelanceInvoicePayment(
+                invoiceId = freelanceInvoice.id.value,
+                currencyId = freelanceInvoice.currencyId.value,
+                totalCents = freelanceInvoice.totalCents,
+                paymentMethod = freelanceInvoice.paymentMethod,
+                paymentHash = freelanceInvoice.paymentHash,
+            )
+        }
+
+    private suspend fun verifyLightningFreelanceInvoicePayment(
+        preparedFreelanceInvoicePayment: PreparedFreelanceInvoicePayment,
+    ): VerifiedFreelanceInvoicePayment {
+        val invoicePaymentHash =
+            preparedFreelanceInvoicePayment.paymentHash
+                ?: throw InvalidTimeEntryException("Freelance invoice does not have a Lightning payment hash")
+        val incomingFreelancePayment = lightningBackend.getIncomingPayment(invoicePaymentHash)
+        if (!incomingFreelancePayment.isPaid) {
+            throw InvalidTimeEntryException("Freelance invoice has not been paid")
+        }
+        val walletRateByPaymentHash = walletRateService.getRatesByPaymentHashes(listOf(invoicePaymentHash))
+        val walletRate = walletRateByPaymentHash[invoicePaymentHash]
+
+        return VerifiedFreelanceInvoicePayment(
+            paymentMethodName = "BTC",
+            transactionId = incomingFreelancePayment.externalId ?: incomingFreelancePayment.paymentHash,
+            amountCents = preparedFreelanceInvoicePayment.totalCents,
+            satoshiAmount = incomingFreelancePayment.receivedSat,
+            paymentHash = incomingFreelancePayment.paymentHash,
+            exchangeRate = walletRate?.exchangeRateAtPayment,
+            exchangeRateCurrency = walletRate?.exchangeRateCurrency,
+            fiatAmount = walletRate?.fiatAmountAtPayment,
+        )
+    }
+
+    private fun verifyBankFreelanceInvoicePayment(payFreelanceInvoiceRequest: PayFreelanceInvoiceRequest): VerifiedFreelanceInvoicePayment {
+        val paidAmountCents =
+            payFreelanceInvoiceRequest.amountCents
+                ?.takeIf { requestedAmountCents -> requestedAmountCents > 0 }
+                ?: throw InvalidTimeEntryException("A positive amountCents is required for bank invoice payments")
+
+        return VerifiedFreelanceInvoicePayment(
+            paymentMethodName = "Bank Transfer",
+            transactionId = payFreelanceInvoiceRequest.transactionId.orEmpty(),
+            amountCents = paidAmountCents,
+        )
+    }
+
+    private fun persistFreelanceInvoicePayment(
+        preparedFreelanceInvoicePayment: PreparedFreelanceInvoicePayment,
+        verifiedFreelanceInvoicePayment: VerifiedFreelanceInvoicePayment,
+    ): FreelanceInvoiceResponse =
+        transaction {
+            val freelanceInvoice =
+                InvoiceEntity.findById(preparedFreelanceInvoicePayment.invoiceId)
+                    ?: throw ResourceNotFoundException("Freelance invoice not found")
+            if (freelanceInvoice.status == "paid") {
+                throw InvalidTimeEntryException("Freelance invoice is already paid")
+            }
+
+            val freelancePayment =
+                findExistingFreelancePayment(verifiedFreelanceInvoicePayment)
+                    ?: createFreelancePayment(preparedFreelanceInvoicePayment, verifiedFreelanceInvoicePayment)
+            linkFreelancePaymentToInvoice(freelancePayment, freelanceInvoice)
+            updateFreelanceInvoicePaymentStatus(freelanceInvoice)
+
+            toFreelanceInvoiceResponse(freelanceInvoice)
+        }
+
+    private fun findExistingFreelancePayment(verifiedFreelanceInvoicePayment: VerifiedFreelanceInvoicePayment): PaymentEntity? {
+        val invoicePaymentHash = verifiedFreelanceInvoicePayment.paymentHash ?: return null
+        val existingFreelancePayment =
+            PaymentEntity
+                .find { PaymentsTable.paymentHash eq invoicePaymentHash }
+                .firstOrNull()
+                ?: return null
+        val existingInvoicePaymentLink =
+            InvoicePaymentsTable
+                .selectAll()
+                .where { InvoicePaymentsTable.paymentId eq existingFreelancePayment.id }
+                .firstOrNull()
+        if (existingInvoicePaymentLink == null) {
+            throw InvalidTimeEntryException("Lightning payment is already recorded outside freelance invoices")
+        }
+        return existingFreelancePayment
+    }
+
+    private fun createFreelancePayment(
+        preparedFreelanceInvoicePayment: PreparedFreelanceInvoicePayment,
+        verifiedFreelanceInvoicePayment: VerifiedFreelanceInvoicePayment,
+    ): PaymentEntity =
+        PaymentEntity.new(UUID.randomUUID()) {
+            methodId = findPaymentMethodId(verifiedFreelanceInvoicePayment.paymentMethodName)
+            currencyId = EntityID(preparedFreelanceInvoicePayment.currencyId, CurrencyTable)
+            transactionId = verifiedFreelanceInvoicePayment.transactionId
+            amount = verifiedFreelanceInvoicePayment.amountCents.toDouble() / 100
+            date = LocalDateTime.now().toString()
+            satoshiAmount = verifiedFreelanceInvoicePayment.satoshiAmount
+            exchangeRateAtPayment = verifiedFreelanceInvoicePayment.exchangeRate
+            paymentHash = verifiedFreelanceInvoicePayment.paymentHash
+            exchangeRateCurrency = verifiedFreelanceInvoicePayment.exchangeRateCurrency
+            fiatAmountAtPayment = verifiedFreelanceInvoicePayment.fiatAmount
+        }
+
+    private fun linkFreelancePaymentToInvoice(
+        freelancePayment: PaymentEntity,
+        freelanceInvoice: InvoiceEntity,
+    ) {
+        val linkAlreadyExists =
+            InvoicePaymentsTable
+                .selectAll()
+                .where {
+                    (InvoicePaymentsTable.paymentId eq freelancePayment.id) and
+                        (InvoicePaymentsTable.invoiceId eq freelanceInvoice.id)
+                }.any()
+        if (linkAlreadyExists) return
+
+        val paymentLinkedToAnotherInvoice =
+            InvoicePaymentsTable
+                .selectAll()
+                .where { InvoicePaymentsTable.paymentId eq freelancePayment.id }
+                .any()
+        if (paymentLinkedToAnotherInvoice) {
+            throw InvalidTimeEntryException("Payment is already linked to another freelance invoice")
+        }
+
+        InvoicePaymentsTable.insert { invoicePaymentRow ->
+            invoicePaymentRow[paymentId] = freelancePayment.id
+            invoicePaymentRow[invoiceId] = freelanceInvoice.id
+        }
+    }
+
+    private fun updateFreelanceInvoicePaymentStatus(freelanceInvoice: InvoiceEntity) {
+        val paidAmountCents = calculatePaidAmountCents(freelanceInvoice)
+        freelanceInvoice.status =
+            if (paidAmountCents >= freelanceInvoice.totalCents) {
+                "paid"
+            } else {
+                "partial"
+            }
+    }
+
+    private fun calculatePaidAmountCents(freelanceInvoice: InvoiceEntity): Int {
+        val freelancePaymentIds =
+            InvoicePaymentsTable
+                .selectAll()
+                .where { InvoicePaymentsTable.invoiceId eq freelanceInvoice.id }
+                .map { invoicePaymentRow -> invoicePaymentRow[InvoicePaymentsTable.paymentId] }
+        if (freelancePaymentIds.isEmpty()) return 0
+
+        return PaymentEntity
+            .find { PaymentsTable.id inList freelancePaymentIds }
+            .sumOf { freelancePayment -> (freelancePayment.amount * 100).toInt() }
+    }
+
+    private fun findPaymentMethodId(paymentMethodName: String): EntityID<UUID> =
+        PaymentMethodEntity
+            .find { PaymentMethodsTable.name eq paymentMethodName }
+            .firstOrNull()
+            ?.id
+            ?: throw ResourceNotFoundException("Payment method not found")
 
     private fun toFreelanceInvoiceResponse(
         invoice: InvoiceEntity,
@@ -288,6 +576,57 @@ class FreelanceInvoiceService {
         val rateCents: Int,
     )
 
+    private data class PreparedFreelanceInvoice(
+        val invoiceYear: Int,
+        val clientId: UUID,
+        val currencyId: UUID,
+        val periodStart: String,
+        val periodEnd: String,
+        val totalCents: Int,
+        val payoutSnapshot: String?,
+        val paymentMethod: String,
+        val lineItems: List<PreparedFreelanceInvoiceLineItem>,
+        val timeEntryIds: List<UUID>,
+    )
+
+    private data class PreparedFreelanceInvoiceLineItem(
+        val projectId: UUID,
+        val projectName: String,
+        val taskId: UUID,
+        val taskName: String,
+        val quantityMinutes: Int,
+        val rateCents: Int,
+        val amountCents: Int,
+    )
+
+    private data class LightningFreelanceInvoiceData(
+        val paymentHash: String,
+        val bolt11: String,
+        val satoshiAmount: Long,
+        val exchangeRate: Double,
+        val exchangeRateCurrency: String,
+        val fiatAmount: Double,
+    )
+
+    private data class PreparedFreelanceInvoicePayment(
+        val invoiceId: UUID,
+        val currencyId: UUID,
+        val totalCents: Int,
+        val paymentMethod: String,
+        val paymentHash: String?,
+    )
+
+    private data class VerifiedFreelanceInvoicePayment(
+        val paymentMethodName: String,
+        val transactionId: String,
+        val amountCents: Int,
+        val satoshiAmount: Long? = null,
+        val paymentHash: String? = null,
+        val exchangeRate: Double? = null,
+        val exchangeRateCurrency: String? = null,
+        val fiatAmount: Double? = null,
+    )
+
     companion object {
         private val isoDatePattern = Regex("\\d{4}-\\d{2}-\\d{2}")
 
@@ -327,6 +666,24 @@ class FreelanceInvoiceService {
                     .intValueExact()
             } catch (_: ArithmeticException) {
                 throw InvalidTimeEntryException("Calculated amount exceeds the supported range")
+            }
+
+        private fun calculateSatoshiAmount(
+            totalCents: Int,
+            exchangeRate: Double,
+        ): Long =
+            try {
+                BigDecimal
+                    .valueOf(totalCents.toLong())
+                    .divide(BigDecimal.valueOf(100L), 8, RoundingMode.HALF_UP)
+                    .divide(BigDecimal.valueOf(exchangeRate), 8, RoundingMode.HALF_UP)
+                    .multiply(BigDecimal.valueOf(100_000_000L))
+                    .setScale(0, RoundingMode.HALF_UP)
+                    .longValueExact()
+                    .takeIf { satoshiAmount -> satoshiAmount > 0 }
+                    ?: throw InvalidTimeEntryException("Lightning invoice amount must be greater than 0 sats")
+            } catch (_: ArithmeticException) {
+                throw InvalidTimeEntryException("Calculated Lightning invoice amount exceeds the supported range")
             }
     }
 }

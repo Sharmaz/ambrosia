@@ -98,6 +98,45 @@ class FreelanceInvoiceRoutesTest {
         }
 
     @Test
+    fun `post pay registers freelance invoice payment`() =
+        testApplication {
+            val authWithPermission = installNonAdminAuth("invoice-pay", "invoice-pay-user")
+            grantPermissions("invoice-pay", "invoices_create", "invoices_pay")
+            ExposedTestDb.seedPaymentMethod("Bank Transfer")
+            val freelanceInvoiceFixture = createFreelanceInvoiceFixture()
+            application {
+                install(ContentNegotiation) { json() }
+                handler()
+                configureFreelanceInvoices()
+            }
+
+            val createFreelanceInvoiceResponse =
+                client.post("/freelance/invoices") {
+                    withAuthCookies(authWithPermission)
+                    header(HttpHeaders.ContentType, "application/json")
+                    setBody(
+                        """{
+                            "clientId":"${freelanceInvoiceFixture.clientId}",
+                            "periodStart":"2026-08-17",
+                            "periodEnd":"2026-08-23"
+                        }""",
+                    )
+                }
+            val createdFreelanceInvoice = Json.decodeFromString<FreelanceInvoiceResponse>(createFreelanceInvoiceResponse.bodyAsText())
+
+            val payFreelanceInvoiceResponse =
+                client.post("/freelance/invoices/${createdFreelanceInvoice.id}/pay") {
+                    withAuthCookies(authWithPermission)
+                    header(HttpHeaders.ContentType, "application/json")
+                    setBody("""{"amountCents":10000,"transactionId":"bank-transfer-1"}""")
+                }
+            val paidFreelanceInvoice = Json.decodeFromString<FreelanceInvoiceResponse>(payFreelanceInvoiceResponse.bodyAsText())
+
+            assertEquals(HttpStatusCode.OK, payFreelanceInvoiceResponse.status)
+            assertEquals("paid", paidFreelanceInvoice.status)
+        }
+
+    @Test
     fun `missing freelance invoice returns not found`() =
         testApplication {
             val authWithPermission = installNonAdminAuth("invoice-read", "invoice-read-user")
