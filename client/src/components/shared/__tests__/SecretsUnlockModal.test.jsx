@@ -207,6 +207,15 @@ describe("SecretsUnlockModal", () => {
       ));
     });
 
+    it("falls back to basic_text when the storage backend check fails", async () => {
+      unlockPasswordStoreService.getStorageBackend.mockRejectedValue(new Error("IPC error"));
+      render(<SecretsUnlockModal onClose={jest.fn()} />);
+
+      await waitFor(() => (
+        expect(screen.getByTestId("remember-checkbox-storage-backend")).toHaveTextContent("basic_text")
+      ));
+    });
+
     it("saves the unlock password when unlocking with the checkbox checked", async () => {
       unlockPasswordStoreService.getStorageBackend.mockResolvedValue("gnome-libsecret");
       secretsService.unlockSecrets.mockResolvedValue({ message: "Secrets unlocked" });

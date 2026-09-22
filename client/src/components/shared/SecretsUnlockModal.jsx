@@ -22,7 +22,10 @@ export function SecretsUnlockModal({ onClose }) {
   const [rememberUnlockPassword, setRememberUnlockPassword] = useState(false);
 
   useEffect(() => {
-    getStorageBackend().then(setStorageBackend);
+    getStorageBackend().then(setStorageBackend).catch((storageBackendError) => {
+      console.error(storageBackendError);
+      setStorageBackend("basic_text");
+    });
   }, []);
 
   const handleUnlockPasswordChange = (enteredPassword) => {
