@@ -14,6 +14,7 @@ import io.ktor.server.routing.post
 import io.ktor.server.routing.route
 import io.ktor.server.routing.routing
 import pos.ambrosia.models.CreateFreelanceInvoiceRequest
+import pos.ambrosia.models.PayFreelanceInvoiceRequest
 import pos.ambrosia.services.FreelanceInvoiceService
 import pos.ambrosia.utils.InvalidTimeEntryException
 import pos.ambrosia.utils.ResourceNotFoundException
@@ -45,6 +46,14 @@ fun Route.freelanceInvoices(freelanceInvoiceService: FreelanceInvoiceService) {
             call.respond(HttpStatusCode.Created, freelanceInvoiceService.createDraftInvoice(createFreelanceInvoiceRequest))
         }
     }
+
+    authorizePermission("invoices_pay") {
+        post("/{id}/pay") {
+            val freelanceInvoiceId = call.parameters["id"] ?: throw InvalidTimeEntryException("Missing freelance invoice ID")
+            val payFreelanceInvoiceRequest = call.receivePayFreelanceInvoiceRequest()
+            call.respond(HttpStatusCode.OK, freelanceInvoiceService.payFreelanceInvoice(freelanceInvoiceId, payFreelanceInvoiceRequest))
+        }
+    }
 }
 
 private suspend fun ApplicationCall.receiveCreateFreelanceInvoiceRequest(): CreateFreelanceInvoiceRequest =
@@ -56,4 +65,15 @@ private suspend fun ApplicationCall.receiveCreateFreelanceInvoiceRequest(): Crea
         throw InvalidTimeEntryException("Invalid freelance invoice request body")
     } catch (_: ContentConvertException) {
         throw InvalidTimeEntryException("Invalid freelance invoice request body")
+    }
+
+private suspend fun ApplicationCall.receivePayFreelanceInvoiceRequest(): PayFreelanceInvoiceRequest =
+    try {
+        receive<PayFreelanceInvoiceRequest>()
+    } catch (_: BadRequestException) {
+        throw InvalidTimeEntryException("Invalid freelance invoice payment request body")
+    } catch (_: ContentTransformationException) {
+        throw InvalidTimeEntryException("Invalid freelance invoice payment request body")
+    } catch (_: ContentConvertException) {
+        throw InvalidTimeEntryException("Invalid freelance invoice payment request body")
     }
