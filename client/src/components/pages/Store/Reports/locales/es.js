@@ -136,6 +136,9 @@ const reportsEs = {
       differenceOverTime: "Diferencia por Día",
       paginationAria: "Paginación de turnos",
       tableAriaLabel: "Detalle de turnos",
+      actions: "Acciones",
+      view: "Detalles",
+      detailTitle: "Detalle de Turno",
     },
     close: {
       modalTitle: "Confirmar Cierre de Turno",

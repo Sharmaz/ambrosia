@@ -136,6 +136,9 @@ const reportsEn = {
       differenceOverTime: "Difference by Day",
       paginationAria: "Shifts pagination",
       tableAriaLabel: "Shifts detail",
+      actions: "Actions",
+      view: "Details",
+      detailTitle: "Shift Detail",
     },
     close: {
       modalTitle: "Confirm Shift Close",
