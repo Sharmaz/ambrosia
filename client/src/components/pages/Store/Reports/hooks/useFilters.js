@@ -50,11 +50,11 @@ export function useFiltersState(fetchReport) {
 
   const handleFiltersChange = useCallback(
     (patch) => {
-      const prev = latestFiltersRef.current;
-      const next = { ...prev, ...patch };
-      setFilters(next);
+      const previousFilters = latestFiltersRef.current;
+      const mergedFilters = { ...previousFilters, ...patch };
+      setFilters(mergedFilters);
 
-      const query = buildReportQuery(next);
+      const query = buildReportQuery(mergedFilters);
       if (!query) return;
       return fetchReport(query);
     },

@@ -84,11 +84,11 @@ describe("useShiftsReport", () => {
     getShiftsReport.mockResolvedValue(SHIFTS_REPORT_FIXTURE);
     const { result } = renderHook(() => useShiftsReport());
 
-    let returned;
+    let fetchedShiftsReport;
     await act(async () => {
-      returned = await result.current.fetchShiftsReport({ period: "month" });
+      fetchedShiftsReport = await result.current.fetchShiftsReport({ period: "month" });
     });
 
-    expect(returned).toEqual(SHIFTS_REPORT_FIXTURE);
+    expect(fetchedShiftsReport).toEqual(SHIFTS_REPORT_FIXTURE);
   });
 });
