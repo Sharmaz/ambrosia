@@ -16,9 +16,12 @@ import pos.ambrosia.utils.PendingImportAlreadyStagedException
 import pos.ambrosia.utils.confirmationTokenConfig
 import java.io.ByteArrayOutputStream
 import java.io.File
+import java.nio.file.FileSystemException
 import java.nio.file.Files
 import java.nio.file.Path
+import java.nio.file.Paths
 import java.security.SecureRandom
+import java.time.Duration
 import java.time.Instant
 import java.time.temporal.ChronoUnit
 import java.util.Date
@@ -867,6 +870,85 @@ class BackupServiceTest {
         destinationService.applyPendingImport()
 
         assertFalse(Files.exists(destinationKeyStoreFile))
+    }
+
+    @Test
+    fun `applyPendingImport deletes stale WAL and SHM files next to the live database after the swap`() {
+        val destinationDatabaseFile = Files.createTempFile("backupServiceTestDestinationDb", ".db")
+        val destinationUploadsRoot = Files.createTempDirectory("backupServiceTestDestinationUploads")
+        val destinationConfigFile = Files.createTempFile("backupServiceTestDestinationConfig", ".conf").toFile()
+        destinationConfigFile.writeText("secret=old-destination-secret\n")
+        val staleWalFile = Paths.get("$destinationDatabaseFile-wal")
+        val staleSharedMemoryFile = Paths.get("$destinationDatabaseFile-shm")
+        Files.write(staleWalFile, "stale-wal-bytes".toByteArray())
+        Files.write(staleSharedMemoryFile, "stale-shm-bytes".toByteArray())
+        val destinationService =
+            prepareStagedImport(destinationUploadsRoot, destinationDatabaseFile, destinationConfigFile)
+
+        destinationService.applyPendingImport()
+
+        assertFalse(Files.exists(staleWalFile))
+        assertFalse(Files.exists(staleSharedMemoryFile))
+    }
+
+    @Test
+    fun `applyPendingImport logs a warning and still completes when a stale WAL file cannot be deleted`() {
+        val destinationDatabaseFile = Files.createTempFile("backupServiceTestDestinationDb", ".db")
+        Files.writeString(destinationDatabaseFile, "old-destination-database-placeholder")
+        val originalDestinationDatabaseSize = Files.size(destinationDatabaseFile)
+        val destinationUploadsRoot = Files.createTempDirectory("backupServiceTestDestinationUploads")
+        val destinationConfigFile = Files.createTempFile("backupServiceTestDestinationConfig", ".conf").toFile()
+        destinationConfigFile.writeText("secret=old-destination-secret\n")
+        val undeletableWalFile = Paths.get("$destinationDatabaseFile-wal")
+        Files.createDirectory(undeletableWalFile)
+        Files.write(undeletableWalFile.resolve("cannot-be-deleted-as-a-file"), "x".toByteArray())
+        val destinationService =
+            prepareStagedImport(destinationUploadsRoot, destinationDatabaseFile, destinationConfigFile)
+
+        val pendingImportApplied = destinationService.applyPendingImport()
+
+        assertTrue(pendingImportApplied)
+        assertTrue(Files.size(destinationDatabaseFile) != originalDestinationDatabaseSize)
+        assertEquals("secret=$TEST_SECRET", destinationConfigFile.readText().trim())
+    }
+
+    @Test
+    fun `applyPendingImport retries the WAL cleanup and recovers once the lock clears`() {
+        val destinationDatabaseFile = Files.createTempFile("backupServiceTestDestinationDb", ".db")
+        val destinationUploadsRoot = Files.createTempDirectory("backupServiceTestDestinationUploads")
+        val destinationConfigFile = Files.createTempFile("backupServiceTestDestinationConfig", ".conf").toFile()
+        destinationConfigFile.writeText("secret=old-destination-secret\n")
+        val recoverableWalFile = Paths.get("$destinationDatabaseFile-wal")
+        Files.createDirectory(recoverableWalFile)
+        val walLockMarker = recoverableWalFile.resolve("locked-until-cleared")
+        Files.write(walLockMarker, "x".toByteArray())
+        val destinationService =
+            prepareStagedImport(destinationUploadsRoot, destinationDatabaseFile, destinationConfigFile)
+
+        Thread {
+            Thread.sleep(50)
+            Files.deleteIfExists(walLockMarker)
+        }.start()
+        val importStartedAt = Instant.now()
+        val pendingImportApplied = destinationService.applyPendingImport()
+        val importElapsedMilliseconds = Duration.between(importStartedAt, Instant.now()).toMillis()
+
+        assertTrue(pendingImportApplied)
+        assertFalse(Files.exists(recoverableWalFile))
+        assertTrue(importElapsedMilliseconds >= 200)
+    }
+
+    @Test
+    fun `applyPendingImport retries and eventually fails when the live database path cannot be replaced`() {
+        val destinationDatabaseDirectory = Files.createTempDirectory("backupServiceTestDestinationDb")
+        Files.write(destinationDatabaseDirectory.resolve("cannot-be-replaced-as-a-file"), "x".toByteArray())
+        val destinationUploadsRoot = Files.createTempDirectory("backupServiceTestDestinationUploads")
+        val destinationConfigFile = Files.createTempFile("backupServiceTestDestinationConfig", ".conf").toFile()
+        destinationConfigFile.writeText("secret=old-destination-secret\n")
+        val destinationService =
+            prepareStagedImport(destinationUploadsRoot, destinationDatabaseDirectory, destinationConfigFile)
+
+        assertFailsWith<FileSystemException> { destinationService.applyPendingImport() }
     }
 
     @Test

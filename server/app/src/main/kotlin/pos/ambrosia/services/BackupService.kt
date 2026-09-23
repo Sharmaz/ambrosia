@@ -12,6 +12,7 @@ import pos.ambrosia.utils.PendingImportAlreadyStagedException
 import java.io.IOException
 import java.io.InputStream
 import java.io.OutputStream
+import java.nio.file.FileSystemException
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
@@ -69,6 +70,8 @@ class BackupService(
         const val STAGED_OPERATION_ID_FILE_NAME = "operation-id"
         const val STAGED_CONFIRMATION_TOKEN_FILE_NAME = "confirmation-token"
         private val PENDING_IMPORT_ABANDONED_AFTER = Duration.ofHours(24)
+        private const val FILE_LOCK_RETRY_MAX_ATTEMPTS = 7
+        private const val FILE_LOCK_RETRY_DELAY_MILLISECONDS = 300L
     }
 
     fun prepareExportSnapshot(): Path {
@@ -204,12 +207,15 @@ class BackupService(
 
         val stagedSecret = Files.readString(importStagingRoot.resolve(STAGED_SECRET_FILE_NAME))
         val stagedDatabaseFile = importStagingRoot.resolve(STAGED_DATABASE_FILE_NAME)
-        Files.move(
-            stagedDatabaseFile,
-            Paths.get(databasePath),
-            StandardCopyOption.REPLACE_EXISTING,
-            StandardCopyOption.ATOMIC_MOVE,
-        )
+        retryOnFileLock {
+            Files.move(
+                stagedDatabaseFile,
+                Paths.get(databasePath),
+                StandardCopyOption.REPLACE_EXISTING,
+                StandardCopyOption.ATOMIC_MOVE,
+            )
+        }
+        deleteStaleWalFiles()
 
         deleteRecursivelyIfExists(uploadsRoot)
         val stagedUploadsDirectory = importStagingRoot.resolve(STAGED_UPLOADS_DIR_NAME)
@@ -218,11 +224,37 @@ class BackupService(
         }
 
         replaceConfFileProperty(KotlinIoPath(configFilePath), "secret", stagedSecret)
-        Files.deleteIfExists(keyStoreFilePath)
+        retryOnFileLock { Files.deleteIfExists(keyStoreFilePath) }
         importStagingRoot.toFile().deleteRecursively()
 
         logger.info("Applied a pending data import staged at $importStagingRoot")
         return true
+    }
+
+    private fun deleteStaleWalFiles() {
+        for (walCompanionFileSuffix in listOf("-wal", "-shm")) {
+            val staleWalCompanionFile = Paths.get("$databasePath$walCompanionFileSuffix")
+            try {
+                retryOnFileLock { Files.deleteIfExists(staleWalCompanionFile) }
+            } catch (walCompanionCleanupError: FileSystemException) {
+                logger.warn(
+                    "Could not delete $staleWalCompanionFile after database swap, old WAL may contaminate " +
+                        "imported data: ${walCompanionCleanupError.message}",
+                )
+            }
+        }
+    }
+
+    private fun retryOnFileLock(fileOperation: () -> Unit) {
+        repeat(FILE_LOCK_RETRY_MAX_ATTEMPTS) { attemptIndex ->
+            try {
+                fileOperation()
+                return
+            } catch (fileLockError: FileSystemException) {
+                if (attemptIndex == FILE_LOCK_RETRY_MAX_ATTEMPTS - 1) throw fileLockError
+                Thread.sleep(FILE_LOCK_RETRY_DELAY_MILLISECONDS)
+            }
+        }
     }
 
     private fun deleteRecursivelyIfExists(path: Path) {

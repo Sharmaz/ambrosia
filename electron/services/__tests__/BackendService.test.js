@@ -29,7 +29,10 @@ const backendConfig = { phoenixdPort: 9740, phoenixPassword: 'phoenix-password',
 beforeEach(() => {
   fakeSpawnedProcess = createFakeSpawnedProcess();
   spawnMock.mockReset().mockReturnValue(fakeSpawnedProcess);
-  treeKillMock.mockReset().mockImplementation((_pid, _signal, callback) => callback());
+  treeKillMock.mockReset().mockImplementation((_pid, _signal, treeKillCallback) => {
+    treeKillCallback();
+    fakeSpawnedProcess.emit('exit', 0);
+  });
   healthCheck.checkBackend.mockReset().mockResolvedValue(true);
   unlockPasswordStore.read.mockReset().mockReturnValue(null);
   vi.spyOn(fs, 'readdirSync').mockReturnValue(['ambrosia-0.8.0-beta.jar']);
@@ -185,9 +188,12 @@ describe('stop', () => {
   });
 
   it('falls back to SIGKILL when sending SIGTERM fails', async () => {
-    treeKillMock.mockImplementation((_pid, signal, callback) => {
-      if (signal === 'SIGTERM') callback(new Error('no such process'));
-      else callback();
+    treeKillMock.mockImplementation((_pid, signal, treeKillCallback) => {
+      if (signal === 'SIGTERM') {
+        treeKillCallback(new Error('no such process'));
+      } else {
+        treeKillCallback();
+      }
     });
     const backendService = new BackendService();
     await backendService.start(9154, backendConfig);
@@ -199,8 +205,8 @@ describe('stop', () => {
 
   it('force-kills with SIGKILL when SIGTERM never calls back before the timeout', async () => {
     vi.useFakeTimers();
-    treeKillMock.mockImplementation((_pid, signal, callback) => {
-      if (signal === 'SIGKILL') callback();
+    treeKillMock.mockImplementation((_pid, signal, treeKillCallback) => {
+      if (signal === 'SIGKILL') treeKillCallback();
     });
     const backendService = new BackendService();
     await backendService.start(9154, backendConfig);
@@ -211,6 +217,27 @@ describe('stop', () => {
 
     expect(treeKillMock).toHaveBeenCalledWith(fakeSpawnedProcess.pid, 'SIGKILL', expect.any(Function));
     vi.useRealTimers();
+  });
+
+  it('does not resolve just because tree-kill confirmed the signal was sent — waits for the process to actually exit', async () => {
+    treeKillMock.mockImplementation(() => {});
+    const backendService = new BackendService();
+    await backendService.start(9154, backendConfig);
+
+    let stopResolved = false;
+    const stopPromise = backendService.stop().then(() => {
+      stopResolved = true;
+    });
+
+    const [, , treeKillCallback] = treeKillMock.mock.calls[0];
+    treeKillCallback();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(stopResolved).toBe(false);
+
+    fakeSpawnedProcess.emit('exit', 0);
+    await stopPromise;
+    expect(stopResolved).toBe(true);
   });
 });
 
