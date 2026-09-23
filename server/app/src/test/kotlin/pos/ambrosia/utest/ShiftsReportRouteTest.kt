@@ -16,6 +16,7 @@ import pos.ambrosia.utils.installAdminAuth
 import pos.ambrosia.utils.installNonAdminAuth
 import pos.ambrosia.utils.withAuthCookies
 import java.io.File
+import java.util.UUID
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -43,10 +44,10 @@ class ShiftsReportRouteTest {
                 configureShifts()
             }
 
-            val response =
+            val shiftsReportResponse =
                 client.get("/shifts/report?period=month") { withAuthCookies(adminAuthCookies) }
 
-            assertEquals(HttpStatusCode.OK, response.status)
+            assertEquals(HttpStatusCode.OK, shiftsReportResponse.status)
         }
 
     @Test
@@ -59,10 +60,10 @@ class ShiftsReportRouteTest {
                 configureShifts()
             }
 
-            val response =
+            val shiftsReportResponse =
                 client.get("/shifts/report?period=month") { withAuthCookies(adminAuthCookies) }
 
-            assertEquals(HttpStatusCode.Forbidden, response.status)
+            assertEquals(HttpStatusCode.Forbidden, shiftsReportResponse.status)
         }
 
     @Test
@@ -76,10 +77,10 @@ class ShiftsReportRouteTest {
                 configureShifts()
             }
 
-            val response =
+            val shiftsReportResponse =
                 client.get("/shifts/report?period=month") { withAuthCookies(nonAdminAuthCookies) }
 
-            assertEquals(HttpStatusCode.Forbidden, response.status)
+            assertEquals(HttpStatusCode.Forbidden, shiftsReportResponse.status)
         }
 
     @Test
@@ -93,10 +94,10 @@ class ShiftsReportRouteTest {
                 configureShifts()
             }
 
-            val response =
+            val shiftsReportResponse =
                 client.get("/shifts/report?period=decade") { withAuthCookies(adminAuthCookies) }
 
-            assertEquals(HttpStatusCode.BadRequest, response.status)
+            assertEquals(HttpStatusCode.BadRequest, shiftsReportResponse.status)
         }
 
     @Test
@@ -110,8 +111,62 @@ class ShiftsReportRouteTest {
                 configureShifts()
             }
 
-            val response = client.get("/shifts/report") { withAuthCookies(adminAuthCookies) }
+            val shiftsReportResponse = client.get("/shifts/report") { withAuthCookies(adminAuthCookies) }
 
-            assertEquals(HttpStatusCode.BadRequest, response.status)
+            assertEquals(HttpStatusCode.BadRequest, shiftsReportResponse.status)
+        }
+
+    @Test
+    fun `admin with shifts_report_read permission can fetch a shift breakdown`() =
+        testApplication {
+            val adminAuthCookies = installAdminAuth()
+            grantPermission("admin-test-role", "shifts_report_read")
+            val roleId = ExposedTestDb.seedRole("cashier", isAdmin = false)
+            val userId = ExposedTestDb.seedUser("Alice", roleId)
+            val shiftId = ExposedTestDb.seedShift(userId, shiftDate = "2024-01-10", endTime = "2pm")
+            application {
+                install(ContentNegotiation) { json() }
+                handler()
+                configureShifts()
+            }
+
+            val shiftBreakdownResponse =
+                client.get("/shifts/$shiftId/breakdown") { withAuthCookies(adminAuthCookies) }
+
+            assertEquals(HttpStatusCode.OK, shiftBreakdownResponse.status)
+        }
+
+    @Test
+    fun `shift breakdown returns not found for an unknown shift`() =
+        testApplication {
+            val adminAuthCookies = installAdminAuth()
+            grantPermission("admin-test-role", "shifts_report_read")
+            application {
+                install(ContentNegotiation) { json() }
+                handler()
+                configureShifts()
+            }
+
+            val shiftBreakdownResponse =
+                client.get("/shifts/${UUID.randomUUID()}/breakdown") { withAuthCookies(adminAuthCookies) }
+
+            assertEquals(HttpStatusCode.NotFound, shiftBreakdownResponse.status)
+        }
+
+    @Test
+    fun `non admin with shifts_report_read permission is denied a shift breakdown`() =
+        testApplication {
+            val nonAdminAuthCookies = installNonAdminAuth()
+            grantPermission("non-admin-test-role", "shifts_report_read")
+            application {
+                install(ContentNegotiation) { json() }
+                handler()
+                configureShifts()
+            }
+
+            val shiftBreakdownResponse =
+                client.get("/shifts/${UUID.randomUUID()}/breakdown") { withAuthCookies(nonAdminAuthCookies) }
+
+            assertEquals(HttpStatusCode.Forbidden, shiftBreakdownResponse.status)
         }
 }
