@@ -387,6 +387,21 @@ data class ShiftsReport(
     val byPaymentMethod: List<ShiftPaymentMethodTotal>,
 )
 
+@Serializable
+data class ShiftBreakdown(
+    val shiftId: String,
+    val initialAmount: Double,
+    val finalAmount: Double?,
+    val difference: Double?,
+    val totalSales: Double,
+    val totalTips: Double,
+    val cashSales: Double,
+    val cashRefunds: Double,
+    val expectedTotal: Double,
+    val totalTickets: Int,
+    val byPaymentMethod: List<ShiftPaymentMethodTotal>,
+)
+
 @Serializable data class RolePassword(
     val password: String,
 )
