@@ -6,12 +6,15 @@ import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.dao.id.EntityID
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.greaterEq
+import org.jetbrains.exposed.v1.core.less
 import org.jetbrains.exposed.v1.core.lessEq
 import org.jetbrains.exposed.v1.jdbc.andWhere
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
+import pos.ambrosia.db.tables.OrdersTable
 import pos.ambrosia.db.tables.PaymentMethodsTable
 import pos.ambrosia.db.tables.PaymentsTable
+import pos.ambrosia.db.tables.RefundsTable
 import pos.ambrosia.db.tables.ShiftEntity
 import pos.ambrosia.db.tables.ShiftsTable
 import pos.ambrosia.db.tables.TicketPaymentsTable
@@ -20,12 +23,14 @@ import pos.ambrosia.db.tables.UserEntity
 import pos.ambrosia.db.tables.UsersTable
 import pos.ambrosia.logger
 import pos.ambrosia.models.Shift
+import pos.ambrosia.models.ShiftBreakdown
 import pos.ambrosia.models.ShiftPaymentMethodTotal
 import pos.ambrosia.models.ShiftSummary
 import pos.ambrosia.models.ShiftsReport
 import pos.ambrosia.utils.SqlDateFunctions
 import java.time.DayOfWeek
 import java.time.LocalDate
+import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
@@ -233,6 +238,104 @@ class ShiftService {
                 )
             logger.info("Shifts report between $start and $end: ${shifts.size} shifts")
             report
+        }
+
+    private fun isCashMethod(methodName: String): Boolean {
+        val normalizedName = methodName.lowercase()
+        return normalizedName.contains("cash") || normalizedName.contains("efectivo")
+    }
+
+    fun getShiftBreakdown(shiftId: String): ShiftBreakdown? =
+        transaction {
+            val shiftEntity = ShiftEntity.findById(UUID.fromString(shiftId))
+            if (shiftEntity == null || shiftEntity.isDeleted) {
+                logger.warn("Shift not found for breakdown: $shiftId")
+                return@transaction null
+            }
+            val shift = toModel(shiftEntity)
+
+            val dateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
+            val start = "${shift.shiftDate} ${shift.startTime}"
+            val end =
+                shift.endTime?.let { "${shift.shiftDate} $it" }
+                    ?: LocalDateTime.now(configService.getConfiguredZoneId()).format(dateTimeFormatter)
+
+            val ticketsJoin =
+                TicketsTable.join(OrdersTable, JoinType.INNER, TicketsTable.orderId, OrdersTable.id)
+
+            val shiftTickets =
+                ticketsJoin
+                    .selectAll()
+                    .andWhere { OrdersTable.isDeleted eq false }
+                    .andWhere { SqlDateFunctions.dateTime(TicketsTable.ticketDate) greaterEq start }
+                    .andWhere { SqlDateFunctions.dateTime(TicketsTable.ticketDate) less end }
+                    .map { row -> Triple(row[TicketsTable.id].value, row[TicketsTable.totalAmount], row[TicketsTable.tipAmount]) }
+
+            val totalSales = shiftTickets.sumOf { it.second }
+            val totalTips = shiftTickets.sumOf { it.third }
+            val totalTickets = shiftTickets.size
+
+            val paymentsJoin =
+                ticketsJoin
+                    .join(TicketPaymentsTable, JoinType.INNER, TicketsTable.id, TicketPaymentsTable.ticketId)
+                    .join(PaymentsTable, JoinType.INNER, PaymentsTable.id, TicketPaymentsTable.paymentId)
+                    .join(PaymentMethodsTable, JoinType.INNER, PaymentMethodsTable.id, PaymentsTable.methodId)
+
+            val amountsByMethodName =
+                paymentsJoin
+                    .selectAll()
+                    .andWhere { OrdersTable.isDeleted eq false }
+                    .andWhere { SqlDateFunctions.dateTime(TicketsTable.ticketDate) greaterEq start }
+                    .andWhere { SqlDateFunctions.dateTime(TicketsTable.ticketDate) less end }
+                    .map { row -> row[PaymentMethodsTable.name] to row[TicketsTable.totalAmount] }
+
+            val byPaymentMethod =
+                amountsByMethodName
+                    .groupBy({ it.first }, { it.second })
+                    .map { (methodName, amounts) -> ShiftPaymentMethodTotal(name = methodName, total = amounts.sum()) }
+                    .sortedByDescending { it.total }
+
+            val cashSales = amountsByMethodName.filter { isCashMethod(it.first) }.sumOf { it.second }
+
+            val refundsJoin =
+                RefundsTable
+                    .join(OrdersTable, JoinType.INNER, RefundsTable.orderId, OrdersTable.id)
+                    .join(TicketsTable, JoinType.INNER, OrdersTable.id, TicketsTable.orderId)
+                    .join(TicketPaymentsTable, JoinType.INNER, TicketsTable.id, TicketPaymentsTable.ticketId)
+                    .join(PaymentsTable, JoinType.INNER, PaymentsTable.id, TicketPaymentsTable.paymentId)
+                    .join(PaymentMethodsTable, JoinType.INNER, PaymentMethodsTable.id, PaymentsTable.methodId)
+
+            val cashRefunds =
+                refundsJoin
+                    .selectAll()
+                    .andWhere { OrdersTable.isDeleted eq false }
+                    .andWhere { SqlDateFunctions.dateTime(RefundsTable.refundedAt) greaterEq start }
+                    .andWhere { SqlDateFunctions.dateTime(RefundsTable.refundedAt) less end }
+                    .map { row ->
+                        Triple(
+                            row[RefundsTable.id].value,
+                            row[PaymentMethodsTable.name],
+                            row[OrdersTable.total] - row[OrdersTable.discountAmount],
+                        )
+                    }.distinctBy { it.first }
+                    .filter { isCashMethod(it.second) }
+                    .sumOf { it.third }
+
+            val expectedTotal = shift.initialAmount + cashSales - cashRefunds
+
+            ShiftBreakdown(
+                shiftId = shiftId,
+                initialAmount = shift.initialAmount,
+                finalAmount = shift.finalAmount,
+                difference = shift.difference,
+                totalSales = totalSales,
+                totalTips = totalTips,
+                cashSales = cashSales,
+                cashRefunds = cashRefunds,
+                expectedTotal = expectedTotal,
+                totalTickets = totalTickets,
+                byPaymentMethod = byPaymentMethod,
+            )
         }
 
     private fun findOpenShift(userId: String?): Shift? {
