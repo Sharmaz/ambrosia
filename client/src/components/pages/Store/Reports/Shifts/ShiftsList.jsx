@@ -1,15 +1,20 @@
 "use client";
 
+import { useState } from "react";
+
 import { Clock } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import { DataTable } from "@/components/shared/DataTable";
+import { ViewButton } from "@/components/shared/ViewButton";
 
+import { ShiftDetailModal } from "./ShiftDetailModal";
 import { ShiftsCard } from "./ShiftsCard";
 import { differenceTextClass } from "./utils/differenceTextClass";
 
 export function ShiftsList({ shifts, formatCurrency }) {
   const reportsTranslations = useTranslations("reports");
+  const [selectedShift, setSelectedShift] = useState(null);
 
   if (!shifts?.length) {
     return (
@@ -61,18 +66,40 @@ export function ShiftsList({ shifts, formatCurrency }) {
         </span>
       ),
     },
+    {
+      key: "actions",
+      label: reportsTranslations("shiftsReport.actions"),
+      className: "text-right",
+      render: (shift) => (
+        <div className="flex justify-end">
+          <ViewButton onPress={() => setSelectedShift(shift)}>
+            {reportsTranslations("shiftsReport.view")}
+          </ViewButton>
+        </div>
+      ),
+    },
   ];
 
   return (
     <section aria-label={reportsTranslations("shiftsReport.tableAriaLabel")} className="w-full">
       <div className="md:hidden space-y-3">
         {shifts.map((shift) => (
-          <ShiftsCard key={shift.id} shift={shift} formatCurrency={formatCurrency} />
+          <ShiftsCard
+            key={shift.id}
+            shift={shift}
+            formatCurrency={formatCurrency}
+            onClick={() => setSelectedShift(shift)}
+          />
         ))}
       </div>
       <div className="hidden md:block overflow-x-auto">
         <DataTable columns={columns} items={shifts} getKey={(shift) => shift.id} />
       </div>
+      <ShiftDetailModal
+        shift={selectedShift}
+        formatCurrency={formatCurrency}
+        onClose={() => setSelectedShift(null)}
+      />
     </section>
   );
 }

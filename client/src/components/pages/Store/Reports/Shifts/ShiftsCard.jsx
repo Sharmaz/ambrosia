@@ -4,9 +4,11 @@ import { Card, CardBody } from "@heroui/react";
 import { User } from "lucide-react";
 import { useTranslations } from "next-intl";
 
+import { ViewButton } from "@/components/shared/ViewButton";
+
 import { differenceTextClass } from "./utils/differenceTextClass";
 
-export function ShiftsCard({ shift, formatCurrency }) {
+export function ShiftsCard({ shift, formatCurrency, onClick }) {
   const reportsTranslations = useTranslations("reports");
   const { userName, shiftDate, startTime, endTime, initialAmount, finalAmount, difference } = shift;
 
@@ -34,6 +36,9 @@ export function ShiftsCard({ shift, formatCurrency }) {
           <span className={differenceTextClass(difference)}>
             {difference != null ? `${difference >= 0 ? "+" : ""}${formatCurrency(difference)}` : "—"}
           </span>
+        </div>
+        <div className="flex justify-end mt-2">
+          <ViewButton onPress={onClick}>{reportsTranslations("shiftsReport.view")}</ViewButton>
         </div>
       </CardBody>
     </Card>
