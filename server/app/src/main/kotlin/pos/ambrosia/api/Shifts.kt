@@ -107,6 +107,22 @@ fun Route.shifts(shiftService: ShiftService) {
 
             call.respond(HttpStatusCode.OK, shiftsReport)
         }
+
+        get("/{id}/breakdown") {
+            val id = call.parameters["id"]
+            if (id == null) {
+                call.respond(HttpStatusCode.BadRequest, "Missing or malformed ID")
+                return@get
+            }
+
+            val breakdown = shiftService.getShiftBreakdown(id)
+            if (breakdown == null) {
+                call.respond(HttpStatusCode.NotFound, "Shift not found")
+                return@get
+            }
+
+            call.respond(HttpStatusCode.OK, breakdown)
+        }
     }
     authorizePermission("shifts_create") {
         post("") {
