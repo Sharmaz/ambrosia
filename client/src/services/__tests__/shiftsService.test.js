@@ -5,7 +5,7 @@ jest.mock("@/lib/http", () => ({
 
 import { httpClient, parseJsonResponse } from "@/lib/http";
 
-import { getTurnOpen, openTurn, closeTurn, getShiftsReport } from "../shiftsService";
+import { getTurnOpen, openTurn, closeTurn, getShiftsReport, getShiftBreakdown } from "../shiftsService";
 
 function makeResponse(status, ok = true) {
   return { status, ok };
@@ -219,9 +219,52 @@ describe("shiftsService", () => {
       httpClient.mockResolvedValue(makeResponse(200));
       parseJsonResponse.mockResolvedValue(reportFixture);
 
-      const result = await getShiftsReport({ period: "month" });
+      const shiftsReport = await getShiftsReport({ period: "month" });
 
-      expect(result).toEqual(reportFixture);
+      expect(shiftsReport).toEqual(reportFixture);
+    });
+  });
+
+  describe("getShiftBreakdown", () => {
+    const breakdownFixture = {
+      shiftId: "7",
+      initialAmount: 100,
+      finalAmount: 150,
+      difference: 20,
+      totalSales: 120,
+      totalTips: 5,
+      cashSales: 80,
+      cashRefunds: 0,
+      expectedTotal: 180,
+      totalTickets: 2,
+      byPaymentMethod: [],
+    };
+
+    it("sends GET to /shifts/{id}/breakdown", async () => {
+      httpClient.mockResolvedValue(makeResponse(200));
+      parseJsonResponse.mockResolvedValue(breakdownFixture);
+
+      await getShiftBreakdown("7");
+
+      expect(httpClient).toHaveBeenCalledWith("/shifts/7/breakdown", { skipForbiddenRedirect: true });
+    });
+
+    it("throws when response is not ok", async () => {
+      httpClient.mockResolvedValue({ status: 404, ok: false });
+
+      await expect(getShiftBreakdown("7")).rejects.toMatchObject({
+        message: "Failed to get shift breakdown",
+        status: 404,
+      });
+    });
+
+    it("returns the parsed response on success", async () => {
+      httpClient.mockResolvedValue(makeResponse(200));
+      parseJsonResponse.mockResolvedValue(breakdownFixture);
+
+      const breakdown = await getShiftBreakdown("7");
+
+      expect(breakdown).toEqual(breakdownFixture);
     });
   });
 });
