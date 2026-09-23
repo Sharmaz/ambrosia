@@ -56,6 +56,16 @@ export async function getShiftsReport(filters = {}) {
   return await parseJsonResponse(shiftsReportResponse, null);
 }
 
+export async function getShiftBreakdown(shiftId) {
+  const shiftBreakdownResponse = await httpClient(`/shifts/${shiftId}/breakdown`, {
+    skipForbiddenRedirect: true,
+  });
+  if (!shiftBreakdownResponse.ok) {
+    throw await buildParsedHttpError(shiftBreakdownResponse, "Failed to get shift breakdown");
+  }
+  return await parseJsonResponse(shiftBreakdownResponse, null);
+}
+
 export async function closeTurn(openTurnId, finalAmount = null, difference = null) {
   const body = JSON.stringify({ finalAmount, difference });
   const closeShiftResponse = await httpClient(`/shifts/${openTurnId}/close`, {
