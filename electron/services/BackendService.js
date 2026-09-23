@@ -134,30 +134,37 @@ export default class BackendService {
 
     return new Promise((resolve) => {
       const pid = this.process.pid;
+      const processToKill = this.process;
+
+      const resolveStopOnCleanExit = () => {
+        clearTimeout(forceKillTimer);
+        logger.log('[BackendService] Process exited cleanly');
+        this.cleanup();
+        resolve();
+      };
+
+      processToKill.once('exit', resolveStopOnCleanExit);
+
+      const forceKillTimer = setTimeout(() => {
+        processToKill.removeListener('exit', resolveStopOnCleanExit);
+        logger.warn('[BackendService] Force killing after timeout');
+        treeKill(pid, 'SIGKILL', () => {
+          this.cleanup();
+          resolve();
+        });
+      }, STARTUP.BACKEND_FORCE_KILL_TIMEOUT_MILLISECONDS);
 
       treeKill(pid, 'SIGTERM', (killError) => {
         if (killError) {
           logger.error('[BackendService] Failed to kill process tree:', killError);
+          clearTimeout(forceKillTimer);
+          processToKill.removeListener('exit', resolveStopOnCleanExit);
           treeKill(pid, 'SIGKILL', () => {
             this.cleanup();
             resolve();
           });
-        } else {
-          logger.log('[BackendService] Process tree killed successfully');
-          this.cleanup();
-          resolve();
         }
       });
-
-      setTimeout(() => {
-        if (this.process) {
-          logger.warn('[BackendService] Force killing after timeout');
-          treeKill(pid, 'SIGKILL', () => {
-            this.cleanup();
-            resolve();
-          });
-        }
-      }, STARTUP.BACKEND_FORCE_KILL_TIMEOUT_MILLISECONDS);
     });
   }
 
