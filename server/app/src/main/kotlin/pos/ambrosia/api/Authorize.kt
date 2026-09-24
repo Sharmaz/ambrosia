@@ -152,6 +152,7 @@ fun Route.auth(
                 httpOnly = true,
                 secure = isSecureRequest,
                 path = "/",
+                extensions = mapOf("SameSite" to "Strict"),
             ),
         )
 
@@ -163,6 +164,7 @@ fun Route.auth(
                 httpOnly = true,
                 secure = isSecureRequest,
                 path = "/",
+                extensions = mapOf("SameSite" to "Strict"),
             ),
         )
 
@@ -209,6 +211,7 @@ fun Route.auth(
                 httpOnly = true,
                 secure = isSecureRequest,
                 path = "/",
+                extensions = mapOf("SameSite" to "Strict"),
             ),
         )
 
