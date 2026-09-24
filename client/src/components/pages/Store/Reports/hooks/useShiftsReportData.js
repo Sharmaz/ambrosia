@@ -34,7 +34,7 @@ export function useShiftsReportData(shifts, formatCurrency) {
   const exportToCsv = useCallback(() => {
     if (!shifts.length) return;
     try {
-      const headers = [
+      const csvHeaders = [
         reportsTranslations("shiftsReport.user"),
         reportsTranslations("shiftsReport.openedAt"),
         reportsTranslations("shiftsReport.closedAt"),
@@ -42,7 +42,7 @@ export function useShiftsReportData(shifts, formatCurrency) {
         reportsTranslations("shiftsReport.finalAmount"),
         reportsTranslations("shiftsReport.difference"),
       ];
-      const rows = shifts.map((shift) => [
+      const csvRows = shifts.map((shift) => [
         shift.userName,
         `${shift.shiftDate} ${shift.startTime}`,
         shift.endTime ? `${shift.shiftDate} ${shift.endTime}` : "",
@@ -51,8 +51,8 @@ export function useShiftsReportData(shifts, formatCurrency) {
         shift.difference != null ? formatCurrency(shift.difference) : "",
       ]);
 
-      const csv = [headers, ...rows]
-        .map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(","))
+      const csv = [csvHeaders, ...csvRows]
+        .map((csvRow) => csvRow.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(","))
         .join("\n");
       downloadCsv(csv, `shifts-report-${formatLocalDateStamp()}.csv`);
     } catch {

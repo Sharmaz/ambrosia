@@ -42,12 +42,12 @@ export async function openTurn(userId, initialAmount = 0) {
 }
 
 export async function getShiftsReport(filters = {}) {
-  const params = new URLSearchParams();
-  if (filters.period) params.set("period", filters.period);
-  if (filters.startDate) params.set("startDate", filters.startDate);
-  if (filters.endDate) params.set("endDate", filters.endDate);
+  const shiftsReportQueryParams = new URLSearchParams();
+  if (filters.period) shiftsReportQueryParams.set("period", filters.period);
+  if (filters.startDate) shiftsReportQueryParams.set("startDate", filters.startDate);
+  if (filters.endDate) shiftsReportQueryParams.set("endDate", filters.endDate);
 
-  const shiftsReportResponse = await httpClient(`/shifts/report?${params.toString()}`, {
+  const shiftsReportResponse = await httpClient(`/shifts/report?${shiftsReportQueryParams.toString()}`, {
     skipForbiddenRedirect: true,
   });
   if (!shiftsReportResponse.ok) {
@@ -67,11 +67,11 @@ export async function getShiftBreakdown(shiftId) {
 }
 
 export async function closeTurn(openTurnId, finalAmount = null, difference = null) {
-  const body = JSON.stringify({ finalAmount, difference });
+  const closeShiftRequestBody = JSON.stringify({ finalAmount, difference });
   const closeShiftResponse = await httpClient(`/shifts/${openTurnId}/close`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body,
+    body: closeShiftRequestBody,
     skipForbiddenRedirect: true,
   });
   if (!closeShiftResponse.ok) {

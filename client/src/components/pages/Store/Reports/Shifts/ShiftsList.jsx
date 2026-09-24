@@ -10,7 +10,7 @@ import { ViewButton } from "@/components/shared/ViewButton";
 
 import { ShiftDetailModal } from "./ShiftDetailModal";
 import { ShiftsCard } from "./ShiftsCard";
-import { differenceTextClass } from "./utils/differenceTextClass";
+import { differenceTextClass } from "./utils/differenceTone";
 
 export function ShiftsList({ shifts, formatCurrency }) {
   const reportsTranslations = useTranslations("reports");
@@ -25,7 +25,7 @@ export function ShiftsList({ shifts, formatCurrency }) {
     );
   }
 
-  const columns = [
+  const shiftsColumns = [
     {
       key: "user",
       label: reportsTranslations("shiftsReport.user"),
@@ -60,9 +60,9 @@ export function ShiftsList({ shifts, formatCurrency }) {
     {
       key: "difference",
       label: reportsTranslations("shiftsReport.difference"),
-      render: ({ difference }) => (
-        <span className={`whitespace-nowrap font-bold ${differenceTextClass(difference)}`}>
-          {difference != null ? `${difference >= 0 ? "+" : ""}${formatCurrency(difference)}` : "—"}
+      render: ({ difference: shiftDifference }) => (
+        <span className={`whitespace-nowrap font-bold ${differenceTextClass(shiftDifference)}`}>
+          {shiftDifference != null ? `${shiftDifference >= 0 ? "+" : ""}${formatCurrency(shiftDifference)}` : "—"}
         </span>
       ),
     },
@@ -93,7 +93,7 @@ export function ShiftsList({ shifts, formatCurrency }) {
         ))}
       </div>
       <div className="hidden md:block overflow-x-auto">
-        <DataTable columns={columns} items={shifts} getKey={(shift) => shift.id} />
+        <DataTable columns={shiftsColumns} items={shifts} getKey={(shift) => shift.id} />
       </div>
       <ShiftDetailModal
         shift={selectedShift}

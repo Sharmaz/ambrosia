@@ -6,33 +6,33 @@ import { useTranslations } from "next-intl";
 
 import { getShiftBreakdown } from "@/services/shiftsService";
 
-import { differenceTextClass } from "./utils/differenceTextClass";
+import { differenceTextClass } from "./utils/differenceTone";
 
 export function ShiftDetailModal({ shift, formatCurrency, onClose }) {
   const reportsTranslations = useTranslations("reports");
   const shiftTranslations = useTranslations("shifts");
-  const [breakdown, setBreakdown] = useState(null);
-  const [loading, setLoading] = useState(false);
+  const [shiftBreakdown, setShiftBreakdown] = useState(null);
+  const [isLoadingShiftBreakdown, setIsLoadingShiftBreakdown] = useState(false);
   const [error, setError] = useState(false);
 
-  const fetchBreakdown = useCallback(async () => {
+  const fetchShiftBreakdown = useCallback(async () => {
     if (!shift?.id) return;
 
-    setLoading(true);
+    setIsLoadingShiftBreakdown(true);
     setError(false);
     try {
-      const fetchedBreakdown = await getShiftBreakdown(shift.id);
-      setBreakdown(fetchedBreakdown);
+      const fetchedShiftBreakdown = await getShiftBreakdown(shift.id);
+      setShiftBreakdown(fetchedShiftBreakdown);
     } catch {
       setError(true);
     } finally {
-      setLoading(false);
+      setIsLoadingShiftBreakdown(false);
     }
   }, [shift?.id]);
 
   useEffect(() => {
-    fetchBreakdown();
-  }, [fetchBreakdown]);
+    fetchShiftBreakdown();
+  }, [fetchShiftBreakdown]);
 
   const shiftPeriod = shift
     ? `${shift.shiftDate} ${shift.startTime}${shift.endTime ? ` – ${shift.endTime}` : ""}`
@@ -58,17 +58,17 @@ export function ShiftDetailModal({ shift, formatCurrency, onClose }) {
         <ModalBody className="pb-6">
           {shift && (
             <div className="space-y-4">
-              {loading && (
+              {isLoadingShiftBreakdown && (
                 <div className="flex justify-center py-8">
                   <Spinner size="sm" />
                 </div>
               )}
 
-              {!loading && error && (
+              {!isLoadingShiftBreakdown && error && (
                 <p className="text-sm text-red-600 text-center py-4">{shiftTranslations("loadError")}</p>
               )}
 
-              {!loading && !error && breakdown && (
+              {!isLoadingShiftBreakdown && !error && shiftBreakdown && (
                 <>
                   <div className="grid grid-cols-2 gap-3 text-sm">
                     <div>
@@ -77,16 +77,16 @@ export function ShiftDetailModal({ shift, formatCurrency, onClose }) {
                     </div>
                     <div className="text-right">
                       <p className="text-xs text-gray-400">{shiftTranslations("initialAmountLabel")}</p>
-                      <p className="font-medium">{formatCurrency(breakdown.initialAmount)}</p>
+                      <p className="font-medium">{formatCurrency(shiftBreakdown.initialAmount)}</p>
                     </div>
                     <div>
                       <p className="text-xs text-gray-400">{shiftTranslations("totalTickets")}</p>
-                      <p className="font-medium">{breakdown.totalTickets}</p>
+                      <p className="font-medium">{shiftBreakdown.totalTickets}</p>
                     </div>
-                    {breakdown.totalTips > 0 && (
+                    {shiftBreakdown.totalTips > 0 && (
                       <div className="text-right">
                         <p className="text-xs text-gray-400">{shiftTranslations("totalTips")}</p>
-                        <p className="font-medium">{formatCurrency(breakdown.totalTips)}</p>
+                        <p className="font-medium">{formatCurrency(shiftBreakdown.totalTips)}</p>
                       </div>
                     )}
                   </div>
@@ -94,24 +94,24 @@ export function ShiftDetailModal({ shift, formatCurrency, onClose }) {
                   <div className="border-t border-gray-100 pt-3 space-y-2">
                     <div className="flex justify-between items-center text-sm">
                       <span className="text-gray-500">{shiftTranslations("totalSales")}</span>
-                      <span className="font-medium">{formatCurrency(breakdown.totalSales)}</span>
+                      <span className="font-medium">{formatCurrency(shiftBreakdown.totalSales)}</span>
                     </div>
                     <div className="flex justify-between items-center text-sm">
                       <span className="text-gray-500">{shiftTranslations("cashSales")}</span>
-                      <span className="font-medium">{formatCurrency(breakdown.cashSales)}</span>
+                      <span className="font-medium">{formatCurrency(shiftBreakdown.cashSales)}</span>
                     </div>
-                    {breakdown.cashRefunds > 0 && (
+                    {shiftBreakdown.cashRefunds > 0 && (
                       <div className="flex justify-between items-center text-sm text-red-600">
                         <span>{shiftTranslations("cashRefunds")}</span>
-                        <span>-{formatCurrency(breakdown.cashRefunds)}</span>
+                        <span>-{formatCurrency(shiftBreakdown.cashRefunds)}</span>
                       </div>
                     )}
                   </div>
 
-                  {breakdown.byPaymentMethod.length > 0 && (
+                  {shiftBreakdown.byPaymentMethod.length > 0 && (
                     <div className="border-t border-gray-100 pt-3 space-y-2">
                       <p className="text-xs text-gray-400">{shiftTranslations("byPaymentMethod")}</p>
-                      {breakdown.byPaymentMethod.map(({ name, total }) => (
+                      {shiftBreakdown.byPaymentMethod.map(({ name, total }) => (
                         <div key={name} className="flex justify-between items-center text-sm">
                           <span>{name}</span>
                           <span className="font-medium">{formatCurrency(total)}</span>
@@ -122,22 +122,22 @@ export function ShiftDetailModal({ shift, formatCurrency, onClose }) {
 
                   <div className="border-t border-gray-200 pt-3 flex justify-between items-center">
                     <span className="font-semibold text-sm">{shiftTranslations("expectedTotal")}</span>
-                    <span className="font-bold text-green-700">{formatCurrency(breakdown.expectedTotal)}</span>
+                    <span className="font-bold text-green-700">{formatCurrency(shiftBreakdown.expectedTotal)}</span>
                   </div>
 
-                  {breakdown.finalAmount != null && (
+                  {shiftBreakdown.finalAmount != null && (
                     <div className="flex justify-between items-center text-sm">
                       <span className="text-gray-500">{shiftTranslations("finalAmount")}</span>
-                      <span className="font-medium">{formatCurrency(breakdown.finalAmount)}</span>
+                      <span className="font-medium">{formatCurrency(shiftBreakdown.finalAmount)}</span>
                     </div>
                   )}
 
-                  {breakdown.difference != null && (
+                  {shiftBreakdown.difference != null && (
                     <div className="flex justify-between items-center">
                       <span className="font-semibold text-sm">{shiftTranslations("difference")}</span>
-                      <span className={`font-bold ${differenceTextClass(breakdown.difference)}`}>
-                        {breakdown.difference >= 0 ? "+" : ""}
-                        {formatCurrency(breakdown.difference)}
+                      <span className={`font-bold ${differenceTextClass(shiftBreakdown.difference)}`}>
+                        {shiftBreakdown.difference >= 0 ? "+" : ""}
+                        {formatCurrency(shiftBreakdown.difference)}
                       </span>
                     </div>
                   )}

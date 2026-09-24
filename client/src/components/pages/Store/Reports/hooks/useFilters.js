@@ -29,9 +29,9 @@ export function useDateRangeFilters(filters, onFiltersChange) {
 
   const handlePeriodChange = (period) => onFiltersChange({ activePeriod: period, startDate: "", endDate: "" });
 
-  const handleDateRangeChange = (range) => onFiltersChange({
-    startDate: range?.start?.toString() ?? "",
-    endDate: range?.end?.toString() ?? "",
+  const handleDateRangeChange = (dateRange) => onFiltersChange({
+    startDate: dateRange?.start?.toString() ?? "",
+    endDate: dateRange?.end?.toString() ?? "",
     activePeriod: null,
   });
 
@@ -50,21 +50,21 @@ export function useFiltersState(fetchReport) {
 
   const handleFiltersChange = useCallback(
     (patch) => {
-      const previousFilters = latestFiltersRef.current;
-      const mergedFilters = { ...previousFilters, ...patch };
-      setFilters(mergedFilters);
+      const latestFilters = latestFiltersRef.current;
+      const nextFilters = { ...latestFilters, ...patch };
+      setFilters(nextFilters);
 
-      const query = buildReportQuery(mergedFilters);
-      if (!query) return;
-      return fetchReport(query);
+      const reportQuery = buildReportQuery(nextFilters);
+      if (!reportQuery) return;
+      return fetchReport(reportQuery);
     },
     [fetchReport],
   );
 
   const refetch = useCallback(() => {
-    const query = buildReportQuery(latestFiltersRef.current);
-    if (!query) return;
-    return fetchReport(query);
+    const reportQuery = buildReportQuery(latestFiltersRef.current);
+    if (!reportQuery) return;
+    return fetchReport(reportQuery);
   }, [fetchReport]);
 
   return { filters, handleFilters: handleFiltersChange, refetch };

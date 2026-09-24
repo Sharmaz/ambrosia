@@ -2,7 +2,7 @@
 import { useTranslations } from "next-intl";
 import { Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
-import { differenceBarColor } from "./utils/differenceBarColor";
+import { differenceBarColor } from "./utils/differenceTone";
 
 export function DifferenceOverTimeChart({ differenceByDay, formatCurrency }) {
   const reportsTranslations = useTranslations("reports");
@@ -21,14 +21,14 @@ export function DifferenceOverTimeChart({ differenceByDay, formatCurrency }) {
           <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
           <XAxis dataKey="date" tick={{ fontSize: 11, fill: "#9ca3af" }} tickLine={false} axisLine={false} />
           <YAxis
-            tickFormatter={(amount) => formatCurrency(amount)}
+            tickFormatter={(tickAmount) => formatCurrency(tickAmount)}
             tick={{ fontSize: 11, fill: "#9ca3af" }}
             tickLine={false}
             axisLine={false}
             width={72}
           />
           <Tooltip
-            formatter={(amount) => [formatCurrency(amount), reportsTranslations("shiftsReport.difference")]}
+            formatter={(tooltipAmount) => [formatCurrency(tooltipAmount), reportsTranslations("shiftsReport.difference")]}
             labelStyle={{ color: "#374151", fontWeight: 600 }}
             contentStyle={{ borderRadius: 8, border: "1px solid #e5e7eb", fontSize: 13 }}
           />

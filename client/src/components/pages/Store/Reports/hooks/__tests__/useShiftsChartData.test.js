@@ -4,9 +4,9 @@ import { useShiftsChartData } from "../useShiftsChartData";
 
 describe("useShiftsChartData", () => {
   it("returns empty arrays when there is no data", () => {
-    const { result } = renderHook(() => useShiftsChartData([], []));
-    expect(result.current.differenceByDay).toEqual([]);
-    expect(result.current.paymentMethodSplit).toEqual([]);
+    const { result: chartDataHook } = renderHook(() => useShiftsChartData([], []));
+    expect(chartDataHook.current.differenceByDay).toEqual([]);
+    expect(chartDataHook.current.paymentMethodSplit).toEqual([]);
   });
 
   it("sums differences per day and sorts by date ascending", () => {
@@ -15,8 +15,8 @@ describe("useShiftsChartData", () => {
       { shiftDate: "2024-01-01", difference: -3 },
       { shiftDate: "2024-01-01", difference: 2 },
     ];
-    const { result } = renderHook(() => useShiftsChartData(shifts, []));
-    expect(result.current.differenceByDay).toEqual([
+    const { result: chartDataHook } = renderHook(() => useShiftsChartData(shifts, []));
+    expect(chartDataHook.current.differenceByDay).toEqual([
       { date: "2024-01-01", difference: -1 },
       { date: "2024-01-02", difference: 5 },
     ]);
@@ -27,14 +27,14 @@ describe("useShiftsChartData", () => {
       { shiftDate: "2024-01-01", difference: null },
       { shiftDate: "2024-01-02", difference: 4 },
     ];
-    const { result } = renderHook(() => useShiftsChartData(shifts, []));
-    expect(result.current.differenceByDay).toEqual([{ date: "2024-01-02", difference: 4 }]);
+    const { result: chartDataHook } = renderHook(() => useShiftsChartData(shifts, []));
+    expect(chartDataHook.current.differenceByDay).toEqual([{ date: "2024-01-02", difference: 4 }]);
   });
 
   it("maps byPaymentMethod entries into method/revenue pairs for the pie chart", () => {
     const byPaymentMethod = [{ name: "Efectivo", total: 80 }, { name: "BTC", total: 20 }];
-    const { result } = renderHook(() => useShiftsChartData([], byPaymentMethod));
-    expect(result.current.paymentMethodSplit).toEqual([
+    const { result: chartDataHook } = renderHook(() => useShiftsChartData([], byPaymentMethod));
+    expect(chartDataHook.current.paymentMethodSplit).toEqual([
       { method: "Efectivo", revenue: 80 },
       { method: "BTC", revenue: 20 },
     ]);
