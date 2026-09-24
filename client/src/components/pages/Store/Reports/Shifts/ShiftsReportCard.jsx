@@ -3,7 +3,6 @@ import { Button, Card, CardBody, Pagination, Select, SelectItem } from "@heroui/
 import { Download } from "lucide-react";
 import { useTranslations } from "next-intl";
 
-import { useMediaQuery } from "../hooks/useMediaQuery";
 import { useShiftsReportData } from "../hooks/useShiftsReportData";
 
 import { ShiftsList } from "./ShiftsList";
@@ -12,7 +11,6 @@ const ROWS_PER_PAGE_OPTIONS = [5, 10, 20, 50];
 
 export function ShiftsReportCard({ shifts, formatCurrency }) {
   const reportsTranslations = useTranslations("reports");
-  const isMobile = useMediaQuery("(max-width: 639px)");
   const { paginatedShifts, totalPages, page, setPage, rowsPerPage, handleRowsPerPageChange, exportToCsv } =
     useShiftsReportData(shifts, formatCurrency);
 
@@ -51,9 +49,9 @@ export function ShiftsReportCard({ shifts, formatCurrency }) {
               className="w-20"
               classNames={{ trigger: "h-7 min-h-7 py-0", value: "text-sm translate-y-0" }}
               selectedKeys={new Set([String(rowsPerPage)])}
-              onSelectionChange={(keys) => {
-                const selectedKey = [...keys][0];
-                if (selectedKey) handleRowsPerPageChange(Number(selectedKey));
+              onSelectionChange={(selectedRowsPerPageKeys) => {
+                const selectedRowsPerPageKey = [...selectedRowsPerPageKeys][0];
+                if (selectedRowsPerPageKey) handleRowsPerPageChange(Number(selectedRowsPerPageKey));
               }}
             >
               {ROWS_PER_PAGE_OPTIONS.map((size) => (
@@ -69,13 +67,26 @@ export function ShiftsReportCard({ shifts, formatCurrency }) {
                 {reportsTranslations("sales.pageLabel")} {page} {reportsTranslations("sales.ofLabel")} {totalPages}
               </span>
               <Pagination
+                className="sm:hidden"
                 total={totalPages}
                 page={page}
                 onChange={setPage}
                 color="primary"
                 showControls
                 size="sm"
-                siblings={isMobile ? 0 : 1}
+                siblings={0}
+                boundaries={1}
+                aria-label={reportsTranslations("shiftsReport.paginationAria")}
+              />
+              <Pagination
+                className="hidden sm:flex"
+                total={totalPages}
+                page={page}
+                onChange={setPage}
+                color="primary"
+                showControls
+                size="sm"
+                siblings={1}
                 boundaries={1}
                 aria-label={reportsTranslations("shiftsReport.paginationAria")}
               />
