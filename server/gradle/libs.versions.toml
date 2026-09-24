@@ -30,6 +30,7 @@ ktor-server-auth = { module = "io.ktor:ktor-server-auth", version.ref = "ktor-ve
 ktor-server-auth-jwt = { module = "io.ktor:ktor-server-auth-jwt", version.ref = "ktor-version" }
 ktor-server-status-pages = { module = "io.ktor:ktor-server-status-pages", version.ref = "ktor-version" }
 ktor-server-websockets = { module = "io.ktor:ktor-server-websockets", version.ref = "ktor-version" }
+ktor-server-rate-limit = { module = "io.ktor:ktor-server-rate-limit", version.ref = "ktor-version" }
 ktor-network-tls-certificates = { module = "io.ktor:ktor-network-tls-certificates", version.ref = "ktor-version" }
 ktor-client-core = { module = "io.ktor:ktor-client-core", version.ref = "ktor-version" }
 ktor-client-cio = { module = "io.ktor:ktor-client-cio", version.ref = "ktor-version" }

@@ -14,6 +14,7 @@ import io.ktor.server.auth.jwt.jwt
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.server.plugins.cors.routing.CORS
 import io.ktor.server.plugins.origin
+import io.ktor.server.plugins.ratelimit.RateLimit
 import io.ktor.server.websocket.WebSockets
 import io.ktor.server.websocket.pingPeriod
 import io.ktor.server.websocket.timeout
@@ -84,6 +85,11 @@ class Api {
         install(WebSockets) {
             pingPeriod = 30.seconds
             timeout = 15.seconds
+        }
+        install(RateLimit) {
+            global {
+                rateLimiter(limit = 300, refillPeriod = 60.seconds)
+            }
         }
 
         configureAuthentication()
