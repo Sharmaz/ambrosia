@@ -6,7 +6,7 @@ import { useTranslations } from "next-intl";
 
 import { ViewButton } from "@/components/shared/ViewButton";
 
-import { differenceTextClass } from "./utils/differenceTextClass";
+import { differenceTextClass } from "./utils/differenceTone";
 
 export function ShiftsCard({ shift, formatCurrency, onClick }) {
   const reportsTranslations = useTranslations("reports");

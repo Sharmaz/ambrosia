@@ -1,4 +1,4 @@
-import { differenceTextClass } from "../differenceTextClass";
+import { differenceBarColor, differenceTextClass } from "../differenceTone";
 
 describe("differenceTextClass", () => {
   it("returns a neutral class when difference is null", () => {
@@ -15,5 +15,19 @@ describe("differenceTextClass", () => {
 
   it("returns green when the shift matches exactly (zero difference)", () => {
     expect(differenceTextClass(0)).toBe("text-green-600");
+  });
+});
+
+describe("differenceBarColor", () => {
+  it("returns red for a negative difference", () => {
+    expect(differenceBarColor(-10)).toBe("#dc2626");
+  });
+
+  it("returns orange for a positive difference", () => {
+    expect(differenceBarColor(10)).toBe("#f97316");
+  });
+
+  it("returns green for zero difference", () => {
+    expect(differenceBarColor(0)).toBe("#16a34a");
   });
 });
