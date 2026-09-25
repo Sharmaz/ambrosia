@@ -6,15 +6,18 @@ import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.junit.After
 import org.junit.Before
 import pos.ambrosia.db.tables.UserEntity
+import pos.ambrosia.models.AuthResponse
 import pos.ambrosia.services.TokenService
 import pos.ambrosia.utils.ExposedTestDb
 import pos.ambrosia.utils.confirmationTokenConfig
 import pos.ambrosia.utils.testJwtConfig
 import java.io.File
+import java.security.MessageDigest
 import java.util.Date
 import java.util.UUID
 import java.util.concurrent.TimeUnit
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
@@ -30,6 +33,11 @@ class TokenServiceTest {
 
     private fun confirmationTokenService(secret: String): TokenService =
         TokenService(applicationEnvironment { config = confirmationTokenConfig(secret) })
+
+    private fun seedRefreshTokenUser(name: String = "refresh-user"): AuthResponse {
+        val userId = ExposedTestDb.seedUser(name)
+        return AuthResponse(id = userId, name = name, role = "role", isAdmin = false)
+    }
 
     @Before
     fun setUp() {
@@ -196,5 +204,50 @@ class TokenServiceTest {
         val secondStored = transaction { UserEntity.findById(UUID.fromString(secondUserId))?.walletToken }
         assertNull(firstStored)
         assertNull(secondStored)
+    }
+
+    @Test
+    fun `generateRefreshToken persists a SHA-256 hash of the token, not the raw token`() {
+        val seededUser = seedRefreshTokenUser()
+
+        val refreshToken = service.generateRefreshToken(seededUser)
+
+        val expectedRefreshTokenHash =
+            MessageDigest
+                .getInstance("SHA-256")
+                .digest(refreshToken.toByteArray(Charsets.UTF_8))
+                .joinToString("") { "%02x".format(it) }
+        val storedRefreshTokenHash = transaction { UserEntity.findById(UUID.fromString(seededUser.id))?.refreshToken }
+        assertEquals(expectedRefreshTokenHash, storedRefreshTokenHash)
+    }
+
+    @Test
+    fun `validateRefreshToken returns true for a freshly generated refresh token`() {
+        val seededUser = seedRefreshTokenUser()
+        val refreshToken = service.generateRefreshToken(seededUser)
+
+        val isRefreshTokenValid = service.validateRefreshToken(refreshToken)
+
+        assertTrue(isRefreshTokenValid)
+    }
+
+    @Test
+    fun `getUserFromRefreshToken returns the user for a freshly generated refresh token`() {
+        val seededUser = seedRefreshTokenUser()
+        val refreshToken = service.generateRefreshToken(seededUser)
+
+        val resolvedUser = service.getUserFromRefreshToken(refreshToken)
+
+        assertEquals(seededUser.id, resolvedUser?.id)
+    }
+
+    @Test
+    fun `validateRefreshToken returns false for a refresh token that was already rotated`() {
+        val seededUser = seedRefreshTokenUser()
+        val originalRefreshToken = service.generateRefreshToken(seededUser)
+
+        service.generateRefreshToken(seededUser)
+
+        assertFalse(service.validateRefreshToken(originalRefreshToken))
     }
 }
