@@ -80,14 +80,7 @@ class Api {
         }
         handler()
         install(ContentNegotiation) { json() }
-        install(CORS) {
-            allowCredentials = true
-            anyHost()
-            allowMethod(HttpMethod.Put)
-            allowMethod(HttpMethod.Delete)
-            allowHeader(HttpHeaders.ContentType)
-            allowHeader(HttpHeaders.Authorization)
-        }
+        configureCors()
         install(WebSockets) {
             pingPeriod = 30.seconds
             timeout = 15.seconds
@@ -139,6 +132,16 @@ class Api {
         configurePaymentWebsocket()
         configureHealth()
         configureSystem()
+    }
+}
+
+fun Application.configureCors() {
+    install(CORS) {
+        allowCredentials = true
+        allowMethod(HttpMethod.Put)
+        allowMethod(HttpMethod.Delete)
+        allowHeader(HttpHeaders.ContentType)
+        allowHeader(HttpHeaders.Authorization)
     }
 }
 
