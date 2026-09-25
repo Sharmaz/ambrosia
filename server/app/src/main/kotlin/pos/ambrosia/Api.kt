@@ -14,6 +14,7 @@ import io.ktor.server.auth.jwt.jwt
 import io.ktor.server.plugins.bodylimit.RequestBodyLimit
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.server.plugins.cors.routing.CORS
+import io.ktor.server.plugins.defaultheaders.DefaultHeaders
 import io.ktor.server.plugins.origin
 import io.ktor.server.plugins.ratelimit.RateLimit
 import io.ktor.server.request.path
@@ -89,6 +90,12 @@ class Api {
         handler()
         install(ContentNegotiation) { json() }
         configureCors()
+        install(DefaultHeaders) {
+            header("X-Content-Type-Options", "nosniff")
+            header("X-Frame-Options", "DENY")
+            header("Referrer-Policy", "strict-origin-when-cross-origin")
+            header("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
+        }
         install(WebSockets) {
             pingPeriod = 30.seconds
             timeout = 15.seconds
@@ -188,9 +195,9 @@ fun Application.configureAuthentication() {
         jwt("auth-jwt") {
             authHeader { call ->
                 try {
-                    val token = call.request.cookies["accessToken"]
-                    if (token != null) {
-                        HttpAuthHeader.Single("Bearer", token)
+                    val accessToken = call.request.cookies["accessToken"]
+                    if (accessToken != null) {
+                        HttpAuthHeader.Single("Bearer", accessToken)
                     } else {
                         null
                     }
@@ -219,9 +226,9 @@ fun Application.configureAuthentication() {
         jwt("auth-jwt-wallet") {
             authHeader { call ->
                 try {
-                    val token = call.request.cookies["walletAccessToken"]
-                    if (token != null) {
-                        HttpAuthHeader.Single("Bearer", token)
+                    val walletAccessToken = call.request.cookies["walletAccessToken"]
+                    if (walletAccessToken != null) {
+                        HttpAuthHeader.Single("Bearer", walletAccessToken)
                     } else {
                         null
                     }
