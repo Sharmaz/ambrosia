@@ -102,6 +102,10 @@ class SecretsLockedException(
     message: String = "Secrets are locked — unlock the server before using this feature",
 ) : IllegalStateException(message)
 
+class UnsupportedUploadTypeException(
+    message: String = "Uploaded file does not match an allowed image type",
+) : IllegalArgumentException(message)
+
 class InitialSetupException(
     message: String = "Initial setup failed",
 ) : RuntimeException(message)
