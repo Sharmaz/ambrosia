@@ -1,6 +1,6 @@
 import kotlinx.kover.gradle.plugin.dsl.CoverageUnit
 
-version = "0.8.0-beta"
+version = "0.9.0-beta"
 
 plugins {
     alias(libs.plugins.kotlin.jvm)
