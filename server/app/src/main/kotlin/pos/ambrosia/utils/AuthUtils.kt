@@ -15,6 +15,7 @@ import pos.ambrosia.db.tables.PermissionsTable
 import pos.ambrosia.db.tables.RolePermissionsTable
 import pos.ambrosia.db.tables.UserEntity
 import pos.ambrosia.logger
+import pos.ambrosia.services.AuthService
 import pos.ambrosia.services.TokenService
 import java.util.UUID
 
@@ -44,6 +45,14 @@ fun ApplicationCall.getCurrentUser(): UserInfo? {
         role = principal.getClaim("role", String::class) ?: return null,
         isAdmin = principal.getClaim("isAdmin", Boolean::class) ?: false,
     )
+}
+
+suspend fun ApplicationCall.requireCurrentUserPin(currentUserPin: String?) {
+    if (currentUserPin.isNullOrBlank()) throw InvalidCredentialsException("Current PIN is required")
+    val currentUserId = getCurrentUser()?.userId ?: throw InvalidCredentialsException()
+    val authService = AuthService(application.environment)
+    val isValidPin = authService.authenticateUserPin(currentUserId, currentUserPin.toCharArray())
+    if (!isValidPin) throw InvalidCredentialsException("Current PIN is incorrect")
 }
 
 suspend fun ApplicationCall.requireWallet() {
