@@ -72,7 +72,7 @@ fun Application.handler() {
         }
         exception<InvalidCredentialsException> { call, cause ->
             logger.warn("Invalid login attempt: ${cause.message}")
-            call.respond(HttpStatusCode.Unauthorized, Message("Invalid credentials"))
+            call.respond(HttpStatusCode.Unauthorized, Message(cause.message ?: "Invalid credentials"))
         }
         exception<MissingRoleException> { call, cause ->
             logger.warn("Login attempt with missing role: ${cause.message}")
