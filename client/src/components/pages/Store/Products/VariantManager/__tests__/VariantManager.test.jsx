@@ -12,10 +12,6 @@ jest.mock("@/components/hooks/useUpload", () => ({
   useUpload: () => ({ upload: jest.fn(), isUploading: false }),
 }));
 
-jest.spyOn(configurationsProvider, "useConfigurations").mockReturnValue({
-  config: { priceStep: 0.01 },
-});
-
 jest.mock("@/components/pages/Store/utils/resolveImageUrl", () => ({
   resolveImageUrl: jest.fn().mockResolvedValue(null),
 }));
@@ -105,6 +101,9 @@ function renderManager({
 
 beforeEach(() => {
   jest.clearAllMocks();
+  jest.spyOn(configurationsProvider, "useConfigurations").mockReturnValue({
+    config: { priceStep: 0.01 },
+  });
 });
 
 describe("VariantManager", () => {
@@ -151,7 +150,7 @@ describe("VariantManager", () => {
   });
 
   it("passes the configured price step to VariantForm when adding a variant", () => {
-    configurationsProvider.useConfigurations.mockReturnValueOnce({ config: { priceStep: 0.5 } });
+    configurationsProvider.useConfigurations.mockReturnValue({ config: { priceStep: 0.5 } });
     renderManager({ product: { options } });
     fireEvent.click(screen.getByText("addVariant"));
     expect(capturedVariantFormProps.priceStep).toBe(0.5);
