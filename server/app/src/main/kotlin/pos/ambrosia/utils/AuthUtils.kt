@@ -48,11 +48,11 @@ fun ApplicationCall.getCurrentUser(): UserInfo? {
 }
 
 suspend fun ApplicationCall.requireCurrentUserPin(currentUserPin: String?) {
-    if (currentUserPin.isNullOrBlank()) throw InvalidCredentialsException("Current PIN is required")
+    if (currentUserPin.isNullOrBlank()) throw InvalidCurrentUserPinException("Current PIN is required")
     val currentUserId = getCurrentUser()?.userId ?: throw InvalidCredentialsException()
     val authService = AuthService(application.environment)
     val isValidPin = authService.authenticateUserPin(currentUserId, currentUserPin.toCharArray())
-    if (!isValidPin) throw InvalidCredentialsException("Current PIN is incorrect")
+    if (!isValidPin) throw InvalidCurrentUserPinException("Current PIN is incorrect")
 }
 
 suspend fun ApplicationCall.requireWallet() {

@@ -4,6 +4,10 @@ class InvalidCredentialsException(
     message: String = "Invalid credentials",
 ) : IllegalArgumentException(message)
 
+class InvalidCurrentUserPinException(
+    message: String = "Invalid current user PIN",
+) : IllegalArgumentException(message)
+
 class AdminOnlyException(
     message: String = "Admin privileges required",
 ) : SecurityException(message)
