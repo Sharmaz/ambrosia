@@ -23,8 +23,7 @@ private fun areTipPercentagesValid(serializedPercentages: String): Boolean {
         parsedPercentages.distinct().size == parsedPercentages.size
 }
 
-private fun isPriceStepValid(priceStep: Double): Boolean =
-    priceStep.isFinite() && priceStep > 0.0 && priceStep <= 1000.0
+private fun isPriceStepValid(priceStep: Double): Boolean = priceStep.isFinite() && priceStep > 0.0 && priceStep <= 1000.0
 
 fun Application.configureConfig() {
     val configService = ConfigService()
