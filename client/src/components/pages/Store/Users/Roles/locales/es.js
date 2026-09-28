@@ -153,6 +153,7 @@ const rolesEs = {
         shifts_read: { label: "Ver turnos", description: "Listar turnos registrados." },
         shifts_create: { label: "Abrir turnos", description: "Crear/aperturar turnos." },
         shifts_update: { label: "Editar turnos", description: "Actualizar estado o datos." },
+        shifts_report_read: { label: "Ver reporte de turnos", description: "Ver el historial de cierres de caja." },
         tickets_read: { label: "Ver tickets", description: "Listar y revisar tickets." },
         tickets_create: { label: "Crear tickets", description: "Generar tickets nuevos." },
         tickets_update: { label: "Editar tickets", description: "Actualizar datos de tickets." },

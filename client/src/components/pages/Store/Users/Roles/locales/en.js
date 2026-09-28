@@ -153,6 +153,7 @@ const rolesEn = {
         shifts_read: { label: "View shifts", description: "List recorded shifts." },
         shifts_create: { label: "Open shifts", description: "Create/open shifts." },
         shifts_update: { label: "Edit shifts", description: "Update shift data." },
+        shifts_report_read: { label: "View shifts report", description: "See the shift cash-closing history." },
         tickets_read: { label: "View tickets", description: "List and review tickets." },
         tickets_create: { label: "Create tickets", description: "Generate new tickets." },
         tickets_update: { label: "Edit tickets", description: "Update ticket data." },
