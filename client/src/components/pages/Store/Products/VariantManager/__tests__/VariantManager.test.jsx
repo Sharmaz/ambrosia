@@ -1,5 +1,7 @@
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 
+import * as configurationsProvider from "@/providers/configurations/configurationsProvider";
+
 import { VariantManager } from "../VariantManager";
 
 jest.mock("@/components/hooks/useCurrency", () => ({
@@ -9,6 +11,10 @@ jest.mock("@/components/hooks/useCurrency", () => ({
 jest.mock("@/components/hooks/useUpload", () => ({
   useUpload: () => ({ upload: jest.fn(), isUploading: false }),
 }));
+
+jest.spyOn(configurationsProvider, "useConfigurations").mockReturnValue({
+  config: { priceStep: 0.01 },
+});
 
 jest.mock("@/components/pages/Store/utils/resolveImageUrl", () => ({
   resolveImageUrl: jest.fn().mockResolvedValue(null),
@@ -20,24 +26,34 @@ jest.mock("../OptionTypeManager", () => ({
   ),
 }));
 
+let capturedVariantCardProps;
 jest.mock("../VariantCard", () => ({
-  VariantCard: ({ variant, onSave, onDelete }) => (
-    <div data-testid={`variant-card-${variant.id}`}>
-      <button onClick={() => onSave(variant.id, { priceCents: 999 }).catch(() => {})}>save-{variant.id}</button>
-      <button onClick={() => onDelete(variant.id).catch(() => {})}>delete-{variant.id}</button>
-    </div>
-  ),
+  VariantCard: (props) => {
+    capturedVariantCardProps = props;
+    const { variant, onSave, onDelete } = props;
+    return (
+      <div data-testid={`variant-card-${variant.id}`}>
+        <button onClick={() => onSave(variant.id, { priceCents: 999 }).catch(() => {})}>save-{variant.id}</button>
+        <button onClick={() => onDelete(variant.id).catch(() => {})}>delete-{variant.id}</button>
+      </div>
+    );
+  },
 }));
 
+let capturedVariantFormProps;
 jest.mock("../VariantForm", () => ({
-  VariantForm: ({ onSave, onCancel }) => (
-    <div data-testid="variant-form">
-      <button onClick={() => onSave({ priceCents: 500, quantity: 1, optionValueIds: [] }).catch(() => {})}>
-        form-save
-      </button>
-      <button onClick={onCancel}>form-cancel</button>
-    </div>
-  ),
+  VariantForm: (props) => {
+    capturedVariantFormProps = props;
+    const { onSave, onCancel } = props;
+    return (
+      <div data-testid="variant-form">
+        <button onClick={() => onSave({ priceCents: 500, quantity: 1, optionValueIds: [] }).catch(() => {})}>
+          form-save
+        </button>
+        <button onClick={onCancel}>form-cancel</button>
+      </div>
+    );
+  },
 }));
 
 const mockAddToast = jest.fn();
@@ -122,10 +138,23 @@ describe("VariantManager", () => {
     expect(screen.getByTestId("variant-card-v1")).toBeInTheDocument();
   });
 
+  it("passes the configured price step to VariantCard", () => {
+    configurationsProvider.useConfigurations.mockReturnValueOnce({ config: { priceStep: 0.5 } });
+    renderManager({ product: { options, variants } });
+    expect(capturedVariantCardProps.priceStep).toBe(0.5);
+  });
+
   it("shows the VariantForm after clicking add-variant", () => {
     renderManager({ product: { options } });
     fireEvent.click(screen.getByText("addVariant"));
     expect(screen.getByTestId("variant-form")).toBeInTheDocument();
+  });
+
+  it("passes the configured price step to VariantForm when adding a variant", () => {
+    configurationsProvider.useConfigurations.mockReturnValueOnce({ config: { priceStep: 0.5 } });
+    renderManager({ product: { options } });
+    fireEvent.click(screen.getByText("addVariant"));
+    expect(capturedVariantFormProps.priceStep).toBe(0.5);
   });
 
   it("hides the add-variant button while the form is visible", () => {

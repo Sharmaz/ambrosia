@@ -128,6 +128,15 @@ describe("VariantForm", () => {
     );
   });
 
+  it("uses the custom price step for the price field's chevrons", () => {
+    const { onSave } = renderForm({ options: [], priceStep: 0.5 });
+
+    fireEvent.click(screen.getByLabelText("variantPrice increment"));
+    fireEvent.click(screen.getByText("saveVariant"));
+
+    expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ priceCents: 50 }));
+  });
+
   it("saves a zero quantity when the product does not track stock", () => {
     const { onSave } = renderForm({
       options: [],

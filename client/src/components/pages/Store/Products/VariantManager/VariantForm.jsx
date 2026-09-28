@@ -20,6 +20,7 @@ function buildInitialOptionValuesByType(options, initialOptionValueIds = []) {
 export function VariantForm({
   initial = {},
   currency,
+  priceStep = 0.01,
   options = [],
   isStockTrackedForProduct = true,
   onSave,
@@ -113,7 +114,7 @@ export function VariantForm({
           placeholder={productsTranslation("variantPricePlaceholder")}
           value={form.priceCents / 100}
           minValue={0}
-          step={0.01}
+          step={priceStep}
           startContent={
             <span className="text-default-400 text-small">{currency?.acronym ?? "$"}</span>
           }
