@@ -1,4 +1,5 @@
 import { render, screen, act, fireEvent, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 
 import { usePermission } from "@/hooks/usePermission";
 import { I18nProvider } from "@i18n/I18nProvider";
@@ -164,6 +165,42 @@ describe("CurrencyCard", () => {
 
       expect(screen.getByRole("option", { name: "MXN - Mexican Peso" })).toBeInTheDocument();
       expect(screen.queryByRole("option", { name: "USD - United States Dollar" })).not.toBeInTheDocument();
+    });
+  });
+
+  describe("Price step", () => {
+    it("renders the current price step", async () => {
+      await act(async () => { renderCard({ priceStep: 0.5 }); });
+      expect(screen.getByLabelText("cardCurrency.priceStepLabel")).toHaveValue("0.5");
+    });
+
+    it("disables the save button until the value changes", async () => {
+      await act(async () => { renderCard({ priceStep: 0.5 }); });
+      expect(screen.getByText("cardCurrency.priceStepSaveButton")).toBeDisabled();
+    });
+
+    it("calls onPriceStepSave with the new value when saved", async () => {
+      const user = userEvent.setup();
+      const mockOnPriceStepSave = jest.fn().mockResolvedValue(undefined);
+      await act(async () => {
+        renderCard({ priceStep: 0.01, onPriceStepSave: mockOnPriceStepSave });
+      });
+
+      const priceStepInput = screen.getByLabelText("cardCurrency.priceStepLabel");
+      await user.clear(priceStepInput);
+      await user.type(priceStepInput, "0.5");
+      await user.tab();
+      await user.click(screen.getByText("cardCurrency.priceStepSaveButton"));
+
+      await waitFor(() => {
+        expect(mockOnPriceStepSave).toHaveBeenCalledWith(0.5);
+      });
+    });
+
+    it("hides the save button for a role without settings_update", async () => {
+      usePermission.mockReturnValue(false);
+      await act(async () => { renderCard({ priceStep: 0.5 }); });
+      expect(screen.queryByText("cardCurrency.priceStepSaveButton")).not.toBeInTheDocument();
     });
   });
 });
