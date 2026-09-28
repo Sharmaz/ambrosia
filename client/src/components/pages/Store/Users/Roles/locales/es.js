@@ -20,9 +20,13 @@ const rolesEs = {
       saveErrorDescription: "No se pudo actualizar el rol",
       adminRequiredTitle: "Se requieren privilegios de administrador",
       adminRequiredDescription: "Solo un administrador puede crear u otorgar un rol de administrador.",
+      currentUserPinIncorrectTitle: "PIN incorrecto",
+      currentUserPinIncorrectDescription: "Tu PIN es incorrecto. Ingrésalo de nuevo para confirmar esta acción.",
       cancel: "Cancelar",
       deleteConfirmTitle: "Eliminar rol",
       deleteConfirmBody: "¿Estás seguro de que quieres eliminar el rol {name}? Los usuarios con este rol quedarán sin rol asignado.",
+      deleteConfirmCurrentUserPinLabel: "Tu PIN",
+      deleteConfirmCurrentUserPinPlaceholder: "Confirma tu propio PIN para continuar",
       deleteSuccess: "Rol eliminado correctamente",
       deleteError: "No se pudo eliminar el rol",
       lastAdminErrorTitle: "No permitido",
@@ -35,6 +39,8 @@ const rolesEs = {
       isAdmin: "Con privilegios de administrador",
       templateLegend: "Elige una plantilla de rol para comenzar, o usa el modo avanzado para configurarlo manualmente.",
       advanced: "Modo avanzado",
+      currentUserPinLabel: "Tu PIN",
+      currentUserPinPlaceholder: "Confirma tu propio PIN para continuar",
     },
     templates: {
       cashier: {
@@ -67,6 +73,8 @@ const rolesEs = {
       roleName: "Nombre del rol",
       roleNamePlaceholder: "Ej. Cajero",
       isAdmin: "Con privilegios de administrador",
+      currentUserPinLabel: "Tu PIN",
+      currentUserPinPlaceholder: "Confirma tu propio PIN para continuar",
     },
     permissions: {
       title: "Permisos visibles",

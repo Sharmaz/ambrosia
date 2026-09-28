@@ -15,6 +15,7 @@ const baseForm = {
   name: "",
   isAdmin: false,
   permissions: [],
+  currentUserPin: "1234",
 };
 
 const renderModal = (props = {}) => render(

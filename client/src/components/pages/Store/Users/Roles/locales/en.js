@@ -20,9 +20,13 @@ const rolesEn = {
       saveErrorDescription: "Could not update the role",
       adminRequiredTitle: "Admin privileges required",
       adminRequiredDescription: "Only an administrator can create or grant an admin role.",
+      currentUserPinIncorrectTitle: "Incorrect PIN",
+      currentUserPinIncorrectDescription: "Your PIN is incorrect. Enter it again to confirm this action.",
       cancel: "Cancel",
       deleteConfirmTitle: "Delete role",
       deleteConfirmBody: "Are you sure you want to delete the role {name}? Users with this role will have no role assigned.",
+      deleteConfirmCurrentUserPinLabel: "Your PIN",
+      deleteConfirmCurrentUserPinPlaceholder: "Confirm your own PIN to continue",
       deleteSuccess: "Role deleted successfully",
       deleteError: "Could not delete the role",
       lastAdminErrorTitle: "Not allowed",
@@ -35,6 +39,8 @@ const rolesEn = {
       isAdmin: "With admin privileges",
       templateLegend: "Choose a role template to get started, or use advanced mode to configure it manually.",
       advanced: "Advanced mode",
+      currentUserPinLabel: "Your PIN",
+      currentUserPinPlaceholder: "Confirm your own PIN to continue",
     },
     templates: {
       cashier: {
@@ -67,6 +73,8 @@ const rolesEn = {
       roleName: "Role name",
       roleNamePlaceholder: "e.g. Cashier",
       isAdmin: "With admin privileges",
+      currentUserPinLabel: "Your PIN",
+      currentUserPinPlaceholder: "Confirm your own PIN to continue",
     },
     permissions: {
       title: "Visible permissions",
