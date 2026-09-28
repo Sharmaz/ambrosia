@@ -178,6 +178,20 @@ describe("AddProductsModal", () => {
     expect(screen.getByLabelText("modal.productPriceLabel")).toHaveAttribute("step", "0.01");
   });
 
+  it("warns with the actual price when it is not a multiple of the configured price step", () => {
+    configurationsProvider.useConfigurations.mockReturnValueOnce({ config: { priceStep: 0.1 } });
+    renderModal({ productForm: { ...baseProductForm, productPrice: 0.25 } });
+
+    expect(screen.getByText(/priceStepMismatchWarning/)).toHaveTextContent("$ 0.25");
+  });
+
+  it("does not warn when the product price matches the configured price step", () => {
+    configurationsProvider.useConfigurations.mockReturnValueOnce({ config: { priceStep: 0.1 } });
+    renderModal({ productForm: { ...baseProductForm, productPrice: 0.3 } });
+
+    expect(screen.queryByText(/priceStepMismatchWarning/)).not.toBeInTheDocument();
+  });
+
   it("handles image upload and removal", async () => {
     const onChange = jest.fn();
     const restoreFileReader = mockFileReader();

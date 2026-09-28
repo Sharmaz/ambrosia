@@ -112,6 +112,7 @@ const productsEn = {
     variantRemoveImage: "Remove image",
     variantStockUnit: "in stock",
     hasVariantsHint: "Price and stock are managed per variant after saving.",
+    priceStepMismatchWarning: "Actual price:",
     toasts: {
       createSuccess: "Product created successfully",
       updateSuccess: "Product updated successfully",
