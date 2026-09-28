@@ -26,16 +26,16 @@ describe("isAdminPrivilegesRequired", () => {
 });
 
 describe("isCurrentUserPinIncorrect", () => {
-  it("matches a 401 with the exact current-PIN-incorrect message", () => {
-    expect(isCurrentUserPinIncorrect({ status: 401, responseMessage: "Current PIN is incorrect" })).toBe(true);
+  it("matches a 403 with the exact current-PIN-incorrect message", () => {
+    expect(isCurrentUserPinIncorrect({ status: 403, responseMessage: "Current PIN is incorrect" })).toBe(true);
   });
 
-  it("does not match a 401 with a different message", () => {
-    expect(isCurrentUserPinIncorrect({ status: 401, responseMessage: "Invalid credentials" })).toBe(false);
+  it("does not match a 403 with a different message", () => {
+    expect(isCurrentUserPinIncorrect({ status: 403, responseMessage: "Admin privileges required" })).toBe(false);
   });
 
   it("does not match the right message on a different status", () => {
-    expect(isCurrentUserPinIncorrect({ status: 403, responseMessage: "Current PIN is incorrect" })).toBe(false);
+    expect(isCurrentUserPinIncorrect({ status: 401, responseMessage: "Current PIN is incorrect" })).toBe(false);
   });
 });
 

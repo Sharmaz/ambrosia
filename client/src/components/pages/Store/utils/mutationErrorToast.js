@@ -3,7 +3,7 @@ export function isAdminPrivilegesRequired(requestError) {
 }
 
 export function isCurrentUserPinIncorrect(requestError) {
-  return requestError?.status === 401 && requestError?.responseMessage === "Current PIN is incorrect";
+  return requestError?.status === 403 && requestError?.responseMessage === "Current PIN is incorrect";
 }
 
 export function isLastAdminConflict(requestError) {
