@@ -111,7 +111,7 @@ describe("resolveMutationErrorToast", () => {
 
 describe("translateToast", () => {
   it("builds a toast by translating the title and description keys", () => {
-    const mockTranslations = (key) => `translated:${key}`;
+    const mockTranslations = (translationKey) => `translated:${translationKey}`;
 
     expect(translateToast(mockTranslations, "titleKey", "descriptionKey", "warning")).toEqual({
       title: "translated:titleKey",
@@ -121,7 +121,7 @@ describe("translateToast", () => {
   });
 
   it("passes each key to translate independently", () => {
-    const mockTranslations = jest.fn((key) => key);
+    const mockTranslations = jest.fn((translationKey) => translationKey);
 
     translateToast(mockTranslations, "toasts.errorTitle", "toasts.errorDescription", "danger");
 
