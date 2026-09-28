@@ -23,6 +23,9 @@ private fun areTipPercentagesValid(serializedPercentages: String): Boolean {
         parsedPercentages.distinct().size == parsedPercentages.size
 }
 
+private fun isPriceStepValid(priceStep: Double): Boolean =
+    priceStep.isFinite() && priceStep > 0.0 && priceStep <= 1000.0
+
 fun Application.configureConfig() {
     val configService = ConfigService()
     routing { route("/config") { config(configService) } }
@@ -46,6 +49,10 @@ fun Route.config(configService: ConfigService) {
             }
             if (!areTipPercentagesValid(config.tipPercentages)) {
                 call.respond(HttpStatusCode.BadRequest, "Invalid tip percentages")
+                return@put
+            }
+            if (!isPriceStepValid(config.priceStep)) {
+                call.respond(HttpStatusCode.BadRequest, "Invalid price step")
                 return@put
             }
             val isUpdated = configService.updateConfig(config)
