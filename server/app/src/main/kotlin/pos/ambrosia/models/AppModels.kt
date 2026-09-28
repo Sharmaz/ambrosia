@@ -592,6 +592,7 @@ data class Config(
     val timezone: String = "America/Mexico_City",
     val tipsEnabled: Boolean = true,
     val tipPercentages: String = "10,15,20",
+    val priceStep: Double = 0.01,
 )
 
 @Serializable
