@@ -7,6 +7,7 @@ export function ProductPricingFields({
   productForm,
   onChange,
   currency,
+  priceStep = 0.01,
   includeStock = true,
 }) {
   const productsTranslations = useTranslations("products");
@@ -30,7 +31,7 @@ export function ProductPricingFields({
           onChange({ productPrice });
         }}
         min={0}
-        step={0.01}
+        step={priceStep}
       />
 
       {includeStock && (

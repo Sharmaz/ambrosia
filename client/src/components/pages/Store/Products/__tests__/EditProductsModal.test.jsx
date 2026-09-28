@@ -1,6 +1,7 @@
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 
 import { I18nProvider } from "@/i18n/I18nProvider";
+import * as configurationsProvider from "@/providers/configurations/configurationsProvider";
 
 import { EditProductsModal } from "../EditProductsModal";
 
@@ -85,6 +86,10 @@ jest.mock("@/components/hooks/useCurrency", () => ({
     currency: { acronym: "$" },
   }),
 }));
+
+jest.spyOn(configurationsProvider, "useConfigurations").mockReturnValue({
+  config: { priceStep: 0.01 },
+});
 
 const categories = [
   { id: "cat-1", name: "Category 1" },
@@ -173,6 +178,20 @@ describe("EditProductsModal", () => {
     const latestStockUpdate = onChange.mock.calls.at(-1)[0];
     expect(typeof latestStockUpdate.productStock).toBe("number");
     expect(latestStockUpdate.productStock).toBeGreaterThanOrEqual(0);
+  });
+
+  it("passes the configured price step down to the price field", () => {
+    configurationsProvider.useConfigurations.mockReturnValueOnce({ config: { priceStep: 0.5 } });
+    renderModal();
+
+    expect(screen.getByLabelText("modal.productPriceLabel")).toHaveAttribute("step", "0.5");
+  });
+
+  it("defaults the price step to 0.01 when config has not loaded yet", () => {
+    configurationsProvider.useConfigurations.mockReturnValueOnce({ config: null });
+    renderModal();
+
+    expect(screen.getByLabelText("modal.productPriceLabel")).toHaveAttribute("step", "0.01");
   });
 
   it("handles image upload and removal", async () => {
