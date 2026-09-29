@@ -1,4 +1,3 @@
-const crypto = require('crypto');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
@@ -6,10 +5,14 @@ const path = require('path');
 const { installElectronMock } = require('../../test-utils/electronMock.js');
 
 let configurationBootstrap;
+let serverSecretStore;
 
 beforeAll(() => {
   installElectronMock();
   ({ configurationBootstrap } = require('../ConfigurationBootstrap.js'));
+  ({ serverSecretStore } = require('../ServerSecretStore.js'));
+  serverSecretStore.save = vi.fn();
+  serverSecretStore.read = vi.fn();
 });
 
 const FAKE_HOME_DIRECTORY = '/fake/home';
@@ -31,6 +34,8 @@ function installFakeFileSystem() {
 beforeEach(() => {
   vi.spyOn(os, 'homedir').mockReturnValue(FAKE_HOME_DIRECTORY);
   installFakeFileSystem();
+  serverSecretStore.save.mockReset();
+  serverSecretStore.read.mockReset().mockReturnValue(null);
 });
 
 afterEach(() => {
@@ -129,13 +134,27 @@ describe('ensureConfigurations', () => {
     expect(fs.mkdirSync).toHaveBeenCalledWith(path.join(FAKE_HOME_DIRECTORY, '.Ambrosia-POS', 'logs'), { recursive: true });
   });
 
-  it('generates a new ambrosia config with a secret and a matching secret-hash', async () => {
+  it('generates a new ambrosia config without a secret or secret-hash field', async () => {
     const { ambrosia } = await configurationBootstrap.ensureConfigurations(allocatedPorts);
 
-    expect(ambrosia.secret).toMatch(/^[0-9a-f]{64}$/);
-    expect(ambrosia['secret-hash']).toBe(crypto.createHash('sha256').update(ambrosia.secret).digest('hex'));
+    expect(ambrosia.secret).toBeUndefined();
+    expect(ambrosia['secret-hash']).toBeUndefined();
     expect(ambrosia['http-bind-port']).toBe('9154');
     expect(ambrosia['phoenixd-url']).toBe('http://localhost:9740');
+  });
+
+  it('generates and saves an encrypted server secret when none exists yet', async () => {
+    await configurationBootstrap.ensureConfigurations(allocatedPorts);
+
+    expect(serverSecretStore.save).toHaveBeenCalledWith(expect.stringMatching(/^[0-9a-f]{64}$/));
+  });
+
+  it('does not regenerate the server secret when one already exists', async () => {
+    serverSecretStore.read.mockReturnValue('existing-server-secret');
+
+    await configurationBootstrap.ensureConfigurations(allocatedPorts);
+
+    expect(serverSecretStore.save).not.toHaveBeenCalled();
   });
 
   it('generates a new phoenix config with independent random secrets', async () => {
@@ -148,21 +167,19 @@ describe('ensureConfigurations', () => {
     expect(phoenix.webhook).toBe('http://127.0.0.1:9154/webhook/phoenixd');
   });
 
-  it('does not regenerate the ambrosia secret when the config already exists', async () => {
-    fakeFiles.set(AMBROSIA_CONFIG_PATH, 'secret=existing-secret\nsecret-hash=existing-hash\nhttp-bind-port=1111\n');
+  it('updates http-bind-port when the ambrosia config already exists', async () => {
+    fakeFiles.set(AMBROSIA_CONFIG_PATH, 'http-bind-port=1111\n');
     fakeFiles.set(PHOENIX_CONFIG_PATH, 'http-password=existing-password\n');
 
     const { ambrosia } = await configurationBootstrap.ensureConfigurations(allocatedPorts);
 
-    expect(ambrosia.secret).toBe('existing-secret');
-    expect(ambrosia['secret-hash']).toBe('existing-hash');
     expect(ambrosia['http-bind-port']).toBe('9154');
   });
 
   it('does not overwrite phoenixd-url when a remote phoenixd node is already configured', async () => {
     fakeFiles.set(
       AMBROSIA_CONFIG_PATH,
-      'secret=existing-secret\nsecret-hash=existing-hash\nphoenixd-remote=true\nphoenixd-url=http://100.1.1.1:9740\n',
+      'phoenixd-remote=true\nphoenixd-url=http://100.1.1.1:9740\n',
     );
     fakeFiles.set(PHOENIX_CONFIG_PATH, 'http-password=existing-password\n');
 
@@ -172,7 +189,7 @@ describe('ensureConfigurations', () => {
   });
 
   it('does not regenerate phoenix secrets when the config already exists', async () => {
-    fakeFiles.set(AMBROSIA_CONFIG_PATH, 'secret=existing-secret\nsecret-hash=existing-hash\n');
+    fakeFiles.set(AMBROSIA_CONFIG_PATH, 'http-bind-port=9154\n');
     fakeFiles.set(PHOENIX_CONFIG_PATH, 'http-password=existing-password\nwebhook-secret=existing-webhook-secret\n');
 
     const { phoenix } = await configurationBootstrap.ensureConfigurations(allocatedPorts);

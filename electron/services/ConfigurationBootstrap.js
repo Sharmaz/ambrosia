@@ -5,6 +5,8 @@ import path from 'path';
 import { logger } from '../utils/logger.js';
 import { getDataDirectory, getPhoenixDataDirectory, getLogsDirectory } from '../utils/resourcePaths.js';
 
+import { serverSecretStore } from './ServerSecretStore.js';
+
 function generateRandomHex(length) {
   return crypto.randomBytes(length).toString('hex');
 }
@@ -71,14 +73,10 @@ async function ensureConfigurations(ports) {
 
   if (!fs.existsSync(ambrosiaConfigPath) || Object.keys(ambrosiaConfig).length === 0) {
     logger.log('[ConfigurationBootstrap] Generating Ambrosia configuration...');
-    const secret = generateRandomHex(32);
-    const secretHash = crypto.createHash('sha256').update(secret).digest('hex');
 
     ambrosiaConfig = {
       'http-bind-ip': '127.0.0.1',
       'http-bind-port': ports.backend.toString(),
-      secret,
-      'secret-hash': secretHash,
       'phoenixd-url': `http://localhost:${ports.phoenixd}`,
     };
 
@@ -91,6 +89,11 @@ async function ensureConfigurations(ports) {
     if (!phoenixdRemoteConfigured) {
       ambrosiaConfig['phoenixd-url'] = `http://localhost:${ports.phoenixd}`;
     }
+  }
+
+  if (!serverSecretStore.read()) {
+    logger.log('[ConfigurationBootstrap] Generating encrypted server secret...');
+    serverSecretStore.save(generateRandomHex(32));
   }
 
   if (!fs.existsSync(phoenixConfigPath) || Object.keys(phoenixConfig).length === 0) {
