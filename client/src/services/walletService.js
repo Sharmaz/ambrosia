@@ -5,8 +5,13 @@ function createWalletServiceError(message, errorDetails = {}) {
   const error = new Error(message);
   error.status = errorDetails.status;
   error.code = errorDetails.code ?? "unknown";
+  error.category = errorDetails.category ?? "unknown";
   error.source = errorDetails.source ?? "ambrosia";
   return error;
+}
+
+export function isSecretsLockedError(error) {
+  return error?.status === 409;
 }
 
 function isValidPaymentResponse(paymentResponseBody) {
@@ -31,24 +36,41 @@ async function parseWalletResponseOrThrow(walletHttpResponse, fallbackValue, fal
 }
 
 export const loginWallet = async (password) => {
-  const response = await httpClient("/wallet/auth", {
+  const walletLoginResponse = await httpClient("/wallet/auth", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({ password }),
+    skipForbiddenRedirect: true,
   });
-  const body = await parseJsonResponse(response, null);
-  if (!response.ok) {
-    throw createWalletServiceError(body?.message, { status: response.status });
+  const walletLoginBody = await parseJsonResponse(walletLoginResponse, null);
+  if (!walletLoginResponse.ok) {
+    throw createWalletServiceError(walletLoginBody?.message, { status: walletLoginResponse.status });
   }
-  return body;
+  return walletLoginBody;
 };
 
 export const logoutWallet = async () => {
-  const response = await httpClient("/wallet/logout", { method: "POST" });
-  return await parseJsonResponse(response, null);
+  const walletLogoutResponse = await httpClient("/wallet/logout", { method: "POST", skipForbiddenRedirect: true });
+  return await parseJsonResponse(walletLogoutResponse, null);
 };
+
+export async function changeWalletPassword({ currentPassword, newPassword }) {
+  const passwordChangeResponse = await httpClient("/wallet/password", {
+    method: "POST",
+    skipRefresh: true,
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ currentPassword, newPassword }),
+  });
+  return await parseWalletResponseOrThrow(
+    passwordChangeResponse,
+    null,
+    "Could not update wallet password",
+  );
+}
 
 export async function getInfo() {
   const walletInfoResponse = await httpClient("/wallet/getinfo");
@@ -69,7 +91,7 @@ export async function getBalance() {
 }
 
 export async function createInvoiceForCart(invoiceAmount, invoiceDesc) {
-  const response = await httpClient("/wallet/invoice", {
+  const cartInvoiceResponse = await httpClient("/wallet/invoice", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -79,14 +101,14 @@ export async function createInvoiceForCart(invoiceAmount, invoiceDesc) {
       amountSat: parseInt(invoiceAmount),
     }),
   });
-  const invoice = await parseJsonResponse(response, null);
-  if (!response.ok) {
+  const cartInvoice = await parseJsonResponse(cartInvoiceResponse, null);
+  if (!cartInvoiceResponse.ok) {
     throw createWalletServiceError(
-      invoice?.message,
-      { status: response.status },
+      cartInvoice?.message,
+      { status: cartInvoiceResponse.status },
     );
   }
-  return invoice;
+  return cartInvoice;
 }
 
 export async function createInvoice({
@@ -120,7 +142,7 @@ export async function createInvoice({
 }
 
 export async function payInvoiceFromService(invoice, amountSat, { exchangeRate = null, exchangeRateCurrency = null } = {}) {
-  const response = await httpClient("/wallet/payinvoice", {
+  const payInvoiceResponse = await httpClient("/wallet/payinvoice", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -132,14 +154,15 @@ export async function payInvoiceFromService(invoice, amountSat, { exchangeRate =
       exchangeRateCurrency,
     }),
   });
-  const paymentResponseBody = await parseJsonResponse(response, null);
+  const paymentResponseBody = await parseJsonResponse(payInvoiceResponse, null);
 
-  if (!response.ok) {
+  if (!payInvoiceResponse.ok) {
     throw createWalletServiceError(
       paymentResponseBody?.message ?? "Could not process the payment",
       {
-        status: response.status,
+        status: payInvoiceResponse.status,
         code: paymentResponseBody?.code,
+        category: paymentResponseBody?.category,
         source: paymentResponseBody?.source,
       },
     );
@@ -149,7 +172,7 @@ export async function payInvoiceFromService(invoice, amountSat, { exchangeRate =
     throw createWalletServiceError(
       "Invalid payment response",
       {
-        status: response.status,
+        status: payInvoiceResponse.status,
         code: "invalid_payment_response",
         source: "ambrosia",
       },
@@ -160,17 +183,17 @@ export async function payInvoiceFromService(invoice, amountSat, { exchangeRate =
 }
 
 export async function decodeInvoice(invoice) {
-  const response = await httpClient("/wallet/decodeinvoice", {
+  const decodeInvoiceResponse = await httpClient("/wallet/decodeinvoice", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({ invoice: invoice.trim() }),
   });
-  if (!response.ok) {
+  if (!decodeInvoiceResponse.ok) {
     throw new Error("Could not decode invoice");
   }
-  return await parseJsonResponse(response, null);
+  return await parseJsonResponse(decodeInvoiceResponse, null);
 }
 
 export async function getIncomingTransactions() {
@@ -194,48 +217,94 @@ export async function getOutgoingTransactions() {
 }
 
 export async function updateNwcUri(nwcUri) {
-  const response = await httpClient("/wallet/updatenwcuri", {
+  const nwcUriUpdateResponse = await httpClient("/wallet/updatenwcuri", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({ nwcUri: nwcUri.trim() }),
+    skipForbiddenRedirect: true,
   });
-  const body = await parseJsonResponse(response, null);
-  if (!response.ok) {
-    throw createWalletServiceError(body?.message, {
-      status: response.status,
-      code: body?.code,
-      source: body?.source,
+  const nwcUriUpdateBody = await parseJsonResponse(nwcUriUpdateResponse, null);
+  if (!nwcUriUpdateResponse.ok) {
+    throw createWalletServiceError(nwcUriUpdateBody?.message, {
+      status: nwcUriUpdateResponse.status,
+      code: nwcUriUpdateBody?.code,
+      source: nwcUriUpdateBody?.source,
     });
   }
-  return body;
+  return nwcUriUpdateBody;
+}
+
+export async function testPhoenixdConnection(phoenixdUrl, phoenixdPassword) {
+  const testConnectionResponse = await httpClient("/wallet/test-phoenixd-connection", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ phoenixdUrl, phoenixdPassword }),
+    skipForbiddenRedirect: true,
+  });
+  return await parseWalletResponseOrThrow(
+    testConnectionResponse,
+    null,
+    "Could not connect to the phoenixd node",
+  );
+}
+
+export async function updatePhoenixdRemote({ phoenixdRemote, phoenixdUrl, phoenixdPassword }) {
+  const updatePhoenixdRemoteResponse = await httpClient("/wallet/update-phoenixd-remote", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ phoenixdRemote, phoenixdUrl, phoenixdPassword }),
+    skipForbiddenRedirect: true,
+  });
+  return await parseWalletResponseOrThrow(
+    updatePhoenixdRemoteResponse,
+    null,
+    "Could not update the phoenixd connection",
+  );
+}
+
+export async function getPhoenixdRemoteStatus() {
+  const phoenixdRemoteStatusResponse = await httpClient("/wallet/phoenixd-remote-status");
+  return await parseWalletResponseOrThrow(
+    phoenixdRemoteStatusResponse,
+    null,
+    "Could not load the phoenixd remote status",
+  );
 }
 
 export async function getSeed() {
-  const response = await httpClient("/wallet/seed");
-  const body = await parseJsonResponse(response, null);
-  if (!response.ok) {
-    throw createWalletServiceError(body?.message || "Seed not available", {
-      status: response.status,
-      code: body?.code,
-      source: body?.source,
+  const seedResponse = await httpClient("/wallet/seed", { skipForbiddenRedirect: true });
+  const seedResponseBody = await parseJsonResponse(seedResponse, null);
+  if (!seedResponse.ok) {
+    throw createWalletServiceError(seedResponseBody?.message || "Seed not available", {
+      status: seedResponse.status,
+      code: seedResponseBody?.code,
+      source: seedResponseBody?.source,
     });
   }
-  return body;
+  return seedResponseBody;
 }
 
 export async function closeChannel(channelId, address, feerateSatByte) {
-  const response = await httpClient("/wallet/closechannel", {
+  const closeChannelResponse = await httpClient("/wallet/closechannel", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({ channelId, address, feerateSatByte }),
   });
-  if (!response.ok) {
-    const body = await parseJsonResponse(response, {});
-    throw new Error(body?.message ?? "Failed to close channel");
+  if (!closeChannelResponse.ok) {
+    const closeChannelErrorBody = await parseJsonResponse(closeChannelResponse, {});
+    throw createWalletServiceError(closeChannelErrorBody?.message ?? "Failed to close channel", {
+      status: closeChannelResponse.status,
+      code: closeChannelErrorBody?.code,
+      source: closeChannelErrorBody?.source,
+    });
   }
-  return await parseJsonResponse(response, null);
+  return await parseJsonResponse(closeChannelResponse, null);
 }

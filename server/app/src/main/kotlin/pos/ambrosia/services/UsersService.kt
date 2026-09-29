@@ -13,6 +13,7 @@ import pos.ambrosia.db.tables.UsersTable
 import pos.ambrosia.logger
 import pos.ambrosia.models.UpdateUserRequest
 import pos.ambrosia.models.User
+import pos.ambrosia.models.UserIdentity
 import pos.ambrosia.utils.DuplicateUserNameException
 import pos.ambrosia.utils.LastAdminRemovalException
 import pos.ambrosia.utils.LastUserDeletionException
@@ -100,6 +101,20 @@ class UsersService(
                         roleId = row[UsersTable.roleId]?.value?.toString(),
                         email = row[UsersTable.email],
                         phone = row[UsersTable.phone],
+                    )
+                }
+        }
+
+    fun getUserIdentities(): List<UserIdentity> =
+        transaction {
+            (UsersTable leftJoin RolesTable)
+                .selectAll()
+                .where { UsersTable.isDeleted eq false }
+                .map { row ->
+                    UserIdentity(
+                        id = row[UsersTable.id].value.toString(),
+                        name = row[UsersTable.name],
+                        role = row.getOrNull(RolesTable.role),
                     )
                 }
         }

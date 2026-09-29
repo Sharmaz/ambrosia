@@ -62,12 +62,6 @@ export function PermissionSelector({
                     defaultValue: permission.key,
                   })}
                 </p>
-                {permission.related && permission.related.length > 0 && (
-                  <p className="text-[11px] text-default-400">
-                    {roleTranslations("roles.permissions.affects")}{" "}
-                    {permission.related.map((relatedSection) => roleTranslations(`roles.permissions.related.${relatedSection}`, { defaultValue: relatedSection })).join(", ")}
-                  </p>
-                )}
               </div>
             ))}
           </div>

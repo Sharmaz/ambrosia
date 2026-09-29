@@ -2,6 +2,8 @@ import { fireEvent, render, screen } from "@testing-library/react";
 
 import { TemplateList } from "../List";
 
+jest.mock("@/hooks/usePermission");
+
 jest.mock("@heroui/react", () => ({
   Button: ({ onPress, children, ...props }) => (
     <button type="button" onClick={onPress} {...props}>
@@ -21,7 +23,7 @@ jest.mock("@heroui/react", () => ({
   SelectItem: ({ children, value }) => <option value={value}>{children}</option>,
 }));
 
-const t = (key) => key;
+const settingsTranslations = (key) => key;
 
 describe("TemplateList", () => {
   it("shows loading state and error message", () => {
@@ -33,7 +35,7 @@ describe("TemplateList", () => {
         error={null}
         onSelect={jest.fn()}
         onNew={jest.fn()}
-        t={t}
+        settingsTranslations={settingsTranslations}
       />,
     );
 
@@ -47,7 +49,7 @@ describe("TemplateList", () => {
         error
         onSelect={jest.fn()}
         onNew={jest.fn()}
-        t={t}
+        settingsTranslations={settingsTranslations}
       />,
     );
 
@@ -69,7 +71,7 @@ describe("TemplateList", () => {
         error={null}
         onSelect={onSelect}
         onNew={onNew}
-        t={t}
+        settingsTranslations={settingsTranslations}
       />,
     );
 
@@ -90,7 +92,7 @@ describe("TemplateList", () => {
         error={null}
         onSelect={jest.fn()}
         onNew={jest.fn()}
-        t={t}
+        settingsTranslations={settingsTranslations}
       />,
     );
 

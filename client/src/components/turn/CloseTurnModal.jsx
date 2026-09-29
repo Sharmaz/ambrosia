@@ -34,7 +34,7 @@ export function CloseTurnModal({
   const shiftTranslations = useTranslations("shifts");
 
   const {
-    totalBalance, cashTotal, refundedCashTotal, totalTickets, byPaymentMethod, ticketsLoading, breakdownLoading,
+    totalBalance, totalTips, cashTotal, refundedCashTotal, totalTickets, byPaymentMethod, ticketsLoading, breakdownLoading,
   } = useTurn();
 
   const { printTicket, printerConfigs, loadingConfigs } = usePrinters();
@@ -66,6 +66,7 @@ export function CloseTurnModal({
             comments: [],
           })),
           total: totalBalance,
+          tipAmount: totalTips,
           invoice: null,
         },
       });
@@ -135,6 +136,12 @@ export function CloseTurnModal({
                     <span className="text-default-500">{shiftTranslations("totalSales")}</span>
                     <span>+ {formatCurrency(totalBalance)}</span>
                   </div>
+                  {totalTips > 0 && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-default-500">{shiftTranslations("totalTips")}</span>
+                      <span className="text-green-700 font-medium">{formatCurrency(totalTips)}</span>
+                    </div>
+                  )}
                   <div className="flex justify-between text-sm">
                     <span className="text-default-500">{shiftTranslations("cashSales")}</span>
                     <span>+ {formatCurrency(cashTotal)}</span>
@@ -170,6 +177,12 @@ export function CloseTurnModal({
                       <span className="text-forest">{shiftTranslations("totalSales")}</span>
                       <span className="font-bold text-green-700">
                         {formatCurrency(totalBalance)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-forest">{shiftTranslations("totalTips")}</span>
+                      <span className="font-semibold text-green-700">
+                        {formatCurrency(totalTips)}
                       </span>
                     </div>
                     <div className="flex justify-between text-sm">

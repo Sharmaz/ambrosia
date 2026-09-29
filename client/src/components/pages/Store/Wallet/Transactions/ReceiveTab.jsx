@@ -6,7 +6,7 @@ import { addToast, Button, Input } from "@heroui/react";
 import { useTranslations } from "next-intl";
 
 import { useCurrency } from "@/components/hooks/useCurrency";
-import { createInvoice } from "@/services/walletService";
+import { createInvoice, isSecretsLockedError } from "@/services/walletService";
 
 import { AmountUnitInputFields } from "./AmountUnitInputFields";
 import { useWalletAmountInput } from "./hooks/useWalletAmountInput";
@@ -49,14 +49,14 @@ export function ReceiveTab({ invoiceActions, currentRate }) {
       : null;
     try {
       setIsLoading(true);
-      const res = await createInvoice({
+      const createdInvoice = await createInvoice({
         amountSat,
         description: invoiceDesc,
         exchangeRate: currentRate ?? null,
         exchangeRateCurrency: currentRate != null ? (currency?.acronym?.toLowerCase() ?? null) : null,
         fiatAmount,
       });
-      invoiceActions.createInvoice(res);
+      invoiceActions.createInvoice(createdInvoice);
       resetAmounts();
       setInvoiceDesc("");
       addToast({
@@ -65,11 +65,14 @@ export function ReceiveTab({ invoiceActions, currentRate }) {
         variant: "solid",
         color: "success",
       });
-    } catch (err) {
-      console.error(err);
+    } catch (createInvoiceError) {
+      console.error(createInvoiceError);
+      const isSecretsLocked = isSecretsLockedError(createInvoiceError);
       addToast({
         title: walletTranslations("errorTitle"),
-        description: walletTranslations("payments.receive.invoiceCreateError"),
+        description: walletTranslations(
+          isSecretsLocked ? "payments.receive.secretsLockedError" : "payments.receive.invoiceCreateError",
+        ),
         variant: "solid",
         color: "danger",
       });
@@ -109,7 +112,7 @@ export function ReceiveTab({ invoiceActions, currentRate }) {
             label={walletTranslations("payments.receive.invoiceDescriptionLabel")}
             placeholder={walletTranslations("payments.receive.invoiceDescriptionPlaceholder")}
             value={invoiceDesc}
-            onChange={(e) => setInvoiceDesc(e.target.value)}
+            onChange={(event) => setInvoiceDesc(event.target.value)}
             isDisabled={isLoading}
             classNames={{
               inputWrapper: "border border-default-200 bg-white shadow-none",

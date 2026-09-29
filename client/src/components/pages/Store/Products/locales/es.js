@@ -5,6 +5,10 @@ const productsEs = {
   products: {
     title: "Productos",
     subtitle: "Gestiona tu catálogo de productos e inventario",
+    permissionBlocked: {
+      title: "No puedes ver los productos",
+      subtitle: "Pídele a un administrador que te otorgue el permiso de ver productos.",
+    },
     addProduct: "Agregar Producto",
     tableAriaLabel: "Tabla de productos",
     edit: "Editar",
@@ -108,6 +112,7 @@ const productsEs = {
     variantRemoveImage: "Quitar imagen",
     variantStockUnit: "en almacén",
     hasVariantsHint: "El precio y stock se gestionan por variante al guardar.",
+    priceStepMismatchWarning: "Precio real:",
     toasts: {
       createSuccess: "Producto creado con éxito",
       updateSuccess: "Producto actualizado con éxito",

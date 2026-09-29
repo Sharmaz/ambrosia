@@ -28,7 +28,7 @@ export const features = {
       { path: "/store/wallet", requiresAuth: true, requiresAdmin: false, types: ["store"], permissions: ["wallet_read"] },
       { path: "/store/reports", requiresAuth: true, requiresAdmin: false, types: ["store"], permissions: ["reports_read"] },
       { path: "/store/notifications", requiresAuth: true, requiresAdmin: true, types: ["store"] },
-      { path: "/store/settings", requiresAuth: true, requiresAdmin: false, types: ["store"], permissions: ["settings_update"] },
+      { path: "/store/settings", requiresAuth: true, requiresAdmin: false, types: ["store"], permissions: ["settings_read"] },
     ],
     navItems: [
       { path: "/store/users", label: "users", icon: "users", showInNavbar: true },

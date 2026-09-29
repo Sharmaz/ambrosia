@@ -16,6 +16,7 @@ export function useShiftTicketMetrics(openShiftData) {
   const shiftTranslations = useTranslations("shifts");
 
   const [totalBalance, setTotalBalance] = useState(0);
+  const [totalTips, setTotalTips] = useState(0);
   const [cashTotal, setCashTotal] = useState(0);
   const [refundedCashTotal, setRefundedCashTotal] = useState(0);
   const [totalTickets, setTotalTickets] = useState(0);
@@ -53,7 +54,7 @@ export function useShiftTicketMetrics(openShiftData) {
 
       const refundedCashRunningTotal = orders
         .filter((order) => order.refund?.refundedAt)
-        .filter((order) => new Date(`${order.refund.refundedAt.replace(" ", "T")}Z`).getTime() >= shiftStartMilliseconds)
+        .filter((order) => new Date(order.refund.refundedAt.replace(" ", "T")).getTime() >= shiftStartMilliseconds)
         .filter((order) => classifyPaymentMethod(order.paymentMethod) === PAYMENT_METHODS.CASH)
         .reduce((runningTotal, order) => runningTotal + (order.total - order.discountAmount), 0);
 
@@ -78,10 +79,11 @@ export function useShiftTicketMetrics(openShiftData) {
 
       const tickets = await getTickets();
       const shiftTickets = tickets.filter(
-        (ticket) => new Date(`${ticket.ticketDate.replace(" ", "T")}Z`).getTime() >= shiftStartMilliseconds,
+        (ticket) => new Date(ticket.ticketDate.replace(" ", "T")).getTime() >= shiftStartMilliseconds,
       );
 
       setTotalBalance(shiftTickets.reduce((runningTotal, ticket) => runningTotal + ticket.totalAmount, 0));
+      setTotalTips(shiftTickets.reduce((runningTotal, ticket) => runningTotal + (ticket.tipAmount || 0), 0));
       setTotalTickets(shiftTickets.length);
 
       fetchTicketBreakdown(shiftTickets, shiftStartMilliseconds).catch(() => {});
@@ -97,6 +99,7 @@ export function useShiftTicketMetrics(openShiftData) {
 
   const reset = useCallback(() => {
     setTotalBalance(0);
+    setTotalTips(0);
     setCashTotal(0);
     setRefundedCashTotal(0);
     setTotalTickets(0);
@@ -107,6 +110,7 @@ export function useShiftTicketMetrics(openShiftData) {
 
   return {
     totalBalance,
+    totalTips,
     cashTotal,
     refundedCashTotal,
     totalTickets,

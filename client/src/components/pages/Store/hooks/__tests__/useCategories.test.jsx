@@ -11,6 +11,11 @@ jest.mock("@/lib/http", () => ({
   parseJsonResponse: jest.fn(),
 }));
 
+let mockCanReadCategories = true;
+jest.mock("@/hooks/usePermission", () => ({
+  usePermission: () => mockCanReadCategories,
+}));
+
 jest.mock("@heroui/react", () => ({
   addToast: jest.fn(),
 }));
@@ -27,6 +32,7 @@ function TestComponent() {
     categories,
     loading,
     error,
+    forbidden,
     createCategory,
     updateCategory,
     deleteCategory,
@@ -44,6 +50,7 @@ function TestComponent() {
       <span data-testid="count">{categories.length}</span>
       <span data-testid="first-name">{categories[0]?.name ?? ""}</span>
       <span data-testid="error">{error ? "yes" : "no"}</span>
+      <span data-testid="forbidden">{forbidden ? "yes" : "no"}</span>
     </div>
   );
 }
@@ -52,6 +59,7 @@ describe("useCategories", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     jest.spyOn(console, "error").mockImplementation(() => {});
+    mockCanReadCategories = true;
   });
 
   afterEach(() => {
@@ -71,7 +79,7 @@ describe("useCategories", () => {
     expect(screen.getByTestId("count")).toHaveTextContent("2");
     expect(screen.getByTestId("first-name")).toHaveTextContent("Hardware");
     expect(screen.getByTestId("error")).toHaveTextContent("no");
-    expect(httpClient).toHaveBeenCalledWith("/categories?type=product");
+    expect(httpClient).toHaveBeenCalledWith("/categories?type=product", {});
   });
 
   it("sets empty categories when api returns non-array", async () => {
@@ -86,6 +94,16 @@ describe("useCategories", () => {
 
   it("sets error when fetching fails", async () => {
     httpClient.mockRejectedValueOnce(new Error("network-error"));
+
+    render(<TestComponent />);
+
+    await waitFor(() => expect(screen.getByTestId("loading")).toHaveTextContent("no"));
+    expect(screen.getByTestId("error")).toHaveTextContent("yes");
+  });
+
+  it("sets error when the categories response is not ok", async () => {
+    httpClient.mockResolvedValueOnce({ ok: false, status: 500 });
+    parseJsonResponse.mockResolvedValueOnce(null);
 
     render(<TestComponent />);
 
@@ -112,6 +130,7 @@ describe("useCategories", () => {
       body: JSON.stringify({ name: "Electronics", type: "product" }),
       headers: { "Content-Type": "application/json" },
       notShowError: false,
+      skipForbiddenRedirect: true,
     });
     expect(createdCategoryId).toBe("cat-3");
     await waitFor(() => expect(screen.getByTestId("count")).toHaveTextContent("1"));
@@ -169,6 +188,7 @@ describe("useCategories", () => {
       method: "PUT",
       body: JSON.stringify({ name: "Hardware Updated", type: "product" }),
       headers: { "Content-Type": "application/json" },
+      skipForbiddenRedirect: true,
     });
     await waitFor(() => expect(screen.getByTestId("first-name")).toHaveTextContent("Hardware Updated"));
   });
@@ -207,6 +227,7 @@ describe("useCategories", () => {
 
     expect(httpClient).toHaveBeenCalledWith("/categories/cat-1?type=product", {
       method: "DELETE",
+      skipForbiddenRedirect: true,
     });
     await waitFor(() => expect(screen.getByTestId("count")).toHaveTextContent("0"));
   });
@@ -229,5 +250,16 @@ describe("useCategories", () => {
     });
 
     expect(thrownError?.status).toBe(409);
+  });
+
+  it("does not fetch categories when the user lacks categories_read", async () => {
+    mockCanReadCategories = false;
+
+    render(<TestComponent />);
+
+    await waitFor(() => expect(screen.getByTestId("loading")).toHaveTextContent("no"));
+    expect(screen.getByTestId("count")).toHaveTextContent("0");
+    expect(screen.getByTestId("forbidden")).toHaveTextContent("yes");
+    expect(httpClient).not.toHaveBeenCalled();
   });
 });

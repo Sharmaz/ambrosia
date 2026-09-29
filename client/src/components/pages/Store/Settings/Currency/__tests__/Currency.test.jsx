@@ -1,9 +1,15 @@
 import { render, screen, act, fireEvent, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 
+import * as configurationsProvider from "@/providers/configurations/configurationsProvider";
 import * as useCurrencyHook from "@components/hooks/useCurrency";
 import { I18nProvider } from "@i18n/I18nProvider";
 
 import { Currency } from "../Currency";
+
+jest.mock("@/hooks/usePermission", () => ({
+  usePermission: () => true,
+}));
 
 jest.mock("@heroui/react", () => {
   const actual = jest.requireActual("@heroui/react");
@@ -40,6 +46,9 @@ jest.mock("@heroui/react", () => {
 });
 
 const mockUpdateCurrency = jest.fn().mockResolvedValue({ status: "ok" });
+const mockUpdateConfig = jest.fn().mockResolvedValue({ status: "ok" });
+
+const mockBusinessConfig = { priceStep: 0.01 };
 
 const mockCurrency = {
   id: 1,
@@ -62,7 +71,8 @@ beforeEach(() => {
     if (
       message.includes("onAnimationComplete") ||
       message.includes("Unknown event handler property") ||
-      message.includes("Failed to update currency")
+      message.includes("Failed to update currency") ||
+      message.includes("Failed to update price step")
     ) return;
     originalError.call(console, ...args);
   };
@@ -74,6 +84,12 @@ beforeEach(() => {
     updateCurrency: mockUpdateCurrency,
     formatAmount: jest.fn(),
     refetch: jest.fn(),
+  });
+
+  jest.spyOn(configurationsProvider, "useConfigurations").mockReturnValue({
+    config: mockBusinessConfig,
+    updateConfig: mockUpdateConfig,
+    isLoading: false,
   });
 });
 
@@ -163,6 +179,48 @@ describe("Currency", () => {
       });
 
       expect(mockUpdateCurrency).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("Price Step", () => {
+    it("calls updateConfig and shows toast when the price step is saved", async () => {
+      const user = userEvent.setup();
+      const { addToast } = require("@heroui/react");
+      await act(async () => { renderCurrency(); });
+
+      const priceStepInput = screen.getByLabelText("cardCurrency.priceStepLabel");
+      await user.clear(priceStepInput);
+      await user.type(priceStepInput, "0.5");
+      await user.tab();
+      await user.click(screen.getByText("cardCurrency.priceStepSaveButton"));
+
+      await waitFor(() => {
+        expect(mockUpdateConfig).toHaveBeenCalledWith({ ...mockBusinessConfig, priceStep: 0.5 });
+        expect(addToast).toHaveBeenCalledWith(expect.objectContaining({
+          color: "success",
+        }));
+      });
+    });
+
+    it("shows an error toast when the price step update fails", async () => {
+      const user = userEvent.setup();
+      const { addToast } = require("@heroui/react");
+      mockUpdateConfig.mockRejectedValueOnce(new Error("request failed"));
+      await act(async () => { renderCurrency(); });
+
+      const priceStepInput = screen.getByLabelText("cardCurrency.priceStepLabel");
+      await user.clear(priceStepInput);
+      await user.type(priceStepInput, "0.5");
+      await user.tab();
+      await user.click(screen.getByText("cardCurrency.priceStepSaveButton"));
+
+      await waitFor(() => {
+        expect(addToast).toHaveBeenCalledWith({
+          title: "cardCurrency.priceStepErrorTitle",
+          description: "cardCurrency.priceStepErrorDescription",
+          color: "danger",
+        });
+      });
     });
   });
 });

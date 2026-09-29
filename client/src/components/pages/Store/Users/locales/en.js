@@ -4,6 +4,10 @@ const usersEn = {
   users: {
     title: "Users",
     subtitle: "Manage your store staff",
+    permissionBlocked: {
+      title: "You can't view users",
+      subtitle: "Ask an administrator to grant you the View users permission.",
+    },
     addUser: "Add User",
     tableAriaLabel: "Users table",
     noRole: "No role assigned",

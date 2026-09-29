@@ -17,12 +17,14 @@ import {
   getIncomingTransactions,
   getInfo,
   getOutgoingTransactions,
+  isSecretsLockedError,
 } from "@/services/walletService";
 import { usePaymentWebsocket } from "@hooks/usePaymentWebsocket";
 
 import { useInvoiceState } from "./hooks/useInvoiceState";
 import { NodeError, NodeInfo } from "./NodeInfo";
 import { InvoiceModal, Transactions } from "./Transactions";
+import { WalletPasswordCard } from "./WalletPassword";
 
 export function StoreWallet() {
   const walletTranslations = useTranslations("wallet");
@@ -47,12 +49,15 @@ export function StoreWallet() {
       setInfo(infoResponse);
       setBalance(balanceResponse);
       setError("");
-    } catch (err) {
-      console.error(err);
-      setError(walletTranslations("nodeInfo.fetchInfoError"));
+    } catch (walletInfoError) {
+      console.error(walletInfoError);
+      const isSecretsLocked = isSecretsLockedError(walletInfoError);
+      setError(walletTranslations(isSecretsLocked ? "nodeInfo.secretsLockedError" : "nodeInfo.fetchInfoError"));
       addToast({
         title: walletTranslations("errorTitle"),
-        description: walletTranslations("nodeInfo.getInfoErrorDescription"),
+        description: walletTranslations(
+          isSecretsLocked ? "nodeInfo.secretsLockedErrorDescription" : "nodeInfo.getInfoErrorDescription",
+        ),
         variant: "solid",
         color: "danger",
       });
@@ -72,14 +77,19 @@ export function StoreWallet() {
           filter === "outgoing" || filter === "all" ? getOutgoingTransactions() : [],
         ]);
 
-        const allTx = [...incoming, ...outgoing].sort(
-          (a, b) => b.completedAt - a.completedAt,
+        const sortedTransactions = [...incoming, ...outgoing].sort(
+          (firstTransaction, secondTransaction) => (
+            secondTransaction.completedAt - firstTransaction.completedAt
+          ),
         );
-        setTransactions(allTx);
-      } catch {
+        setTransactions(sortedTransactions);
+      } catch (transactionsError) {
+        const isSecretsLocked = isSecretsLockedError(transactionsError);
         addToast({
           title: walletTranslations("errorTitle"),
-          description: walletTranslations("payments.history.getTransactionsErrorDescription"),
+          description: walletTranslations(
+            isSecretsLocked ? "payments.history.secretsLockedErrorDescription" : "payments.history.getTransactionsErrorDescription",
+          ),
           variant: "solid",
           color: "danger",
         });
@@ -107,16 +117,16 @@ export function StoreWallet() {
   }, [invoiceState.created, setInvoiceHash]);
 
   useEffect(() => {
-    const off = onPayment((data) => {
+    const unsubscribePaymentListener = onPayment((paymentEvent) => {
       if (
         invoiceHashRef.current &&
-        data.paymentHash &&
-        data.paymentHash === invoiceHashRef.current
+        paymentEvent.paymentHash &&
+        paymentEvent.paymentHash === invoiceHashRef.current
       ) {
         invoiceActions.markAsPaid(Date.now());
       }
     });
-    return () => off?.();
+    return () => unsubscribePaymentListener?.();
   }, [onPayment, invoiceActions]);
 
   if (infoLoading) {
@@ -163,6 +173,8 @@ export function StoreWallet() {
               currentRate={currentRate}
             />
           </div>
+
+          <WalletPasswordCard />
 
           <InvoiceModal
             invoiceState={invoiceState}

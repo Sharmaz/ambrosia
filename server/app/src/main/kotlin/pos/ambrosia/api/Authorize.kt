@@ -129,7 +129,6 @@ fun Route.auth(
             return@post
         }
 
-        logger.info(userInfo.toString())
         val isSecureRequest =
             call.request.origin.scheme == "https" ||
                 call.request.header("X-Forwarded-Proto") == "https"
@@ -200,12 +199,24 @@ fun Route.auth(
         }
 
         val newAccessToken = tokenService.generateAccessToken(userInfo)
+        val newRefreshToken = tokenService.generateRefreshToken(userInfo)
 
         call.response.cookies.append(
             Cookie(
                 name = "accessToken",
                 value = newAccessToken,
                 expires = GMTDate(System.currentTimeMillis() + (60 * 1000L)),
+                httpOnly = true,
+                secure = isSecureRequest,
+                path = "/",
+            ),
+        )
+
+        call.response.cookies.append(
+            Cookie(
+                name = "refreshToken",
+                value = newRefreshToken,
+                maxAge = 30 * 24 * 60 * 60,
                 httpOnly = true,
                 secure = isSecureRequest,
                 path = "/",

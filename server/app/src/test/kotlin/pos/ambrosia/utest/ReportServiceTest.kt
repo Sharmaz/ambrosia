@@ -4,12 +4,13 @@ import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Before
 import pos.ambrosia.models.OrderWithPaymentFilters
+import pos.ambrosia.services.ConfigService
 import pos.ambrosia.services.ReportService
 import pos.ambrosia.utils.ExposedTestDb
 import java.io.File
 import java.time.DayOfWeek
 import java.time.LocalDate
-import java.time.ZoneOffset
+import java.time.ZoneId
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -48,6 +49,7 @@ class ReportServiceTest {
         exchangeRateAtPayment: Double? = null,
         exchangeRateCurrency: String? = null,
         fiatAmountAtPayment: Double? = null,
+        transactionId: String? = null,
     ): Sale {
         val userId = userId ?: ExposedTestDb.seedUser(userName)
         val orderId = ExposedTestDb.seedOrder(userId, createdAt = createdAt, status = orderStatus, total = total)
@@ -57,7 +59,7 @@ class ReportServiceTest {
             ExposedTestDb.seedPayment(
                 methodId = paymentMethodId,
                 currencyId = currencyId,
-                transactionId = "txn-$orderId",
+                transactionId = transactionId ?: "txn-$orderId",
                 amount = total,
                 satoshiAmount = satoshiAmount,
                 exchangeRateAtPayment = exchangeRateAtPayment,
@@ -81,8 +83,53 @@ class ReportServiceTest {
     }
 
     @Test
+    fun `period=day filters to orders from today`() {
+        val today = LocalDate.now(ConfigService().getConfiguredZoneId())
+        val recent = seedSale(createdAt = "${today}T12:00:00")
+        addOrderProduct(recent.orderId)
+        val old = seedSale(createdAt = "2020-01-01T12:00:00")
+        addOrderProduct(old.orderId)
+
+        val report =
+            service.getProductSalesReport(
+                period = "day",
+                startDate = null,
+                endDate = null,
+                productName = null,
+                userId = null,
+                paymentMethod = null,
+            )
+
+        assertEquals(1, report.sales.size)
+        assertEquals(recent.orderId, report.sales[0].orderId)
+    }
+
+    @Test
+    fun `period=day reads the configured timezone from Config, not a hardcoded default`() {
+        ExposedTestDb.seedConfig("Pacific/Kiritimati")
+        val today = LocalDate.now(ZoneId.of("Pacific/Kiritimati"))
+        val recent = seedSale(createdAt = "${today}T12:00:00")
+        addOrderProduct(recent.orderId)
+        val old = seedSale(createdAt = "2020-01-01T12:00:00")
+        addOrderProduct(old.orderId)
+
+        val report =
+            service.getProductSalesReport(
+                period = "day",
+                startDate = null,
+                endDate = null,
+                productName = null,
+                userId = null,
+                paymentMethod = null,
+            )
+
+        assertEquals(1, report.sales.size)
+        assertEquals(recent.orderId, report.sales[0].orderId)
+    }
+
+    @Test
     fun `period=week filters to orders from Monday of the current week`() {
-        val monday = LocalDate.now(ZoneOffset.UTC).with(DayOfWeek.MONDAY)
+        val monday = LocalDate.now(ConfigService().getConfiguredZoneId()).with(DayOfWeek.MONDAY)
         val recent = seedSale(createdAt = "${monday}T12:00:00")
         addOrderProduct(recent.orderId)
         val old = seedSale(createdAt = "2020-01-01T12:00:00")
@@ -104,7 +151,7 @@ class ReportServiceTest {
 
     @Test
     fun `period=month filters to orders from the first day of the current month`() {
-        val firstOfMonth = LocalDate.now(ZoneOffset.UTC).withDayOfMonth(1)
+        val firstOfMonth = LocalDate.now(ConfigService().getConfiguredZoneId()).withDayOfMonth(1)
         val recent = seedSale(createdAt = "${firstOfMonth}T12:00:00")
         addOrderProduct(recent.orderId)
         val old = seedSale(createdAt = "2020-01-01T12:00:00")
@@ -126,7 +173,7 @@ class ReportServiceTest {
 
     @Test
     fun `period=year filters to orders from the first day of the current year`() {
-        val firstOfYear = LocalDate.now(ZoneOffset.UTC).withDayOfYear(1)
+        val firstOfYear = LocalDate.now(ConfigService().getConfiguredZoneId()).withDayOfYear(1)
         val recent = seedSale(createdAt = "${firstOfYear}T12:00:00")
         addOrderProduct(recent.orderId)
         val old = seedSale(createdAt = "2019-01-01T12:00:00")
@@ -203,7 +250,7 @@ class ReportServiceTest {
 
     @Test
     fun `period takes precedence over startDate and endDate`() {
-        val firstOfMonth = LocalDate.now(ZoneOffset.UTC).withDayOfMonth(1)
+        val firstOfMonth = LocalDate.now(ConfigService().getConfiguredZoneId()).withDayOfMonth(1)
         val sale = seedSale(createdAt = "${firstOfMonth}T12:00:00")
         addOrderProduct(sale.orderId)
 
@@ -221,8 +268,9 @@ class ReportServiceTest {
     }
 
     @Test
-    fun `utcOffsetMinutes includes an order whose UTC created_at date is the next local day`() {
-        val sale = seedSale(createdAt = "2024-06-16T04:00:00")
+    fun `utcOffsetMinutes includes an order created just before local midnight in the store's timezone`() {
+        ExposedTestDb.seedConfig("America/Mexico_City")
+        val sale = seedSale(createdAt = "2024-06-15T23:59:00")
         addOrderProduct(sale.orderId)
 
         val report =
@@ -241,8 +289,9 @@ class ReportServiceTest {
     }
 
     @Test
-    fun `utcOffsetMinutes excludes an order that falls just outside the local day boundary`() {
-        val sale = seedSale(createdAt = "2024-06-16T06:00:01")
+    fun `utcOffsetMinutes excludes an order created just after local midnight in the store's timezone`() {
+        ExposedTestDb.seedConfig("America/Mexico_City")
+        val sale = seedSale(createdAt = "2024-06-16T00:00:01")
         addOrderProduct(sale.orderId)
 
         val report =
@@ -257,6 +306,29 @@ class ReportServiceTest {
             )
 
         assertTrue(report.sales.isEmpty())
+    }
+
+    @Test
+    fun `utcOffsetMinutes translates between the viewer's zone and a differently configured store zone`() {
+        ExposedTestDb.seedConfig("America/Mexico_City")
+        val sameUtcDay = seedSale(createdAt = "2024-06-15T11:00:00")
+        addOrderProduct(sameUtcDay.orderId)
+        val nextUtcDay = seedSale(createdAt = "2024-06-15T23:00:00")
+        addOrderProduct(nextUtcDay.orderId)
+
+        val report =
+            service.getProductSalesReport(
+                period = null,
+                startDate = "2024-06-15",
+                endDate = "2024-06-15",
+                productName = null,
+                userId = null,
+                paymentMethod = null,
+                utcOffsetMinutes = 0,
+            )
+
+        assertEquals(1, report.sales.size)
+        assertEquals(sameUtcDay.orderId, report.sales[0].orderId)
     }
 
     @Test
@@ -278,10 +350,11 @@ class ReportServiceTest {
     }
 
     @Test
-    fun `utcOffsetMinutes includes a refund whose UTC refunded_at date is the next local day`() {
+    fun `utcOffsetMinutes includes a refund recorded just before local midnight in the store's timezone`() {
+        ExposedTestDb.seedConfig("America/Mexico_City")
         val sale = seedSale(orderStatus = "refunded", total = 30.0, createdAt = "2024-06-15T12:00:00")
         addOrderProduct(sale.orderId, quantity = 1, priceAtOrder = 3000)
-        ExposedTestDb.seedRefund(sale.orderId, refundedAt = "2024-06-16T04:00:00")
+        ExposedTestDb.seedRefund(sale.orderId, refundedAt = "2024-06-15T23:59:00")
 
         val report =
             service.getProductSalesReport(
@@ -443,6 +516,25 @@ class ReportServiceTest {
         assertEquals("bob", item.userName)
         assertEquals("BTC", item.paymentMethod)
         assertEquals("2024-03-20T09:15:00", item.saleDate)
+        assertEquals("txn-${sale.orderId}", item.transactionId)
+    }
+
+    @Test
+    fun `blank transactionId is reported as null`() {
+        val sale = seedSale(transactionId = "")
+        addOrderProduct(sale.orderId)
+
+        val report =
+            service.getProductSalesReport(
+                period = null,
+                startDate = null,
+                endDate = null,
+                productName = null,
+                userId = null,
+                paymentMethod = null,
+            )
+
+        assertNull(report.sales[0].transactionId)
     }
 
     @Test
@@ -720,12 +812,12 @@ class ReportServiceTest {
             val newer = seedSale(orderStatus = "paid", createdAt = "2025-01-10T10:00:00", total = 100.0)
             seedSale(orderStatus = "open", createdAt = "2025-01-15T10:00:00", total = 100.0)
 
-            val result = service.getOrdersWithPaymentsFiltered(OrderWithPaymentFilters(status = "paid"))
+            val filteredOrders = service.getOrdersWithPaymentsFiltered(OrderWithPaymentFilters(status = "paid"))
 
-            assertEquals(2, result.size)
-            assertEquals(newer.orderId, result[0].id)
-            assertEquals(older.orderId, result[1].id)
-            assertEquals("Cash", result[0].paymentMethod)
+            assertEquals(2, filteredOrders.size)
+            assertEquals(newer.orderId, filteredOrders[0].id)
+            assertEquals(older.orderId, filteredOrders[1].id)
+            assertEquals("Cash", filteredOrders[0].paymentMethod)
         }
 
     @Test
@@ -734,13 +826,13 @@ class ReportServiceTest {
             val inRange = seedSale(createdAt = "2025-01-15T10:00:00")
             seedSale(createdAt = "2024-01-15T10:00:00")
 
-            val result =
+            val filteredOrders =
                 service.getOrdersWithPaymentsFiltered(
                     OrderWithPaymentFilters(startDate = "2025-01-01", endDate = "2025-01-31"),
                 )
 
-            assertEquals(1, result.size)
-            assertEquals(inRange.orderId, result[0].id)
+            assertEquals(1, filteredOrders.size)
+            assertEquals(inRange.orderId, filteredOrders[0].id)
         }
 
     @Test
@@ -749,11 +841,11 @@ class ReportServiceTest {
             val alice = seedSale(userName = "alice")
             seedSale(userName = "bob")
 
-            val result = service.getOrdersWithPaymentsFiltered(OrderWithPaymentFilters(userId = alice.userId))
+            val filteredOrders = service.getOrdersWithPaymentsFiltered(OrderWithPaymentFilters(userId = alice.userId))
 
-            assertEquals(1, result.size)
-            assertEquals(alice.orderId, result[0].id)
-            assertEquals(alice.userId, result[0].userId)
+            assertEquals(1, filteredOrders.size)
+            assertEquals(alice.orderId, filteredOrders[0].id)
+            assertEquals(alice.userId, filteredOrders[0].userId)
         }
 
     @Test
@@ -762,10 +854,10 @@ class ReportServiceTest {
             val cash = seedSale(paymentMethodName = "Cash")
             seedSale(paymentMethodName = "BTC")
 
-            val result = service.getOrdersWithPaymentsFiltered(OrderWithPaymentFilters(paymentMethod = "cash"))
+            val filteredOrders = service.getOrdersWithPaymentsFiltered(OrderWithPaymentFilters(paymentMethod = "cash"))
 
-            assertEquals(1, result.size)
-            assertEquals(cash.orderId, result[0].id)
+            assertEquals(1, filteredOrders.size)
+            assertEquals(cash.orderId, filteredOrders[0].id)
         }
 
     @Test
@@ -775,13 +867,13 @@ class ReportServiceTest {
             seedSale(total = 600.0)
             seedSale(total = 5.0)
 
-            val result =
+            val filteredOrders =
                 service.getOrdersWithPaymentsFiltered(
                     OrderWithPaymentFilters(minTotal = 10.0, maxTotal = 500.0),
                 )
 
-            assertEquals(1, result.size)
-            assertEquals(inRange.orderId, result[0].id)
+            assertEquals(1, filteredOrders.size)
+            assertEquals(inRange.orderId, filteredOrders[0].id)
         }
 
     @Test
@@ -790,11 +882,11 @@ class ReportServiceTest {
             val high = seedSale(total = 100.0, createdAt = "2025-01-01T10:00:00")
             val low = seedSale(total = 50.0, createdAt = "2025-01-02T10:00:00")
 
-            val result = service.getOrdersWithPaymentsFiltered(OrderWithPaymentFilters(sortBy = "total", sortOrder = "asc"))
+            val filteredOrders = service.getOrdersWithPaymentsFiltered(OrderWithPaymentFilters(sortBy = "total", sortOrder = "asc"))
 
-            assertEquals(2, result.size)
-            assertEquals(low.orderId, result[0].id)
-            assertEquals(high.orderId, result[1].id)
+            assertEquals(2, filteredOrders.size)
+            assertEquals(low.orderId, filteredOrders[0].id)
+            assertEquals(high.orderId, filteredOrders[1].id)
         }
 
     @Test
@@ -803,11 +895,11 @@ class ReportServiceTest {
             val older = seedSale(createdAt = "2025-01-01T10:00:00")
             val newer = seedSale(createdAt = "2025-01-10T10:00:00")
 
-            val result = service.getOrdersWithPaymentsFiltered()
+            val filteredOrders = service.getOrdersWithPaymentsFiltered()
 
-            assertEquals(2, result.size)
-            assertEquals(newer.orderId, result[0].id)
-            assertEquals(older.orderId, result[1].id)
+            assertEquals(2, filteredOrders.size)
+            assertEquals(newer.orderId, filteredOrders[0].id)
+            assertEquals(older.orderId, filteredOrders[1].id)
         }
 
     @Test
@@ -817,7 +909,7 @@ class ReportServiceTest {
             val high = seedSale(userId = low.userId, paymentMethodName = "Cash", createdAt = "2025-01-10T10:00:00", total = 100.0)
             seedSale(userName = "bob", paymentMethodName = "Cash", createdAt = "2025-01-10T10:00:00", total = 100.0)
 
-            val result =
+            val filteredOrders =
                 service.getOrdersWithPaymentsFiltered(
                     OrderWithPaymentFilters(
                         startDate = "2025-01-01",
@@ -831,9 +923,9 @@ class ReportServiceTest {
                     ),
                 )
 
-            assertEquals(2, result.size)
-            assertEquals(low.orderId, result[0].id)
-            assertEquals(high.orderId, result[1].id)
+            assertEquals(2, filteredOrders.size)
+            assertEquals(low.orderId, filteredOrders[0].id)
+            assertEquals(high.orderId, filteredOrders[1].id)
         }
 
     @Test
@@ -869,12 +961,12 @@ class ReportServiceTest {
                 fiatAmountAtPayment = 1.0,
             )
 
-            val result = service.getOrdersWithPaymentsFiltered()
+            val filteredOrders = service.getOrdersWithPaymentsFiltered()
 
-            assertEquals(100_000L, result[0].satoshiAmount)
-            assertEquals(95_000.0, result[0].exchangeRateAtPayment)
-            assertEquals("usd", result[0].exchangeRateCurrency)
-            assertEquals(1.0, result[0].fiatAmountAtPayment)
+            assertEquals(100_000L, filteredOrders[0].satoshiAmount)
+            assertEquals(95_000.0, filteredOrders[0].exchangeRateAtPayment)
+            assertEquals("usd", filteredOrders[0].exchangeRateCurrency)
+            assertEquals(1.0, filteredOrders[0].fiatAmountAtPayment)
         }
 
     @Test
@@ -882,12 +974,12 @@ class ReportServiceTest {
         runBlocking {
             seedSale(paymentMethodName = "Cash")
 
-            val result = service.getOrdersWithPaymentsFiltered()
+            val filteredOrders = service.getOrdersWithPaymentsFiltered()
 
-            assertNull(result[0].satoshiAmount)
-            assertNull(result[0].exchangeRateAtPayment)
-            assertNull(result[0].exchangeRateCurrency)
-            assertNull(result[0].fiatAmountAtPayment)
+            assertNull(filteredOrders[0].satoshiAmount)
+            assertNull(filteredOrders[0].exchangeRateAtPayment)
+            assertNull(filteredOrders[0].exchangeRateCurrency)
+            assertNull(filteredOrders[0].fiatAmountAtPayment)
         }
 
     @Test
@@ -895,17 +987,17 @@ class ReportServiceTest {
         runBlocking {
             seedSale(orderStatus = "paid", createdAt = "2023-01-15T10:00:00", total = 1234.56)
 
-            val result = service.getTotalSalesByDate("2023-01-15")
+            val totalSales = service.getTotalSalesByDate("2023-01-15")
 
-            assertEquals(1234.56, result)
+            assertEquals(1234.56, totalSales)
         }
 
     @Test
     fun `getTotalSalesByDate returns zero when none found`() =
         runBlocking {
-            val result = service.getTotalSalesByDate("2023-01-16")
+            val totalSales = service.getTotalSalesByDate("2023-01-16")
 
-            assertEquals(0.0, result)
+            assertEquals(0.0, totalSales)
         }
 
     @Test
@@ -915,10 +1007,10 @@ class ReportServiceTest {
             addOrderProduct(sale.orderId, productName = "Tacos", quantity = 3, priceAtOrder = 500)
             addOrderProduct(sale.orderId, productName = "Soda", quantity = 1, priceAtOrder = 200)
 
-            val result = service.getOrdersWithPaymentsFiltered()
+            val filteredOrders = service.getOrdersWithPaymentsFiltered()
 
-            assertEquals(1, result.size)
-            val items = result[0].items
+            assertEquals(1, filteredOrders.size)
+            val items = filteredOrders[0].items
             assertEquals(2, items.size)
             val tacos = items.first { it.productName == "Tacos" }
             assertEquals(3, tacos.quantity)
@@ -933,10 +1025,10 @@ class ReportServiceTest {
         runBlocking {
             seedSale()
 
-            val result = service.getOrdersWithPaymentsFiltered()
+            val filteredOrders = service.getOrdersWithPaymentsFiltered()
 
-            assertEquals(1, result.size)
-            assertTrue(result[0].items.isEmpty())
+            assertEquals(1, filteredOrders.size)
+            assertTrue(filteredOrders[0].items.isEmpty())
         }
 
     @Test
@@ -956,10 +1048,10 @@ class ReportServiceTest {
             val ticketId = ExposedTestDb.seedTicket(orderId, userId)
             ExposedTestDb.seedTicketPayment(paymentId, ticketId)
 
-            val result = service.getOrdersWithPaymentsFiltered()
+            val filteredOrders = service.getOrdersWithPaymentsFiltered()
 
-            assertEquals(1, result.size)
-            assertEquals("abc123def456", result[0].paymentHash)
+            assertEquals(1, filteredOrders.size)
+            assertEquals("abc123def456", filteredOrders[0].paymentHash)
         }
 
     @Test
@@ -967,9 +1059,32 @@ class ReportServiceTest {
         runBlocking {
             seedSale(paymentMethodName = "Cash")
 
-            val result = service.getOrdersWithPaymentsFiltered()
+            val filteredOrders = service.getOrdersWithPaymentsFiltered()
 
-            assertEquals(1, result.size)
-            assertNull(result[0].paymentHash)
+            assertEquals(1, filteredOrders.size)
+            assertNull(filteredOrders[0].paymentHash)
+        }
+
+    @Test
+    fun `getOrdersWithPaymentsFiltered maps transactionId when present`() =
+        runBlocking {
+            val sale = seedSale(paymentMethodName = "Bank Transfer", transactionId = "REF-123")
+
+            val filteredOrders = service.getOrdersWithPaymentsFiltered()
+
+            assertEquals(1, filteredOrders.size)
+            assertEquals(sale.orderId, filteredOrders[0].id)
+            assertEquals("REF-123", filteredOrders[0].transactionId)
+        }
+
+    @Test
+    fun `getOrdersWithPaymentsFiltered returns null transactionId when blank`() =
+        runBlocking {
+            seedSale(paymentMethodName = "Cash", transactionId = "")
+
+            val filteredOrders = service.getOrdersWithPaymentsFiltered()
+
+            assertEquals(1, filteredOrders.size)
+            assertNull(filteredOrders[0].transactionId)
         }
 }

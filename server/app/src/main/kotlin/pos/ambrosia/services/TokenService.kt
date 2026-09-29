@@ -13,6 +13,7 @@ import pos.ambrosia.db.tables.RoleEntity
 import pos.ambrosia.db.tables.UserEntity
 import pos.ambrosia.db.tables.UsersTable
 import pos.ambrosia.models.AuthResponse
+import java.security.MessageDigest
 import java.util.Date
 import java.util.UUID
 import java.util.concurrent.TimeUnit
@@ -20,6 +21,31 @@ import java.util.concurrent.TimeUnit
 class TokenService(
     environment: ApplicationEnvironment,
 ) {
+    companion object {
+        const val JWT_ISSUER = "ambrosia-pos"
+        const val JWT_AUDIENCE = "ambrosia-pos-users"
+
+        fun isBackupConfirmationTokenValid(
+            secret: String,
+            token: String,
+            operationId: String,
+        ): Boolean =
+            try {
+                val verifier =
+                    JWT
+                        .require(Algorithm.HMAC256(secret))
+                        .withAudience(JWT_AUDIENCE)
+                        .withIssuer(JWT_ISSUER)
+                        .build()
+                val decodedJWT = verifier.verify(token)
+                val tokenScope = decodedJWT.getClaim("scope")?.asString()
+                val tokenOperationId = decodedJWT.getClaim("operationId")?.asString()
+                tokenScope == "backup_confirmation" && tokenOperationId == operationId
+            } catch (e: JWTVerificationException) {
+                false
+            }
+    }
+
     private val config = environment.config
     private val secret = config.property("secret").getString()
     private val issuer = config.property("jwt.issuer").getString()
@@ -58,13 +84,14 @@ class TokenService(
                 .create()
                 .withAudience(audience)
                 .withIssuer(issuer)
+                .withJWTId(UUID.randomUUID().toString())
                 .withClaim("userId", user.id)
                 .withClaim("type", "refresh")
                 .withClaim("realm", "Ambrosia-Server")
                 .withExpiresAt(Date(System.currentTimeMillis() + TimeUnit.DAYS.toMillis(30)))
                 .sign(algorithm)
 
-        saveRefreshTokenToDatabase(user.id, refreshToken)
+        saveRefreshTokenToDatabase(user.id, hashRefreshToken(refreshToken))
         return refreshToken
     }
 
@@ -83,6 +110,49 @@ class TokenService(
         saveWalletTokenToDatabase(userId, walletAccessToken)
         return walletAccessToken
     }
+
+    fun generateBackupProgressToken(
+        userId: String,
+        operationId: String,
+    ): String =
+        JWT
+            .create()
+            .withAudience(audience)
+            .withIssuer(issuer)
+            .withClaim("scope", "backup_progress")
+            .withClaim("userId", userId)
+            .withClaim("operationId", operationId)
+            .withClaim("realm", "Ambrosia-Server")
+            .withExpiresAt(Date(System.currentTimeMillis() + TimeUnit.MINUTES.toMillis(2)))
+            .sign(algorithm)
+
+    fun getUserIdFromBackupProgressToken(
+        token: String,
+        operationId: String,
+    ): String? =
+        try {
+            val decodedJWT = verifier.verify(token)
+            val tokenScope = decodedJWT.getClaim("scope")?.asString()
+            val tokenOperationId = decodedJWT.getClaim("operationId")?.asString()
+            if (tokenScope == "backup_progress" && tokenOperationId == operationId) {
+                decodedJWT.getClaim("userId")?.asString()
+            } else {
+                null
+            }
+        } catch (e: JWTVerificationException) {
+            null
+        }
+
+    fun generateBackupConfirmationToken(operationId: String): String =
+        JWT
+            .create()
+            .withAudience(audience)
+            .withIssuer(issuer)
+            .withClaim("scope", "backup_confirmation")
+            .withClaim("operationId", operationId)
+            .withClaim("realm", "Ambrosia-Server")
+            .withExpiresAt(Date(System.currentTimeMillis() + TimeUnit.HOURS.toMillis(4)))
+            .sign(algorithm)
 
     fun isWalletTokenValid(
         userId: String,
@@ -128,7 +198,7 @@ class TokenService(
             transaction {
                 val user =
                     UserEntity
-                        .find { (UsersTable.refreshToken eq refreshToken) and (UsersTable.isDeleted eq false) }
+                        .find { (UsersTable.refreshToken eq hashRefreshToken(refreshToken)) and (UsersTable.isDeleted eq false) }
                         .firstOrNull()
 
                 if (user == null) {
@@ -162,12 +232,18 @@ class TokenService(
         }
     }
 
+    fun revokeAllWalletTokens() {
+        transaction {
+            UsersTable.update { it[walletToken] = null }
+        }
+    }
+
     private fun saveRefreshTokenToDatabase(
         userId: String,
-        refreshToken: String,
+        refreshTokenHash: String,
     ) {
         transaction {
-            UserEntity.findById(UUID.fromString(userId))?.refreshToken = refreshToken
+            UserEntity.findById(UUID.fromString(userId))?.refreshToken = refreshTokenHash
         }
     }
 
@@ -188,8 +264,13 @@ class TokenService(
 
     private fun isRefreshTokenInDatabase(refreshToken: String): Boolean =
         transaction {
-            UserEntity.find { UsersTable.refreshToken eq refreshToken }.any()
+            UserEntity.find { UsersTable.refreshToken eq hashRefreshToken(refreshToken) }.any()
         }
 
     private fun isTokenExpired(expiresAt: Date): Boolean = expiresAt.before(Date())
+
+    private fun hashRefreshToken(refreshToken: String): String {
+        val digestBytes = MessageDigest.getInstance("SHA-256").digest(refreshToken.toByteArray(Charsets.UTF_8))
+        return digestBytes.joinToString("") { "%02x".format(it) }
+    }
 }

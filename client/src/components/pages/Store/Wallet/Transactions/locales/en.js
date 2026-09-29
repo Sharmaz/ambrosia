@@ -23,6 +23,7 @@ const transactionsEn = {
       invoiceSatsToFiatError: "Could not convert to fiat",
       invoiceFiatToSatsError: "Could not convert to satoshis",
       invoiceCreateError: "Error creating the invoice",
+      secretsLockedError: "Secrets encryption is locked. Unlock it in Settings → Secrets encryption to receive payments.",
     },
     send: {
       tabTitle: "Send",
@@ -54,10 +55,17 @@ const transactionsEn = {
         invoiceExpired: "This invoice has expired",
         recipientRejectedPayment: "The recipient node rejected the payment",
         invalidInvoice: "This Lightning invoice is invalid",
+        missingAmount: "This invoice needs an amount before it can be paid",
         insufficientFunds: "There are not enough funds to complete this payment",
+        remoteRouting: "The payment could not find a route to the recipient",
+        remoteLiquidity: "The payment failed because of temporary routing or recipient liquidity",
+        feeOrCltv: "The payment failed because the route fee or expiry was not accepted",
+        temporaryBackend: "The Lightning backend is temporarily unavailable",
         nodeUnavailable: "The Lightning node is not available right now",
         amountOverrideNotSupported: "This wallet could not process a payment with a specified amount for this invoice — ask for one that already includes the amount",
+        retryGuidance: "You can retry, refresh Lightning, or contact support if it repeats.",
         unknown: "Could not process the payment",
+        secretsLocked: "Secrets encryption is locked. Unlock it in Settings → Secrets encryption to send payments.",
       },
       closeButton: "Close",
       confirmModal: {
@@ -93,6 +101,7 @@ const transactionsEn = {
       fee: "Fee:",
       getTransactionsError: "Error loading history",
       getTransactionsErrorDescription: "Could not load transaction history",
+      secretsLockedErrorDescription: "Secrets encryption is locked. Unlock it in Settings → Secrets encryption to view your transaction history.",
     },
   },
   invoiceModal: {

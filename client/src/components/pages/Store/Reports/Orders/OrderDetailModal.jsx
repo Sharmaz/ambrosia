@@ -3,6 +3,7 @@ import { Modal, ModalBody, ModalContent, ModalHeader } from "@heroui/react";
 import { useTranslations } from "next-intl";
 
 import { AmountDisplay } from "@/components/shared/AmountDisplay";
+import { CopyableValueRow } from "@/components/shared/CopyableValueRow";
 import { OrderProductsTable } from "@/components/shared/OrderProductsTable";
 import formatDate from "@lib/formatDate";
 
@@ -20,6 +21,7 @@ export function OrderDetailModal({ order, formatCurrency, currentRate, onClose }
     exchangeRateAtPayment,
     exchangeRateCurrency,
     fiatAmountAtPayment,
+    transactionId,
   } = order ?? {};
 
   return (
@@ -56,6 +58,14 @@ export function OrderDetailModal({ order, formatCurrency, currentRate, onClose }
                   <p className="font-medium">{paymentMethod || reportsTranslations("payment.unknown")}</p>
                 </div>
               </div>
+
+              {transactionId && (
+                <CopyableValueRow
+                  label={reportsTranslations("orders.reference")}
+                  fullValue={transactionId}
+                  copyLabel={reportsTranslations("orders.copyReference")}
+                />
+              )}
 
               <div className="border-t border-gray-100 pt-3">
                 <OrderProductsTable

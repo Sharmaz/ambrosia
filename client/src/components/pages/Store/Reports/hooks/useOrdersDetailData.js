@@ -7,6 +7,7 @@ import { useTranslations } from "next-intl";
 import formatDate from "@lib/formatDate";
 
 import { downloadCsv } from "../utils/downloadCsv";
+import { formatLocalDateStamp } from "../utils/formatLocalDateStamp";
 import { refundedToStatus } from "../utils/refundedToStatus";
 
 const DEFAULT_ROWS_PER_PAGE = 10;
@@ -40,7 +41,7 @@ export function useOrdersDetailData(orders, formatCurrency) {
       const headers = [
         reportsTranslations("orders.shortId"), reportsTranslations("sales.date"), reportsTranslations("sales.user"),
         reportsTranslations("orders.products"), reportsTranslations("sales.quantity"), reportsTranslations("sales.total"), reportsTranslations("sales.paymentMethod"),
-        reportsTranslations("orders.statusLabel"),
+        reportsTranslations("orders.reference"), reportsTranslations("orders.statusLabel"),
       ];
       const rows = orders.map((order) => [
         order.shortId,
@@ -50,6 +51,7 @@ export function useOrdersDetailData(orders, formatCurrency) {
         order.itemCount,
         formatCurrency(order.total),
         order.paymentMethod ?? "",
+        order.transactionId ?? "",
         statusTranslations(`status.${refundedToStatus(order.refunded)}`),
       ]);
 
@@ -65,7 +67,7 @@ export function useOrdersDetailData(orders, formatCurrency) {
       const csv = [headers, ...rows, ...summaryRows]
         .map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(","))
         .join("\n");
-      downloadCsv(csv, `orders-report-${new Date().toISOString().slice(0, 10)}.csv`);
+      downloadCsv(csv, `orders-report-${formatLocalDateStamp()}.csv`);
     } catch {
       addToast({ color: "danger", description: reportsTranslations("export.error") });
     }

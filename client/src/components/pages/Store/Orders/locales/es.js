@@ -2,6 +2,10 @@ const ordersEs = {
   orders: {
     title: "Ordenes",
     subtitle: "Administra tus ventas",
+    permissionBlocked: {
+      title: "No puedes ver las órdenes",
+      subtitle: "Pídele a un administrador que te otorgue el permiso de ver órdenes.",
+    },
     header: {
       paid: "Órdenes Pagadas ({count})",
     },
@@ -58,10 +62,12 @@ const ordersEs = {
       paymentMethod: "Método de pago",
       total: "Total",
       discount: "Descuento",
+      tip: "Propina",
       createdAt: "Creada el",
       close: "Cerrar",
       unassigned: "Sin asignar",
       noPayment: "Pago no registrado",
+      reference: "N.º de referencia",
       products: "Productos",
       quantity: "Cant.",
       unitPrice: "Precio Unit.",

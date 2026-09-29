@@ -23,6 +23,7 @@ const transactionsEs = {
       invoiceSatsToFiatError: "No se pudo convertir a fiat",
       invoiceFiatToSatsError: "No se pudo convertir a satoshis",
       invoiceCreateError: "Error al crear el invoice",
+      secretsLockedError: "El cifrado de secretos está bloqueado. Desbloquéalo en Configuración → Cifrado de secretos para recibir pagos.",
     },
     send: {
       tabTitle: "Enviar",
@@ -54,10 +55,17 @@ const transactionsEs = {
         invoiceExpired: "Esta factura ha caducado",
         recipientRejectedPayment: "El nodo del destinatario rechazó el pago",
         invalidInvoice: "La factura Lightning no es válida",
+        missingAmount: "Esta factura necesita un monto antes de poder pagarse",
         insufficientFunds: "No hay fondos suficientes para realizar este pago",
+        remoteRouting: "El pago no pudo encontrar una ruta hacia el destinatario",
+        remoteLiquidity: "El pago falló por enrutamiento temporal o liquidez del destinatario",
+        feeOrCltv: "El pago falló porque la comisión o expiración de la ruta no fue aceptada",
+        temporaryBackend: "El backend Lightning no está disponible temporalmente",
         nodeUnavailable: "El nodo Lightning no está disponible en este momento",
         amountOverrideNotSupported: "Esta wallet no puede procesar un pago con un monto específico para esta factura — pedí una factura que ya incluya el monto",
+        retryGuidance: "Puedes reintentar, refrescar Lightning o contactar soporte si vuelve a pasar.",
         unknown: "No se pudo procesar el pago",
+        secretsLocked: "El cifrado de secretos está bloqueado. Desbloquéalo en Configuración → Cifrado de secretos para enviar pagos.",
       },
       closeButton: "Cerrar",
       confirmModal: {
@@ -93,6 +101,7 @@ const transactionsEs = {
       fee: "Comisión:",
       getTransactionsError: "Error al cargar historial",
       getTransactionsErrorDescription: "No se pudo cargar el historial de transacciones",
+      secretsLockedErrorDescription: "El cifrado de secretos está bloqueado. Desbloquéalo en Configuración → Cifrado de secretos para ver tu historial de transacciones.",
     },
   },
   invoiceModal: {

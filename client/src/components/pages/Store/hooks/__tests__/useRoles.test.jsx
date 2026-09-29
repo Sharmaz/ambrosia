@@ -16,8 +16,8 @@ jest.mock("@heroui/react", () => ({
 }));
 
 jest.mock("next-intl", () => {
-  const t = (key) => key;
-  return { useTranslations: () => t };
+  const mockTranslations = (key) => key;
+  return { useTranslations: () => mockTranslations };
 });
 
 jest.mock("@/hooks/usePermission", () => ({
@@ -27,22 +27,20 @@ jest.mock("@/hooks/usePermission", () => ({
 const handlers = {};
 
 function TestComponent() {
-  const { roles, loading, error, createRole, updateRoleWithPermissions, deleteRole, getRolePermissions, assignPermissions } = useRoles();
+  const { roles, loading, createRole, updateRoleWithPermissions, deleteRole, getRolePermissions } = useRoles();
 
   useEffect(() => {
     handlers.createRole = createRole;
     handlers.updateRoleWithPermissions = updateRoleWithPermissions;
     handlers.deleteRole = deleteRole;
     handlers.getRolePermissions = getRolePermissions;
-    handlers.assignPermissions = assignPermissions;
-  }, [createRole, updateRoleWithPermissions, deleteRole, getRolePermissions, assignPermissions]);
+  }, [createRole, updateRoleWithPermissions, deleteRole, getRolePermissions]);
 
   return (
     <div>
       <span data-testid="loading">{loading ? "yes" : "no"}</span>
       <span data-testid="count">{roles.length}</span>
       <span data-testid="first-role">{roles[0]?.role ?? ""}</span>
-      <span data-testid="error">{error ? "yes" : "no"}</span>
     </div>
   );
 }
@@ -73,6 +71,18 @@ describe("useRoles", () => {
     expect(screen.getByTestId("count")).toHaveTextContent("0");
   });
 
+  it("keeps roles empty and stops loading when the roles response is not ok", async () => {
+    jest.spyOn(console, "error").mockImplementation(() => {});
+    httpClient.mockResolvedValueOnce({ ok: false, status: 500 });
+    parseJsonResponse.mockResolvedValueOnce(null);
+
+    render(<TestComponent />);
+
+    await waitFor(() => expect(screen.getByTestId("loading")).toHaveTextContent("no"));
+    expect(screen.getByTestId("count")).toHaveTextContent("0");
+    console.error.mockRestore();
+  });
+
   it("creates a role without permissions and refetches", async () => {
     httpClient.mockResolvedValue({ ok: true });
     parseJsonResponse.mockResolvedValueOnce([]);
@@ -89,12 +99,13 @@ describe("useRoles", () => {
     expect(httpClient).toHaveBeenCalledWith("/roles", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ role: "seller", isAdmin: false }),
+      body: JSON.stringify({ role: "seller", isAdmin: false, permissions: [] }),
+      skipForbiddenRedirect: true,
     });
     await waitFor(() => expect(screen.getByTestId("first-role")).toHaveTextContent("seller"));
   });
 
-  it("creates a role with password and permissions", async () => {
+  it("creates a role with permissions without sending password data", async () => {
     httpClient.mockResolvedValue({ ok: true });
     parseJsonResponse.mockResolvedValueOnce([]);
     parseJsonResponse.mockResolvedValueOnce({ id: "xyz" });
@@ -110,12 +121,12 @@ describe("useRoles", () => {
     expect(httpClient).toHaveBeenCalledWith("/roles", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ role: "manager", isAdmin: false, password: "secret" }),
-    });
-    expect(httpClient).toHaveBeenCalledWith("/roles/xyz/permissions", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ permissions: ["orders_read"] }),
+      body: JSON.stringify({
+        role: "manager",
+        isAdmin: false,
+        permissions: ["orders_read"],
+      }),
+      skipForbiddenRedirect: true,
     });
   });
 
@@ -138,12 +149,12 @@ describe("useRoles", () => {
     expect(httpClient).toHaveBeenCalledWith("/roles/1", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ role: "updated", isAdmin: false }),
-    });
-    expect(httpClient).toHaveBeenCalledWith("/roles/1/permissions", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ permissions: ["products_read"] }),
+      body: JSON.stringify({
+        role: "updated",
+        isAdmin: false,
+        permissions: ["products_read"],
+      }),
+      skipForbiddenRedirect: true,
     });
   });
 
@@ -159,7 +170,7 @@ describe("useRoles", () => {
       await handlers.deleteRole("1");
     });
 
-    expect(httpClient).toHaveBeenCalledWith("/roles/1", { method: "DELETE" });
+    expect(httpClient).toHaveBeenCalledWith("/roles/1", { method: "DELETE", skipForbiddenRedirect: true });
     await waitFor(() => expect(screen.getByTestId("count")).toHaveTextContent("0"));
   });
 
@@ -175,8 +186,8 @@ describe("useRoles", () => {
     await act(async () => {
       try {
         await handlers.deleteRole("1");
-      } catch (error) {
-        thrown = error;
+      } catch (deleteRoleError) {
+        thrown = deleteRoleError;
       }
     });
 
@@ -191,13 +202,13 @@ describe("useRoles", () => {
     render(<TestComponent />);
     await waitFor(() => expect(screen.getByTestId("loading")).toHaveTextContent("no"));
 
-    let result;
+    let rolePermissions;
     await act(async () => {
-      result = await handlers.getRolePermissions("1");
+      rolePermissions = await handlers.getRolePermissions("1");
     });
 
-    expect(httpClient).toHaveBeenCalledWith("/roles/1/permissions");
-    expect(result).toEqual([{ name: "orders_read" }, { name: "products_read" }]);
+    expect(httpClient).toHaveBeenCalledWith("/roles/1/permissions", { skipForbiddenRedirect: true });
+    expect(rolePermissions).toEqual([{ name: "orders_read" }, { name: "products_read" }]);
   });
 
   it("returns empty array when getRolePermissions called with no id", async () => {
@@ -207,25 +218,11 @@ describe("useRoles", () => {
     render(<TestComponent />);
     await waitFor(() => expect(screen.getByTestId("loading")).toHaveTextContent("no"));
 
-    let result;
+    let rolePermissions;
     await act(async () => {
-      result = await handlers.getRolePermissions(null);
+      rolePermissions = await handlers.getRolePermissions(null);
     });
 
-    expect(result).toEqual([]);
-  });
-
-  it("does nothing when assignPermissions called with no roleId", async () => {
-    httpClient.mockResolvedValue({ ok: true });
-    parseJsonResponse.mockResolvedValueOnce([]);
-
-    render(<TestComponent />);
-    await waitFor(() => expect(screen.getByTestId("loading")).toHaveTextContent("no"));
-
-    await act(async () => {
-      await handlers.assignPermissions(null, ["orders_read"]);
-    });
-
-    expect(httpClient).toHaveBeenCalledTimes(1);
+    expect(rolePermissions).toEqual([]);
   });
 });

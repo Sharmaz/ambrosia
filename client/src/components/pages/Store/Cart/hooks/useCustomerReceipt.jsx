@@ -19,7 +19,7 @@ export function useCustomerReceipt() {
   }, [printerConfigs]);
 
   const printCustomerReceipt = useCallback(
-    async ({ items, totalCents, discountAmountCents, ticketId, invoice }) => {
+    async ({ items, totalCents, discountAmountCents, tipAmountCents, ticketId, invoice }) => {
       if (loadingConfigs || !hasCustomerPrinter) return;
       const ticketData = {
         ticketId: ticketId?.toString() || "",
@@ -34,6 +34,7 @@ export function useCustomerReceipt() {
         })),
         total: Number(totalCents) / 100,
         discountAmount: Number(discountAmountCents ?? 0) / 100,
+        tipAmount: Number(tipAmountCents ?? 0) / 100,
         invoice: invoice || null,
       };
       try {

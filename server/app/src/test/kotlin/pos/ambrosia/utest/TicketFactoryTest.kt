@@ -18,6 +18,7 @@ import pos.ambrosia.models.TicketDataItem
 import pos.ambrosia.models.TicketElement
 import pos.ambrosia.models.TicketTemplate
 import pos.ambrosia.services.TicketFactory
+import pos.ambrosia.utils.formatTicketLine
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -226,5 +227,92 @@ class TicketFactoryTest {
 
         // Assert
         verify(mockEscpos).writeLF(any<Style>(), eq("Item             Qty     Price"))
+    }
+
+    @Test
+    fun `build should process TOTAL_ROW with discount and tip amount`() {
+        val mockEscpos: EscPos = mock()
+        val ticketTemplate =
+            TicketTemplate(
+                id = "template-tip",
+                name = "Tip Template",
+                elements =
+                    listOf(
+                        TicketElement(
+                            id = "elem-total",
+                            templateId = "template-tip",
+                            order = 0,
+                            type = ElementType.TOTAL_ROW,
+                            value = "TOTAL",
+                        ),
+                    ),
+            )
+        val ticketData =
+            TicketData(
+                ticketId = "tip-001",
+                tableName = "Table 1",
+                roomName = "Salón",
+                date = "2026-08-28",
+                items = emptyList(),
+                total = 115.0,
+                discountAmount = 10.0,
+                tipAmount = 15.0,
+            )
+        val businessConfig =
+            Config(
+                businessType = "restaurant",
+                businessName = "Ambrosia",
+                businessAddress = null,
+                businessPhone = null,
+                businessEmail = null,
+                businessTaxId = null,
+                businessLogoUrl = null,
+            )
+
+        val ticketFactory = TicketFactory(ticketTemplate)
+        ticketFactory.build(mockEscpos, ticketData, businessConfig)
+
+        val captor = argumentCaptor<String>()
+        verify(mockEscpos, times(4)).writeLF(any<Style>(), captor.capture())
+        val lines = captor.allValues
+        assertEquals("-".repeat(TicketFactory.DEFAULT_TICKET_WIDTH), lines[0])
+        assertEquals(formatTicketLine("DISCOUNT", "-10.0"), lines[1])
+        assertEquals(formatTicketLine("TIP", "+15.0"), lines[2])
+        assertEquals(formatTicketLine("TOTAL", "115.0"), lines[3])
+    }
+
+    @Test
+    fun `build should resolve ticket tipAmount placeholder`() {
+        val mockEscpos: EscPos = mock()
+        val template =
+            TicketTemplate(
+                id = "template-ph",
+                name = "Placeholder Template",
+                elements =
+                    listOf(
+                        TicketElement(
+                            id = "elem-ph",
+                            templateId = "template-ph",
+                            order = 0,
+                            type = ElementType.TEXT,
+                            value = "Tip: {{ticket.tipAmount}}",
+                        ),
+                    ),
+            )
+        val ticketData =
+            TicketData(
+                ticketId = "tip-002",
+                tableName = "Table 2",
+                roomName = "Bar",
+                date = "2026-08-28",
+                items = emptyList(),
+                total = 50.0,
+                tipAmount = 5.0,
+            )
+
+        val ticketFactory = TicketFactory(template)
+        ticketFactory.build(mockEscpos, ticketData, null)
+
+        verify(mockEscpos).writeLF(any<Style>(), eq("Tip: 5.0"))
     }
 }

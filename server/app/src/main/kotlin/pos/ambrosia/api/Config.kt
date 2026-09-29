@@ -12,6 +12,18 @@ import io.ktor.server.routing.routing
 import pos.ambrosia.models.Config
 import pos.ambrosia.services.ConfigService
 import pos.ambrosia.utils.authorizePermission
+import java.time.ZoneId
+
+private fun areTipPercentagesValid(serializedPercentages: String): Boolean {
+    val percentageEntries = serializedPercentages.split(",").map(String::trim)
+    if (percentageEntries.isEmpty() || percentageEntries.any { it.isEmpty() }) return false
+
+    val parsedPercentages = percentageEntries.map { it.toDoubleOrNull() ?: return false }
+    return parsedPercentages.all { it.isFinite() && it > 0.0 && it <= 100.0 } &&
+        parsedPercentages.distinct().size == parsedPercentages.size
+}
+
+private fun isPriceStepValid(priceStep: Double): Boolean = priceStep.isFinite() && priceStep > 0.0 && priceStep <= 1000.0
 
 fun Application.configureConfig() {
     val configService = ConfigService()
@@ -30,6 +42,18 @@ fun Route.config(configService: ConfigService) {
     authorizePermission("settings_update") {
         put("") {
             val config = call.receive<Config>()
+            if (config.timezone !in ZoneId.getAvailableZoneIds()) {
+                call.respond(HttpStatusCode.BadRequest, "Invalid timezone: ${config.timezone}")
+                return@put
+            }
+            if (!areTipPercentagesValid(config.tipPercentages)) {
+                call.respond(HttpStatusCode.BadRequest, "Invalid tip percentages")
+                return@put
+            }
+            if (!isPriceStepValid(config.priceStep)) {
+                call.respond(HttpStatusCode.BadRequest, "Invalid price step")
+                return@put
+            }
             val isUpdated = configService.updateConfig(config)
             if (!isUpdated) {
                 call.respond(HttpStatusCode.NotFound, "Failed to update config")

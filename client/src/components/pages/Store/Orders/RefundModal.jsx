@@ -74,6 +74,7 @@ export function RefundModal({ order, isOpen, onClose, onRefunded, formatAmount }
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ invoice: isBtcOrder ? invoice.trim() : "" }),
+        skipForbiddenRedirect: true,
       });
 
       if (refundResponse.ok === false) {

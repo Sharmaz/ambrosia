@@ -31,6 +31,7 @@ const SHIFT_DATA = {
 
 function setupMocks({
   totalBalance = 250,
+  totalTips = 0,
   cashTotal = totalBalance,
   refundedCashTotal = 0,
   totalTickets = 5,
@@ -41,7 +42,7 @@ function setupMocks({
   loadingConfigs = false,
 } = {}) {
   useTurn.mockReturnValue({
-    totalBalance, cashTotal, refundedCashTotal, totalTickets, byPaymentMethod, ticketsLoading, breakdownLoading,
+    totalBalance, totalTips, cashTotal, refundedCashTotal, totalTickets, byPaymentMethod, ticketsLoading, breakdownLoading,
   });
   usePrinters.mockReturnValue({ printTicket: jest.fn(), printerConfigs, loadingConfigs });
 }
@@ -343,6 +344,20 @@ describe("CloseTurnModal", () => {
           }),
         }),
       );
+    });
+
+    it("renders totalTips when totalTips is greater than zero", () => {
+      setupMocks({ totalTips: 45 });
+      renderModal();
+      expect(screen.getAllByText("totalTips")).toHaveLength(2);
+      expect(screen.getAllByText("$45.00")).toHaveLength(2);
+    });
+
+    it("renders totalTips as $0.00 in Z Report when totalTips is zero", () => {
+      setupMocks({ totalTips: 0 });
+      renderModal();
+      expect(screen.getAllByText("totalTips")).toHaveLength(1);
+      expect(screen.getAllByText("$0.00").length).toBeGreaterThanOrEqual(1);
     });
   });
 });

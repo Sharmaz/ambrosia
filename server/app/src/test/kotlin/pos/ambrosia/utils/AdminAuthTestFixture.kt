@@ -8,6 +8,7 @@ import io.ktor.server.engine.applicationEnvironment
 import io.ktor.server.testing.ApplicationTestBuilder
 import pos.ambrosia.configureAuthentication
 import pos.ambrosia.models.AuthResponse
+import pos.ambrosia.services.PermissionsService
 import pos.ambrosia.services.TokenService
 
 private const val TEST_SECRET = "admin-auth-test-fixture-secret"
@@ -72,4 +73,18 @@ fun HttpRequestBuilder.withAuthCookies(cookies: AuthCookies) {
         HttpHeaders.Cookie,
         "accessToken=${cookies.accessToken}; refreshToken=${cookies.refreshToken}",
     )
+}
+
+fun grantPermission(
+    roleName: String,
+    permission: String,
+) = grantPermissions(roleName, permission)
+
+fun grantPermissions(
+    roleName: String,
+    vararg permissions: String,
+) {
+    val roleId = ExposedTestDb.seedRole(roleName)
+    permissions.forEach(ExposedTestDb::seedPermission)
+    PermissionsService().replaceRolePermissions(roleId, permissions.toList())
 }

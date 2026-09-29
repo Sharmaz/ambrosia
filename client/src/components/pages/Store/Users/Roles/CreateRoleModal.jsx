@@ -121,20 +121,13 @@ export function CreateRoleModal({
             </>
           ) : (
             <>
-              <div className="grid md:grid-cols-2 gap-4">
+              <div className="grid gap-4">
                 <Input
                   label={roleTranslations("roles.create.roleName")}
                   placeholder={roleTranslations("roles.create.roleNamePlaceholder")}
                   value={resolveRoleName(form.name, roleTranslations)}
                   onChange={(event) => setForm((previousForm) => ({ ...previousForm, name: event.target.value }))}
                   isRequired
-                />
-                <Input
-                  label={roleTranslations("roles.create.password")}
-                  placeholder={roleTranslations("roles.create.passwordPlaceholder")}
-                  type="password"
-                  value={form.password}
-                  onChange={(event) => setForm((previousForm) => ({ ...previousForm, password: event.target.value }))}
                 />
               </div>
 

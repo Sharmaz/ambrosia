@@ -26,10 +26,10 @@ afterAll(() => {
 describe("Step 1 Business Type Selection", () => {
   const mockChange = jest.fn();
 
-  function renderBusinessTypeStep(value = "") {
+  function renderBusinessTypeStep(businessType = "") {
     return render(
       <I18nProvider>
-        <BusinessTypeStep value={value} onChange={mockChange} />
+        <BusinessTypeStep businessType={businessType} onChange={mockChange} />
       </I18nProvider>,
     );
   }
@@ -44,16 +44,18 @@ describe("Step 1 Business Type Selection", () => {
     expect(screen.getByText("step1.subtitle")).toBeInTheDocument();
   });
 
-  it("renders both business type options", () => {
+  it("renders all business type options", () => {
     renderBusinessTypeStep();
     expect(screen.getAllByText("step1.businessType.store").length).toBeGreaterThan(0);
     expect(screen.getAllByText("step1.businessType.restaurant").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("step1.businessType.freelance").length).toBeGreaterThan(0);
   });
 
-  it("renders the descriptions for both options", () => {
+  it("renders the descriptions for all options", () => {
     renderBusinessTypeStep();
     expect(screen.getAllByText("step1.descriptions.store").length).toBeGreaterThan(0);
     expect(screen.getAllByText("step1.descriptions.restaurant").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("step1.descriptions.freelance").length).toBeGreaterThan(0);
   });
 
   it("calls onChange with 'store' when store card is clicked", () => {
@@ -61,6 +63,19 @@ describe("Step 1 Business Type Selection", () => {
     const storeCard = screen.getByLabelText("store");
     fireEvent.click(storeCard);
     expect(mockChange).toHaveBeenCalledWith("store");
+  });
+
+  it("disables the freelancer card, like the restaurant card", () => {
+    renderBusinessTypeStep();
+    expect(screen.getByLabelText("restaurant")).toHaveAttribute("data-disabled", "true");
+    expect(screen.getByLabelText("freelance")).toHaveAttribute("data-disabled", "true");
+  });
+
+  it("does not call onChange when the freelancer card is clicked", () => {
+    renderBusinessTypeStep();
+    const freelanceCard = screen.getByLabelText("freelance");
+    fireEvent.click(freelanceCard);
+    expect(mockChange).not.toHaveBeenCalled();
   });
 
   it("applies active styling when store is selected", () => {

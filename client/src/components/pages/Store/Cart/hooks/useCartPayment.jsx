@@ -7,7 +7,7 @@ import { useCurrency } from "@/components/hooks/useCurrency";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useTurn } from "@/hooks/turn/useTurn";
 
-import { usePayments } from "../../hooks/usePayments";
+import { usePaymentCurrency } from "../../hooks/usePaymentCurrency";
 import { usePaymentMethods } from "../hooks/usePaymentMethod";
 import {
   ensureCartReady,
@@ -18,6 +18,7 @@ import {
   buildHandlePay,
   buildHandleCashComplete,
   buildHandleCardComplete,
+  buildHandleTransferComplete,
 } from "./paymentHandlers";
 import { useBtcPayment } from "./useBtcPayment";
 import { useCustomerReceipt } from "./useCustomerReceipt";
@@ -30,8 +31,9 @@ export function useCartPayment({ onPay, onResetCart } = {}) {
   const { currency, formatAmount } = useCurrency();
   const { refreshShiftTickets } = useTurn();
   const { printCustomerReceipt } = useCustomerReceipt();
-  const { paymentMethods } = usePaymentMethods();
-  const { getPaymentCurrencyById } = usePayments();
+  const { paymentMethods, forbidden: paymentMethodsForbidden } = usePaymentMethods();
+  const { getPaymentCurrencyById, forbidden: paymentCurrencyForbidden } = usePaymentCurrency();
+  const paymentsForbidden = paymentMethodsForbidden || paymentCurrencyForbidden;
 
   const { isPaying, paymentError, dispatch, notifyError, notifySuccess, clearPaymentError } = usePaymentState(paymentTranslations);
 
@@ -57,6 +59,7 @@ export function useCartPayment({ onPay, onResetCart } = {}) {
   const btc = useBtcPayment(handlerContext);
   const cash = usePaymentChannel(buildHandleCashComplete, handlerContext);
   const card = usePaymentChannel(buildHandleCardComplete, handlerContext);
+  const bankTransfer = usePaymentChannel(buildHandleTransferComplete, handlerContext);
 
   const handlePay = useMemo(
     () => buildHandlePay({
@@ -67,6 +70,7 @@ export function useCartPayment({ onPay, onResetCart } = {}) {
       setBtcPaymentConfig: btc.setConfig,
       setCashPaymentConfig: cash.setConfig,
       setCardPaymentConfig: card.setConfig,
+      setTransferPaymentConfig: bankTransfer.setConfig,
       onResetCart,
       onPay,
       notifyError,
@@ -94,6 +98,7 @@ export function useCartPayment({ onPay, onResetCart } = {}) {
       btc.setConfig,
       cash.setConfig,
       card.setConfig,
+      bankTransfer.setConfig,
     ],
   );
 
@@ -112,13 +117,20 @@ export function useCartPayment({ onPay, onResetCart } = {}) {
     [card.config, card.onComplete, card.onClose],
   );
 
+  const transferPayment = useMemo(
+    () => ({ config: bankTransfer.config, onComplete: bankTransfer.onComplete, onClose: bankTransfer.onClose }),
+    [bankTransfer.config, bankTransfer.onComplete, bankTransfer.onClose],
+  );
+
   return {
     handlePay,
     isPaying,
     paymentError,
     clearPaymentError,
+    paymentsForbidden,
     btcPayment,
     cashPayment,
     cardPayment,
+    transferPayment,
   };
 }

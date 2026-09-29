@@ -16,11 +16,12 @@ import { resolveImageUrl } from "../utils/resolveImageUrl";
 
 import { useProductVariants } from "./useProductVariants";
 
-export function useProducts() {
+export function useProducts({ skipForbiddenRedirect = false } = {}) {
   const productsTranslations = useTranslations("products");
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [forbidden, setForbidden] = useState(false);
   const { upload, isUploading } = useUpload();
   const { updateVariant } = useProductVariants();
 
@@ -74,7 +75,8 @@ export function useProducts() {
     setLoading(true);
     setError(null);
     try {
-      const productsResponse = await httpClient("/products");
+      const productsResponse = await httpClient("/products", { skipForbiddenRedirect });
+      setForbidden(productsResponse.status === 403);
       if (!productsResponse.ok) return;
       const fetchedProducts = await parseJsonResponse(productsResponse, []);
       setProducts(toArray(fetchedProducts));
@@ -83,7 +85,7 @@ export function useProducts() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [skipForbiddenRedirect]);
 
   const addProduct = async (productForm) => {
     try {
@@ -94,6 +96,7 @@ export function useProducts() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(buildRequestPayload(productForm, uploadedImageUrl)),
         notShowError: false,
+        skipForbiddenRedirect: true,
       });
 
       const createdProduct = await ensureSuccess(createProductResponse);
@@ -114,6 +117,7 @@ export function useProducts() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(buildRequestPayload(productForm, uploadedImageUrl, { includeId: true })),
         notShowError: false,
+        skipForbiddenRedirect: true,
       });
 
       const updatedProduct = await ensureSuccess(updateProductResponse);
@@ -135,6 +139,7 @@ export function useProducts() {
       const deleteProductResponse = await httpClient(`/products/${product.id}`, {
         method: "DELETE",
         notShowError: false,
+        skipForbiddenRedirect: true,
       });
       await ensureSuccess(deleteProductResponse);
       await fetchProducts();
@@ -161,6 +166,7 @@ export function useProducts() {
     deleteProduct,
     loading,
     error,
+    forbidden,
     refetch: fetchProducts,
   };
 }

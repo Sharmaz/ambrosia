@@ -41,7 +41,7 @@ jest.mock("@/components/shared/ViewButton", () => ({
 }));
 
 jest.mock("@lib/formatDate", () => ({
-  parseUtcDate: (dateString) => new Date(dateString),
+  parseDateValue: (dateString) => new Date(dateString),
   formatDateParts: (dateString) => {
     const parsed = new Date(dateString);
     if (isNaN(parsed.getTime())) return { localDay: "", date: "-", time: "" };

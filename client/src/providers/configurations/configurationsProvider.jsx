@@ -34,6 +34,7 @@ export function ConfigurationsProvider({ children }) {
       setIsLoading(true);
       const configResponse = await httpClient("/config", {
         skipRefresh: true,
+        skipForbiddenRedirect: true,
       });
 
       const configData = await parseJsonResponse(configResponse);
@@ -72,12 +73,14 @@ export function ConfigurationsProvider({ children }) {
           ...configDataToSend,
           ...(logoUrl && { businessLogoUrl: logoUrl }),
         }),
+        skipForbiddenRedirect: true,
       });
 
       await fetchConfig();
       return updateConfigResponse;
     } catch (error) {
       console.error(error);
+      throw error;
     }
   };
 

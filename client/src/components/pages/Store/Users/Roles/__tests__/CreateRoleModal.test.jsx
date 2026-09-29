@@ -13,7 +13,6 @@ global.localStorage = localStorageMock;
 
 const baseForm = {
   name: "",
-  password: "",
   isAdmin: false,
   permissions: [],
 };
@@ -59,8 +58,13 @@ describe("CreateRoleModal", () => {
     renderModal();
     fireEvent.click(screen.getByText("roles.create.advanced"));
     expect(screen.getByLabelText("roles.create.roleName")).toBeInTheDocument();
-    expect(screen.getByLabelText("roles.create.password")).toBeInTheDocument();
     expect(screen.getByText("roles.create.isAdmin")).toBeInTheDocument();
+  });
+
+  it("does not render a password field in advanced form", () => {
+    renderModal();
+    fireEvent.click(screen.getByText("roles.create.advanced"));
+    expect(screen.queryByLabelText("roles.create.password")).not.toBeInTheDocument();
   });
 
   it("goes back to template view from advanced", () => {

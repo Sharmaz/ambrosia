@@ -11,6 +11,8 @@ const storeEs = {
   errors: {
     connectionErrorTitle: "Error de conexión",
     connectionErrorDescription: "No se pudo conectar al servidor. Verifica tu conexión.",
+    requestErrorTitle: "Error en la solicitud",
+    requestErrorDescription: "Algo salió mal. Intenta de nuevo.",
   },
   navbar: {
     users: "Usuarios",
@@ -34,6 +36,10 @@ const storeEs = {
       products: "Productos",
       sales: "Ventas",
       revenue: "Ingresos",
+    },
+    permissionBlocked: {
+      title: "No puedes ver ninguna estadística del panel",
+      subtitle: "Pídele a un administrador que te otorgue permiso para ver usuarios, productos o ventas.",
     },
   },
   ...usersEs,

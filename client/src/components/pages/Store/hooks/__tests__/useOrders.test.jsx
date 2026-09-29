@@ -16,11 +16,6 @@ jest.mock("@heroui/react", () => ({
   addToast: (...args) => mockAddToast(...args),
 }));
 
-jest.mock("next-intl", () => {
-  const t = (key) => key;
-  return { useTranslations: () => t };
-});
-
 const handlers = {};
 
 function TestComponent() {
@@ -86,7 +81,7 @@ describe("useOrders", () => {
       await handlers.fetchOrdersFiltered({ status: "paid" });
     });
 
-    expect(httpClient).toHaveBeenLastCalledWith("/orders/with-payments?status=paid");
+    expect(httpClient).toHaveBeenLastCalledWith("/orders/with-payments?status=paid", { skipForbiddenRedirect: false });
   });
 
   it("fetchOrdersFiltered sends sorting query params", async () => {
@@ -102,7 +97,7 @@ describe("useOrders", () => {
       await handlers.fetchOrdersFiltered({ sortBy: "total", sortOrder: "asc" });
     });
 
-    expect(httpClient).toHaveBeenLastCalledWith("/orders/with-payments?sortBy=total&sortOrder=asc");
+    expect(httpClient).toHaveBeenLastCalledWith("/orders/with-payments?sortBy=total&sortOrder=asc", { skipForbiddenRedirect: false });
   });
 
   it("fetchOrdersFiltered omits empty params", async () => {
@@ -118,13 +113,14 @@ describe("useOrders", () => {
       await handlers.fetchOrdersFiltered({});
     });
 
-    expect(httpClient).toHaveBeenLastCalledWith("/orders/with-payments");
+    expect(httpClient).toHaveBeenLastCalledWith("/orders/with-payments", { skipForbiddenRedirect: false });
   });
 
-  it("shows connection toast and returns null when filtered fetch returns non-ok response", async () => {
+  it("shows an error toast and exposes the error when filtered fetch returns non-ok response", async () => {
     httpClient.mockResolvedValueOnce({ ok: true });
     httpClient.mockResolvedValueOnce({ ok: false });
     parseJsonResponse.mockResolvedValueOnce([]);
+    parseJsonResponse.mockResolvedValueOnce(null);
 
     render(<TestComponent />);
 
@@ -137,6 +133,6 @@ describe("useOrders", () => {
 
     expect(result).toBeNull();
     expect(mockAddToast).toHaveBeenCalledWith(expect.objectContaining({ color: "danger" }));
-    expect(screen.getByTestId("error")).toHaveTextContent("no");
+    expect(screen.getByTestId("error")).toHaveTextContent("yes");
   });
 });

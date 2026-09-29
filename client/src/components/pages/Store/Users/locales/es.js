@@ -4,6 +4,10 @@ const usersEs = {
   users: {
     title: "Usuarios",
     subtitle: "Gestiona el personal de tu tienda",
+    permissionBlocked: {
+      title: "No puedes ver los usuarios",
+      subtitle: "Pídele a un administrador que te otorgue el permiso de ver usuarios.",
+    },
     addUser: "Agregar Usuario",
     tableAriaLabel: "Tabla de usuarios",
     noRole: "Sin rol asignado",

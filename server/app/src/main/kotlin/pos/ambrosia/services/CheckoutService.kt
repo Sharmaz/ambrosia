@@ -30,10 +30,12 @@ import pos.ambrosia.models.StoreCheckoutItem
 import pos.ambrosia.models.StoreCheckoutRequest
 import pos.ambrosia.models.StoreCheckoutResponse
 import java.time.LocalDateTime
-import java.time.ZoneOffset
 import java.util.UUID
 
-private class CheckoutRejectedException : Exception()
+private class CheckoutRejectedException(
+    val code: String,
+    override val message: String,
+) : Exception(message)
 
 sealed interface CheckoutResult {
     data class Success(
@@ -43,7 +45,10 @@ sealed interface CheckoutResult {
 
     data object NotPaid : CheckoutResult
 
-    data object Invalid : CheckoutResult
+    data class Invalid(
+        val code: String,
+        val message: String,
+    ) : CheckoutResult
 }
 
 class CheckoutService(
@@ -52,6 +57,8 @@ class CheckoutService(
     companion object {
         private val checkoutMutex = Mutex()
     }
+
+    private val configService = ConfigService()
 
     private fun firstActiveVariantId(productEntityId: EntityID<UUID>): UUID? =
         ProductVariantsTable
@@ -62,6 +69,18 @@ class CheckoutService(
             }.firstOrNull()
             ?.get(ProductVariantsTable.id)
             ?.value
+
+    private fun isActiveVariant(
+        productEntityId: EntityID<UUID>,
+        variantId: UUID,
+    ): Boolean =
+        ProductVariantsTable
+            .selectAll()
+            .where {
+                (ProductVariantsTable.id eq EntityID(variantId, ProductVariantsTable)) and
+                    (ProductVariantsTable.productId eq productEntityId) and
+                    (ProductVariantsTable.isActive eq true)
+            }.any()
 
     private fun decrementVariantStock(
         productEntityId: EntityID<UUID>,
@@ -180,8 +199,15 @@ class CheckoutService(
         }
 
     suspend fun checkout(request: StoreCheckoutRequest): CheckoutResult {
-        if (request.items.isEmpty()) return CheckoutResult.Invalid
-        if (request.items.any { it.quantity <= 0 }) return CheckoutResult.Invalid
+        if (request.items.isEmpty()) {
+            return CheckoutResult.Invalid("checkout_empty", "Checkout requires at least one item")
+        }
+        if (request.items.any { it.quantity <= 0 }) {
+            return CheckoutResult.Invalid("checkout_invalid_quantity", "Checkout item quantities must be positive")
+        }
+        if (!request.tipAmount.isFinite() || request.tipAmount < 0.0) {
+            return CheckoutResult.Invalid("checkout_invalid_tip", "Checkout tip amount must be finite and non-negative")
+        }
 
         return checkoutMutex.withLock {
             val paymentHash = request.paymentHash
@@ -204,10 +230,21 @@ class CheckoutService(
                 if (incomingPayment?.isPaid != true) {
                     return@withLock CheckoutResult.NotPaid
                 }
+
+                val expectedSatoshiAmount = request.satoshiAmount
+                if (expectedSatoshiAmount == null || incomingPayment.receivedSat < expectedSatoshiAmount) {
+                    return@withLock CheckoutResult.Invalid(
+                        "checkout_underpaid",
+                        "Checkout payment does not cover the order amount",
+                    )
+                }
             }
 
-            val response = performCheckout(request) ?: return@withLock CheckoutResult.Invalid
-            CheckoutResult.Success(response, alreadyExisted = false)
+            when (val result = performCheckout(request)) {
+                is CheckoutResult.Invalid -> result
+                is CheckoutResult.Success -> result
+                CheckoutResult.NotPaid -> error("performCheckout cannot return NotPaid")
+            }
         }
     }
 
@@ -229,11 +266,20 @@ class CheckoutService(
     ) {
         for (item in items) {
             val productEntityId = EntityID(UUID.fromString(item.productId), ProductsTable)
-            val productEntity = ProductEntity.findById(productEntityId) ?: throw CheckoutRejectedException()
+            val productEntity =
+                ProductEntity.findById(productEntityId)
+                    ?: throw CheckoutRejectedException("checkout_product_not_found", "Checkout product not found")
             val itemVariantId = item.variantId?.let { UUID.fromString(it) }
-            val orderVariantId = itemVariantId ?: firstActiveVariantId(productEntityId) ?: throw CheckoutRejectedException()
+            if (itemVariantId != null && !isActiveVariant(productEntityId, itemVariantId)) {
+                throw CheckoutRejectedException("checkout_variant_not_found", "Checkout product variant not found")
+            }
+            val orderVariantId =
+                itemVariantId ?: firstActiveVariantId(productEntityId)
+                    ?: throw CheckoutRejectedException("checkout_variant_not_found", "Checkout product variant not found")
 
-            if (!deductOrderLineStock(productEntity, itemVariantId, item.quantity)) throw CheckoutRejectedException()
+            if (!deductOrderLineStock(productEntity, itemVariantId, item.quantity)) {
+                throw CheckoutRejectedException("checkout_insufficient_stock", "Insufficient stock for checkout")
+            }
 
             OrderProductsTable.insert {
                 it[orderId] = order.id
@@ -257,6 +303,7 @@ class CheckoutService(
                 this.userId = userEntityId
                 this.ticketDate = now
                 this.totalAmount = request.amount
+                this.tipAmount = request.tipAmount
                 this.notes = request.ticketNotes
             }
 
@@ -282,12 +329,14 @@ class CheckoutService(
         return ticket to payment
     }
 
-    private fun performCheckout(request: StoreCheckoutRequest): StoreCheckoutResponse? {
-        if (!hasValidIds(request)) return null
+    private fun performCheckout(request: StoreCheckoutRequest): CheckoutResult {
+        if (!hasValidIds(request)) {
+            return CheckoutResult.Invalid("checkout_invalid_reference", "Checkout contains an invalid reference")
+        }
 
         return try {
             transaction {
-                val now = LocalDateTime.now(ZoneOffset.UTC).toString()
+                val now = LocalDateTime.now(configService.getConfiguredZoneId()).toString()
                 val userEntityId = EntityID(UUID.fromString(request.userId), UsersTable)
                 val order =
                     OrderEntity.new(UUID.randomUUID()) {
@@ -296,6 +345,7 @@ class CheckoutService(
                         this.status = "paid"
                         this.total = request.amount
                         this.discountAmount = request.discountAmount
+                        this.tipAmount = request.tipAmount
                         this.createdAt = now
                     }
 
@@ -303,10 +353,13 @@ class CheckoutService(
                 val (ticket, payment) = createTicketAndPayment(order, userEntityId, request, now)
 
                 logger.info("Store checkout: order=${order.id.value} ticket=${ticket.id.value} payment=${payment.id.value}")
-                StoreCheckoutResponse(order.id.value.toString(), ticket.id.value.toString(), payment.id.value.toString())
+                CheckoutResult.Success(
+                    StoreCheckoutResponse(order.id.value.toString(), ticket.id.value.toString(), payment.id.value.toString()),
+                    alreadyExisted = false,
+                )
             }
-        } catch (_: CheckoutRejectedException) {
-            null
+        } catch (rejection: CheckoutRejectedException) {
+            CheckoutResult.Invalid(rejection.code, rejection.message)
         }
     }
 }

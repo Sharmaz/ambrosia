@@ -11,6 +11,7 @@ IFS=$'\n\t'
 AUTO_YES=false
 INSTALL_SYSTEMD=true
 EXPOSE_LAN=false
+LOCAL_INSTALL=false
 
 for arg in "$@"; do
   case $arg in
@@ -24,6 +25,10 @@ for arg in "$@"; do
       ;;
     --expose-lan)
       EXPOSE_LAN=true
+      shift
+      ;;
+    --local)
+      LOCAL_INSTALL=true
       shift
       ;;
     *)
@@ -76,6 +81,43 @@ print_header() {
   echo "----------------------------------------"
   echo " 🚀 Unified Ambrosia & Phoenixd Installer"
   echo "----------------------------------------"
+}
+
+resolve_repo_root() {
+  local script_path="${BASH_SOURCE[0]}"
+  while [ -L "$script_path" ]; do
+    local script_dir
+    script_dir=$(cd -- "$(dirname -- "$script_path")" &> /dev/null && pwd)
+    script_path=$(readlink "$script_path")
+    [[ $script_path != /* ]] && script_path="$script_dir/$script_path"
+  done
+  local script_dir
+  script_dir=$(cd -- "$(dirname -- "$script_path")" &> /dev/null && pwd)
+  dirname "$script_dir"
+}
+
+require_local_repo_root() {
+  REPO_ROOT=$(resolve_repo_root)
+  if [[ ! -d "$REPO_ROOT/server" || ! -d "$REPO_ROOT/client" ]]; then
+    log_error "--local requires running install.sh from within a cloned ambrosia checkout"
+    exit 1
+  fi
+}
+
+build_local_artifacts() {
+  local build_dependencies=("java" "node" "npm")
+  for cmd in "${build_dependencies[@]}"; do
+    if ! command -v "$cmd" >/dev/null 2>&1; then
+      log_error "Missing required dependency for --local: $cmd (see doc/dependencies.md)"
+      exit 1
+    fi
+  done
+
+  log_info "Building server JAR from local source..."
+  (cd "$REPO_ROOT/server" && ./gradlew jar)
+
+  log_info "Building client from local source..."
+  (cd "$REPO_ROOT/client" && chmod +x package-client.sh && NO_ZIP=1 ./package-client.sh)
 }
 
 # --- Phoenixd Installation Logic ---
@@ -143,10 +185,10 @@ phoenixd_check_existing() {
 phoenixd_verify_signature() {
   echo "🔐 Verifying package signature and integrity..."
   pushd "$GLOBAL_TEMP_DIR" > /dev/null
-  
+
   local acinq_key_url="https://acinq.co/pgp/padioupm.asc"
   local sig_url="${PHOENIXD_RELEASE_BASE_URL}/SHA256SUMS.asc"
-  
+
   download_file "$acinq_key_url" "padioupm.asc"
   download_file "$sig_url" "SHA256SUMS.asc"
 
@@ -160,7 +202,7 @@ phoenixd_verify_signature() {
     popd > /dev/null
     exit 1
   fi
-  
+
   local sha_cmd="sha256sum"
   if ! command -v sha256sum >/dev/null; then sha_cmd="shasum -a 256"; fi
 
@@ -177,18 +219,20 @@ phoenixd_verify_signature() {
 phoenixd_install() {
   phoenixd_detect_os_arch
   phoenixd_check_existing
-  
+
   echo "Installing phoenixd ${PHOENIXD_TAG}"
   sudo mkdir -p "$PHOENIXD_INSTALL_DIR"
-  
+
   # Download to global temp
   download_file "${PHOENIXD_RELEASE_BASE_URL}/${PHOENIXD_ZIP_FILENAME}" "$GLOBAL_TEMP_DIR/$PHOENIXD_ZIP_FILENAME"
-  
+
   phoenixd_verify_signature
-  
+
   sudo unzip -j -o "$GLOBAL_TEMP_DIR/$PHOENIXD_ZIP_FILENAME" -d "$PHOENIXD_INSTALL_DIR"
   echo "✅ phoenixd installed to $PHOENIXD_INSTALL_DIR"
-  
+
+  phoenixd_install_restart_wrapper
+
   if [[ "$OSTYPE" == "darwin"* ]]; then
     echo "MacOS: Ensure $PHOENIXD_INSTALL_DIR is in your PATH."
     return
@@ -200,6 +244,21 @@ phoenixd_install() {
   fi
 }
 
+phoenixd_install_restart_wrapper() {
+  if [[ "$LOCAL_INSTALL" == "true" ]]; then
+    sudo cp "$REPO_ROOT/scripts/run-phoenixd.sh" "$PHOENIXD_INSTALL_DIR/run-phoenixd.sh"
+  else
+    local wrapper_url="https://raw.githubusercontent.com/${AMBROSIA_REPO}/v${AMBROSIA_TAG}/scripts/run-phoenixd.sh"
+    if ! curl -fsSL -o "$GLOBAL_TEMP_DIR/run-phoenixd.sh" "$wrapper_url" 2>/dev/null; then
+      log_info "phoenixd restart wrapper not published at v$AMBROSIA_TAG yet, phoenixd will run directly."
+      return 0
+    fi
+    sudo cp "$GLOBAL_TEMP_DIR/run-phoenixd.sh" "$PHOENIXD_INSTALL_DIR/run-phoenixd.sh"
+  fi
+  sudo chmod +x "$PHOENIXD_INSTALL_DIR/run-phoenixd.sh"
+  echo "✅ phoenixd restart wrapper installed to $PHOENIXD_INSTALL_DIR/run-phoenixd.sh"
+}
+
 phoenixd_setup_systemd() {
   local reply="n"
   if [[ "$AUTO_YES" == true ]]; then reply="y";
@@ -207,15 +266,19 @@ phoenixd_setup_systemd() {
     echo "Do you want to setup a systemd service (requires sudo permission)? (y/n): "
     read -r reply
   fi
-  
+
   if [[ $reply =~ ^[Yy]$ ]]; then
+    local exec_start="$PHOENIXD_INSTALL_DIR/phoenixd --agree-to-terms-of-service"
+    if [[ -f "$PHOENIXD_INSTALL_DIR/run-phoenixd.sh" ]]; then
+      exec_start="/bin/bash $PHOENIXD_INSTALL_DIR/run-phoenixd.sh"
+    fi
     sudo tee /etc/systemd/system/phoenixd.service > /dev/null << EOF
 [Unit]
 Description=Phoenix Daemon
 After=network.target
 
 [Service]
-ExecStart=$PHOENIXD_INSTALL_DIR/phoenixd --agree-to-terms-of-service
+ExecStart=$exec_start
 User=$USER
 Restart=always
 RestartSec=5
@@ -301,15 +364,26 @@ ambrosia_install() {
   mkdir -p "$AMBROSIA_BIN_DIR" "$AMBROSIA_INSTALL_DIR"
   ambrosia_write_initial_config
 
-  local ambrosia_url="https://github.com/${AMBROSIA_REPO}/releases/download/v${AMBROSIA_TAG}"
-  download_file "${ambrosia_url}/ambrosia-${AMBROSIA_TAG}.jar" "$AMBROSIA_INSTALL_DIR/ambrosia.jar"
-  download_file "https://raw.githubusercontent.com/${AMBROSIA_REPO}/v${AMBROSIA_TAG}/scripts/run-server.sh" "$AMBROSIA_INSTALL_DIR/run-server.sh"
-  
+  if [[ "$LOCAL_INSTALL" == "true" ]]; then
+    local local_jar
+    local_jar=$(find "$REPO_ROOT/server/app/build/libs" -maxdepth 1 -name '*.jar' 2>/dev/null | head -1)
+    if [[ -z "$local_jar" ]]; then
+      log_error "No local JAR found under $REPO_ROOT/server/app/build/libs/ — run './gradlew jar' in server/ first"
+      exit 1
+    fi
+    cp "$local_jar" "$AMBROSIA_INSTALL_DIR/ambrosia.jar"
+    cp "$REPO_ROOT/scripts/run-server.sh" "$AMBROSIA_INSTALL_DIR/run-server.sh"
+  else
+    local ambrosia_url="https://github.com/${AMBROSIA_REPO}/releases/download/v${AMBROSIA_TAG}"
+    download_file "${ambrosia_url}/ambrosia-${AMBROSIA_TAG}.jar" "$AMBROSIA_INSTALL_DIR/ambrosia.jar"
+    download_file "https://raw.githubusercontent.com/${AMBROSIA_REPO}/v${AMBROSIA_TAG}/scripts/run-server.sh" "$AMBROSIA_INSTALL_DIR/run-server.sh"
+  fi
+
   chmod +x "$AMBROSIA_INSTALL_DIR/ambrosia.jar" "$AMBROSIA_INSTALL_DIR/run-server.sh"
   ln -sf "$AMBROSIA_INSTALL_DIR/run-server.sh" "$AMBROSIA_BIN_DIR/ambrosia"
-  
+
   echo "✅ Ambrosia POS Server installed."
-  
+
   # Setup Path logic (simplified)
   local rc_file=""
   [[ $SHELL == *"zsh"* ]] && rc_file="$HOME/.zshrc"
@@ -327,7 +401,7 @@ ambrosia_install() {
 ambrosia_setup_systemd() {
     local reply="n"
     if [[ "$AUTO_YES" == true ]]; then reply="y";
-    elif [[ -t 0 ]]; then 
+    elif [[ -t 0 ]]; then
         echo "Setup systemd service for Ambrosia Server? (y/n): "
         read -r reply
     fi
@@ -342,6 +416,7 @@ After=network.target
 ExecStart=$AMBROSIA_INSTALL_DIR/run-server.sh
 WorkingDirectory=$AMBROSIA_INSTALL_DIR
 User=$USER
+Environment=AMBROSIA_SERVICE_MANAGED=true
 Restart=always
 RestartSec=5
 LimitNOFILE=4096
@@ -359,6 +434,7 @@ EOF
 # --- Client Installation ---
 
 CLIENT_INSTALL_DIR="$HOME/.local/ambrosia/client"
+CLIENT_DIST_DIR="/tmp/ambrosia-client-dist"
 
 client_install() {
   echo "➡️  Starting Ambrosia POS Client installation..."
@@ -374,16 +450,24 @@ client_install() {
 
   mkdir -p "$CLIENT_INSTALL_DIR"
 
-  local client_dist_file="ambrosia-client-${AMBROSIA_TAG}.tar.gz"
-  local client_dist_url="https://github.com/${AMBROSIA_REPO}/releases/download/v${AMBROSIA_TAG}/${client_dist_file}"
-  download_file "$client_dist_url" "$GLOBAL_TEMP_DIR/$client_dist_file"
-  tar -xzf "$GLOBAL_TEMP_DIR/$client_dist_file" -C "$CLIENT_INSTALL_DIR" --strip-components=1
-  
+  if [[ "$LOCAL_INSTALL" == "true" ]]; then
+    if [[ ! -d "$CLIENT_DIST_DIR" ]]; then
+      log_error "No local client build found at $CLIENT_DIST_DIR — run 'make build-client' first"
+      exit 1
+    fi
+    cp -r "$CLIENT_DIST_DIR/." "$CLIENT_INSTALL_DIR/"
+  else
+    local client_dist_file="ambrosia-client-${AMBROSIA_TAG}.tar.gz"
+    local client_dist_url="https://github.com/${AMBROSIA_REPO}/releases/download/v${AMBROSIA_TAG}/${client_dist_file}"
+    download_file "$client_dist_url" "$GLOBAL_TEMP_DIR/$client_dist_file"
+    tar -xzf "$GLOBAL_TEMP_DIR/$client_dist_file" -C "$CLIENT_INSTALL_DIR" --strip-components=1
+  fi
+
   echo "   Installing Node.js dependencies..."
   pushd "$CLIENT_INSTALL_DIR" > /dev/null
   npm install --production --silent
   popd > /dev/null
-  
+
   echo "✅ Client installed."
 
   # Create wrapper for easier execution
@@ -403,7 +487,7 @@ EOF
 client_setup_systemd() {
     local reply="n"
     if [[ "$AUTO_YES" == true ]]; then reply="y";
-    elif [[ -t 0 ]]; then 
+    elif [[ -t 0 ]]; then
       echo "Setup systemd service for Ambrosia Client? (y/n): "
       read -r reply
     fi
@@ -422,7 +506,8 @@ client_setup_systemd() {
     sudo tee "/etc/systemd/system/ambrosia-client.service" > /dev/null << EOF
 [Unit]
 Description=Ambrosia POS Client (Next.js)
-After=network.target
+After=network.target ambrosia.service
+Wants=ambrosia.service
 
 [Service]
 User=$USER
@@ -447,8 +532,13 @@ EOF
 # --- Main execution flow ---
 check_dependencies
 print_header
+if [[ "$LOCAL_INSTALL" == "true" ]]; then
+  require_local_repo_root
+  build_local_artifacts
+else
+  ambrosia_resolve_tag
+fi
 phoenixd_install
-ambrosia_resolve_tag
 ambrosia_install
 client_install
 

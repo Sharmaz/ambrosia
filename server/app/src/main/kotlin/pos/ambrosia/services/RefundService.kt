@@ -32,7 +32,6 @@ import pos.ambrosia.utils.OrderAlreadyRefundedException
 import pos.ambrosia.utils.OrderNotRefundableException
 import pos.ambrosia.utils.ResourceNotFoundException
 import java.time.LocalDateTime
-import java.time.ZoneOffset
 import java.util.UUID
 
 class RefundService(
@@ -41,6 +40,8 @@ class RefundService(
     companion object {
         private val refundMutex = Mutex()
     }
+
+    private val configService = ConfigService()
 
     private fun restoreVariantStock(
         variantId: UUID,
@@ -160,7 +161,7 @@ class RefundService(
 
                 order.status = "refunded"
 
-                val refundedAt = LocalDateTime.now(ZoneOffset.UTC).toString()
+                val refundedAt = LocalDateTime.now(configService.getConfiguredZoneId()).toString()
                 val refundEntity =
                     RefundEntity.new(UUID.randomUUID()) {
                         this.orderId = order.id

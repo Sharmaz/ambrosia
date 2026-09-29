@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback } from "react";
 
 import { toArray } from "@/components/utils/array";
+import { usePermission } from "@/hooks/usePermission";
 import { httpClient, parseJsonResponse } from "@/lib/http";
 import { useFetchList } from "@/lib/http/useFetchList";
 
@@ -9,17 +10,18 @@ import { buildParsedHttpError } from "../utils/buildHttpError";
 
 export function useCategories(type = "product") {
   const { fetchList } = useFetchList();
+  const canRead = usePermission({ allOf: ["categories_read"] });
   const [categories, setCategories] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(canRead);
   const [error, setError] = useState(null);
 
   const fetchCategories = useCallback(async () => {
+    if (!canRead) return;
     setLoading(true);
     setError(null);
 
     try {
       const categoryList = await fetchList(`/categories?type=${type}`);
-      if (categoryList === null) return;
       setCategories(toArray(categoryList));
     } catch (categoryLoadError) {
       console.error("Error fetching categories:", categoryLoadError);
@@ -27,7 +29,7 @@ export function useCategories(type = "product") {
     } finally {
       setLoading(false);
     }
-  }, [fetchList, type]);
+  }, [canRead, fetchList, type]);
 
   const createCategory = useCallback(
     async (name, categoryType) => {
@@ -38,6 +40,7 @@ export function useCategories(type = "product") {
           "Content-Type": "application/json",
         },
         notShowError: false,
+        skipForbiddenRedirect: true,
       });
       if (createCategoryResponse.ok === false) {
         throw await buildParsedHttpError(createCategoryResponse, "Error creating category");
@@ -58,6 +61,7 @@ export function useCategories(type = "product") {
         headers: {
           "Content-Type": "application/json",
         },
+        skipForbiddenRedirect: true,
       });
       if (updateCategoryResponse.ok === false) {
         throw await buildParsedHttpError(updateCategoryResponse, "Error updating category");
@@ -72,6 +76,7 @@ export function useCategories(type = "product") {
     async (categoryId) => {
       const deleteCategoryResponse = await httpClient(`/categories/${categoryId}?type=${type}`, {
         method: "DELETE",
+        skipForbiddenRedirect: true,
       });
       if (deleteCategoryResponse.ok === false) {
         throw await buildParsedHttpError(deleteCategoryResponse, "Error deleting category");
@@ -93,6 +98,7 @@ export function useCategories(type = "product") {
     deleteCategory,
     loading,
     error,
+    forbidden: !canRead,
     refetch: fetchCategories,
   };
 }
