@@ -9,6 +9,7 @@ const { logger } = require('../../utils/logger.js');
 
 let BackendService;
 let unlockPasswordStore;
+let serverSecretStore;
 let spawnMock;
 let treeKillMock;
 
@@ -19,6 +20,8 @@ beforeAll(() => {
   healthCheck.checkBackend = vi.fn();
   ({ unlockPasswordStore } = require('../UnlockPasswordStore.js'));
   unlockPasswordStore.read = vi.fn();
+  ({ serverSecretStore } = require('../ServerSecretStore.js'));
+  serverSecretStore.read = vi.fn();
   BackendService = require('../BackendService.js').default;
 });
 
@@ -35,6 +38,7 @@ beforeEach(() => {
   });
   healthCheck.checkBackend.mockReset().mockResolvedValue(true);
   unlockPasswordStore.read.mockReset().mockReturnValue(null);
+  serverSecretStore.read.mockReset().mockReturnValue(null);
   vi.spyOn(fs, 'readdirSync').mockReturnValue(['ambrosia-0.8.0-beta.jar']);
   vi.spyOn(fs, 'existsSync').mockReturnValue(true);
   vi.spyOn(fs, 'mkdirSync').mockImplementation(() => {});
@@ -115,6 +119,25 @@ describe('start', () => {
     const [, , spawnOptions] = spawnMock.mock.calls[0];
     expect(spawnOptions.env.PHOENIXD_PASSWORD).toBe('phoenix-password');
     expect(spawnOptions.env.PHOENIXD_WEBHOOK_SECRET).toBe('webhook-secret');
+  });
+
+  it('sets AMBROSIA_SECRET when a server secret was saved', async () => {
+    serverSecretStore.read.mockReturnValue('saved-server-secret');
+    const backendService = new BackendService();
+
+    await backendService.start(9154, backendConfig);
+
+    const [, , spawnOptions] = spawnMock.mock.calls[0];
+    expect(spawnOptions.env.AMBROSIA_SECRET).toBe('saved-server-secret');
+  });
+
+  it('omits AMBROSIA_SECRET when no server secret was saved', async () => {
+    const backendService = new BackendService();
+
+    await backendService.start(9154, backendConfig);
+
+    const [, , spawnOptions] = spawnMock.mock.calls[0];
+    expect(spawnOptions.env.AMBROSIA_SECRET).toBeUndefined();
   });
 
   it('sets AUTO_UNLOCK_PASSWORD when a password was saved', async () => {
