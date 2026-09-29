@@ -157,6 +157,33 @@ describe('ensureConfigurations', () => {
     expect(serverSecretStore.save).not.toHaveBeenCalled();
   });
 
+  it('migrates a legacy plaintext secret from an existing ambrosia.conf instead of generating a new one', async () => {
+    fakeFiles.set(AMBROSIA_CONFIG_PATH, 'secret=legacy-plaintext-secret\nsecret-hash=legacy-hash\nhttp-bind-port=1111\n');
+    fakeFiles.set(PHOENIX_CONFIG_PATH, 'http-password=existing-password\n');
+
+    const { ambrosia } = await configurationBootstrap.ensureConfigurations(allocatedPorts);
+
+    expect(serverSecretStore.save).toHaveBeenCalledWith('legacy-plaintext-secret');
+    expect(ambrosia.secret).toBeUndefined();
+    expect(ambrosia['secret-hash']).toBeUndefined();
+    expect(fakeFiles.get(AMBROSIA_CONFIG_PATH)).not.toContain('secret=');
+    expect(fakeFiles.get(AMBROSIA_CONFIG_PATH)).not.toContain('secret-hash=');
+  });
+
+  it('strips a stale plaintext secret from ambrosia.conf even when the encrypted secret already exists', async () => {
+    serverSecretStore.read.mockReturnValue('existing-server-secret');
+    fakeFiles.set(AMBROSIA_CONFIG_PATH, 'secret=stale-plaintext-secret\nsecret-hash=stale-hash\nhttp-bind-port=1111\n');
+    fakeFiles.set(PHOENIX_CONFIG_PATH, 'http-password=existing-password\n');
+
+    const { ambrosia } = await configurationBootstrap.ensureConfigurations(allocatedPorts);
+
+    expect(serverSecretStore.save).not.toHaveBeenCalled();
+    expect(ambrosia.secret).toBeUndefined();
+    expect(ambrosia['secret-hash']).toBeUndefined();
+    expect(fakeFiles.get(AMBROSIA_CONFIG_PATH)).not.toContain('secret=');
+    expect(fakeFiles.get(AMBROSIA_CONFIG_PATH)).not.toContain('secret-hash=');
+  });
+
   it('generates a new phoenix config with independent random secrets', async () => {
     const { phoenix } = await configurationBootstrap.ensureConfigurations(allocatedPorts);
 

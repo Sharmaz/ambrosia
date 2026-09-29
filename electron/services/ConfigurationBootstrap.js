@@ -7,8 +7,8 @@ import { getDataDirectory, getPhoenixDataDirectory, getLogsDirectory } from '../
 
 import { serverSecretStore } from './ServerSecretStore.js';
 
-function generateRandomHex(length) {
-  return crypto.randomBytes(length).toString('hex');
+function generateRandomHex(byteLength) {
+  return crypto.randomBytes(byteLength).toString('hex');
 }
 
 function ensureDirectoryExists(directoryPath) {
@@ -21,10 +21,10 @@ function ensureDirectoryExists(directoryPath) {
 function configExists() {
   const dataDirectory = getDataDirectory();
   const phoenixDirectory = getPhoenixDataDirectory();
-  const ambrosiaConfig = path.join(dataDirectory, 'ambrosia.conf');
-  const phoenixConfig = path.join(phoenixDirectory, 'phoenix.conf');
+  const ambrosiaConfigPath = path.join(dataDirectory, 'ambrosia.conf');
+  const phoenixConfigPath = path.join(phoenixDirectory, 'phoenix.conf');
 
-  return fs.existsSync(ambrosiaConfig) && fs.existsSync(phoenixConfig);
+  return fs.existsSync(ambrosiaConfigPath) && fs.existsSync(phoenixConfigPath);
 }
 
 function readConfig(configPath) {
@@ -92,19 +92,31 @@ async function ensureConfigurations(ports) {
   }
 
   if (!serverSecretStore.read()) {
-    logger.log('[ConfigurationBootstrap] Generating encrypted server secret...');
-    serverSecretStore.save(generateRandomHex(32));
+    const legacyPlaintextSecret = ambrosiaConfig.secret;
+    if (legacyPlaintextSecret) {
+      logger.log('[ConfigurationBootstrap] Migrating the existing server secret to encrypted storage...');
+      serverSecretStore.save(legacyPlaintextSecret);
+    } else {
+      logger.log('[ConfigurationBootstrap] Generating encrypted server secret...');
+      serverSecretStore.save(generateRandomHex(32));
+    }
+  }
+
+  if ('secret' in ambrosiaConfig || 'secret-hash' in ambrosiaConfig) {
+    delete ambrosiaConfig.secret;
+    delete ambrosiaConfig['secret-hash'];
+    needsUpdate = true;
   }
 
   if (!fs.existsSync(phoenixConfigPath) || Object.keys(phoenixConfig).length === 0) {
     logger.log('[ConfigurationBootstrap] Generating Phoenix configuration...');
     const httpPassword = generateRandomHex(32);
-    const httpPasswordLimited = generateRandomHex(32);
+    const httpPasswordLimitedAccess = generateRandomHex(32);
     const webhookSecret = generateRandomHex(32);
 
     phoenixConfig = {
       'http-password': httpPassword,
-      'http-password-limited-access': httpPasswordLimited,
+      'http-password-limited-access': httpPasswordLimitedAccess,
       'webhook-secret': webhookSecret,
       webhook: `http://127.0.0.1:${ports.backend}/webhook/phoenixd`,
       'auto-liquidity': 'off',
