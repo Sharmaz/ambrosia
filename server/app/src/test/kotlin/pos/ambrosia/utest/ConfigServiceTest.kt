@@ -106,6 +106,25 @@ class ConfigServiceTest {
         }
 
     @Test
+    fun `updateConfig persists a non-default price step`() =
+        runBlocking {
+            service.updateConfig(
+                Config(
+                    businessType = "store",
+                    businessName = "Test Store",
+                    businessAddress = null,
+                    businessPhone = null,
+                    businessEmail = null,
+                    businessTaxId = null,
+                    businessLogoUrl = null,
+                    priceStep = 0.5,
+                ),
+            )
+
+            assertEquals(0.5, service.getConfig()?.priceStep)
+        }
+
+    @Test
     fun `getConfiguredZoneId returns the configured timezone`() =
         runBlocking {
             service.updateConfig(
