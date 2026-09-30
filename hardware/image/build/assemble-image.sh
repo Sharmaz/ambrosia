@@ -570,7 +570,7 @@ EOF
   chmod 0644 "$ROOTFS_MNT/etc/ambrosia/board-identity"
 
   if [[ -f "$ROOTFS_MNT/usr/lib/raspberrypi-sys-mods/firstboot" ]]; then
-    printf 'ambrosia:%s\n' "$(openssl passwd -6 "$(openssl rand -hex 24)")" > "$BOOT_MNT/userconf.txt"
+    printf 'ambrosia:%s\n' "$(openssl passwd -6 'Ambrosia2026!')" > "$BOOT_MNT/userconf.txt"
   fi
 
   sed -i \
