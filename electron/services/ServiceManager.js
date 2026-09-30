@@ -83,7 +83,7 @@ export default class ServiceManager extends EventEmitter {
           this.externalServices.phoenixd = true;
         } else {
           logger.log('[ServiceManager] Starting Phoenixd...');
-          await this.phoenixdService.start(this.ports.phoenixd, phoenixConfig);
+          await this.phoenixdService.start(this.ports.phoenixd);
         }
         this.emit('service:started', { service: 'phoenixd', port: this.ports.phoenixd });
       }
@@ -99,7 +99,6 @@ export default class ServiceManager extends EventEmitter {
         logger.log('[ServiceManager] Starting Backend...');
         await this.backendService.start(this.ports.backend, {
           phoenixdPort: this.ports.phoenixd,
-          phoenixPassword: phoenixConfig['http-password'],
           webhookSecret: phoenixConfig['webhook-secret'],
           phoenixdRemoteConfigured: this.phoenixdRemoteConfigured,
         });
@@ -213,14 +212,13 @@ export default class ServiceManager extends EventEmitter {
       switch (serviceName) {
         case 'phoenixd':
           await this.phoenixdService.stop();
-          await this.phoenixdService.start(this.ports.phoenixd, this.configs.phoenix);
+          await this.phoenixdService.start(this.ports.phoenixd);
           this.externalServices.phoenixd = false;
           break;
         case 'backend':
           await this.backendService.stop();
           await this.backendService.start(this.ports.backend, {
             phoenixdPort: this.ports.phoenixd,
-            phoenixPassword: this.configs.phoenix['http-password'],
             webhookSecret: this.configs.phoenix['webhook-secret'],
             phoenixdRemoteConfigured: this.phoenixdRemoteConfigured,
           });
