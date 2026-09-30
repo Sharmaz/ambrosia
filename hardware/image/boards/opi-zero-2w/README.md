@@ -8,7 +8,7 @@ Bookworm server image for `OrangePi Zero 2W`.
 - Base image archive: `orangepizero2w_1.0.0_debian_bookworm_server_linux6.1.31.7z`
 - Official board page:
   `https://www.orangepi.org/html/hardWare/computerAndMicrocontrollers/service-and-support/Orange-Pi-Zero-2W.html`
-- Phoenixd: `0.7.2` Linux ARM64
+- Phoenixd: `0.9.1` Linux ARM64
 
 Direct vendor download URLs tend to move. The assembler therefore supports:
 
