@@ -5,6 +5,7 @@ import path from 'path';
 import { logger } from '../utils/logger.js';
 import { getDataDirectory, getPhoenixDataDirectory, getLogsDirectory } from '../utils/resourcePaths.js';
 
+import { phoenixdCredentialsStore } from './PhoenixdCredentialsStore.js';
 import { serverSecretStore } from './ServerSecretStore.js';
 
 function generateRandomHex(byteLength) {
@@ -54,6 +55,20 @@ function writeConfig(configPath, configEntries) {
   logger.log(`[ConfigurationBootstrap] Written configuration to: ${configPath}`);
 }
 
+function migrateOrGenerateSecret(readSecret, saveSecret, legacyPlaintextSecret, label) {
+  if (readSecret()) {
+    return;
+  }
+
+  if (legacyPlaintextSecret) {
+    logger.log(`[ConfigurationBootstrap] Migrating the existing ${label} to encrypted storage...`);
+    saveSecret(legacyPlaintextSecret);
+  } else {
+    logger.log(`[ConfigurationBootstrap] Generating encrypted ${label}...`);
+    saveSecret(generateRandomHex(32));
+  }
+}
+
 async function ensureConfigurations(ports) {
   const dataDirectory = getDataDirectory();
   const phoenixDirectory = getPhoenixDataDirectory();
@@ -91,16 +106,7 @@ async function ensureConfigurations(ports) {
     }
   }
 
-  if (!serverSecretStore.read()) {
-    const legacyPlaintextSecret = ambrosiaConfig.secret;
-    if (legacyPlaintextSecret) {
-      logger.log('[ConfigurationBootstrap] Migrating the existing server secret to encrypted storage...');
-      serverSecretStore.save(legacyPlaintextSecret);
-    } else {
-      logger.log('[ConfigurationBootstrap] Generating encrypted server secret...');
-      serverSecretStore.save(generateRandomHex(32));
-    }
-  }
+  migrateOrGenerateSecret(serverSecretStore.read, serverSecretStore.save, ambrosiaConfig.secret, 'server secret');
 
   if ('secret' in ambrosiaConfig || 'secret-hash' in ambrosiaConfig) {
     delete ambrosiaConfig.secret;
@@ -110,13 +116,9 @@ async function ensureConfigurations(ports) {
 
   if (!fs.existsSync(phoenixConfigPath) || Object.keys(phoenixConfig).length === 0) {
     logger.log('[ConfigurationBootstrap] Generating Phoenix configuration...');
-    const httpPassword = generateRandomHex(32);
-    const httpPasswordLimitedAccess = generateRandomHex(32);
     const webhookSecret = generateRandomHex(32);
 
     phoenixConfig = {
-      'http-password': httpPassword,
-      'http-password-limited-access': httpPasswordLimitedAccess,
       'webhook-secret': webhookSecret,
       webhook: `http://127.0.0.1:${ports.backend}/webhook/phoenixd`,
       'auto-liquidity': 'off',
@@ -127,6 +129,26 @@ async function ensureConfigurations(ports) {
     needsUpdate = true;
   } else {
     phoenixConfig.webhook = `http://127.0.0.1:${ports.backend}/webhook/phoenixd`;
+  }
+
+  migrateOrGenerateSecret(
+    phoenixdCredentialsStore.readHttpPassword,
+    phoenixdCredentialsStore.saveHttpPassword,
+    phoenixConfig['http-password'],
+    'phoenixd http-password',
+  );
+
+  migrateOrGenerateSecret(
+    phoenixdCredentialsStore.readHttpPasswordLimitedAccess,
+    phoenixdCredentialsStore.saveHttpPasswordLimitedAccess,
+    phoenixConfig['http-password-limited-access'],
+    'phoenixd http-password-limited-access',
+  );
+
+  if ('http-password' in phoenixConfig || 'http-password-limited-access' in phoenixConfig) {
+    delete phoenixConfig['http-password'];
+    delete phoenixConfig['http-password-limited-access'];
+    needsUpdate = true;
   }
 
   if (needsUpdate || !fs.existsSync(ambrosiaConfigPath) || !fs.existsSync(phoenixConfigPath)) {

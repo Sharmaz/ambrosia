@@ -6,13 +6,19 @@ const { installElectronMock } = require('../../test-utils/electronMock.js');
 
 let configurationBootstrap;
 let serverSecretStore;
+let phoenixdCredentialsStore;
 
 beforeAll(() => {
   installElectronMock();
   ({ configurationBootstrap } = require('../ConfigurationBootstrap.js'));
   ({ serverSecretStore } = require('../ServerSecretStore.js'));
+  ({ phoenixdCredentialsStore } = require('../PhoenixdCredentialsStore.js'));
   serverSecretStore.save = vi.fn();
   serverSecretStore.read = vi.fn();
+  phoenixdCredentialsStore.saveHttpPassword = vi.fn();
+  phoenixdCredentialsStore.readHttpPassword = vi.fn();
+  phoenixdCredentialsStore.saveHttpPasswordLimitedAccess = vi.fn();
+  phoenixdCredentialsStore.readHttpPasswordLimitedAccess = vi.fn();
 });
 
 const FAKE_HOME_DIRECTORY = '/fake/home';
@@ -36,6 +42,10 @@ beforeEach(() => {
   installFakeFileSystem();
   serverSecretStore.save.mockReset();
   serverSecretStore.read.mockReset().mockReturnValue(null);
+  phoenixdCredentialsStore.saveHttpPassword.mockReset();
+  phoenixdCredentialsStore.readHttpPassword.mockReset().mockReturnValue(null);
+  phoenixdCredentialsStore.saveHttpPasswordLimitedAccess.mockReset();
+  phoenixdCredentialsStore.readHttpPasswordLimitedAccess.mockReset().mockReturnValue(null);
 });
 
 afterEach(() => {
@@ -159,7 +169,7 @@ describe('ensureConfigurations', () => {
 
   it('migrates a legacy plaintext secret from an existing ambrosia.conf instead of generating a new one', async () => {
     fakeFiles.set(AMBROSIA_CONFIG_PATH, 'secret=legacy-plaintext-secret\nsecret-hash=legacy-hash\nhttp-bind-port=1111\n');
-    fakeFiles.set(PHOENIX_CONFIG_PATH, 'http-password=existing-password\n');
+    fakeFiles.set(PHOENIX_CONFIG_PATH, 'auto-liquidity=off\n');
 
     const { ambrosia } = await configurationBootstrap.ensureConfigurations(allocatedPorts);
 
@@ -173,7 +183,7 @@ describe('ensureConfigurations', () => {
   it('strips a stale plaintext secret from ambrosia.conf even when the encrypted secret already exists', async () => {
     serverSecretStore.read.mockReturnValue('existing-server-secret');
     fakeFiles.set(AMBROSIA_CONFIG_PATH, 'secret=stale-plaintext-secret\nsecret-hash=stale-hash\nhttp-bind-port=1111\n');
-    fakeFiles.set(PHOENIX_CONFIG_PATH, 'http-password=existing-password\n');
+    fakeFiles.set(PHOENIX_CONFIG_PATH, 'auto-liquidity=off\n');
 
     const { ambrosia } = await configurationBootstrap.ensureConfigurations(allocatedPorts);
 
@@ -184,19 +194,68 @@ describe('ensureConfigurations', () => {
     expect(fakeFiles.get(AMBROSIA_CONFIG_PATH)).not.toContain('secret-hash=');
   });
 
-  it('generates a new phoenix config with independent random secrets', async () => {
+  it('generates a new phoenix config without http-password fields', async () => {
     const { phoenix } = await configurationBootstrap.ensureConfigurations(allocatedPorts);
 
-    expect(phoenix['http-password']).toMatch(/^[0-9a-f]{64}$/);
-    expect(phoenix['http-password-limited-access']).toMatch(/^[0-9a-f]{64}$/);
     expect(phoenix['webhook-secret']).toMatch(/^[0-9a-f]{64}$/);
-    expect(phoenix['http-password']).not.toBe(phoenix['http-password-limited-access']);
     expect(phoenix.webhook).toBe('http://127.0.0.1:9154/webhook/phoenixd');
+    expect(phoenix['http-password']).toBeUndefined();
+    expect(phoenix['http-password-limited-access']).toBeUndefined();
+  });
+
+  it('generates and saves independent encrypted phoenixd http passwords when none exist yet', async () => {
+    await configurationBootstrap.ensureConfigurations(allocatedPorts);
+
+    expect(phoenixdCredentialsStore.saveHttpPassword).toHaveBeenCalledWith(expect.stringMatching(/^[0-9a-f]{64}$/));
+    expect(phoenixdCredentialsStore.saveHttpPasswordLimitedAccess).toHaveBeenCalledWith(expect.stringMatching(/^[0-9a-f]{64}$/));
+
+    const [savedHttpPassword] = phoenixdCredentialsStore.saveHttpPassword.mock.calls[0];
+    const [savedHttpPasswordLimitedAccess] = phoenixdCredentialsStore.saveHttpPasswordLimitedAccess.mock.calls[0];
+    expect(savedHttpPassword).not.toBe(savedHttpPasswordLimitedAccess);
+  });
+
+  it('does not regenerate the phoenixd http-password when one already exists', async () => {
+    phoenixdCredentialsStore.readHttpPassword.mockReturnValue('existing-encrypted-password');
+
+    await configurationBootstrap.ensureConfigurations(allocatedPorts);
+
+    expect(phoenixdCredentialsStore.saveHttpPassword).not.toHaveBeenCalled();
+  });
+
+  it('migrates a legacy plaintext http-password from an existing phoenix.conf instead of generating a new one', async () => {
+    fakeFiles.set(PHOENIX_CONFIG_PATH, 'http-password=legacy-plaintext-password\nauto-liquidity=off\n');
+
+    const { phoenix } = await configurationBootstrap.ensureConfigurations(allocatedPorts);
+
+    expect(phoenixdCredentialsStore.saveHttpPassword).toHaveBeenCalledWith('legacy-plaintext-password');
+    expect(phoenix['http-password']).toBeUndefined();
+    expect(fakeFiles.get(PHOENIX_CONFIG_PATH)).not.toContain('http-password=');
+  });
+
+  it('strips a stale plaintext http-password from phoenix.conf even when the encrypted password already exists', async () => {
+    phoenixdCredentialsStore.readHttpPassword.mockReturnValue('existing-encrypted-password');
+    fakeFiles.set(PHOENIX_CONFIG_PATH, 'http-password=stale-plaintext-password\nauto-liquidity=off\n');
+
+    const { phoenix } = await configurationBootstrap.ensureConfigurations(allocatedPorts);
+
+    expect(phoenixdCredentialsStore.saveHttpPassword).not.toHaveBeenCalled();
+    expect(phoenix['http-password']).toBeUndefined();
+    expect(fakeFiles.get(PHOENIX_CONFIG_PATH)).not.toContain('http-password=');
+  });
+
+  it('migrates a legacy plaintext http-password-limited-access from an existing phoenix.conf instead of generating a new one', async () => {
+    fakeFiles.set(PHOENIX_CONFIG_PATH, 'http-password-limited-access=legacy-plaintext-password\nauto-liquidity=off\n');
+
+    const { phoenix } = await configurationBootstrap.ensureConfigurations(allocatedPorts);
+
+    expect(phoenixdCredentialsStore.saveHttpPasswordLimitedAccess).toHaveBeenCalledWith('legacy-plaintext-password');
+    expect(phoenix['http-password-limited-access']).toBeUndefined();
+    expect(fakeFiles.get(PHOENIX_CONFIG_PATH)).not.toContain('http-password-limited-access=');
   });
 
   it('updates http-bind-port when the ambrosia config already exists', async () => {
     fakeFiles.set(AMBROSIA_CONFIG_PATH, 'http-bind-port=1111\n');
-    fakeFiles.set(PHOENIX_CONFIG_PATH, 'http-password=existing-password\n');
+    fakeFiles.set(PHOENIX_CONFIG_PATH, 'auto-liquidity=off\n');
 
     const { ambrosia } = await configurationBootstrap.ensureConfigurations(allocatedPorts);
 
@@ -208,20 +267,19 @@ describe('ensureConfigurations', () => {
       AMBROSIA_CONFIG_PATH,
       'phoenixd-remote=true\nphoenixd-url=http://100.1.1.1:9740\n',
     );
-    fakeFiles.set(PHOENIX_CONFIG_PATH, 'http-password=existing-password\n');
+    fakeFiles.set(PHOENIX_CONFIG_PATH, 'auto-liquidity=off\n');
 
     const { ambrosia } = await configurationBootstrap.ensureConfigurations(allocatedPorts);
 
     expect(ambrosia['phoenixd-url']).toBe('http://100.1.1.1:9740');
   });
 
-  it('does not regenerate phoenix secrets when the config already exists', async () => {
+  it('does not regenerate the webhook secret when the phoenix config already exists', async () => {
     fakeFiles.set(AMBROSIA_CONFIG_PATH, 'http-bind-port=9154\n');
-    fakeFiles.set(PHOENIX_CONFIG_PATH, 'http-password=existing-password\nwebhook-secret=existing-webhook-secret\n');
+    fakeFiles.set(PHOENIX_CONFIG_PATH, 'webhook-secret=existing-webhook-secret\n');
 
     const { phoenix } = await configurationBootstrap.ensureConfigurations(allocatedPorts);
 
-    expect(phoenix['http-password']).toBe('existing-password');
     expect(phoenix['webhook-secret']).toBe('existing-webhook-secret');
     expect(phoenix.webhook).toBe('http://127.0.0.1:9154/webhook/phoenixd');
   });
