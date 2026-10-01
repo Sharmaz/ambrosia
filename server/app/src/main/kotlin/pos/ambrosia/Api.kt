@@ -86,12 +86,7 @@ class Api {
             pingPeriod = 30.seconds
             timeout = 15.seconds
         }
-        install(RateLimit) {
-            global {
-                rateLimiter(limit = 300, refillPeriod = 60.seconds)
-            }
-        }
-
+        configureRateLimit()
         configureAuthentication()
         configureRouting()
         configureAuth()
@@ -138,6 +133,20 @@ class Api {
         configurePaymentWebsocket()
         configureHealth()
         configureSystem()
+    }
+}
+
+fun Application.configureRateLimit() {
+    val requestsPerMinute =
+        environment.config
+            .property("rate-limit.requestsPerMinute")
+            .getString()
+            .toInt()
+    install(RateLimit) {
+        global {
+            rateLimiter(limit = requestsPerMinute, refillPeriod = 60.seconds)
+            requestKey { call -> call.request.origin.remoteAddress }
+        }
     }
 }
 
