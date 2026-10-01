@@ -5,6 +5,7 @@ import io.ktor.server.application.Application
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.application.install
 import io.ktor.server.engine.defaultExceptionStatusCode
+import io.ktor.server.plugins.PayloadTooLargeException
 import io.ktor.server.plugins.statuspages.StatusPages
 import io.ktor.server.response.respond
 import io.ktor.server.response.respondText
@@ -66,6 +67,10 @@ fun Application.handler() {
         exception<TimeEntryLockedException> { call, cause ->
             logger.warn("Locked time entry mutation rejected: ${cause.message}")
             call.respond(HttpStatusCode.Conflict, Message(cause.message ?: "Time entry is locked"))
+        }
+        exception<PayloadTooLargeException> { call, cause ->
+            logger.warn("Rejected an oversized request body: ${cause.message}")
+            call.respond(HttpStatusCode.PayloadTooLarge, Message(cause.message ?: "Request body too large"))
         }
         exception<UnsupportedUploadTypeException> { call, cause ->
             logger.warn("Rejected upload with an unsupported type: ${cause.message}")
