@@ -14,6 +14,7 @@ import io.ktor.server.auth.jwt.jwt
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.server.plugins.cors.routing.CORS
 import io.ktor.server.plugins.origin
+import io.ktor.server.plugins.ratelimit.RateLimit
 import io.ktor.server.websocket.WebSockets
 import io.ktor.server.websocket.pingPeriod
 import io.ktor.server.websocket.timeout
@@ -85,7 +86,7 @@ class Api {
             pingPeriod = 30.seconds
             timeout = 15.seconds
         }
-
+        configureRateLimit()
         configureAuthentication()
         configureRouting()
         configureAuth()
@@ -132,6 +133,20 @@ class Api {
         configurePaymentWebsocket()
         configureHealth()
         configureSystem()
+    }
+}
+
+fun Application.configureRateLimit() {
+    val requestsPerMinute =
+        environment.config
+            .property("rate-limit.requestsPerMinute")
+            .getString()
+            .toInt()
+    install(RateLimit) {
+        global {
+            rateLimiter(limit = requestsPerMinute, refillPeriod = 60.seconds)
+            requestKey { call -> call.request.origin.remoteAddress }
+        }
     }
 }
 
