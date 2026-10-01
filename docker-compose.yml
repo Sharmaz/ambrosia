@@ -7,6 +7,10 @@ services:
       - default
     volumes:
       - phoenixd_datadir:/phoenix/.phoenix
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
 
   ambrosia:
     build: server/
@@ -19,10 +23,18 @@ services:
       - "9154:9154"
       - "9443:9443"
     volumes:
-      - ambrosia_datadir:/root/.Ambrosia-POS
-      - phoenixd_datadir:/root/.phoenix  
+      - ambrosia_datadir:/home/ambrosia/.Ambrosia-POS
+      - phoenixd_datadir:/home/ambrosia/.phoenix
     depends_on:
       - phoenixd
+    user: "ambrosia:ambrosia"
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp:exec,size=100m
   ambrosia-client:
     build:
       context: client/
@@ -33,8 +45,6 @@ services:
     restart: unless-stopped
     networks:
       - default
-    volumes:
-      - ambrosia_datadir:/root/.Ambrosia-POS
     depends_on:
       - ambrosia
     ports:
@@ -44,6 +54,14 @@ services:
       NEXT_PUBLIC_PORT_API: "9154"
       HOSTNAME: "0.0.0.0"
       PORT: "3000"
+    user: "node:node"
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp:exec,size=100m
 
 volumes:
   phoenixd_datadir: 
