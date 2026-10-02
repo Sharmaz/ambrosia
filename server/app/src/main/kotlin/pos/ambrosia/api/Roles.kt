@@ -79,13 +79,13 @@ fun Route.roles(
         post("") {
             val roleCreateRequest = call.receive<UpsertRoleRequest>()
             call.requireCurrentUserPin(roleCreateRequest.currentUserPin)
-            val role =
+            val createdRole =
                 Role(
                     role = roleCreateRequest.role,
                     password = roleCreateRequest.password,
                     isAdmin = roleCreateRequest.isAdmin,
                 )
-            val id = roleService.addRole(role, roleCreateRequest.permissions.orEmpty().distinct())
+            val id = roleService.addRole(createdRole, roleCreateRequest.permissions.orEmpty().distinct())
             if (id == null) {
                 call.respond(HttpStatusCode.BadRequest, "Invalid role data")
                 return@post
