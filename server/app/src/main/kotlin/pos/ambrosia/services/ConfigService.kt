@@ -21,6 +21,7 @@ class ConfigService {
             timezone = entity.timezone,
             tipsEnabled = entity.tipsEnabled,
             tipPercentages = entity.tipPercentages,
+            priceStep = entity.priceStep,
         )
 
     fun getConfig(): Config? =
@@ -43,6 +44,7 @@ class ConfigService {
             entity.timezone = config.timezone
             entity.tipsEnabled = config.tipsEnabled
             entity.tipPercentages = config.tipPercentages
+            entity.priceStep = config.priceStep
             true
         }
 

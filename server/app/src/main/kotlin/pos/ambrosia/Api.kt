@@ -11,9 +11,12 @@ import io.ktor.server.application.install
 import io.ktor.server.auth.Authentication
 import io.ktor.server.auth.jwt.JWTPrincipal
 import io.ktor.server.auth.jwt.jwt
+import io.ktor.server.plugins.bodylimit.RequestBodyLimit
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.server.plugins.cors.routing.CORS
 import io.ktor.server.plugins.origin
+import io.ktor.server.plugins.ratelimit.RateLimit
+import io.ktor.server.request.path
 import io.ktor.server.websocket.WebSockets
 import io.ktor.server.websocket.pingPeriod
 import io.ktor.server.websocket.timeout
@@ -80,19 +83,15 @@ class Api {
         }
         handler()
         install(ContentNegotiation) { json() }
-        install(CORS) {
-            allowCredentials = true
-            anyHost()
-            allowMethod(HttpMethod.Put)
-            allowMethod(HttpMethod.Delete)
-            allowHeader(HttpHeaders.ContentType)
-            allowHeader(HttpHeaders.Authorization)
-        }
+        configureCors()
         install(WebSockets) {
             pingPeriod = 30.seconds
             timeout = 15.seconds
         }
-
+        configureRateLimit()
+        install(RequestBodyLimit) {
+            bodyLimit { call -> requestBodyLimitFor(call.request.path()) }
+        }
         configureAuthentication()
         configureRouting()
         configureAuth()
@@ -141,6 +140,41 @@ class Api {
         configureSystem()
     }
 }
+
+fun Application.configureRateLimit() {
+    val requestsPerMinute =
+        environment.config
+            .property("rate-limit.requestsPerMinute")
+            .getString()
+            .toInt()
+    install(RateLimit) {
+        global {
+            rateLimiter(limit = requestsPerMinute, refillPeriod = 60.seconds)
+            requestKey { call -> call.request.origin.remoteAddress }
+        }
+    }
+}
+
+fun Application.configureCors() {
+    install(CORS) {
+        allowCredentials = true
+        allowMethod(HttpMethod.Put)
+        allowMethod(HttpMethod.Delete)
+        allowHeader(HttpHeaders.ContentType)
+        allowHeader(HttpHeaders.Authorization)
+    }
+}
+
+internal const val DEFAULT_MAX_REQUEST_BODY_BYTES = 2L * 1024 * 1024
+internal const val UPLOAD_MAX_REQUEST_BODY_BYTES = 20L * 1024 * 1024
+internal const val BACKUP_IMPORT_MAX_REQUEST_BODY_BYTES = 1024L * 1024 * 1024
+
+internal fun requestBodyLimitFor(path: String): Long =
+    when (path) {
+        "/uploads" -> UPLOAD_MAX_REQUEST_BODY_BYTES
+        "/backup/import" -> BACKUP_IMPORT_MAX_REQUEST_BODY_BYTES
+        else -> DEFAULT_MAX_REQUEST_BODY_BYTES
+    }
 
 fun Application.configureAuthentication() {
     val applicationConfig = environment.config

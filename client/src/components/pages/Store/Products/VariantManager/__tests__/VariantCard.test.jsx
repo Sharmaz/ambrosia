@@ -6,13 +6,18 @@ jest.mock("@/components/utils/storedAssetUrl", () => ({
   storedAssetUrl: (url) => (url ? `/cdn${url}` : null),
 }));
 
+let capturedVariantFormProps;
 jest.mock("../VariantForm", () => ({
-  VariantForm: ({ onSave, onCancel }) => (
-    <div data-testid="variant-form">
-      <button onClick={() => onSave({ priceCents: 800, quantity: 2 }).catch(() => {})}>form-save</button>
-      <button onClick={onCancel}>form-cancel</button>
-    </div>
-  ),
+  VariantForm: (props) => {
+    capturedVariantFormProps = props;
+    const { onSave, onCancel } = props;
+    return (
+      <div data-testid="variant-form">
+        <button onClick={() => onSave({ priceCents: 800, quantity: 2 }).catch(() => {})}>form-save</button>
+        <button onClick={onCancel}>form-cancel</button>
+      </div>
+    );
+  },
 }));
 
 jest.mock("@heroui/react", () => ({
@@ -119,6 +124,12 @@ describe("VariantCard", () => {
     renderCard();
     fireEvent.click(screen.getByTestId("edit-variant"));
     expect(screen.getByTestId("variant-form")).toBeInTheDocument();
+  });
+
+  it("passes the configured price step to VariantForm when editing", () => {
+    renderCard({ priceStep: 0.5 });
+    fireEvent.click(screen.getByTestId("edit-variant"));
+    expect(capturedVariantFormProps.priceStep).toBe(0.5);
   });
 
   it("hides the edit/delete buttons while editing", () => {

@@ -25,6 +25,6 @@ export const STARTUP = {
 
 export const DOWNLOAD = {
   MAX_REDIRECTS: 5,
-  PHOENIXD_VERSION: '0.9.0',
+  PHOENIXD_VERSION: '0.9.1',
   JRE_VERSION: 21,
 };

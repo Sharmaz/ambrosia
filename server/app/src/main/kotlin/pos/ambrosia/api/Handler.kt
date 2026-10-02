@@ -5,6 +5,7 @@ import io.ktor.server.application.Application
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.application.install
 import io.ktor.server.engine.defaultExceptionStatusCode
+import io.ktor.server.plugins.PayloadTooLargeException
 import io.ktor.server.plugins.statuspages.StatusPages
 import io.ktor.server.response.respond
 import io.ktor.server.response.respondText
@@ -17,6 +18,7 @@ import pos.ambrosia.utils.DatabaseException
 import pos.ambrosia.utils.DuplicateUserNameException
 import pos.ambrosia.utils.InitialSetupException
 import pos.ambrosia.utils.InvalidCredentialsException
+import pos.ambrosia.utils.InvalidCurrentUserPinException
 import pos.ambrosia.utils.InvalidTimeEntryException
 import pos.ambrosia.utils.InvalidTokenException
 import pos.ambrosia.utils.LastAdminRemovalException
@@ -40,6 +42,7 @@ import pos.ambrosia.utils.SecretsLockedException
 import pos.ambrosia.utils.TimeEntryLockedException
 import pos.ambrosia.utils.UnauthorizedApiException
 import pos.ambrosia.utils.UnsupportedBackendOperationException
+import pos.ambrosia.utils.UnsupportedUploadTypeException
 import pos.ambrosia.utils.WalletOnlyException
 import java.sql.SQLException
 
@@ -66,13 +69,21 @@ fun Application.handler() {
             logger.warn("Locked time entry mutation rejected: ${cause.message}")
             call.respond(HttpStatusCode.Conflict, Message(cause.message ?: "Time entry is locked"))
         }
+        exception<PayloadTooLargeException> { call, cause ->
+            logger.warn("Rejected an oversized request body: ${cause.message}")
+            call.respond(HttpStatusCode.PayloadTooLarge, Message(cause.message ?: "Request body too large"))
+        }
+        exception<UnsupportedUploadTypeException> { call, cause ->
+            logger.warn("Rejected upload with an unsupported type: ${cause.message}")
+            call.respond(HttpStatusCode.BadRequest, Message(cause.message ?: "Unsupported file type"))
+        }
         exception<SecretsLockedException> { call, cause ->
             logger.warn("Locked secrets access rejected: ${cause.message}")
             call.respond(HttpStatusCode.Conflict, Message(cause.message ?: "Secrets are locked"))
         }
         exception<InvalidCredentialsException> { call, cause ->
             logger.warn("Invalid login attempt: ${cause.message}")
-            call.respond(HttpStatusCode.Unauthorized, Message("Invalid credentials"))
+            call.respond(HttpStatusCode.Unauthorized, Message(cause.message ?: "Invalid credentials"))
         }
         exception<MissingRoleException> { call, cause ->
             logger.warn("Login attempt with missing role: ${cause.message}")
@@ -112,6 +123,10 @@ fun Application.handler() {
         exception<PermissionDeniedException> { call, _ ->
             logger.warn("User attempted to access endpoint without required permission")
             call.respond(HttpStatusCode.Forbidden, Message("Permission required"))
+        }
+        exception<InvalidCurrentUserPinException> { call, cause ->
+            logger.warn("Current user PIN verification failed: ${cause.message}")
+            call.respond(HttpStatusCode.Forbidden, Message(cause.message ?: "Invalid current user PIN"))
         }
         exception<InitialSetupException> { call, cause ->
             logger.error("Initial setup failed: ${cause.message}")

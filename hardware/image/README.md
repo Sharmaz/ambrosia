@@ -238,7 +238,7 @@ Supported keys:
 | Key | Description | Default |
 |---|---|---|
 | `AMBROSIA_HOSTNAME` | Device hostname | `ambrosia-<board-short-name>-<machine-id-prefix>` (auto-generated) |
-| `AMBROSIA_ADMIN_PASSWORD` | SSH password for the `ambrosia` user | Unique random password shown on the physical console; preseed for headless setup |
+| `AMBROSIA_ADMIN_PASSWORD` | SSH password for the `ambrosia` user | `Ambrosia2026!` (change it via preseed) |
 | `AMBROSIA_WIFI_COUNTRY` | ISO 3166-1 alpha-2 country code for Wi-Fi regulations | `US` |
 | `AMBROSIA_LANG` | System locale | `en_US.UTF-8` |
 
@@ -324,7 +324,7 @@ What happens on first boot:
 - Once connected, the POS interface is reachable at `http://<hostname>.local` (mDNS via Avahi) or directly at the device IP on port 80.
 - SSH is available:
   - **User**: `ambrosia`
-  - **Password**: the value set in `AMBROSIA_ADMIN_PASSWORD` (otherwise a unique random password is shown on the physical console; set a preseed password for headless setup)
+  - **Password**: the value set in `AMBROSIA_ADMIN_PASSWORD` (default: `Ambrosia2026!`)
 
 ## Validate the image before flashing
 

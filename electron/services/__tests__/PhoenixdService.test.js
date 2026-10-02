@@ -1,5 +1,6 @@
 const childProcess = require('child_process');
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
 
 const { installElectronMock } = require('../../test-utils/electronMock.js');
@@ -13,6 +14,7 @@ const { logger } = require('../../utils/logger.js');
 let PhoenixdService;
 let spawnMock;
 let treeKillMock;
+let phoenixdCredentialsStore;
 
 beforeAll(() => {
   installElectronMock();
@@ -20,8 +22,15 @@ beforeAll(() => {
   treeKillMock = installTreeKillMock();
   healthCheck.checkPhoenixd = vi.fn();
   childProcess.exec = vi.fn();
+  ({ phoenixdCredentialsStore } = require('../PhoenixdCredentialsStore.js'));
+  phoenixdCredentialsStore.readHttpPassword = vi.fn();
+  phoenixdCredentialsStore.readHttpPasswordLimitedAccess = vi.fn();
   PhoenixdService = require('../PhoenixdService.js').default;
 });
+
+const CREDENTIALS_TEMP_DIRECTORY = '/fake/tmp/ambrosia-phoenixd-XXXXXX';
+const HTTP_PASSWORD_FILE_PATH = path.join(CREDENTIALS_TEMP_DIRECTORY, 'http-password');
+const HTTP_PASSWORD_LIMITED_ACCESS_FILE_PATH = path.join(CREDENTIALS_TEMP_DIRECTORY, 'http-password-limited-access');
 
 function armAutoExitOnListen(spawnedProcess, exitCode = 0) {
   spawnedProcess.on('newListener', function autoExitWhenExitIsAwaited(eventName) {
@@ -39,9 +48,14 @@ beforeEach(() => {
   treeKillMock.mockReset().mockImplementation((_pid, _signal, callback) => callback());
   healthCheck.checkPhoenixd.mockReset().mockResolvedValue(true);
   childProcess.exec.mockReset().mockImplementation((_command, callback) => callback());
+  phoenixdCredentialsStore.readHttpPassword.mockReset().mockReturnValue('test-http-password');
+  phoenixdCredentialsStore.readHttpPasswordLimitedAccess.mockReset().mockReturnValue('test-http-password-limited-access');
   vi.spyOn(fs, 'existsSync').mockReturnValue(true);
   vi.spyOn(fs, 'mkdirSync').mockImplementation(() => {});
   vi.spyOn(fs, 'createWriteStream').mockImplementation(createFakeWriteStream);
+  vi.spyOn(fs, 'mkdtempSync').mockReturnValue(CREDENTIALS_TEMP_DIRECTORY);
+  vi.spyOn(fs, 'writeFileSync').mockImplementation(() => {});
+  vi.spyOn(fs, 'rmSync').mockImplementation(() => {});
   vi.spyOn(logger, 'log').mockImplementation(() => {});
   vi.spyOn(logger, 'warn').mockImplementation(() => {});
   vi.spyOn(logger, 'error').mockImplementation(() => {});
@@ -95,9 +109,59 @@ describe('start', () => {
 
     expect(spawnMock).toHaveBeenCalledWith(
       'phoenixd',
-      ['--agree-to-terms-of-service', '--http-bind-ip=127.0.0.1', '--http-bind-port=9740'],
+      [
+        '--agree-to-terms-of-service',
+        '--http-bind-ip=127.0.0.1',
+        '--http-bind-port=9740',
+        `--http-password-file=${HTTP_PASSWORD_FILE_PATH}`,
+        `--http-password-limited-access-file=${HTTP_PASSWORD_LIMITED_ACCESS_FILE_PATH}`,
+      ],
       expect.objectContaining({ stdio: ['ignore', 'pipe', 'pipe'], detached: false }),
     );
+  });
+
+  it('writes the phoenixd credentials to a fresh temp directory before spawning', async () => {
+    const phoenixdService = new PhoenixdService();
+
+    await phoenixdService.start(9740);
+
+    expect(fs.mkdtempSync).toHaveBeenCalledWith(path.join(os.tmpdir(), 'ambrosia-phoenixd-'));
+    expect(fs.writeFileSync).toHaveBeenCalledWith(HTTP_PASSWORD_FILE_PATH, 'test-http-password', { mode: 0o600 });
+    expect(fs.writeFileSync).toHaveBeenCalledWith(HTTP_PASSWORD_LIMITED_ACCESS_FILE_PATH, 'test-http-password-limited-access', { mode: 0o600 });
+  });
+
+  it('deletes the credentials temp directory after a successful health check', async () => {
+    const phoenixdService = new PhoenixdService();
+
+    await phoenixdService.start(9740);
+
+    expect(fs.rmSync).toHaveBeenCalledWith(CREDENTIALS_TEMP_DIRECTORY, { recursive: true, force: true });
+  });
+
+  it('deletes the credentials temp directory even when the health check fails', async () => {
+    healthCheck.checkPhoenixd.mockRejectedValue(new Error('Timed out waiting for: http://localhost:9740/getinfo'));
+    armAutoExitOnListen(fakeSpawnedProcess);
+    const phoenixdService = new PhoenixdService();
+
+    await expect(phoenixdService.start(9740)).rejects.toThrow();
+
+    expect(fs.rmSync).toHaveBeenCalledWith(CREDENTIALS_TEMP_DIRECTORY, { recursive: true, force: true });
+  });
+
+  it('throws without spawning when the phoenixd http-password is not available', async () => {
+    phoenixdCredentialsStore.readHttpPassword.mockReturnValue(null);
+    const phoenixdService = new PhoenixdService();
+
+    await expect(phoenixdService.start(9740)).rejects.toThrow('Phoenixd http-password credentials are not available');
+    expect(spawnMock).not.toHaveBeenCalled();
+  });
+
+  it('throws without spawning when the phoenixd http-password-limited-access is not available', async () => {
+    phoenixdCredentialsStore.readHttpPasswordLimitedAccess.mockReturnValue(null);
+    const phoenixdService = new PhoenixdService();
+
+    await expect(phoenixdService.start(9740)).rejects.toThrow('Phoenixd http-password credentials are not available');
+    expect(spawnMock).not.toHaveBeenCalled();
   });
 
   it('does not override JAVA_HOME on non-Windows platforms', async () => {

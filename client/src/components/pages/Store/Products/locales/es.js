@@ -112,6 +112,7 @@ const productsEs = {
     variantRemoveImage: "Quitar imagen",
     variantStockUnit: "en almacén",
     hasVariantsHint: "El precio y stock se gestionan por variante al guardar.",
+    priceStepMismatchWarning: "Precio real:",
     toasts: {
       createSuccess: "Producto creado con éxito",
       updateSuccess: "Producto actualizado con éxito",

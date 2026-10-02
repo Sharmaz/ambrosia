@@ -4,6 +4,10 @@ class InvalidCredentialsException(
     message: String = "Invalid credentials",
 ) : IllegalArgumentException(message)
 
+class InvalidCurrentUserPinException(
+    message: String = "Invalid current user PIN",
+) : IllegalArgumentException(message)
+
 class AdminOnlyException(
     message: String = "Admin privileges required",
 ) : SecurityException(message)
@@ -101,6 +105,10 @@ class TimeEntryLockedException(
 class SecretsLockedException(
     message: String = "Secrets are locked — unlock the server before using this feature",
 ) : IllegalStateException(message)
+
+class UnsupportedUploadTypeException(
+    message: String = "Uploaded file does not match an allowed image type",
+) : IllegalArgumentException(message)
 
 class InitialSetupException(
     message: String = "Initial setup failed",

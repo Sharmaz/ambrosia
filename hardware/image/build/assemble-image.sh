@@ -553,6 +553,11 @@ install_repo_assets() {
   install -m 0644 "$IMAGE_ROOT/common/systemd/ambrosia.service" "$ROOTFS_MNT/etc/systemd/system/ambrosia.service"
   install -m 0644 "$IMAGE_ROOT/common/systemd/ambrosia-client.service" "$ROOTFS_MNT/etc/systemd/system/ambrosia-client.service"
   install -m 0644 "$IMAGE_ROOT/common/systemd/phoenixd.service" "$ROOTFS_MNT/etc/systemd/system/phoenixd.service"
+  install -m 0644 "$IMAGE_ROOT/common/systemd/ambrosia-caddy-time-resync.service" "$ROOTFS_MNT/etc/systemd/system/ambrosia-caddy-time-resync.service"
+  install -m 0644 "$IMAGE_ROOT/common/systemd/ambrosia-caddy-time-resync.path" "$ROOTFS_MNT/etc/systemd/system/ambrosia-caddy-time-resync.path"
+
+  install -d -m 0755 "$ROOTFS_MNT/usr/lib"
+  touch "$ROOTFS_MNT/usr/lib/clock-epoch"
 
   install -m 0644 "$IMAGE_ROOT/common/templates/Caddyfile.template" "$ROOTFS_MNT/etc/ambrosia/Caddyfile.template"
   install -m 0644 "$IMAGE_ROOT/common/templates/ambrosia.conf.stub" "$ROOTFS_MNT/etc/ambrosia/ambrosia.conf.stub"
@@ -570,7 +575,7 @@ EOF
   chmod 0644 "$ROOTFS_MNT/etc/ambrosia/board-identity"
 
   if [[ -f "$ROOTFS_MNT/usr/lib/raspberrypi-sys-mods/firstboot" ]]; then
-    printf 'ambrosia:%s\n' "$(openssl passwd -6 "$(openssl rand -hex 24)")" > "$BOOT_MNT/userconf.txt"
+    printf 'ambrosia:%s\n' "$(openssl passwd -6 'Ambrosia2026!')" > "$BOOT_MNT/userconf.txt"
   fi
 
   sed -i \
@@ -614,6 +619,9 @@ enable_services() {
     ambrosia-client.service \
     phoenixd.service \
     caddy.service \
+    ambrosia-caddy-time-resync.path \
+    systemd-timesyncd.service \
+    fake-hwclock.service \
     NetworkManager.service \
     avahi-daemon.service \
     ssh.service >/dev/null
@@ -671,6 +679,12 @@ verify_mounted_image() {
   require_nonempty_file "$ROOTFS_MNT/etc/systemd/system/ambrosia-client.service"
   require_nonempty_file "$ROOTFS_MNT/etc/systemd/system/ambrosia.service"
   require_nonempty_file "$ROOTFS_MNT/etc/systemd/system/phoenixd.service"
+  require_nonempty_file "$ROOTFS_MNT/etc/systemd/system/ambrosia-caddy-time-resync.service"
+  require_nonempty_file "$ROOTFS_MNT/etc/systemd/system/ambrosia-caddy-time-resync.path"
+  [[ -e "$ROOTFS_MNT/usr/lib/clock-epoch" ]] || fail "Mounted image is missing /usr/lib/clock-epoch"
+  for time_service in systemd-timesyncd.service fake-hwclock.service ambrosia-caddy-time-resync.path; do
+    systemctl --root="$ROOTFS_MNT" is-enabled "$time_service" >/dev/null 2>&1 || fail "$time_service was not enabled"
+  done
   require_nonempty_file "$ROOTFS_MNT/usr/sbin/sshd"
   require_nonempty_file "$ROOTFS_MNT/etc/ssh/sshd_config.d/00-ambrosia.conf"
   [[ -L "$ROOTFS_MNT/etc/systemd/system/multi-user.target.wants/ambrosia-firstboot.service" ]] || fail "ambrosia-firstboot.service was not enabled"
