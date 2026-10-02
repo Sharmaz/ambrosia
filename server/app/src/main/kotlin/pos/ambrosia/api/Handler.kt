@@ -18,6 +18,7 @@ import pos.ambrosia.utils.DatabaseException
 import pos.ambrosia.utils.DuplicateUserNameException
 import pos.ambrosia.utils.InitialSetupException
 import pos.ambrosia.utils.InvalidCredentialsException
+import pos.ambrosia.utils.InvalidCurrentUserPinException
 import pos.ambrosia.utils.InvalidTimeEntryException
 import pos.ambrosia.utils.InvalidTokenException
 import pos.ambrosia.utils.LastAdminRemovalException
@@ -82,7 +83,7 @@ fun Application.handler() {
         }
         exception<InvalidCredentialsException> { call, cause ->
             logger.warn("Invalid login attempt: ${cause.message}")
-            call.respond(HttpStatusCode.Unauthorized, Message("Invalid credentials"))
+            call.respond(HttpStatusCode.Unauthorized, Message(cause.message ?: "Invalid credentials"))
         }
         exception<MissingRoleException> { call, cause ->
             logger.warn("Login attempt with missing role: ${cause.message}")
@@ -122,6 +123,10 @@ fun Application.handler() {
         exception<PermissionDeniedException> { call, _ ->
             logger.warn("User attempted to access endpoint without required permission")
             call.respond(HttpStatusCode.Forbidden, Message("Permission required"))
+        }
+        exception<InvalidCurrentUserPinException> { call, cause ->
+            logger.warn("Current user PIN verification failed: ${cause.message}")
+            call.respond(HttpStatusCode.Forbidden, Message(cause.message ?: "Invalid current user PIN"))
         }
         exception<InitialSetupException> { call, cause ->
             logger.error("Initial setup failed: ${cause.message}")

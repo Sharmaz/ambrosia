@@ -131,6 +131,17 @@ data class User(
 )
 
 @Serializable
+data class CreateUserRequest(
+    val user: User,
+    val currentUserPin: String,
+)
+
+@Serializable
+data class CurrentUserPinRequest(
+    val currentUserPin: String,
+)
+
+@Serializable
 data class UserIdentity(
     val id: String,
     val name: String,
@@ -145,6 +156,7 @@ data class UpdateUserRequest(
     val roleId: String? = null,
     val email: String? = null,
     val phone: String? = null,
+    val currentUserPin: String? = null,
 )
 
 @Serializable
@@ -161,6 +173,7 @@ data class UpsertRoleRequest(
     val password: String? = null,
     val isAdmin: Boolean? = false,
     val permissions: List<String>? = null,
+    val currentUserPin: String? = null,
 )
 
 @Serializable data class Space(
@@ -530,6 +543,7 @@ data class VapidPublicKeyResponse(
 
 @Serializable data class RolePermissionsUpdateRequest(
     val permissions: List<String>,
+    val currentUserPin: String? = null,
 )
 
 @Serializable data class RolePermissionsUpdateResult(

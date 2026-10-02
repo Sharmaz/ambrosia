@@ -54,6 +54,30 @@ class AuthService(
             )
         }
 
+    fun authenticateUserPin(
+        userId: String,
+        pin: CharArray,
+    ): Boolean =
+        transaction {
+            val user =
+                UserEntity
+                    .findById(UUID.fromString(userId))
+                    ?.takeIf { !it.isDeleted }
+                    ?: return@transaction false
+
+            val storedHash = SecurePinProcessor.base64ToByteArray(user.pin)
+
+            val isValidPin =
+                SecurePinProcessor.verifyPin(
+                    pin,
+                    userId,
+                    storedHash,
+                    env,
+                )
+            pin.fill('\u0000')
+            isValidPin
+        }
+
     fun authenticateByRole(
         userId: String,
         rolePassword: CharArray,
@@ -75,7 +99,7 @@ class AuthService(
                     role.password ?: return@transaction false,
                 )
 
-            val isValid =
+            val isValidRolePassword =
                 SecurePinProcessor.verifyPin(
                     rolePassword,
                     role.id.value.toString(),
@@ -83,6 +107,6 @@ class AuthService(
                     env,
                 )
             rolePassword.fill('\u0000')
-            isValid
+            isValidRolePassword
         }
 }
