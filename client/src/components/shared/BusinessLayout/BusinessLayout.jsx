@@ -27,8 +27,8 @@ export function BusinessLayout({
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   const bottomNavItems = availableNavigation
-    .filter((item) => item.showInBottomNav)
-    .sort((a, b) => a.bottomNavOrder - b.bottomNavOrder);
+    .filter((navigationItem) => navigationItem.showInBottomNav)
+    .sort((firstNavigationItem, secondNavigationItem) => firstNavigationItem.bottomNavOrder - secondNavigationItem.bottomNavOrder);
 
   const sidebarProps = {
     availableNavigation,

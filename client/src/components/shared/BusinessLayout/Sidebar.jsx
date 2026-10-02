@@ -83,16 +83,16 @@ export function SidebarContent({
       <nav className="p-4 flex-1 overflow-y-auto">
         <ul className="space-y-2">
           {isAuth &&
-            availableNavigation.map((item, index) => (
+            availableNavigation.map((navigationItem, navigationItemIndex) => (
               <NavBarButton
-                key={`${item.path}-${index}`}
-                id={withTourIds ? item.tourId : undefined}
-                text={navbarTranslations(item.label)}
-                icon={item.icon}
-                href={item.path}
-                isActive={pathname === item.path || pathname.startsWith(item.path)}
-                badgeCount={badgeCountsByPath[item.path] ?? 0}
-                isLocked={lockedPaths.includes(item.path)}
+                key={`${navigationItem.path}-${navigationItemIndex}`}
+                id={withTourIds ? navigationItem.tourId : undefined}
+                text={navbarTranslations(navigationItem.label)}
+                icon={navigationItem.icon}
+                href={navigationItem.path}
+                isActive={pathname === navigationItem.path || pathname.startsWith(navigationItem.path)}
+                badgeCount={badgeCountsByPath[navigationItem.path] ?? 0}
+                isLocked={lockedPaths.includes(navigationItem.path)}
                 onLockClick={onLockedClick}
                 onClick={onNavClick}
               />
