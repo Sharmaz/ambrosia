@@ -4,8 +4,6 @@ import Link from "next/link";
 
 import { Menu } from "lucide-react";
 
-import { ADMIN_NOTIFICATIONS_ROUTE } from "@/lib/adminNotifications";
-
 import { NavIcon } from "./NavIcon";
 import { NotificationBadge } from "./NotificationBadge";
 
@@ -14,7 +12,7 @@ export function BottomNav({
   items,
   pathname,
   navbarTranslations,
-  notificationUnreadCount,
+  badgeCountsByPath = {},
   onMenuClick,
 }) {
   return (
@@ -31,25 +29,25 @@ export function BottomNav({
         <span className="text-[10px] leading-none">{navbarTranslations("menu")}</span>
       </button>
 
-      {isAuth && items.map((item, index) => {
-        const isActive = pathname === item.path || pathname.startsWith(item.path);
+      {isAuth && items.map((navigationItem, navigationItemIndex) => {
+        const isActive = pathname === navigationItem.path || pathname.startsWith(navigationItem.path);
         return (
           <Link
-            key={`${item.path}-${index}`}
-            href={item.path}
+            key={`${navigationItem.path}-${navigationItemIndex}`}
+            href={navigationItem.path}
             className={`relative flex flex-col items-center justify-center gap-1 flex-1 py-1.5 rounded-xl transition-all ${
               isActive
                 ? "bg-green-300 text-green-800"
                 : "text-slate-100 hover:bg-green-300 hover:text-green-800"
             }`}
           >
-            <NavIcon name={item.icon} className="w-5 h-5" />
+            <NavIcon name={navigationItem.icon} className="w-5 h-5" />
             <NotificationBadge
-              count={item.path === ADMIN_NOTIFICATIONS_ROUTE ? notificationUnreadCount : 0}
+              count={badgeCountsByPath[navigationItem.path] ?? 0}
               className="absolute right-4 top-1 min-w-4 rounded-full bg-red-500 px-1 text-center text-[10px] font-semibold text-white"
             />
             <span className={`text-[10px] leading-none ${isActive ? "font-semibold" : ""}`}>
-              {navbarTranslations(item.label)}
+              {navbarTranslations(navigationItem.label)}
             </span>
           </Link>
         );

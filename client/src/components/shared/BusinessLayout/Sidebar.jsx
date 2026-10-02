@@ -5,13 +5,9 @@ import Link from "next/link";
 
 import { LogOut } from "lucide-react";
 
-import { ADMIN_NOTIFICATIONS_ROUTE } from "@/lib/adminNotifications";
-
 import { LockedBadge } from "./LockedBadge";
 import { NavIcon } from "./NavIcon";
 import { NotificationBadge } from "./NotificationBadge";
-
-const WALLET_ROUTE = "/store/wallet";
 
 function NavBarButton({ text, icon, href, isActive, id, onClick, badgeCount, isLocked, onLockClick }) {
   const handleClick = (event) => {
@@ -61,9 +57,9 @@ export function SidebarContent({
   logoSrc,
   withTourIds,
   onNavClick,
-  notificationUnreadCount,
-  secretsLocked,
-  onSecretsLockClick,
+  badgeCountsByPath = {},
+  lockedPaths = [],
+  onLockedClick,
 }) {
   return (
     <>
@@ -87,17 +83,17 @@ export function SidebarContent({
       <nav className="p-4 flex-1 overflow-y-auto">
         <ul className="space-y-2">
           {isAuth &&
-            availableNavigation.map((item, index) => (
+            availableNavigation.map((navigationItem, navigationItemIndex) => (
               <NavBarButton
-                key={`${item.path}-${index}`}
-                id={withTourIds ? item.tourId : undefined}
-                text={navbarTranslations(item.label)}
-                icon={item.icon}
-                href={item.path}
-                isActive={pathname === item.path || pathname.startsWith(item.path)}
-                badgeCount={item.path === ADMIN_NOTIFICATIONS_ROUTE ? notificationUnreadCount : 0}
-                isLocked={item.path === WALLET_ROUTE && secretsLocked}
-                onLockClick={onSecretsLockClick}
+                key={`${navigationItem.path}-${navigationItemIndex}`}
+                id={withTourIds ? navigationItem.tourId : undefined}
+                text={navbarTranslations(navigationItem.label)}
+                icon={navigationItem.icon}
+                href={navigationItem.path}
+                isActive={pathname === navigationItem.path || pathname.startsWith(navigationItem.path)}
+                badgeCount={badgeCountsByPath[navigationItem.path] ?? 0}
+                isLocked={lockedPaths.includes(navigationItem.path)}
+                onLockClick={onLockedClick}
                 onClick={onNavClick}
               />
             ))}
