@@ -159,6 +159,9 @@ class TimeEntryService {
         durationMinutes: Int,
     ): ValidatedTimeEntry {
         if (durationMinutes <= 0) throw InvalidTimeEntryException("durationMinutes must be greater than 0")
+        if (durationMinutes % DURATION_INCREMENT_MINUTES != 0) {
+            throw InvalidTimeEntryException("durationMinutes must be a multiple of $DURATION_INCREMENT_MINUTES")
+        }
         val project =
             ProjectEntity.findById(parseUuid(projectId, "projectId"))?.takeIf { !it.isDeleted }
                 ?: throw ResourceNotFoundException("Project not found")
@@ -271,6 +274,7 @@ class TimeEntryService {
     )
 
     companion object {
+        private const val DURATION_INCREMENT_MINUTES = 15
         private val isoDatePattern = Regex("\\d{4}-\\d{2}-\\d{2}")
         private val timestampFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
 
