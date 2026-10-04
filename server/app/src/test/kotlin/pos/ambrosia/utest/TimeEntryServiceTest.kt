@@ -6,6 +6,7 @@ import pos.ambrosia.models.CreateTimeEntryRequest
 import pos.ambrosia.models.UpdateTimeEntryRequest
 import pos.ambrosia.services.TimeEntryService
 import pos.ambrosia.utils.ExposedTestDb
+import pos.ambrosia.utils.InvalidTimeEntryException
 import pos.ambrosia.utils.TimeEntryLockedException
 import java.io.File
 import kotlin.test.Test
@@ -55,6 +56,27 @@ class TimeEntryServiceTest {
         val timeEntryFixture = createTimeEntryFixture(isBillable = false)
 
         assertFalse(timeEntryService.createTimeEntry(createTimeEntryRequest(timeEntryFixture)).isBillable)
+    }
+
+    @Test
+    fun `rejects durations that are not a multiple of fifteen minutes`() {
+        val timeEntryFixture = createTimeEntryFixture()
+
+        val invalidDurationException =
+            assertFailsWith<InvalidTimeEntryException> {
+                timeEntryService.createTimeEntry(createTimeEntryRequest(timeEntryFixture).copy(durationMinutes = 20))
+            }
+        assertEquals("durationMinutes must be a multiple of 15", invalidDurationException.message)
+    }
+
+    @Test
+    fun `accepts durations that are a multiple of fifteen minutes`() {
+        val timeEntryFixture = createTimeEntryFixture()
+
+        val createdTimeEntry =
+            timeEntryService.createTimeEntry(createTimeEntryRequest(timeEntryFixture).copy(durationMinutes = 105))
+
+        assertEquals(105, createdTimeEntry.durationMinutes)
     }
 
     @Test
