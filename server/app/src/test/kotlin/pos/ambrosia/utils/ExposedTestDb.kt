@@ -652,7 +652,7 @@ object ExposedTestDb {
                 ClientPaymentMethodsTable.insert { clientPaymentMethodInsert ->
                     clientPaymentMethodInsert[ClientPaymentMethodsTable.clientId] = EntityID(clientId, ClientsTable)
                     clientPaymentMethodInsert[ClientPaymentMethodsTable.paymentMethod] = clientPaymentMethod
-                    clientPaymentMethodInsert[ClientPaymentMethodsTable.position] = clientPaymentMethodIndex
+                    clientPaymentMethodInsert[ClientPaymentMethodsTable.displayOrder] = clientPaymentMethodIndex
                 }
             }
             clientId.toString()

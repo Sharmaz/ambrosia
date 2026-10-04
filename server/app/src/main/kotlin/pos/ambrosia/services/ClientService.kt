@@ -48,7 +48,7 @@ class ClientService {
         ClientPaymentMethodsTable
             .selectAll()
             .where { ClientPaymentMethodsTable.clientId eq EntityID(clientId, ClientsTable) }
-            .orderBy(ClientPaymentMethodsTable.position to SortOrder.ASC)
+            .orderBy(ClientPaymentMethodsTable.displayOrder to SortOrder.ASC)
             .map { clientPaymentMethodRow -> clientPaymentMethodRow[ClientPaymentMethodsTable.paymentMethod] }
 
     private fun replaceClientPaymentMethods(
@@ -60,7 +60,7 @@ class ClientService {
             ClientPaymentMethodsTable.insertIgnore { clientPaymentMethodInsert ->
                 clientPaymentMethodInsert[ClientPaymentMethodsTable.clientId] = EntityID(clientId, ClientsTable)
                 clientPaymentMethodInsert[ClientPaymentMethodsTable.paymentMethod] = paymentMethod
-                clientPaymentMethodInsert[ClientPaymentMethodsTable.position] = paymentMethodIndex
+                clientPaymentMethodInsert[ClientPaymentMethodsTable.displayOrder] = paymentMethodIndex
             }
         }
     }

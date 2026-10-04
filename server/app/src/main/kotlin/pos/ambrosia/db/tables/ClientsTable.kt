@@ -36,7 +36,7 @@ class ClientEntity(
 object ClientPaymentMethodsTable : Table("client_payment_methods") {
     val clientId = reference("client_id", ClientsTable)
     val paymentMethod = varchar("payment_method", 20)
-    val position = integer("position").default(0)
+    val displayOrder = integer("display_order").default(0)
 
     override val primaryKey = PrimaryKey(clientId, paymentMethod)
 }
