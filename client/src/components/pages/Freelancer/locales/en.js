@@ -2,6 +2,14 @@ import freelanceClientsEn from "../Clients/locales/en";
 import freelanceProjectsEn from "../Projects/locales/en";
 
 const freelancerEn = {
+  freelancerNavbar: {
+    timesheet: "Timesheet",
+    clients: "Clients",
+    projects: "Projects",
+    invoices: "Invoices",
+    logout: "Log Out",
+    menu: "Menu",
+  },
   freelancerDashboard: {
     title: "Freelancer",
     subtitle: "Manage clients and projects for freelance billing.",

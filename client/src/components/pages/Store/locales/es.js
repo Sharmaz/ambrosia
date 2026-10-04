@@ -27,10 +27,6 @@ const storeEs = {
     orders: "Ordenes",
     reports: "Reportes",
     notifications: "Notificaciones",
-    timesheet: "Horas",
-    clients: "Clientes",
-    projects: "Proyectos",
-    invoices: "Facturas",
   },
   dashboard: {
     title: "Panel de control",
