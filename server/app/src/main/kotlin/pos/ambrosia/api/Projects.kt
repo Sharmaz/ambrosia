@@ -21,6 +21,14 @@ fun Application.configureProjects() {
 
 fun Route.projects(projectService: ProjectService) {
     authorizePermission("projects_read") {
+        get("") {
+            val requestedProjectStatus = call.request.queryParameters["status"]
+            val projects =
+                projectService.getProjects(requestedProjectStatus)
+                    ?: return@get call.respond(HttpStatusCode.BadRequest, "Invalid project status")
+            call.respond(HttpStatusCode.OK, projects)
+        }
+
         get("/{id}") {
             val projectId =
                 call.parameters["id"]
