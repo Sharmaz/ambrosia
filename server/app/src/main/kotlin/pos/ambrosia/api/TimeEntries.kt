@@ -45,6 +45,7 @@ fun Route.timeEntries(timeEntryService: TimeEntryService) {
                     endDate = to,
                     selectedProjectId = call.request.queryParameters["project_id"],
                     selectedTaskId = call.request.queryParameters["task_id"],
+                    selectedClientId = call.request.queryParameters["client_id"],
                 ),
             )
         }

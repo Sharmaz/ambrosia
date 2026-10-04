@@ -39,6 +39,7 @@ class TimeEntryService {
         endDate: String,
         selectedProjectId: String? = null,
         selectedTaskId: String? = null,
+        selectedClientId: String? = null,
     ): List<TimeEntryResponse> =
         transaction {
             val rangeStartDate = parseDate(startDate, "from")
@@ -57,6 +58,14 @@ class TimeEntryService {
                 queryCondition =
                     queryCondition and
                     (TimeEntriesTable.taskId eq EntityID(parseUuid(requestedTaskId, "task_id"), TasksTable))
+            }
+            selectedClientId?.let { requestedClientId ->
+                val requestedClientEntityId = EntityID(parseUuid(requestedClientId, "client_id"), ClientsTable)
+                val clientProjectIds =
+                    ProjectEntity
+                        .find { ProjectsTable.clientId eq requestedClientEntityId }
+                        .map { clientProject -> clientProject.id }
+                queryCondition = queryCondition and (TimeEntriesTable.projectId inList clientProjectIds)
             }
 
             val timeEntries =
