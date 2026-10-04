@@ -233,6 +233,8 @@ object ExposedTestDb {
     fun seedUser(
         name: String,
         roleId: String? = null,
+        email: String? = null,
+        phone: String? = null,
     ): String =
         transaction {
             UserEntity
@@ -246,6 +248,8 @@ object ExposedTestDb {
                         this.name = name
                         this.pin = "****"
                         this.roleId = roleId?.let { EntityID(UUID.fromString(it), RolesTable) }
+                        this.email = email
+                        this.phone = phone
                     }.id.value
                     .toString()
         }
