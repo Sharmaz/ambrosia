@@ -52,6 +52,49 @@ class TimeEntryServiceTest {
     }
 
     @Test
+    fun `lists entries by client`() {
+        val timeEntryFixture = createTimeEntryFixture()
+        val otherClientId = ExposedTestDb.seedClient("Other Client", timeEntryFixture.currencyId, 10_000)
+        val otherClientProjectId = ExposedTestDb.seedProject(otherClientId)
+        val clientTimeEntry = timeEntryService.createTimeEntry(createTimeEntryRequest(timeEntryFixture, "2026-08-19"))
+        timeEntryService.createTimeEntry(
+            createTimeEntryRequest(timeEntryFixture.copy(projectId = otherClientProjectId), "2026-08-19"),
+        )
+
+        val retrievedTimeEntries =
+            timeEntryService.getTimeEntries(
+                startDate = "2026-08-17",
+                endDate = "2026-08-23",
+                selectedClientId = timeEntryFixture.clientId,
+            )
+
+        assertEquals(listOf(clientTimeEntry.id), retrievedTimeEntries.map { timeEntry -> timeEntry.id })
+    }
+
+    @Test
+    fun `lists no entries for a client without projects`() {
+        val timeEntryFixture = createTimeEntryFixture()
+        val clientWithoutProjectsId = ExposedTestDb.seedClient("Empty Client", timeEntryFixture.currencyId, 10_000)
+        timeEntryService.createTimeEntry(createTimeEntryRequest(timeEntryFixture, "2026-08-19"))
+
+        val retrievedTimeEntries =
+            timeEntryService.getTimeEntries(
+                startDate = "2026-08-17",
+                endDate = "2026-08-23",
+                selectedClientId = clientWithoutProjectsId,
+            )
+
+        assertEquals(emptyList(), retrievedTimeEntries)
+    }
+
+    @Test
+    fun `rejects a malformed client id filter`() {
+        assertFailsWith<InvalidTimeEntryException> {
+            timeEntryService.getTimeEntries("2026-08-17", "2026-08-23", selectedClientId = "not-a-uuid")
+        }
+    }
+
+    @Test
     fun `preserves whether an entry is billable`() {
         val timeEntryFixture = createTimeEntryFixture(isBillable = false)
 
