@@ -105,6 +105,27 @@ class ProjectServiceTest {
     }
 
     @Test
+    fun `getProjects returns active projects of active clients filtered by status`() {
+        val clientId = ExposedTestDb.seedFreelanceClient()
+        val deletedClientId = ExposedTestDb.seedFreelanceClient(isDeleted = true)
+        ExposedTestDb.seedFreelanceProject(clientId = clientId, name = "In Progress", status = "in_progress")
+        ExposedTestDb.seedFreelanceProject(clientId = clientId, name = "Pending", status = "pending")
+        ExposedTestDb.seedFreelanceProject(clientId = clientId, name = "Deleted", status = "in_progress", isDeleted = true)
+        ExposedTestDb.seedFreelanceProject(clientId = deletedClientId, name = "Orphan", status = "in_progress")
+
+        val inProgressProjects = service.getProjects("in_progress")
+        val allProjects = service.getProjects(null)
+
+        assertEquals(listOf("In Progress"), inProgressProjects?.map { project -> project.name })
+        assertEquals(setOf("In Progress", "Pending"), allProjects?.map { project -> project.name }?.toSet())
+    }
+
+    @Test
+    fun `getProjects returns null for an unknown status`() {
+        assertNull(service.getProjects("unknown"))
+    }
+
+    @Test
     fun `getProjectById returns null for invalid missing deleted or deleted parent client`() {
         val deletedProjectId = ExposedTestDb.seedFreelanceProject(isDeleted = true)
         val deletedClientId = ExposedTestDb.seedFreelanceClient(isDeleted = true)
