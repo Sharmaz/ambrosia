@@ -73,4 +73,52 @@ class SecretsCipherTest {
 
         assertTrue(unlockPassword.all { it == Char(0) })
     }
+
+    @Test
+    fun `deriveFieldEncryptionKey returns the same key for the same application secret`() {
+        val firstKey = SecretsCipher.deriveFieldEncryptionKey("field-encryption-shared-secret")
+        val secondKey = SecretsCipher.deriveFieldEncryptionKey("field-encryption-shared-secret")
+
+        assertEquals(firstKey, secondKey)
+    }
+
+    @Test
+    fun `deriveFieldEncryptionKey returns a different key for a different application secret`() {
+        val firstKey = SecretsCipher.deriveFieldEncryptionKey("field-encryption-secret-one")
+        val secondKey = SecretsCipher.deriveFieldEncryptionKey("field-encryption-secret-two")
+
+        assertNotEquals(firstKey, secondKey)
+    }
+
+    @Test
+    fun `a key from deriveFieldEncryptionKey encrypts and decrypts back to the original plaintext`() {
+        val fieldEncryptionKey = SecretsCipher.deriveFieldEncryptionKey("field-encryption-round-trip-secret")
+
+        val envelope = SecretsCipher.encrypt("user@example.com", fieldEncryptionKey)
+
+        assertEquals("user@example.com", SecretsCipher.decrypt(envelope, fieldEncryptionKey))
+    }
+
+    @Test
+    fun `encryptOrNull returns null for a null plaintext`() {
+        val secretKey = SecretsCipher.deriveKey("correct-unlock-password".toCharArray(), randomSalt())
+
+        assertEquals(null, SecretsCipher.encryptOrNull(null, secretKey))
+    }
+
+    @Test
+    fun `encryptOrNull then decryptOrNull returns the original plaintext`() {
+        val secretKey = SecretsCipher.deriveKey("correct-unlock-password".toCharArray(), randomSalt())
+
+        val envelope = SecretsCipher.encryptOrNull("user@example.com", secretKey)
+
+        assertEquals("user@example.com", SecretsCipher.decryptOrNull(envelope, secretKey))
+    }
+
+    @Test
+    fun `decryptOrNull returns null for a null envelope`() {
+        val secretKey = SecretsCipher.deriveKey("correct-unlock-password".toCharArray(), randomSalt())
+
+        assertEquals(null, SecretsCipher.decryptOrNull(null, secretKey))
+    }
 }
