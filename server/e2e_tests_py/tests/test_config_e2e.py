@@ -8,10 +8,16 @@ from ambrosia.api_utils import assert_status_code
 
 logger = logging.getLogger(__name__)
 
-EXPECTED_CONFIG_FIELDS = {
+EXPECTED_PUBLIC_CONFIG_FIELDS = {
     "businessType",
     "businessName",
+    "businessLogoUrl",
+}
+
+PROTECTED_CONFIG_FIELDS = {
     "businessTypeConfirmed",
+    "businessAddress",
+    "businessPhone",
 }
 
 
@@ -29,13 +35,25 @@ class TestConfigEndpoint:
 
     @pytest.mark.asyncio
     async def test_get_config_returns_200(self, public_client):
-        """GET /config is public and returns the business config."""
+        """Without a session, GET /config returns only the public projection."""
         response = await public_client.get("/config")
         assert_status_code(response, 200, "GET /config should return 200")
         body = response.json()
-        for field in EXPECTED_CONFIG_FIELDS:
-            assert field in body, f"Response missing expected field: {field}"
-        logger.info("✓ GET /config returns config with expected fields")
+        for field in EXPECTED_PUBLIC_CONFIG_FIELDS:
+            assert field in body, f"Response missing expected public field: {field}"
+        for field in PROTECTED_CONFIG_FIELDS:
+            assert field not in body, f"Unauthenticated response leaked protected field: {field}"
+        logger.info("✓ GET /config without a session returns only the public projection")
+
+    @pytest.mark.asyncio
+    async def test_get_config_with_session_returns_full_config(self, admin_client):
+        """With a session, GET /config returns the full business config."""
+        response = await admin_client.get("/config")
+        assert_status_code(response, 200, "GET /config should return 200")
+        body = response.json()
+        for field in EXPECTED_PUBLIC_CONFIG_FIELDS | PROTECTED_CONFIG_FIELDS:
+            assert field in body, f"Authenticated response missing expected field: {field}"
+        logger.info("✓ GET /config with a session returns the full config")
 
     @pytest.mark.asyncio
     async def test_update_config_succeeds(self, admin_client, original_config):
