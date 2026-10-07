@@ -42,8 +42,12 @@ class TestConfigEndpoint:
         for field in EXPECTED_PUBLIC_CONFIG_FIELDS:
             assert field in body, f"Response missing expected public field: {field}"
         for field in PROTECTED_CONFIG_FIELDS:
-            assert field not in body, f"Unauthenticated response leaked protected field: {field}"
-        logger.info("✓ GET /config without a session returns only the public projection")
+            assert field not in body, (
+                f"Unauthenticated response leaked protected field: {field}"
+            )
+        logger.info(
+            "✓ GET /config without a session returns only the public projection"
+        )
 
     @pytest.mark.asyncio
     async def test_get_config_with_session_returns_full_config(self, admin_client):
@@ -52,7 +56,9 @@ class TestConfigEndpoint:
         assert_status_code(response, 200, "GET /config should return 200")
         body = response.json()
         for field in EXPECTED_PUBLIC_CONFIG_FIELDS | PROTECTED_CONFIG_FIELDS:
-            assert field in body, f"Authenticated response missing expected field: {field}"
+            assert field in body, (
+                f"Authenticated response missing expected field: {field}"
+            )
         logger.info("✓ GET /config with a session returns the full config")
 
     @pytest.mark.asyncio
