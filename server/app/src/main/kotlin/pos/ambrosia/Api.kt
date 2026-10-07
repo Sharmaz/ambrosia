@@ -21,6 +21,7 @@ import io.ktor.server.websocket.WebSockets
 import io.ktor.server.websocket.pingPeriod
 import io.ktor.server.websocket.timeout
 import kotlinx.serialization.json.Json
+import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.slf4j.LoggerFactory
 import pos.ambrosia.api.configureAdminNotifications
 import pos.ambrosia.api.configureAdminNotificationsWebsocket
@@ -68,9 +69,12 @@ import pos.ambrosia.api.configureWallet
 import pos.ambrosia.api.handler
 import pos.ambrosia.config.AppConfig
 import pos.ambrosia.db.DatabaseConnection
+import pos.ambrosia.db.tables.UserEntity
 import pos.ambrosia.services.AdminNotificationService
 import pos.ambrosia.services.TokenService
+import pos.ambrosia.utils.SecretsCipher
 import pos.ambrosia.utils.UnauthorizedApiException
+import javax.crypto.spec.SecretKeySpec
 import kotlin.time.Duration.Companion.seconds
 
 public val logger = LoggerFactory.getLogger("Server")
@@ -81,6 +85,7 @@ class Api {
         if (pendingDataImportWasApplied) {
             configurePendingImportCleanup()
         }
+        configureUserPiiEncryptionBackfill()
         handler()
         install(ContentNegotiation) { json() }
         configureCors()
@@ -255,3 +260,27 @@ fun Application.configurePendingImportCleanup() {
     AdminNotificationService().revokeAllPushSubscriptions()
     logger.info("Cleared device sessions and push subscriptions after a data import")
 }
+
+fun Application.configureUserPiiEncryptionBackfill() {
+    val fieldEncryptionKey = SecretsCipher.deriveFieldEncryptionKey(environment.config.property("secret").getString())
+
+    transaction {
+        UserEntity.all().forEach { user ->
+            user.email?.let { storedEmail ->
+                if (!isAlreadyEncrypted(storedEmail, fieldEncryptionKey)) {
+                    user.email = SecretsCipher.encrypt(storedEmail, fieldEncryptionKey)
+                }
+            }
+            user.phone?.let { storedPhone ->
+                if (!isAlreadyEncrypted(storedPhone, fieldEncryptionKey)) {
+                    user.phone = SecretsCipher.encrypt(storedPhone, fieldEncryptionKey)
+                }
+            }
+        }
+    }
+}
+
+private fun isAlreadyEncrypted(
+    storedValue: String,
+    fieldEncryptionKey: SecretKeySpec,
+): Boolean = runCatching { SecretsCipher.decrypt(storedValue, fieldEncryptionKey) }.isSuccess

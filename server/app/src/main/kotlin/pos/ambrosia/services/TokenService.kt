@@ -13,6 +13,7 @@ import pos.ambrosia.db.tables.RoleEntity
 import pos.ambrosia.db.tables.UserEntity
 import pos.ambrosia.db.tables.UsersTable
 import pos.ambrosia.models.AuthResponse
+import pos.ambrosia.utils.SecretsCipher
 import java.security.MessageDigest
 import java.util.Date
 import java.util.UUID
@@ -51,6 +52,7 @@ class TokenService(
     private val issuer = config.property("jwt.issuer").getString()
     private val audience = config.property("jwt.audience").getString()
     private val algorithm = Algorithm.HMAC256(secret)
+    private val fieldEncryptionKey = SecretsCipher.deriveFieldEncryptionKey(secret)
 
     val accessTokenExpirationSeconds: Long =
         try {
@@ -211,8 +213,8 @@ class TokenService(
                         roleId = user.roleId?.value?.toString(),
                         role = role?.role ?: "",
                         isAdmin = role?.isAdmin ?: false,
-                        email = user.email,
-                        phone = user.phone,
+                        email = SecretsCipher.decryptOrNull(user.email, fieldEncryptionKey),
+                        phone = SecretsCipher.decryptOrNull(user.phone, fieldEncryptionKey),
                     )
                 }
             }
