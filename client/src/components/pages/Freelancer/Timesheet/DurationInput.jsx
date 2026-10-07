@@ -7,7 +7,6 @@ import { useTranslations } from "next-intl";
 
 import { useDurationDrag } from "./hooks/useDurationDrag";
 import { formatDuration, parseDurationInput, QUARTER_HOUR_MINUTES } from "./utils/quarterHour";
-import { READ_ONLY_FIELD_WRAPPER_CLASS_NAME } from "./utils/readOnlyFieldClassNames";
 
 const PIXELS_PER_QUARTER_HOUR = 12;
 
@@ -61,7 +60,7 @@ export function DurationInput({ durationMinutes, onDurationChange, isReadOnly = 
         onBlur={handleBlur}
         isReadOnly={isReadOnly}
         classNames={isReadOnly
-          ? { inputWrapper: READ_ONLY_FIELD_WRAPPER_CLASS_NAME, input: "font-semibold text-green-800" }
+          ? { inputWrapper: "bg-transparent shadow-none px-0 rounded-none border-b border-gray-100 data-[hover=true]:bg-transparent group-data-[focus=true]:bg-transparent", input: "font-semibold text-green-800" }
           : { inputWrapper: "rounded-b-none" }}
       />
       {!isReadOnly && (

@@ -19,7 +19,6 @@ import { useLocale, useTranslations } from "next-intl";
 import { DurationInput } from "./DurationInput";
 import { TaskSelector } from "./TaskSelector";
 import { TimeEntryModalFooter } from "./TimeEntryModalFooter";
-import { READ_ONLY_FIELD_WRAPPER_CLASS_NAME } from "./utils/readOnlyFieldClassNames";
 import { formatReadableDate } from "./utils/week";
 
 export function TimeEntryModal({
@@ -102,7 +101,7 @@ export function TimeEntryModal({
               placeholder={timesheetTranslations("modal.projectPlaceholder")}
               isRequired={!isReadOnly}
               isDisabled={isReadOnly}
-              classNames={isReadOnly ? { base: "opacity-100", trigger: READ_ONLY_FIELD_WRAPPER_CLASS_NAME, selectorIcon: "hidden" } : undefined}
+              classNames={isReadOnly ? { base: "opacity-100", trigger: "bg-transparent shadow-none px-0 rounded-none border-b border-gray-100 data-[hover=true]:bg-transparent group-data-[focus=true]:bg-transparent", selectorIcon: "hidden" } : undefined}
               selectedKeys={timeEntryForm.projectId ? [timeEntryForm.projectId] : []}
               onChange={(changeEvent) => onChange(
                 changeEvent.target.value ? { projectId: changeEvent.target.value } : { projectId: "", taskId: "" },
@@ -131,7 +130,7 @@ export function TimeEntryModal({
                   label={timesheetTranslations("modal.dateLabel")}
                   isReadOnly
                   value={readableEntryDate}
-                  classNames={{ inputWrapper: READ_ONLY_FIELD_WRAPPER_CLASS_NAME, input: "first-letter:uppercase" }}
+                  classNames={{ inputWrapper: "bg-transparent shadow-none px-0 rounded-none border-b border-gray-100 data-[hover=true]:bg-transparent group-data-[focus=true]:bg-transparent", input: "first-letter:uppercase" }}
                 />
               ) : (
                 <DatePicker
@@ -157,7 +156,7 @@ export function TimeEntryModal({
               placeholder={isReadOnly ? timesheetTranslations("modal.noDescription") : timesheetTranslations("modal.descriptionPlaceholder")}
               isReadOnly={isReadOnly}
               minRows={isReadOnly ? 1 : 3}
-              classNames={isReadOnly ? { inputWrapper: READ_ONLY_FIELD_WRAPPER_CLASS_NAME } : undefined}
+              classNames={isReadOnly ? { inputWrapper: "bg-transparent shadow-none px-0 rounded-none border-b border-gray-100 data-[hover=true]:bg-transparent group-data-[focus=true]:bg-transparent" } : undefined}
               value={timeEntryForm.description ?? ""}
               onChange={(changeEvent) => onChange({ description: changeEvent.target.value })}
             />

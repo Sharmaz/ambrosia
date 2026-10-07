@@ -5,7 +5,6 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 
 import { formatDuration } from "./utils/quarterHour";
-import { ICON_BUTTON_CLASS_NAME, OUTLINE_BUTTON_CLASS_NAME } from "./utils/timesheetButtonClassNames";
 import { formatWeekRangeLabel } from "./utils/week";
 
 export function WeekNavigator({ weekStart, weekEnd, weekTotalMinutes, filterControl, onPreviousWeek, onNextWeek, onCurrentWeek }) {
@@ -19,19 +18,19 @@ export function WeekNavigator({ weekStart, weekEnd, weekTotalMinutes, filterCont
         <Button
           size="sm"
           variant="outline"
-          className={ICON_BUTTON_CLASS_NAME}
+          className="border border-green-800 text-green-800 w-8 h-8 min-w-0 px-0 shrink-0"
           aria-label={timesheetTranslations("previousWeek")}
           onPress={onPreviousWeek}
         >
           <ChevronLeft className="w-4 h-4" />
         </Button>
-        <Button size="sm" variant="outline" className={OUTLINE_BUTTON_CLASS_NAME} onPress={onCurrentWeek}>
+        <Button size="sm" variant="outline" className="border border-green-800 text-green-800" onPress={onCurrentWeek}>
           {timesheetTranslations("today")}
         </Button>
         <Button
           size="sm"
           variant="outline"
-          className={ICON_BUTTON_CLASS_NAME}
+          className="border border-green-800 text-green-800 w-8 h-8 min-w-0 px-0 shrink-0"
           aria-label={timesheetTranslations("nextWeek")}
           onPress={onNextWeek}
         >

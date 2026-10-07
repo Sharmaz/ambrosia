@@ -15,7 +15,6 @@ import { DeleteTimeEntryModal } from "./DeleteTimeEntryModal";
 import { TimeEntryModal } from "./TimeEntryModal";
 import { TimesheetFilter } from "./TimesheetFilter";
 import { sumDurationMinutes } from "./utils/groupEntriesByDay";
-import { OUTLINE_BUTTON_CLASS_NAME } from "./utils/timesheetButtonClassNames";
 import { addDays, DAYS_IN_WEEK, getWeekDays, getWeekStart, parseIsoDate, toIsoDate } from "./utils/week";
 import { withOpenedTimeEntryOption } from "./utils/withOpenedTimeEntryOption";
 import { WeekGrid } from "./WeekGrid";
@@ -188,7 +187,7 @@ export function Timesheet() {
                 clients={clients}
                 projects={projects}
                 onFiltersChange={setTimesheetFilters}
-                triggerClassName={OUTLINE_BUTTON_CLASS_NAME}
+                triggerClassName="border border-green-800 text-green-800"
               />
             )}
             onPreviousWeek={() => setWeekOffset((currentWeekOffset) => currentWeekOffset - 1)}

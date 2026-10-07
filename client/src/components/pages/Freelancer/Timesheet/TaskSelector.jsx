@@ -4,7 +4,6 @@ import { Autocomplete, AutocompleteItem, Input } from "@heroui/react";
 import { useTranslations } from "next-intl";
 
 import { useTaskSelector } from "./hooks/useTaskSelector";
-import { READ_ONLY_FIELD_WRAPPER_CLASS_NAME } from "./utils/readOnlyFieldClassNames";
 
 export function TaskSelector({ tasks, selectedTaskId, onTaskChange, createTask, canCreateTask, isDisabled = false, isReadOnly = false, isRequired = true }) {
   const timesheetTranslations = useTranslations("timesheet");
@@ -27,7 +26,7 @@ export function TaskSelector({ tasks, selectedTaskId, onTaskChange, createTask, 
         label={timesheetTranslations("modal.taskLabel")}
         isReadOnly
         value={selectedTaskName}
-        classNames={{ inputWrapper: READ_ONLY_FIELD_WRAPPER_CLASS_NAME }}
+        classNames={{ inputWrapper: "bg-transparent shadow-none px-0 rounded-none border-b border-gray-100 data-[hover=true]:bg-transparent group-data-[focus=true]:bg-transparent" }}
       />
     );
   }
