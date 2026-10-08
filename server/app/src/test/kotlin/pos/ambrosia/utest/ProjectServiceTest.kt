@@ -105,9 +105,9 @@ class ProjectServiceTest {
         ExposedTestDb.seedFreelanceProject(clientId = firstClientId, name = "Deleted Project", isDeleted = true)
         ExposedTestDb.seedFreelanceProject(clientId = deletedClientId, name = "Archived Client Project")
 
-        val projects = service.getProjects()
+        val projects = service.getProjects(null)
 
-        assertEquals(listOf("Branding", "Website"), projects.map { project -> project.name }.sorted())
+        assertEquals(listOf("Branding", "Website"), projects?.map { project -> project.name }?.sorted())
     }
 
     @Test
@@ -117,6 +117,27 @@ class ProjectServiceTest {
         assertNull(service.getProjectsByClientId("not-a-uuid"))
         assertNull(service.getProjectsByClientId(UUID.randomUUID().toString()))
         assertNull(service.getProjectsByClientId(deletedClientId))
+    }
+
+    @Test
+    fun `getProjects returns active projects of active clients filtered by status`() {
+        val clientId = ExposedTestDb.seedFreelanceClient()
+        val deletedClientId = ExposedTestDb.seedFreelanceClient(isDeleted = true)
+        ExposedTestDb.seedFreelanceProject(clientId = clientId, name = "In Progress", status = "in_progress")
+        ExposedTestDb.seedFreelanceProject(clientId = clientId, name = "Pending", status = "pending")
+        ExposedTestDb.seedFreelanceProject(clientId = clientId, name = "Deleted", status = "in_progress", isDeleted = true)
+        ExposedTestDb.seedFreelanceProject(clientId = deletedClientId, name = "Orphan", status = "in_progress")
+
+        val inProgressProjects = service.getProjects("in_progress")
+        val allProjects = service.getProjects(null)
+
+        assertEquals(listOf("In Progress"), inProgressProjects?.map { project -> project.name })
+        assertEquals(setOf("In Progress", "Pending"), allProjects?.map { project -> project.name }?.toSet())
+    }
+
+    @Test
+    fun `getProjects returns null for an unknown status`() {
+        assertNull(service.getProjects("unknown"))
     }
 
     @Test

@@ -255,7 +255,7 @@ class TimeEntriesRouteTest {
                             fixture.taskId,
                             entryDate = "2026-08-20",
                             description = "Updated detail",
-                            durationMinutes = 18,
+                            durationMinutes = 30,
                         ),
                     )
                 }
@@ -263,7 +263,7 @@ class TimeEntriesRouteTest {
             val updated = Json.decodeFromString<TimeEntryResponse>(putResponse.bodyAsText())
             assertEquals("2026-08-20", updated.entryDate)
             assertEquals("Updated detail", updated.description)
-            assertEquals(18, updated.durationMinutes)
+            assertEquals(30, updated.durationMinutes)
 
             assertEquals(
                 HttpStatusCode.NoContent,
@@ -368,7 +368,7 @@ class TimeEntriesRouteTest {
         taskId: String,
         entryDate: String = "2026-08-19",
         description: String = "Implemented the API",
-        durationMinutes: Int = 17,
+        durationMinutes: Int = 15,
     ): String =
         """
         {

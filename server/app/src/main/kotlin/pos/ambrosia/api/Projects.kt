@@ -22,11 +22,10 @@ fun Application.configureProjects() {
 fun Route.projects(projectService: ProjectService) {
     authorizePermission("projects_read") {
         get("") {
-            val projects = projectService.getProjects()
-            if (projects.isEmpty()) {
-                call.respond(HttpStatusCode.OK, "No projects found")
-                return@get
-            }
+            val requestedProjectStatus = call.request.queryParameters["status"]
+            val projects =
+                projectService.getProjects(requestedProjectStatus)
+                    ?: return@get call.respond(HttpStatusCode.BadRequest, "Invalid project status")
             call.respond(HttpStatusCode.OK, projects)
         }
 

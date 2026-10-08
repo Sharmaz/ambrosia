@@ -1,7 +1,7 @@
-import { StoreLayout } from "@/components/pages/Store/StoreLayout";
+import { FreelancerLayout } from "@/components/pages/Freelancer/FreelancerLayout";
 
 export const dynamic = "force-dynamic";
 
-export default function FreelancerLayout({ children }) {
-  return <StoreLayout navbarNamespace="freelancerNavbar">{children}</StoreLayout>;
+export default function Layout({ children }) {
+  return <FreelancerLayout>{children}</FreelancerLayout>;
 }

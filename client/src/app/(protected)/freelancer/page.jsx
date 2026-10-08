@@ -1,7 +1,5 @@
-import { Freelancer } from "@/components/pages/Freelancer";
-
-export const dynamic = "force-dynamic";
+import { redirect } from "next/navigation";
 
 export default function FreelancerPage() {
-  return <Freelancer />;
+  redirect("/freelancer/timesheet");
 }

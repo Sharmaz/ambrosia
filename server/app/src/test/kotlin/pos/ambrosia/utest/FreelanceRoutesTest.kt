@@ -144,6 +144,33 @@ class FreelanceRoutesTest {
         }
 
     @Test
+    fun `project routes list projects filtered by status`() =
+        testApplication {
+            val authCookies = installAdminAuth()
+            grantFreelancePermissions("admin-test-role", projectPermissions)
+            ExposedTestDb.seedFreelanceProject(name = "In Progress", status = "in_progress")
+            ExposedTestDb.seedFreelanceProject(name = "Pending", status = "pending")
+            application {
+                install(ContentNegotiation) { json() }
+                handler()
+                configureProjects()
+            }
+
+            val inProgressProjectsResponse =
+                client.get("/freelance/projects?status=in_progress") { withAuthCookies(authCookies) }
+            val invalidStatusResponse = client.get("/freelance/projects?status=unknown") { withAuthCookies(authCookies) }
+
+            assertEquals(HttpStatusCode.OK, inProgressProjectsResponse.status)
+            val inProgressProjectNames =
+                Json
+                    .parseToJsonElement(inProgressProjectsResponse.bodyAsText())
+                    .jsonArray
+                    .map { project -> project.jsonObject["name"]?.jsonPrimitive?.content }
+            assertEquals(listOf("In Progress"), inProgressProjectNames)
+            assertEquals(HttpStatusCode.BadRequest, invalidStatusResponse.status)
+        }
+
+    @Test
     fun `project routes get update and soft delete projects`() =
         testApplication {
             val authCookies = installAdminAuth()
@@ -335,6 +362,7 @@ class FreelanceRoutesTest {
                 HttpStatusCode.Forbidden,
                 client.get("/freelance/projects/$projectId") { withAuthCookies(authCookies) }.status,
             )
+            assertEquals(HttpStatusCode.Forbidden, client.get("/freelance/projects") { withAuthCookies(authCookies) }.status)
         }
 
     private fun grantFreelancePermissions(
