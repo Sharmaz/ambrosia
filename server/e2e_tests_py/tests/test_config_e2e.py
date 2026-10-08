@@ -28,19 +28,25 @@ class TestConfigEndpoint:
     async def original_config(self, admin_client):
         """Fetch the current config and restore it after the test."""
         get_config_response = await admin_client.get("/config")
-        assert_status_code(get_config_response, 200, "Failed to fetch config for backup")
+        assert_status_code(
+            get_config_response, 200, "Failed to fetch config for backup"
+        )
         config = get_config_response.json()
         yield config
         await admin_client.put("/config", json=config)
 
     @pytest.mark.asyncio
-    async def test_get_config_without_session_returns_public_config(self, public_client):
+    async def test_get_config_without_session_returns_public_config(
+        self, public_client
+    ):
         """Without a session, GET /config returns only the public projection."""
         get_config_response = await public_client.get("/config")
         assert_status_code(get_config_response, 200, "GET /config should return 200")
         config = get_config_response.json()
         for field_name in EXPECTED_PUBLIC_CONFIG_FIELDS:
-            assert field_name in config, f"Response missing expected public field: {field_name}"
+            assert field_name in config, (
+                f"Response missing expected public field: {field_name}"
+            )
         for field_name in PROTECTED_CONFIG_FIELDS:
             assert field_name not in config, (
                 f"Unauthenticated response leaked protected field: {field_name}"
