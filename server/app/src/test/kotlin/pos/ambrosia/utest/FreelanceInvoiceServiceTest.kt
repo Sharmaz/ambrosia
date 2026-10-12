@@ -121,7 +121,7 @@ class FreelanceInvoiceServiceTest {
                 )
             }
 
-        assertEquals("draft", createdFreelanceInvoice.status)
+        assertEquals("generated", createdFreelanceInvoice.status)
         assertEquals("USD", createdFreelanceInvoice.currencyAcronym)
         assertEquals(15_000, createdFreelanceInvoice.totalCents)
         assertEquals("bank", createdFreelanceInvoice.paymentMethod)

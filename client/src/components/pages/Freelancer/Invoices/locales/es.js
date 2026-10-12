@@ -67,6 +67,7 @@ const freelanceInvoicesEs = {
     },
     statuses: {
       draft: "Borrador",
+      generated: "Generada",
       sent: "Enviada",
       paid: "Pagada",
       cancelled: "Cancelada",

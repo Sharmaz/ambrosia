@@ -232,7 +232,7 @@ class FreelanceInvoiceService(
                     invoiceYear = preparedFreelanceInvoice.invoiceYear
                     invoiceNumber = nextInvoiceNumber(preparedFreelanceInvoice.invoiceYear)
                     clientId = EntityID(preparedFreelanceInvoice.clientId, ClientsTable)
-                    status = "draft"
+                    status = "generated"
                     currencyId = EntityID(preparedFreelanceInvoice.currencyId, CurrencyTable)
                     periodStart = preparedFreelanceInvoice.periodStart
                     periodEnd = preparedFreelanceInvoice.periodEnd
