@@ -1,5 +1,5 @@
 export function printHtmlDocument({ htmlContent, title = "Document" }) {
-  const printWindow = window.open("", "_blank", "noopener,noreferrer");
+  const printWindow = window.open("", "_blank");
   if (!printWindow) {
     throw new Error("Print window was blocked");
   }
