@@ -24,11 +24,11 @@ function buildIssuerMarkup(businessConfig, documentTranslations) {
   ].filter(Boolean);
 
   return `
-    <section class="issuer">
-      ${businessConfig?.businessLogoUrl ? `<img class="logo" src="${escapeHtml(businessConfig.businessLogoUrl)}" alt="">` : ""}
+    <section style="align-items:flex-start;border-bottom:2px solid #166534;display:flex;gap:18px;justify-content:space-between;padding-bottom:24px;">
+      ${businessConfig?.businessLogoUrl ? `<img src="${escapeHtml(businessConfig.businessLogoUrl)}" alt="" style="max-height:72px;max-width:160px;object-fit:contain;">` : ""}
       <div>
-        <h1>${escapeHtml(businessName)}</h1>
-        ${issuerRows.map((issuerRow) => `<p>${escapeHtml(issuerRow)}</p>`).join("")}
+        <h1 style="color:#14532d;font-size:28px;margin:0;">${escapeHtml(businessName)}</h1>
+        ${issuerRows.map((issuerRow) => `<p style="margin:0;">${escapeHtml(issuerRow)}</p>`).join("")}
       </div>
     </section>
   `;
@@ -37,17 +37,17 @@ function buildIssuerMarkup(businessConfig, documentTranslations) {
 function buildLineItemsMarkup(invoice, documentTranslations) {
   return (invoice?.lineItems ?? []).map((lineItem) => `
     <tr>
-      <td>
+      <td style="border-bottom:1px solid #e5e7eb;padding:10px;vertical-align:top;">
         <strong>${escapeHtml(lineItem.projectName)}</strong>
-        <span>${escapeHtml(lineItem.taskName)}</span>
+        <span style="color:#6b7280;display:block;font-size:12px;">${escapeHtml(lineItem.taskName)}</span>
       </td>
-      <td>${escapeHtml(formatInvoiceDuration(lineItem.quantityMinutes))}</td>
-      <td>${escapeHtml(formatInvoiceAmount(lineItem.rateCents, invoice?.currencyAcronym))}</td>
-      <td class="amount">${escapeHtml(formatInvoiceAmount(lineItem.amountCents, invoice?.currencyAcronym))}</td>
+      <td style="border-bottom:1px solid #e5e7eb;padding:10px;vertical-align:top;">${escapeHtml(formatInvoiceDuration(lineItem.quantityMinutes))}</td>
+      <td style="border-bottom:1px solid #e5e7eb;padding:10px;vertical-align:top;">${escapeHtml(formatInvoiceAmount(lineItem.rateCents, invoice?.currencyAcronym))}</td>
+      <td style="border-bottom:1px solid #e5e7eb;padding:10px;text-align:right;vertical-align:top;">${escapeHtml(formatInvoiceAmount(lineItem.amountCents, invoice?.currencyAcronym))}</td>
     </tr>
   `).join("") || `
     <tr>
-      <td colspan="4" class="empty">${escapeHtml(documentTranslations.noLineItems)}</td>
+      <td colspan="4" style="border-bottom:1px solid #e5e7eb;color:#6b7280;padding:10px;text-align:center;">${escapeHtml(documentTranslations.noLineItems)}</td>
     </tr>
   `;
 }
@@ -66,13 +66,13 @@ function buildBankInstructionsMarkup(invoice, documentTranslations) {
   ].filter(([, payoutValue]) => payoutValue);
 
   return `
-    <section class="payment">
-      <h2>${escapeHtml(documentTranslations.bankDetails)}</h2>
-      <dl>
+    <section style="border:1px solid #bbf7d0;border-radius:8px;padding:14px;">
+      <h2 style="color:#14532d;font-size:16px;margin:0 0 10px;">${escapeHtml(documentTranslations.bankDetails)}</h2>
+      <dl style="display:grid;gap:10px;grid-template-columns:repeat(2,minmax(0,1fr));margin:0;">
         ${payoutRows.map(([payoutLabel, payoutValue]) => `
           <div>
-            <dt>${escapeHtml(payoutLabel)}</dt>
-            <dd>${escapeHtml(payoutValue)}</dd>
+            <dt style="color:#6b7280;font-size:12px;">${escapeHtml(payoutLabel)}</dt>
+            <dd style="font-weight:700;margin:0;overflow-wrap:anywhere;">${escapeHtml(payoutValue)}</dd>
           </div>
         `).join("")}
       </dl>
@@ -84,9 +84,9 @@ function buildLightningInstructionsMarkup(invoice, documentTranslations) {
   if (!invoice?.bolt11) return "";
 
   return `
-    <section class="payment">
-      <h2>${escapeHtml(documentTranslations.lightningDetails)}</h2>
-      <p class="bolt11">${escapeHtml(invoice.bolt11)}</p>
+    <section style="border:1px solid #bbf7d0;border-radius:8px;padding:14px;">
+      <h2 style="color:#14532d;font-size:16px;margin:0 0 10px;">${escapeHtml(documentTranslations.lightningDetails)}</h2>
+      <p style="background:#f3f4f6;border-radius:6px;font-family:monospace;font-size:12px;line-height:1.5;margin:0;overflow-wrap:anywhere;padding:10px;white-space:normal;word-break:break-word;">${escapeHtml(invoice.bolt11)}</p>
     </section>
   `;
 }
@@ -109,139 +109,44 @@ export function buildFreelanceInvoiceHtmlDocument({ invoice, businessConfig, doc
   <head>
     <meta charset="utf-8">
     <title>${escapeHtml(invoice?.invoiceNumber || documentTranslations.invoiceTitle)}</title>
-    <style>
-      * { box-sizing: border-box; }
-      body {
-        color: #172016;
-        font-family: Arial, sans-serif;
-        line-height: 1.4;
-        margin: 0;
-        padding: 40px;
-      }
-      .page { max-width: 840px; margin: 0 auto; }
-      .issuer {
-        align-items: flex-start;
-        border-bottom: 2px solid #166534;
-        display: flex;
-        gap: 18px;
-        justify-content: space-between;
-        padding-bottom: 24px;
-      }
-      .logo {
-        max-height: 72px;
-        max-width: 160px;
-        object-fit: contain;
-      }
-      h1, h2, p { margin: 0; }
-      h1 { color: #14532d; font-size: 28px; }
-      h2 { color: #14532d; font-size: 16px; margin-bottom: 10px; }
-      .summary {
-        display: grid;
-        gap: 16px;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        margin: 28px 0;
-      }
-      .summary-card {
-        border: 1px solid #d1d5db;
-        border-radius: 8px;
-        padding: 14px;
-      }
-      .label {
-        color: #6b7280;
-        display: block;
-        font-size: 12px;
-        margin-bottom: 4px;
-        text-transform: uppercase;
-      }
-      .value { font-size: 15px; font-weight: 700; }
-      table {
-        border-collapse: collapse;
-        margin-top: 10px;
-        width: 100%;
-      }
-      th {
-        background: #f3f4f6;
-        color: #374151;
-        font-size: 12px;
-        text-align: left;
-      }
-      th, td {
-        border-bottom: 1px solid #e5e7eb;
-        padding: 10px;
-        vertical-align: top;
-      }
-      td span {
-        color: #6b7280;
-        display: block;
-        font-size: 12px;
-      }
-      .amount { text-align: right; }
-      .total {
-        display: flex;
-        font-size: 20px;
-        font-weight: 700;
-        justify-content: flex-end;
-        margin: 18px 0 28px;
-      }
-      .payment {
-        border: 1px solid #bbf7d0;
-        border-radius: 8px;
-        padding: 14px;
-      }
-      dl { display: grid; gap: 10px; grid-template-columns: repeat(2, minmax(0, 1fr)); margin: 0; }
-      dt { color: #6b7280; font-size: 12px; }
-      dd { font-weight: 700; margin: 0; overflow-wrap: anywhere; }
-      .bolt11 {
-        background: #f3f4f6;
-        border-radius: 6px;
-        font-family: monospace;
-        font-size: 12px;
-        overflow-wrap: anywhere;
-        padding: 10px;
-      }
-      .empty { color: #6b7280; text-align: center; }
-      @media print {
-        body { padding: 24px; }
-      }
-    </style>
   </head>
-  <body>
-    <main class="page">
+  <body style="box-sizing:border-box;color:#172016;font-family:Arial,sans-serif;line-height:1.4;margin:0;padding:40px;">
+    <main style="box-sizing:border-box;margin:0 auto;max-width:840px;">
       ${buildIssuerMarkup(businessConfig, documentTranslations)}
-      <section class="summary">
-        <div class="summary-card">
-          <span class="label">${escapeHtml(documentTranslations.invoiceTitle)}</span>
-          <span class="value">${escapeHtml(invoice?.invoiceNumber)}</span>
+      <section style="display:grid;gap:16px;grid-template-columns:repeat(2,minmax(0,1fr));margin:28px 0;">
+        <div style="border:1px solid #d1d5db;border-radius:8px;padding:14px;">
+          <span style="color:#6b7280;display:block;font-size:12px;margin-bottom:4px;text-transform:uppercase;">${escapeHtml(documentTranslations.invoiceTitle)}</span>
+          <span style="font-size:15px;font-weight:700;">${escapeHtml(invoice?.invoiceNumber)}</span>
         </div>
-        <div class="summary-card">
-          <span class="label">${escapeHtml(documentTranslations.client)}</span>
-          <span class="value">${escapeHtml(invoice?.clientName)}</span>
+        <div style="border:1px solid #d1d5db;border-radius:8px;padding:14px;">
+          <span style="color:#6b7280;display:block;font-size:12px;margin-bottom:4px;text-transform:uppercase;">${escapeHtml(documentTranslations.client)}</span>
+          <span style="font-size:15px;font-weight:700;">${escapeHtml(invoice?.clientName)}</span>
         </div>
-        <div class="summary-card">
-          <span class="label">${escapeHtml(documentTranslations.period)}</span>
-          <span class="value">${escapeHtml(formatInvoicePeriod(invoice))}</span>
+        <div style="border:1px solid #d1d5db;border-radius:8px;padding:14px;">
+          <span style="color:#6b7280;display:block;font-size:12px;margin-bottom:4px;text-transform:uppercase;">${escapeHtml(documentTranslations.period)}</span>
+          <span style="font-size:15px;font-weight:700;">${escapeHtml(formatInvoicePeriod(invoice))}</span>
         </div>
-        <div class="summary-card">
-          <span class="label">${escapeHtml(documentTranslations.status)}</span>
-          <span class="value">${escapeHtml(documentTranslations.statusLabel)}</span>
+        <div style="border:1px solid #d1d5db;border-radius:8px;padding:14px;">
+          <span style="color:#6b7280;display:block;font-size:12px;margin-bottom:4px;text-transform:uppercase;">${escapeHtml(documentTranslations.status)}</span>
+          <span style="font-size:15px;font-weight:700;">${escapeHtml(documentTranslations.statusLabel)}</span>
         </div>
       </section>
       <section>
-        <h2>${escapeHtml(documentTranslations.lineItems)}</h2>
-        <table>
+        <h2 style="color:#14532d;font-size:16px;margin:0 0 10px;">${escapeHtml(documentTranslations.lineItems)}</h2>
+        <table style="border-collapse:collapse;margin-top:10px;width:100%;">
           <thead>
             <tr>
-              <th>${escapeHtml(documentTranslations.lineItem)}</th>
-              <th>${escapeHtml(documentTranslations.duration)}</th>
-              <th>${escapeHtml(documentTranslations.rate)}</th>
-              <th class="amount">${escapeHtml(documentTranslations.amount)}</th>
+              <th style="background:#f3f4f6;color:#374151;font-size:12px;padding:10px;text-align:left;">${escapeHtml(documentTranslations.lineItem)}</th>
+              <th style="background:#f3f4f6;color:#374151;font-size:12px;padding:10px;text-align:left;">${escapeHtml(documentTranslations.duration)}</th>
+              <th style="background:#f3f4f6;color:#374151;font-size:12px;padding:10px;text-align:left;">${escapeHtml(documentTranslations.rate)}</th>
+              <th style="background:#f3f4f6;color:#374151;font-size:12px;padding:10px;text-align:right;">${escapeHtml(documentTranslations.amount)}</th>
             </tr>
           </thead>
           <tbody>
             ${buildLineItemsMarkup(invoice, documentTranslations)}
           </tbody>
         </table>
-        <div class="total">
+        <div style="display:flex;font-size:20px;font-weight:700;justify-content:flex-end;margin:18px 0 28px;">
           ${escapeHtml(documentTranslations.total)}: ${escapeHtml(formatInvoiceAmount(invoice?.totalCents, invoice?.currencyAcronym))}
         </div>
       </section>
