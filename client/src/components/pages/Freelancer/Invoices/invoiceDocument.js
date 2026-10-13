@@ -1,3 +1,5 @@
+import qrCodeGenerator from "qrcode-generator";
+
 import {
   formatInvoiceAmount,
   formatInvoiceDuration,
@@ -80,13 +82,40 @@ function buildBankInstructionsMarkup(invoice, documentTranslations) {
   `;
 }
 
+function buildLightningQrCodeMarkup(lightningInvoice) {
+  try {
+    const lightningInvoiceQrCode = qrCodeGenerator(0, "M");
+    lightningInvoiceQrCode.addData(lightningInvoice);
+    lightningInvoiceQrCode.make();
+    const lightningInvoiceQrCodeSvg = lightningInvoiceQrCode.createSvgTag({
+      cellSize: 4,
+      margin: 2,
+      scalable: true,
+    });
+
+    return `
+      <div style="background:#ffffff;border:1px solid #d1d5db;border-radius:8px;box-sizing:border-box;flex:0 0 184px;padding:12px;width:184px;">
+        ${lightningInvoiceQrCodeSvg.replace(
+          "<svg ",
+          '<svg aria-label="Lightning invoice QR code" role="img" style="display:block;height:160px;width:160px;" ',
+        )}
+      </div>
+    `;
+  } catch {
+    return "";
+  }
+}
+
 function buildLightningInstructionsMarkup(invoice, documentTranslations) {
   if (!invoice?.bolt11) return "";
 
   return `
     <section style="border:1px solid #bbf7d0;border-radius:8px;padding:14px;">
       <h2 style="color:#14532d;font-size:16px;margin:0 0 10px;">${escapeHtml(documentTranslations.lightningDetails)}</h2>
-      <p style="background:#f3f4f6;border-radius:6px;font-family:monospace;font-size:12px;line-height:1.5;margin:0;overflow-wrap:anywhere;padding:10px;white-space:normal;word-break:break-word;">${escapeHtml(invoice.bolt11)}</p>
+      <div style="align-items:flex-start;display:flex;gap:16px;">
+        ${buildLightningQrCodeMarkup(invoice.bolt11)}
+        <p style="background:#f3f4f6;border-radius:6px;box-sizing:border-box;flex:1;font-family:monospace;font-size:12px;line-height:1.5;margin:0;min-width:0;overflow-wrap:anywhere;padding:10px;white-space:normal;word-break:break-word;">${escapeHtml(invoice.bolt11)}</p>
+      </div>
     </section>
   `;
 }

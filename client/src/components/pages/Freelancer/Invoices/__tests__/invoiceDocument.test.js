@@ -96,6 +96,8 @@ describe("buildFreelanceInvoiceHtmlDocument", () => {
     expect(invoiceHtmlDocument).toContain("Lightning invoice");
     expect(invoiceHtmlDocument).toContain("lnbc1invoice");
     expect(invoiceHtmlDocument).toContain("No line items");
+    expect(invoiceHtmlDocument).toContain('aria-label="Lightning invoice QR code"');
+    expect(invoiceHtmlDocument).toContain("viewBox=");
     expect(invoiceHtmlDocument).toContain("overflow-wrap:anywhere");
     expect(invoiceHtmlDocument).toContain("word-break:break-word");
   });
