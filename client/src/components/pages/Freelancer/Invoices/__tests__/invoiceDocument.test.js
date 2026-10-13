@@ -74,8 +74,9 @@ describe("buildFreelanceInvoiceHtmlDocument", () => {
     expect(invoiceHtmlDocument).toContain("USD 150.00");
     expect(invoiceHtmlDocument).toContain("Bank transfer details");
     expect(invoiceHtmlDocument).toContain("012345678901234567");
-    expect(invoiceHtmlDocument).toContain("border-collapse:separate;border-radius:10px;border-spacing:0;");
-    expect(invoiceHtmlDocument).toContain("padding:12px 14px;text-align:right;vertical-align:top;");
+    expect(invoiceHtmlDocument).toContain("border-collapse:collapse;margin-top:10px;width:100%;");
+    expect(invoiceHtmlDocument).toContain("text-align:right;vertical-align:top;");
+    expect(invoiceHtmlDocument).not.toContain("Draft");
   });
 
   it("renders Lightning payment instructions", () => {
