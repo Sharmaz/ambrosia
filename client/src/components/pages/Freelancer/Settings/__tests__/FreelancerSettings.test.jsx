@@ -111,5 +111,4 @@ describe("FreelancerSettings", () => {
     });
     expect(screen.queryByTestId("LightningCard")).not.toBeInTheDocument();
   });
-
 });
