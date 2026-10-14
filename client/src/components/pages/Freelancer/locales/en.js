@@ -1,5 +1,6 @@
 import freelanceClientsEn from "../Clients/locales/en";
 import freelanceProjectsEn from "../Projects/locales/en";
+import freelancerSettingsEn from "../Settings/locales/en";
 
 const freelancerEn = {
   freelancerNavbar: {
@@ -81,6 +82,7 @@ const freelancerEn = {
   },
   ...freelanceClientsEn,
   ...freelanceProjectsEn,
+  ...freelancerSettingsEn,
 };
 
 export default freelancerEn;

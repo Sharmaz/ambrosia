@@ -1,0 +1,42 @@
+const freelancerSettingsEs = {
+  freelancerSettings: {
+    subtitle: "Administra tu negocio freelance",
+    cardInfo: {
+      title: "Información del negocio",
+      name: "Nombre",
+      profession: "Ocupación",
+      taxId: "Tax ID (RFC)",
+      address: "Dirección",
+      timezone: "Zona horaria",
+      email: "Correo Electrónico",
+      phone: "Teléfono",
+      logo: "Logo",
+      noLogo: "Sin logo",
+      edit: "Editar Información",
+    },
+    infoModal: {
+      title: "Información del negocio",
+      name: "Nombre",
+      namePlaceholder: "Nombre",
+      profession: "Ocupación",
+      professionPlaceholder: "Ej: Diseñador Gráfico",
+      taxId: "Tax ID (RFC)",
+      address: "Dirección",
+      addressPlaceholder: "Dirección",
+      timezone: "Zona horaria",
+      email: "Correo Electrónico",
+      emailPlaceholder: "email@email.com",
+      phone: "Teléfono",
+      phonePlaceholder: "3312312311",
+      logo: "Logo",
+      logoUpload: "Sube tu logo",
+      logoUploadMessage: "PNG, JPG o GIF (máx. 5MB)",
+      cancelButton: "Cancelar",
+      saveButton: "Guardar",
+      updateSuccess: "Información del negocio guardada correctamente",
+      errorTitle: "Error",
+    },
+  },
+};
+
+export default freelancerSettingsEs;
