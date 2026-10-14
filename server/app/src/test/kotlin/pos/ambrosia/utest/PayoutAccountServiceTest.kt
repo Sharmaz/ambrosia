@@ -114,6 +114,29 @@ class PayoutAccountServiceTest {
     }
 
     @Test
+    fun `updatePayoutAccount rejects blank lightning address without a local node fallback`() {
+        val payoutAccountId = ExposedTestDb.seedPayoutAccount(currencyId = ExposedTestDb.seedCurrency("USD"))
+
+        assertFailsWith<LightningBackendUnavailableException> {
+            payoutAccountService.updatePayoutAccount(payoutAccountId, PayoutAccountUpsert(type = "lightning", lightningAddress = " "))
+        }
+    }
+
+    @Test
+    fun `updatePayoutAccount returns false for a missing account before checking the lightning backend`() {
+        val nodeLightningRequest = PayoutAccountUpsert(type = "lightning", lightningAddress = null)
+
+        assertFalse(payoutAccountService.updatePayoutAccount(UUID.randomUUID().toString(), nodeLightningRequest))
+    }
+
+    @Test
+    fun `addPayoutAccount rejects lightning request mixing bank fields before checking the lightning backend`() {
+        val mixedLightningRequest = PayoutAccountUpsert(type = "lightning", bankName = "Acme Bank", lightningAddress = null)
+
+        assertNull(payoutAccountService.addPayoutAccount(mixedLightningRequest))
+    }
+
+    @Test
     fun `addPayoutAccount accepts blank lightning address when a local node is available`() {
         ActiveLightningBackend.set(FakeLightningBackend("phoenixd"))
 
