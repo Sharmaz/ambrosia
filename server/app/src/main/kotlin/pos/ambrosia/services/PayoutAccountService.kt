@@ -11,6 +11,7 @@ import pos.ambrosia.db.tables.PayoutAccountsTable
 import pos.ambrosia.logger
 import pos.ambrosia.models.PayoutAccount
 import pos.ambrosia.models.PayoutAccountUpsert
+import pos.ambrosia.utils.LightningBackendUnavailableException
 import pos.ambrosia.utils.SecretsCipher
 import java.time.LocalDateTime
 import java.util.UUID
@@ -56,9 +57,15 @@ class PayoutAccountService(
             ) &&
             payoutAccountRequest.lightningAddress.isNullOrBlank()
 
-    private fun isValidLightningAccount(payoutAccountRequest: PayoutAccountUpsert): Boolean =
-        hasNoBankFields(payoutAccountRequest) &&
-            (!payoutAccountRequest.lightningAddress.isNullOrBlank() || ActiveLightningBackend.isAvailable())
+    private fun isValidLightningAccount(payoutAccountRequest: PayoutAccountUpsert): Boolean = hasNoBankFields(payoutAccountRequest)
+
+    private fun requireLightningAddressOrActiveBackend(payoutAccountRequest: PayoutAccountUpsert) {
+        val usesNodeLightningWallet =
+            payoutAccountRequest.type == "lightning" && payoutAccountRequest.lightningAddress.isNullOrBlank()
+        if (usesNodeLightningWallet && !ActiveLightningBackend.isAvailable()) {
+            throw LightningBackendUnavailableException()
+        }
+    }
 
     private fun isValidPayoutAccountRequest(payoutAccountRequest: PayoutAccountUpsert): Boolean =
         when (payoutAccountRequest.type) {
@@ -101,6 +108,7 @@ class PayoutAccountService(
     fun addPayoutAccount(payoutAccountRequest: PayoutAccountUpsert): String? =
         transaction {
             if (!isValidPayoutAccountRequest(payoutAccountRequest)) return@transaction null
+            requireLightningAddressOrActiveBackend(payoutAccountRequest)
 
             val payoutAccountId =
                 PayoutAccountEntity
@@ -133,6 +141,7 @@ class PayoutAccountService(
 
             val payoutAccountEntity = PayoutAccountEntity.findById(payoutAccountUuid) ?: return@transaction false
             if (payoutAccountEntity.isDeleted) return@transaction false
+            requireLightningAddressOrActiveBackend(payoutAccountRequest)
 
             payoutAccountEntity.type = payoutAccountRequest.type
             payoutAccountEntity.accountHolder = SecretsCipher.encryptOrNull(payoutAccountRequest.accountHolder, fieldEncryptionKey)
