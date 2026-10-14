@@ -10,11 +10,13 @@ import pos.ambrosia.services.ActiveLightningBackend
 import pos.ambrosia.services.PayoutAccountService
 import pos.ambrosia.utils.ExposedTestDb
 import pos.ambrosia.utils.FakeLightningBackend
+import pos.ambrosia.utils.LightningBackendUnavailableException
 import pos.ambrosia.utils.testJwtConfig
 import java.io.File
 import java.util.UUID
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertNotEquals
 import kotlin.test.assertNotNull
@@ -106,10 +108,9 @@ class PayoutAccountServiceTest {
 
     @Test
     fun `addPayoutAccount rejects blank lightning address without a local node fallback`() {
-        val payoutAccountId =
+        assertFailsWith<LightningBackendUnavailableException> {
             payoutAccountService.addPayoutAccount(PayoutAccountUpsert(type = "lightning", lightningAddress = null))
-
-        assertNull(payoutAccountId)
+        }
     }
 
     @Test
