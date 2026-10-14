@@ -9,6 +9,7 @@ import { TUTORIAL_TOUR } from "@components/shared/Settings/Tutorials/tutorialTou
 
 import { STORE_HOME_ROUTE } from "../routes";
 
+import { PriceStep } from "./PriceStep";
 import { Printers } from "./Printers";
 import { StoreInfo } from "./StoreInfo";
 import { TicketTemplates } from "./TicketTemplates";
@@ -27,7 +28,7 @@ export function StoreSettings() {
       content: (
         <>
           <StoreInfo />
-          <Currency />
+          <Currency extraCurrencySettings={<PriceStep />} />
           <Tips />
         </>
       ),
