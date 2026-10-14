@@ -1,12 +1,14 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
+import { usePermission } from "@/hooks/usePermission";
 import { useSettingsAvailability } from "@components/shared/Settings/hooks/useSettingsAvailability";
 import { useNavigation } from "@hooks/useNavigation";
 
 import { FreelancerSettings } from "../FreelancerSettings";
 
 jest.mock("@hooks/useNavigation", () => ({ useNavigation: jest.fn() }));
+jest.mock("@/hooks/usePermission", () => ({ usePermission: jest.fn() }));
 jest.mock("@components/shared/Settings/hooks/useSettingsAvailability", () => ({ useSettingsAvailability: jest.fn() }));
 jest.mock("@lib/isElectron", () => ({ isElectron: false }));
 
@@ -31,9 +33,11 @@ jest.mock("@components/shared/Settings/Seed", () => mockSettingsCard("Seed"));
 jest.mock("@components/shared/Settings/System/SystemCard", () => mockSettingsCard("SystemCard"));
 jest.mock("@components/shared/Settings/Tutorials", () => mockSettingsCard("Tutorials"));
 jest.mock("../FreelancerInfo", () => mockSettingsCard("FreelancerInfo"));
+jest.mock("../PayoutAccounts", () => mockSettingsCard("PayoutAccounts"));
 
-function mockRole({ isAdmin = false } = {}) {
+function mockRole({ isAdmin = false, canReadPayoutAccounts = false } = {}) {
   useNavigation.mockReturnValue({ isAdmin });
+  usePermission.mockReturnValue(canReadPayoutAccounts);
 }
 
 function renderedTabLabels() {
@@ -54,15 +58,22 @@ describe("FreelancerSettings", () => {
     });
   });
 
-  it("offers only the business and preferences tabs to a non-admin role", () => {
+  it("offers only the business and preferences tabs to a role without extra permissions", () => {
     mockRole();
     render(<FreelancerSettings />);
 
     expect(renderedTabLabels()).toEqual(["categories.business", "categories.preferences"]);
   });
 
+  it("offers the payout accounts tab to a role that can read payout accounts", () => {
+    mockRole({ canReadPayoutAccounts: true });
+    render(<FreelancerSettings />);
+
+    expect(renderedTabLabels()).toEqual(["categories.business", "categories.preferences", "categories.payoutAccounts"]);
+  });
+
   it("offers every freelancer tab to an admin and never the store printing tab", () => {
-    mockRole({ isAdmin: true });
+    mockRole({ isAdmin: true, canReadPayoutAccounts: true });
     useSettingsAvailability.mockReturnValue({
       secureConnectionAvailable: true,
       installPWAAvailable: false,
@@ -74,6 +85,7 @@ describe("FreelancerSettings", () => {
       "categories.business",
       "categories.preferences",
       "categories.wallet",
+      "categories.payoutAccounts",
       "categories.backup",
       "categories.devices",
       "categories.system",
@@ -110,5 +122,14 @@ describe("FreelancerSettings", () => {
       expect(screen.getByTestId(walletCardName)).toBeInTheDocument();
     });
     expect(screen.queryByTestId("LightningCard")).not.toBeInTheDocument();
+  });
+
+  it("shows the payout accounts card in the payout accounts tab", async () => {
+    mockRole({ canReadPayoutAccounts: true });
+    render(<FreelancerSettings />);
+
+    await userEvent.click(screen.getByText("categories.payoutAccounts"));
+
+    expect(screen.getByTestId("PayoutAccounts")).toBeInTheDocument();
   });
 });
