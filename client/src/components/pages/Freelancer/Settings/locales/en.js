@@ -1,0 +1,42 @@
+const freelancerSettingsEn = {
+  freelancerSettings: {
+    subtitle: "Manage your freelance business",
+    cardInfo: {
+      title: "Business information",
+      name: "Name",
+      profession: "Occupation",
+      taxId: "Tax ID",
+      address: "Address",
+      timezone: "Timezone",
+      email: "Email",
+      phone: "Phone",
+      logo: "Logo",
+      noLogo: "No logo",
+      edit: "Edit",
+    },
+    infoModal: {
+      title: "Business info",
+      name: "Name",
+      namePlaceholder: "Name",
+      profession: "Occupation",
+      professionPlaceholder: "e.g. Graphic Designer",
+      taxId: "Tax ID",
+      address: "Address",
+      addressPlaceholder: "Address",
+      timezone: "Timezone",
+      email: "Email",
+      emailPlaceholder: "email@email.com",
+      phone: "Phone",
+      phonePlaceholder: "3312312311",
+      logo: "Logo",
+      logoUpload: "Upload your logo",
+      logoUploadMessage: "PNG, JPG or GIF (max. 5MB)",
+      cancelButton: "Cancel",
+      saveButton: "Save",
+      updateSuccess: "Business info saved successfully",
+      errorTitle: "Error",
+    },
+  },
+};
+
+export default freelancerSettingsEn;
