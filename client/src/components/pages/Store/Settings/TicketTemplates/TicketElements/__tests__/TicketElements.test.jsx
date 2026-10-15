@@ -2,6 +2,11 @@ import { render, screen } from "@testing-library/react";
 
 import { TicketElementsPreview } from "../TicketElements";
 
+jest.mock("react-qr-code", () => ({
+  __esModule: true,
+  default: ({ value }) => <svg data-testid="qr-code" data-value={value} />,
+}));
+
 const sampleConfig = {
   businessName: "Ambrosia",
   businessAddress: "Calle Principal 123",
@@ -38,12 +43,29 @@ describe("TicketElementsPreview", () => {
     expect(container.querySelector(".h-3")).toBeInTheDocument();
   });
 
-  it("renders QRCODE with QR placeholder and invoice fallback", () => {
+  it("renders QRCODE with a QR code and invoice fallback", () => {
     render(
       <Preview elements={[{ localId: "q-1", type: "QRCODE", value: "", style: {} }]} config={null} />,
     );
-    expect(screen.getByText("QR")).toBeInTheDocument();
+    expect(screen.getByTestId("qr-code")).toBeInTheDocument();
     expect(screen.getByText("lnbc10u1p0exampleinvoice")).toBeInTheDocument();
+  });
+
+  it("renders QRCODE with the selected size and alignment", () => {
+    render(
+      <Preview
+        elements={[{
+          localId: "q-3",
+          type: "QRCODE",
+          value: "https://instagram.com/bob",
+          style: { fontSize: "EXTRA_LARGE", justification: "RIGHT" },
+        }]}
+        config={null}
+      />,
+    );
+    const qrPreview = screen.getByTestId("qr-preview");
+    expect(qrPreview).toHaveClass("w-[56%]");
+    expect(qrPreview.parentElement).toHaveClass("items-end");
   });
 
   it("renders QRCODE with resolved value when provided", () => {
