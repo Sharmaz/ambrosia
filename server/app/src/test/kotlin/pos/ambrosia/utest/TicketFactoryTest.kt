@@ -27,6 +27,7 @@ import pos.ambrosia.services.TicketFactory
 import pos.ambrosia.services.TicketLogoLoader
 import pos.ambrosia.utils.formatTicketLine
 import java.awt.image.BufferedImage
+import java.io.ByteArrayOutputStream
 import java.nio.file.Files
 import java.time.Clock
 import java.time.Instant
@@ -286,6 +287,58 @@ class TicketFactoryTest {
         verify(mockEscpos).writeLF(any<Style>(), printedLineCaptor.capture())
         return printedLineCaptor.firstValue
     }
+
+    @Test
+    fun `build should scale text height together with width for large text`() {
+        val printedBytes = printedTextBytes(FontSize.LARGE)
+
+        assertTrue(printedBytes.containsCommand(byteArrayOf(0x1D, 0x21, 0x11)))
+    }
+
+    @Test
+    fun `build should scale text height together with width for extra large text`() {
+        val printedBytes = printedTextBytes(FontSize.EXTRA_LARGE)
+
+        assertTrue(printedBytes.containsCommand(byteArrayOf(0x1D, 0x21, 0x22)))
+    }
+
+    private fun printedTextBytes(fontSize: FontSize): ByteArray {
+        val printedOutput = ByteArrayOutputStream()
+        val ticketTemplate =
+            TicketTemplate(
+                id = "template-font-size",
+                name = "Font Size Template",
+                elements =
+                    listOf(
+                        TicketElement(
+                            id = "elem-footer",
+                            templateId = "template-font-size",
+                            order = 0,
+                            type = ElementType.FOOTER,
+                            value = "bob",
+                            style = ElementStyle(fontSize = fontSize),
+                        ),
+                    ),
+            )
+        val ticketData =
+            TicketData(
+                ticketId = "font-size-001",
+                tableName = "Table 1",
+                roomName = "Main Room",
+                date = "2026-10-15",
+                items = emptyList(),
+                total = 0.0,
+            )
+
+        TicketFactory(ticketTemplate).build(EscPos(printedOutput), ticketData, null)
+
+        return printedOutput.toByteArray()
+    }
+
+    private fun ByteArray.containsCommand(command: ByteArray): Boolean =
+        (0..size - command.size).any { startIndex ->
+            command.indices.all { commandIndex -> this[startIndex + commandIndex] == command[commandIndex] }
+        }
 
     @Test
     fun `build should process table header element`() {
