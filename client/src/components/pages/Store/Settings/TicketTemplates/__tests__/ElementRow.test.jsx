@@ -41,6 +41,26 @@ jest.mock("@components/shared/DeleteButton", () => ({
   ),
 }));
 
+jest.mock("@components/hooks/useUpload", () => ({
+  useUpload: () => ({ upload: jest.fn(), isUploading: false }),
+}));
+
+jest.mock("../LogoSource", () => ({
+  LogoSourceSelect: ({ logoSource, onLogoSourceChange }) => (
+    <button
+      type="button"
+      data-testid="logo-source-select"
+      data-logo-source={logoSource}
+      onClick={() => onLogoSourceChange("BUSINESS_LOGO")}
+    >
+      logo source
+    </button>
+  ),
+  LogoImageSection: ({ templateText }) => (
+    <div data-testid="logo-image-section" data-template-text={templateText} />
+  ),
+}));
+
 jest.mock("../VariablePicker", () => ({
   TemplateVariablePicker: ({ onSelect, onDeselect }) => (
     <>
@@ -272,5 +292,45 @@ describe("TemplateElementRow", () => {
     expect(onChange).toHaveBeenCalledWith(
       expect.objectContaining({ value: "Hi {{config.businessName}}!" }),
     );
+  });
+
+  it("shows the logo source and image section instead of the value input and bold toggle for LOGO", () => {
+    const onChange = jest.fn();
+    render(
+      <TemplateElementRow
+        templateElement={{ localId: "el-8", type: "LOGO", value: "/uploads/2026-10/alice.png", style: {} }}
+        isOpen
+        onToggle={jest.fn()}
+        onChange={onChange}
+        onRemove={jest.fn()}
+        businessConfig={null}
+        settingsTranslations={settingsTranslations}
+      />,
+    );
+    expect(screen.queryByLabelText("templates.elementValueLabel")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "templates.boldToggle" })).not.toBeInTheDocument();
+    expect(screen.getByLabelText("templates.fontSizeLabel")).toBeInTheDocument();
+    expect(screen.getByTestId("logo-source-select")).toHaveAttribute("data-logo-source", "CUSTOM_IMAGE");
+    expect(screen.getByTestId("logo-image-section")).toHaveAttribute("data-template-text", "/uploads/2026-10/alice.png");
+
+    fireEvent.click(screen.getByTestId("logo-source-select"));
+    expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ value: "" }));
+  });
+
+  it("clears the value when switching an element to LOGO", () => {
+    const onChange = jest.fn();
+    render(
+      <TemplateElementRow
+        templateElement={{ localId: "el-9", type: "TEXT", value: "Hi bob", style: {} }}
+        isOpen
+        onToggle={jest.fn()}
+        onChange={onChange}
+        onRemove={jest.fn()}
+        businessConfig={null}
+        settingsTranslations={settingsTranslations}
+      />,
+    );
+    fireEvent.change(screen.getByLabelText("templates.elementTypeLabel"), { target: { value: "LOGO" } });
+    expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ type: "LOGO", value: "" }));
   });
 });

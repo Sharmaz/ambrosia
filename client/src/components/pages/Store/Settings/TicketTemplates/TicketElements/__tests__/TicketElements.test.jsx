@@ -78,6 +78,18 @@ describe("TicketElementsPreview", () => {
     expect(screen.getByText("Ambrosia")).toBeInTheDocument();
   });
 
+  it("renders LOGO with the business logo", () => {
+    render(
+      <Preview
+        templateElements={[{ localId: "l-1", type: "LOGO", value: "", style: { fontSize: "LARGE" } }]}
+        businessConfig={{ businessLogoUrl: "/uploads/2026-10/alice.png" }}
+      />,
+    );
+    const logoPreview = screen.getByTestId("logo-preview");
+    expect(logoPreview).toHaveClass("w-1/2");
+    expect(logoPreview.querySelector("img")).toHaveAttribute("src", "/uploads/2026-10/alice.png");
+  });
+
   it("renders TABLE_ROW with sample ticket items and comments", () => {
     render(
       <Preview templateElements={[{ localId: "t-1", type: "TABLE_ROW", style: {} }]} businessConfig={null} />,
