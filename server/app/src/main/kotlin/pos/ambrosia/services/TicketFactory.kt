@@ -22,10 +22,16 @@ import pos.ambrosia.models.TicketData
 import pos.ambrosia.models.TicketTemplate
 import pos.ambrosia.utils.formatTicketLine
 import java.awt.image.BufferedImage
+import java.time.Clock
+import java.time.ZoneId
+import java.time.ZonedDateTime
+import java.time.format.DateTimeFormatter
 import java.util.EnumMap
+import java.util.Locale
 
 class TicketFactory(
     private val template: TicketTemplate,
+    private val clock: Clock = Clock.systemUTC(),
 ) {
     companion object {
         const val DEFAULT_TICKET_WIDTH = 48
@@ -185,6 +191,12 @@ class TicketFactory(
             put("{{ticket.discountAmount}}", data.discountAmount.toString())
             put("{{ticket.tipAmount}}", data.tipAmount.toString())
             put("{{ticket.invoice}}", data.invoice ?: "")
+            val printedAt = resolvePrintedAt(config)
+            val printDate = printedAt.format(DateTimeFormatter.ofPattern(template.dateFormat.pattern, Locale.US))
+            val printTime = printedAt.format(DateTimeFormatter.ofPattern(template.timeFormat.pattern, Locale.US))
+            put("{{print.date}}", printDate)
+            put("{{print.time}}", printTime)
+            put("{{print.dateTime}}", "$printDate $printTime")
             config?.let {
                 put("{{config.businessName}}", it.businessName)
                 put("{{config.businessAddress}}", it.businessAddress ?: "")
@@ -192,6 +204,11 @@ class TicketFactory(
                 put("{{config.businessEmail}}", it.businessEmail ?: "")
             }
         }
+
+    private fun resolvePrintedAt(config: Config?): ZonedDateTime {
+        val businessZone = config?.timezone?.let { ZoneId.of(it) } ?: clock.zone
+        return ZonedDateTime.now(clock).withZoneSameInstant(businessZone)
+    }
 
     private fun convertToEscPosStyle(elementStyle: ElementStyle?): Style {
         val escposStyle = Style()
