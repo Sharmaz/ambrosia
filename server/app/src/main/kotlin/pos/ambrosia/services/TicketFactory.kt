@@ -66,6 +66,7 @@ class TicketFactory(
         ticketData: TicketData,
         businessConfig: Config?,
     ) {
+        escpos.initializePrinter()
         template.elements.forEach { templateElement ->
             val escPosStyle = convertToEscPosStyle(templateElement.style)
             val resolvedContent = resolveValue(templateElement.value, ticketData, businessConfig)
