@@ -265,14 +265,13 @@ class TicketFactory(
                     Justification.RIGHT -> EscPosConst.Justification.Right
                 },
             )
-            escposStyle.setFontSize(
+            val printedFontSize =
                 when (elementStyle.fontSize) {
                     FontSize.NORMAL -> Style.FontSize.`_1`
                     FontSize.LARGE -> Style.FontSize.`_2`
                     FontSize.EXTRA_LARGE -> Style.FontSize.`_3`
-                },
-                Style.FontSize.`_1`,
-            )
+                }
+            escposStyle.setFontSize(printedFontSize, printedFontSize)
         }
         return escposStyle
     }
