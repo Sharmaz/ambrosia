@@ -8,6 +8,7 @@ import org.mockito.kotlin.any
 import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.atMost
 import org.mockito.kotlin.eq
+import org.mockito.kotlin.inOrder
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.times
 import org.mockito.kotlin.verify
@@ -84,6 +85,42 @@ class TicketFactoryTest {
 
         // Assert
         verify(mockEscpos).writeLF(any<Style>(), eq("Welcome to Ambrosia"))
+    }
+
+    @Test
+    fun `build should reset the printer before printing the template elements`() {
+        val mockEscpos: EscPos = mock()
+        val ticketTemplate =
+            TicketTemplate(
+                id = "template-reset",
+                name = "Reset Template",
+                elements =
+                    listOf(
+                        TicketElement(
+                            id = "elem-reset",
+                            templateId = "template-reset",
+                            order = 0,
+                            type = ElementType.HEADER,
+                            value = "alice",
+                        ),
+                    ),
+            )
+        val ticketData =
+            TicketData(
+                ticketId = "reset-001",
+                tableName = "Table 1",
+                roomName = "Main Room",
+                date = "2026-10-15",
+                items = emptyList(),
+                total = 0.0,
+            )
+
+        TicketFactory(ticketTemplate).build(mockEscpos, ticketData, null)
+
+        inOrder(mockEscpos) {
+            verify(mockEscpos).initializePrinter()
+            verify(mockEscpos).writeLF(any<Style>(), eq("alice"))
+        }
     }
 
     @Test
