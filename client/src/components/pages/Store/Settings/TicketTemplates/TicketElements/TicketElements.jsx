@@ -19,9 +19,9 @@ export function hasVisibleContent(templateElements) {
 }
 
 const fontSizeClasses = {
-  NORMAL: "text-sm",
-  LARGE: "text-base",
-  EXTRA_LARGE: "text-lg",
+  NORMAL: "text-[length:calc(100cqw/29)]",
+  LARGE: "text-[length:calc(100cqw/14.5)]",
+  EXTRA_LARGE: "text-[length:calc(100cqw/9.7)]",
 };
 
 function resolveAlignment(justification) {

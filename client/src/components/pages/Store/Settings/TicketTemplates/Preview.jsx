@@ -46,7 +46,7 @@ export function TemplatePreview({
       </div>
 
       <div className="mt-2 max-h-[50vh] overflow-y-auto rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-        <div className="font-mono text-gray-900">
+        <div className="@container font-mono text-gray-900">
           <TicketElementsPreview templateElements={templateElements} businessConfig={businessConfig} printFormats={printFormats} />
         </div>
         {!hasVisibleContent(templateElements) && (
