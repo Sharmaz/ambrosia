@@ -38,12 +38,14 @@ class TicketFactory(
                 FontSize.LARGE to ImageSize.MEDIUM,
                 FontSize.EXTRA_LARGE to ImageSize.LARGE,
             )
-        private val QR_IMAGE_SIZE_PX =
+        private val QR_TARGET_WIDTH_DOTS =
             mapOf(
-                ImageSize.SMALL to 300,
-                ImageSize.MEDIUM to 360,
-                ImageSize.LARGE to 420,
+                ImageSize.SMALL to 160,
+                ImageSize.MEDIUM to 240,
+                ImageSize.LARGE to 320,
             )
+        private const val QR_MIN_DOTS_PER_MODULE = 3
+        private const val PRINTABLE_WIDTH_DOTS = 576
     }
 
     fun build(
@@ -112,18 +114,22 @@ class TicketFactory(
     ) {
         val fontSize = elementStyle?.fontSize ?: FontSize.NORMAL
         val imageSize = QR_IMAGE_SIZE_BY_FONT_SIZE[fontSize] ?: ImageSize.SMALL
-        val sizePx = QR_IMAGE_SIZE_PX[imageSize] ?: 300
+        val targetWidthDots = QR_TARGET_WIDTH_DOTS.getValue(imageSize)
 
-        logger.info("Printing QR image: sizePx=$sizePx, contentLength=${content.length}")
+        logger.info("Printing QR image: targetWidthDots=$targetWidthDots, contentLength=${content.length}")
         try {
             val hints = EnumMap<EncodeHintType, Any>(EncodeHintType::class.java)
             hints[EncodeHintType.ERROR_CORRECTION] = ErrorCorrectionLevel.M
             hints[EncodeHintType.MARGIN] = 1
-            val bitMatrix = QRCodeWriter().encode(content, BarcodeFormat.QR_CODE, sizePx, sizePx, hints)
-            val image = BufferedImage(bitMatrix.width, bitMatrix.height, BufferedImage.TYPE_INT_RGB)
-            for (x in 0 until bitMatrix.width) {
-                for (y in 0 until bitMatrix.height) {
-                    image.setRGB(x, y, if (bitMatrix.get(x, y)) 0x000000 else 0xFFFFFF)
+            val moduleMatrix = QRCodeWriter().encode(content, BarcodeFormat.QR_CODE, 0, 0, hints)
+            val moduleCount = moduleMatrix.width
+            val dotsPerModule = resolveQrDotsPerModule(moduleCount, targetWidthDots)
+            val imageWidthDots = moduleCount * dotsPerModule
+            val image = BufferedImage(imageWidthDots, imageWidthDots, BufferedImage.TYPE_INT_RGB)
+            for (pixelX in 0 until imageWidthDots) {
+                for (pixelY in 0 until imageWidthDots) {
+                    val isDarkModule = moduleMatrix.get(pixelX / dotsPerModule, pixelY / dotsPerModule)
+                    image.setRGB(pixelX, pixelY, if (isDarkModule) 0x000000 else 0xFFFFFF)
                 }
             }
             val escPosImage = EscPosImage(CoffeeImageImpl(image), BitonalThreshold())
@@ -142,6 +148,15 @@ class TicketFactory(
             val fallbackStyle = convertToEscPosStyle(elementStyle)
             escpos.writeLF(fallbackStyle, content)
         }
+    }
+
+    private fun resolveQrDotsPerModule(
+        moduleCount: Int,
+        targetWidthDots: Int,
+    ): Int {
+        val readableDotsPerModule = maxOf(targetWidthDots / moduleCount, QR_MIN_DOTS_PER_MODULE)
+        val maxDotsPerModule = maxOf(PRINTABLE_WIDTH_DOTS / moduleCount, 1)
+        return minOf(readableDotsPerModule, maxDotsPerModule)
     }
 
     private fun resolveValue(
