@@ -35,26 +35,33 @@ const JUSTIFICATIONS = ["LEFT", "CENTER", "RIGHT"];
 const FONT_SIZES = ["NORMAL", "LARGE", "EXTRA_LARGE"];
 
 export function TemplateElementRow({ templateElement, isOpen, onToggle, onChange, onRemove, businessConfig, printFormats, settingsTranslations }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+  const {
+    attributes: dragHandleAttributes,
+    listeners: dragHandleListeners,
+    setNodeRef: setSortableNodeRef,
+    transform: sortableTransform,
+    transition: sortableTransition,
+    isDragging,
+  } = useSortable({
     id: templateElement.localId,
   });
 
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
+  const sortableStyle = {
+    transform: CSS.Transform.toString(sortableTransform),
+    transition: sortableTransition,
     opacity: isDragging ? 0.5 : 1,
   };
 
-  const type = templateElement.type;
-  const showValue = ["HEADER", "TEXT", "FOOTER", "TABLE_HEADER", "TOTAL_ROW", "QRCODE"].includes(type);
-  const showVariablePicker = VARIABLE_PICKER_TYPES.includes(type);
-  const showLogoSource = type === "LOGO";
-  const showStyle = type !== "LINE_BREAK" && type !== "SEPARATOR";
-  const showBold = showStyle && type !== "QRCODE" && type !== "LOGO";
+  const elementType = templateElement.type;
+  const showValue = ["HEADER", "TEXT", "FOOTER", "TABLE_HEADER", "TOTAL_ROW", "QRCODE"].includes(elementType);
+  const showVariablePicker = VARIABLE_PICKER_TYPES.includes(elementType);
+  const showLogoSource = elementType === "LOGO";
+  const showStyle = elementType !== "LINE_BREAK" && elementType !== "SEPARATOR";
+  const showBold = showStyle && elementType !== "QRCODE" && elementType !== "LOGO";
   const showJustification = showStyle;
   const showFontSize = showStyle;
 
-  const handleChange = (updates) => onChange({ ...templateElement, ...updates });
+  const handleChange = (elementUpdates) => onChange({ ...templateElement, ...elementUpdates });
 
   const logoSourceState = useLogoSource(templateElement.value ?? "", (updatedTemplateText) => handleChange({ value: updatedTemplateText }));
 
@@ -75,12 +82,12 @@ export function TemplateElementRow({ templateElement, isOpen, onToggle, onChange
     handleChange({ value: removeVariable(templateElement.value ?? "", variable) });
   };
 
-  const typeLabel = settingsTranslations(`templates.elementTypes.${type}`);
+  const typeLabel = settingsTranslations(`templates.elementTypes.${elementType}`);
   const resolvedSummary = resolveValue(templateElement.value ?? "", businessConfig, printFormats);
   const valueSummary = resolvedSummary ? `— "${resolvedSummary}"` : "";
 
   return (
-    <div ref={setNodeRef} style={style} className="rounded-lg border border-gray-200 bg-white shadow-sm">
+    <div ref={setSortableNodeRef} style={sortableStyle} className="rounded-lg border border-gray-200 bg-white shadow-sm">
       <div
         className="flex items-center gap-2 px-3 py-2 cursor-pointer select-none"
         onClick={onToggle}
@@ -88,8 +95,8 @@ export function TemplateElementRow({ templateElement, isOpen, onToggle, onChange
         <span
           className="cursor-grab text-gray-400 hover:text-gray-600 shrink-0"
           onClick={(event) => event.stopPropagation()}
-          {...attributes}
-          {...listeners}
+          {...dragHandleAttributes}
+          {...dragHandleListeners}
         >
           <GripVertical className="w-4 h-4" />
         </span>

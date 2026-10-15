@@ -63,65 +63,65 @@ class TicketFactory(
 
     fun build(
         escpos: EscPos,
-        data: TicketData,
-        config: Config?,
+        ticketData: TicketData,
+        businessConfig: Config?,
     ) {
-        template.elements.forEach { element ->
-            val style = convertToEscPosStyle(element.style)
-            val content = resolveValue(element.value, data, config)
+        template.elements.forEach { templateElement ->
+            val escPosStyle = convertToEscPosStyle(templateElement.style)
+            val resolvedContent = resolveValue(templateElement.value, ticketData, businessConfig)
 
-            when (element.type) {
+            when (templateElement.type) {
                 ElementType.SEPARATOR -> {
-                    escpos.writeLF(style, content.repeat(DEFAULT_TICKET_WIDTH))
+                    escpos.writeLF(escPosStyle, resolvedContent.repeat(DEFAULT_TICKET_WIDTH))
                 }
 
                 ElementType.TABLE_HEADER -> {
-                    escpos.writeLF(style, content)
+                    escpos.writeLF(escPosStyle, resolvedContent)
                 }
 
                 ElementType.TABLE_ROW -> {
-                    data.items.forEach {
-                        val itemText = "${it.quantity}x ${it.name}"
-                        val priceText = it.price.toString()
-                        val row = formatTicketLine(itemText, priceText)
-                        escpos.writeLF(style, row)
-                        it.comments.forEach { comment ->
-                            escpos.writeLF(style, "  - $comment")
+                    ticketData.items.forEach { ticketItem ->
+                        val itemText = "${ticketItem.quantity}x ${ticketItem.name}"
+                        val priceText = ticketItem.price.toString()
+                        val itemRow = formatTicketLine(itemText, priceText)
+                        escpos.writeLF(escPosStyle, itemRow)
+                        ticketItem.comments.forEach { comment ->
+                            escpos.writeLF(escPosStyle, "  - $comment")
                         }
                     }
                 }
 
                 ElementType.TOTAL_ROW -> {
-                    val label = content.ifEmpty { "TOTAL" }
-                    escpos.writeLF(style, "-".repeat(DEFAULT_TICKET_WIDTH))
-                    if (data.discountAmount > 0) {
-                        val discountRow = formatTicketLine("DISCOUNT", "-${data.discountAmount}")
-                        escpos.writeLF(style, discountRow)
+                    val totalLabel = resolvedContent.ifEmpty { "TOTAL" }
+                    escpos.writeLF(escPosStyle, "-".repeat(DEFAULT_TICKET_WIDTH))
+                    if (ticketData.discountAmount > 0) {
+                        val discountRow = formatTicketLine("DISCOUNT", "-${ticketData.discountAmount}")
+                        escpos.writeLF(escPosStyle, discountRow)
                     }
-                    if (data.tipAmount > 0) {
-                        val tipRow = formatTicketLine("TIP", "+${data.tipAmount}")
-                        escpos.writeLF(style, tipRow)
+                    if (ticketData.tipAmount > 0) {
+                        val tipRow = formatTicketLine("TIP", "+${ticketData.tipAmount}")
+                        escpos.writeLF(escPosStyle, tipRow)
                     }
-                    val row = formatTicketLine(label, data.total.toString())
-                    escpos.writeLF(style, row)
+                    val totalRow = formatTicketLine(totalLabel, ticketData.total.toString())
+                    escpos.writeLF(escPosStyle, totalRow)
                 }
 
                 ElementType.QRCODE -> {
-                    val qrContent = if (content.isNotBlank()) content else (data.invoice ?: "")
+                    val qrContent = if (resolvedContent.isNotBlank()) resolvedContent else (ticketData.invoice ?: "")
                     if (qrContent.isNotBlank()) {
-                        writeQrCode(escpos, qrContent, element.style)
+                        writeQrCode(escpos, qrContent, templateElement.style)
                     }
                 }
 
                 ElementType.LOGO -> {
-                    val storedLogoUrl = element.value.ifBlank { config?.businessLogoUrl.orEmpty() }
+                    val storedLogoUrl = templateElement.value.ifBlank { businessConfig?.businessLogoUrl.orEmpty() }
                     if (storedLogoUrl.isNotBlank()) {
-                        writeLogo(escpos, storedLogoUrl, element.style)
+                        writeLogo(escpos, storedLogoUrl, templateElement.style)
                     }
                 }
 
                 else -> {
-                    escpos.writeLF(style, content)
+                    escpos.writeLF(escPosStyle, resolvedContent)
                 }
             }
         }
@@ -129,34 +129,34 @@ class TicketFactory(
 
     private fun writeQrCode(
         escpos: EscPos,
-        content: String,
+        qrContent: String,
         elementStyle: ElementStyle?,
     ) {
         val fontSize = elementStyle?.fontSize ?: FontSize.NORMAL
         val imageSize = QR_IMAGE_SIZE_BY_FONT_SIZE[fontSize] ?: ImageSize.SMALL
         val targetWidthDots = QR_TARGET_WIDTH_DOTS.getValue(imageSize)
 
-        logger.info("Printing QR image: targetWidthDots=$targetWidthDots, contentLength=${content.length}")
+        logger.info("Printing QR image: targetWidthDots=$targetWidthDots, contentLength=${qrContent.length}")
         try {
-            val hints = EnumMap<EncodeHintType, Any>(EncodeHintType::class.java)
-            hints[EncodeHintType.ERROR_CORRECTION] = ErrorCorrectionLevel.M
-            hints[EncodeHintType.MARGIN] = 1
-            val moduleMatrix = QRCodeWriter().encode(content, BarcodeFormat.QR_CODE, 0, 0, hints)
+            val qrEncodeHints = EnumMap<EncodeHintType, Any>(EncodeHintType::class.java)
+            qrEncodeHints[EncodeHintType.ERROR_CORRECTION] = ErrorCorrectionLevel.M
+            qrEncodeHints[EncodeHintType.MARGIN] = 1
+            val moduleMatrix = QRCodeWriter().encode(qrContent, BarcodeFormat.QR_CODE, 0, 0, qrEncodeHints)
             val moduleCount = moduleMatrix.width
             val dotsPerModule = resolveQrDotsPerModule(moduleCount, targetWidthDots)
             val imageWidthDots = moduleCount * dotsPerModule
-            val image = BufferedImage(imageWidthDots, imageWidthDots, BufferedImage.TYPE_INT_RGB)
+            val qrImage = BufferedImage(imageWidthDots, imageWidthDots, BufferedImage.TYPE_INT_RGB)
             for (pixelX in 0 until imageWidthDots) {
                 for (pixelY in 0 until imageWidthDots) {
                     val isDarkModule = moduleMatrix.get(pixelX / dotsPerModule, pixelY / dotsPerModule)
-                    image.setRGB(pixelX, pixelY, if (isDarkModule) 0x000000 else 0xFFFFFF)
+                    qrImage.setRGB(pixelX, pixelY, if (isDarkModule) 0x000000 else 0xFFFFFF)
                 }
             }
-            writeRasterImage(escpos, image, elementStyle?.justification ?: Justification.LEFT)
-        } catch (e: Exception) {
-            logger.error("Failed to print QR image: ${e.message}", e)
+            writeRasterImage(escpos, qrImage, elementStyle?.justification ?: Justification.LEFT)
+        } catch (qrException: Exception) {
+            logger.error("Failed to print QR image: ${qrException.message}", qrException)
             val fallbackStyle = convertToEscPosStyle(elementStyle)
-            escpos.writeLF(fallbackStyle, content)
+            escpos.writeLF(fallbackStyle, qrContent)
         }
     }
 
@@ -169,8 +169,8 @@ class TicketFactory(
         val logoImage =
             try {
                 logoLoader?.loadScaledLogo(storedLogoUrl, targetWidthDots)
-            } catch (e: Exception) {
-                logger.error("Failed to load logo image: ${e.message}", e)
+            } catch (logoException: Exception) {
+                logger.error("Failed to load logo image: ${logoException.message}", logoException)
                 null
             } ?: return
         writeRasterImage(escpos, logoImage, elementStyle?.justification ?: Justification.LEFT)
@@ -178,19 +178,19 @@ class TicketFactory(
 
     private fun writeRasterImage(
         escpos: EscPos,
-        image: BufferedImage,
+        rasterImage: BufferedImage,
         justification: Justification,
     ) {
-        val escPosImage = EscPosImage(CoffeeImageImpl(image), BitonalThreshold())
-        val wrapper = RasterBitImageWrapper()
-        wrapper.setJustification(
+        val escPosImage = EscPosImage(CoffeeImageImpl(rasterImage), BitonalThreshold())
+        val rasterImageWrapper = RasterBitImageWrapper()
+        rasterImageWrapper.setJustification(
             when (justification) {
                 Justification.LEFT -> EscPosConst.Justification.Left_Default
                 Justification.CENTER -> EscPosConst.Justification.Center
                 Justification.RIGHT -> EscPosConst.Justification.Right
             },
         )
-        escpos.write(wrapper, escPosImage)
+        escpos.write(rasterImageWrapper, escPosImage)
         escpos.feed(1)
     }
 
@@ -204,65 +204,65 @@ class TicketFactory(
     }
 
     private fun resolveValue(
-        value: String,
-        data: TicketData,
-        config: Config?,
+        templateText: String,
+        ticketData: TicketData,
+        businessConfig: Config?,
     ): String {
-        val replacements = buildReplacementMap(data, config)
-        var resolved = value
+        val replacements = buildReplacementMap(ticketData, businessConfig)
+        var resolvedText = templateText
         replacements.forEach { (placeholder, replacement) ->
-            resolved = resolved.replace(placeholder, replacement)
+            resolvedText = resolvedText.replace(placeholder, replacement)
         }
-        return resolved
+        return resolvedText
     }
 
     private fun buildReplacementMap(
-        data: TicketData,
-        config: Config?,
+        ticketData: TicketData,
+        businessConfig: Config?,
     ): Map<String, String> =
         buildMap {
-            put("{{ticket.id}}", data.ticketId)
-            put("{{ticket.tableName}}", data.tableName)
-            put("{{ticket.roomName}}", data.roomName)
-            put("{{ticket.date}}", data.date)
-            put("{{ticket.total}}", data.total.toString())
-            put("{{ticket.discountAmount}}", data.discountAmount.toString())
-            put("{{ticket.tipAmount}}", data.tipAmount.toString())
-            put("{{ticket.invoice}}", data.invoice ?: "")
-            val printedAt = resolvePrintedAt(config)
+            put("{{ticket.id}}", ticketData.ticketId)
+            put("{{ticket.tableName}}", ticketData.tableName)
+            put("{{ticket.roomName}}", ticketData.roomName)
+            put("{{ticket.date}}", ticketData.date)
+            put("{{ticket.total}}", ticketData.total.toString())
+            put("{{ticket.discountAmount}}", ticketData.discountAmount.toString())
+            put("{{ticket.tipAmount}}", ticketData.tipAmount.toString())
+            put("{{ticket.invoice}}", ticketData.invoice ?: "")
+            val printedAt = resolvePrintedAt(businessConfig)
             val printDate = printedAt.format(DateTimeFormatter.ofPattern(template.dateFormat.pattern, Locale.US))
             val printTime = printedAt.format(DateTimeFormatter.ofPattern(template.timeFormat.pattern, Locale.US))
             put("{{print.date}}", printDate)
             put("{{print.time}}", printTime)
             put("{{print.dateTime}}", "$printDate $printTime")
-            config?.let {
-                put("{{config.businessName}}", it.businessName)
-                put("{{config.businessAddress}}", it.businessAddress ?: "")
-                put("{{config.businessPhone}}", it.businessPhone ?: "")
-                put("{{config.businessEmail}}", it.businessEmail ?: "")
+            if (businessConfig != null) {
+                put("{{config.businessName}}", businessConfig.businessName)
+                put("{{config.businessAddress}}", businessConfig.businessAddress ?: "")
+                put("{{config.businessPhone}}", businessConfig.businessPhone ?: "")
+                put("{{config.businessEmail}}", businessConfig.businessEmail ?: "")
             }
         }
 
-    private fun resolvePrintedAt(config: Config?): ZonedDateTime {
-        val businessZone = config?.timezone?.let { ZoneId.of(it) } ?: clock.zone
+    private fun resolvePrintedAt(businessConfig: Config?): ZonedDateTime {
+        val businessZone = businessConfig?.timezone?.let(ZoneId::of) ?: clock.zone
         return ZonedDateTime.now(clock).withZoneSameInstant(businessZone)
     }
 
     private fun convertToEscPosStyle(elementStyle: ElementStyle?): Style {
         val escposStyle = Style()
-        elementStyle?.let {
-            if (it.bold) {
+        if (elementStyle != null) {
+            if (elementStyle.bold) {
                 escposStyle.setBold(true)
             }
             escposStyle.setJustification(
-                when (it.justification) {
+                when (elementStyle.justification) {
                     Justification.LEFT -> EscPosConst.Justification.Left_Default
                     Justification.CENTER -> EscPosConst.Justification.Center
                     Justification.RIGHT -> EscPosConst.Justification.Right
                 },
             )
             escposStyle.setFontSize(
-                when (it.fontSize) {
+                when (elementStyle.fontSize) {
                     FontSize.NORMAL -> Style.FontSize.`_1`
                     FontSize.LARGE -> Style.FontSize.`_2`
                     FontSize.EXTRA_LARGE -> Style.FontSize.`_3`

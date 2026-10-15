@@ -42,7 +42,7 @@ class TicketFactoryTest {
     fun `build should process a simple text element`() {
         // Arrange
         val mockEscpos: EscPos = mock()
-        val template =
+        val ticketTemplate =
             TicketTemplate(
                 id = "template-1",
                 name = "Test Template",
@@ -66,7 +66,7 @@ class TicketFactoryTest {
                 items = emptyList(),
                 total = 0.0,
             )
-        val config =
+        val businessConfig =
             Config(
                 businessType = "restaurant",
                 businessName = "Ambrosia",
@@ -77,10 +77,10 @@ class TicketFactoryTest {
                 businessLogoUrl = null,
             )
 
-        val ticketFactory = TicketFactory(template)
+        val ticketFactory = TicketFactory(ticketTemplate)
 
         // Act
-        ticketFactory.build(mockEscpos, ticketData, config)
+        ticketFactory.build(mockEscpos, ticketData, businessConfig)
 
         // Assert
         verify(mockEscpos).writeLF(any<Style>(), eq("Welcome to Ambrosia"))
@@ -90,8 +90,8 @@ class TicketFactoryTest {
     fun `build should process table row elements`() {
         // Arrange
         val mockEscpos: EscPos = mock()
-        val stringCaptor = argumentCaptor<String>()
-        val template =
+        val printedRowCaptor = argumentCaptor<String>()
+        val ticketTemplate =
             TicketTemplate(
                 id = "template-2",
                 name = "Table Row Template",
@@ -120,7 +120,7 @@ class TicketFactoryTest {
                     ),
                 total = 18.50,
             )
-        val config =
+        val businessConfig =
             Config(
                 businessType = "restaurant",
                 businessName = "Ambrosia",
@@ -131,28 +131,28 @@ class TicketFactoryTest {
                 businessLogoUrl = null,
             )
 
-        val ticketFactory = TicketFactory(template)
+        val ticketFactory = TicketFactory(ticketTemplate)
 
         // Act
-        ticketFactory.build(mockEscpos, ticketData, config)
+        ticketFactory.build(mockEscpos, ticketData, businessConfig)
 
         // Assert
-        verify(mockEscpos, times(4)).writeLF(any<Style>(), stringCaptor.capture())
-        val capturedStrings = stringCaptor.allValues
+        verify(mockEscpos, times(4)).writeLF(any<Style>(), printedRowCaptor.capture())
+        val printedRows = printedRowCaptor.allValues
 
-        assert(capturedStrings[0].startsWith("1x Burger"))
-        assert(capturedStrings[0].endsWith("12.5"))
-        assertEquals("  - No pickles", capturedStrings[1])
-        assertEquals("  - Well done", capturedStrings[2])
-        assert(capturedStrings[3].startsWith("2x Fries"))
-        assert(capturedStrings[3].endsWith("3.0"))
+        assert(printedRows[0].startsWith("1x Burger"))
+        assert(printedRows[0].endsWith("12.5"))
+        assertEquals("  - No pickles", printedRows[1])
+        assertEquals("  - Well done", printedRows[2])
+        assert(printedRows[3].startsWith("2x Fries"))
+        assert(printedRows[3].endsWith("3.0"))
     }
 
     @Test
     fun `build should process separator element`() {
         // Arrange
         val mockEscpos: EscPos = mock()
-        val template =
+        val ticketTemplate =
             TicketTemplate(
                 id = "template-3",
                 name = "Separator Template",
@@ -176,7 +176,7 @@ class TicketFactoryTest {
                 items = emptyList(),
                 total = 0.0,
             )
-        val config =
+        val businessConfig =
             Config(
                 businessType = "restaurant",
                 businessName = "Ambrosia",
@@ -187,10 +187,10 @@ class TicketFactoryTest {
                 businessLogoUrl = null,
             )
 
-        val ticketFactory = TicketFactory(template)
+        val ticketFactory = TicketFactory(ticketTemplate)
 
         // Act
-        ticketFactory.build(mockEscpos, ticketData, config)
+        ticketFactory.build(mockEscpos, ticketData, businessConfig)
 
         // Assert
         verify(mockEscpos).writeLF(any<Style>(), eq("-".repeat(48)))
@@ -200,7 +200,7 @@ class TicketFactoryTest {
     fun `build should process table header element`() {
         // Arrange
         val mockEscpos: EscPos = mock()
-        val template =
+        val ticketTemplate =
             TicketTemplate(
                 id = "template-4",
                 name = "Table Header Template",
@@ -224,7 +224,7 @@ class TicketFactoryTest {
                 items = emptyList(),
                 total = 0.0,
             )
-        val config =
+        val businessConfig =
             Config(
                 businessType = "restaurant",
                 businessName = "Ambrosia",
@@ -235,10 +235,10 @@ class TicketFactoryTest {
                 businessLogoUrl = null,
             )
 
-        val ticketFactory = TicketFactory(template)
+        val ticketFactory = TicketFactory(ticketTemplate)
 
         // Act
-        ticketFactory.build(mockEscpos, ticketData, config)
+        ticketFactory.build(mockEscpos, ticketData, businessConfig)
 
         // Assert
         verify(mockEscpos).writeLF(any<Style>(), eq("Item             Qty     Price"))
@@ -287,19 +287,19 @@ class TicketFactoryTest {
         val ticketFactory = TicketFactory(ticketTemplate)
         ticketFactory.build(mockEscpos, ticketData, businessConfig)
 
-        val captor = argumentCaptor<String>()
-        verify(mockEscpos, times(4)).writeLF(any<Style>(), captor.capture())
-        val lines = captor.allValues
-        assertEquals("-".repeat(TicketFactory.DEFAULT_TICKET_WIDTH), lines[0])
-        assertEquals(formatTicketLine("DISCOUNT", "-10.0"), lines[1])
-        assertEquals(formatTicketLine("TIP", "+15.0"), lines[2])
-        assertEquals(formatTicketLine("TOTAL", "115.0"), lines[3])
+        val printedLineCaptor = argumentCaptor<String>()
+        verify(mockEscpos, times(4)).writeLF(any<Style>(), printedLineCaptor.capture())
+        val printedLines = printedLineCaptor.allValues
+        assertEquals("-".repeat(TicketFactory.DEFAULT_TICKET_WIDTH), printedLines[0])
+        assertEquals(formatTicketLine("DISCOUNT", "-10.0"), printedLines[1])
+        assertEquals(formatTicketLine("TIP", "+15.0"), printedLines[2])
+        assertEquals(formatTicketLine("TOTAL", "115.0"), printedLines[3])
     }
 
     @Test
     fun `build should resolve ticket tipAmount placeholder`() {
         val mockEscpos: EscPos = mock()
-        val template =
+        val ticketTemplate =
             TicketTemplate(
                 id = "template-ph",
                 name = "Placeholder Template",
@@ -325,7 +325,7 @@ class TicketFactoryTest {
                 tipAmount = 5.0,
             )
 
-        val ticketFactory = TicketFactory(template)
+        val ticketFactory = TicketFactory(ticketTemplate)
         ticketFactory.build(mockEscpos, ticketData, null)
 
         verify(mockEscpos).writeLF(any<Style>(), eq("Tip: 5.0"))
@@ -406,7 +406,7 @@ class TicketFactoryTest {
     ): String {
         val mockEscpos: EscPos = mock()
         val printedLineCaptor = argumentCaptor<String>()
-        val template =
+        val ticketTemplate =
             TicketTemplate(
                 id = "template-print-date",
                 name = "Print Date Template",
@@ -432,7 +432,7 @@ class TicketFactoryTest {
                 items = emptyList(),
                 total = 0.0,
             )
-        val config =
+        val businessConfig =
             Config(
                 businessName = "alice",
                 businessAddress = null,
@@ -444,7 +444,7 @@ class TicketFactoryTest {
             )
         val printClock = Clock.fixed(Instant.parse("2026-10-16T03:30:00Z"), ZoneOffset.UTC)
 
-        TicketFactory(template, printClock).build(mockEscpos, ticketData, config)
+        TicketFactory(ticketTemplate, printClock).build(mockEscpos, ticketData, businessConfig)
 
         verify(mockEscpos).writeLF(any<Style>(), printedLineCaptor.capture())
         return printedLineCaptor.firstValue
@@ -499,7 +499,7 @@ class TicketFactoryTest {
             ImageIO.write(BufferedImage(200, 100, BufferedImage.TYPE_INT_RGB), "png", logoFolder.resolve("bob.png").toFile())
             val mockEscpos: EscPos = mock()
             val imageCaptor = argumentCaptor<EscPosImage>()
-            val template =
+            val ticketTemplate =
                 TicketTemplate(
                     id = "template-logo",
                     name = "Logo Template",
@@ -524,7 +524,7 @@ class TicketFactoryTest {
                     items = emptyList(),
                     total = 0.0,
                 )
-            val config =
+            val businessConfig =
                 Config(
                     businessName = "alice",
                     businessAddress = null,
@@ -534,7 +534,7 @@ class TicketFactoryTest {
                     businessLogoUrl = businessLogoUrl,
                 )
 
-            TicketFactory(template, logoLoader = TicketLogoLoader(uploadRoot)).build(mockEscpos, ticketData, config)
+            TicketFactory(ticketTemplate, logoLoader = TicketLogoLoader(uploadRoot)).build(mockEscpos, ticketData, businessConfig)
 
             verify(mockEscpos, atMost(1)).write(any<ImageWrapperInterface<*>>(), imageCaptor.capture())
             return imageCaptor.allValues.firstOrNull()?.widthOfImageInBits
@@ -549,7 +549,7 @@ class TicketFactoryTest {
     ): Int {
         val mockEscpos: EscPos = mock()
         val imageCaptor = argumentCaptor<EscPosImage>()
-        val template =
+        val ticketTemplate =
             TicketTemplate(
                 id = "template-qr",
                 name = "QR Template",
@@ -575,7 +575,7 @@ class TicketFactoryTest {
                 total = 0.0,
             )
 
-        TicketFactory(template).build(mockEscpos, ticketData, null)
+        TicketFactory(ticketTemplate).build(mockEscpos, ticketData, null)
 
         verify(mockEscpos).write(any<ImageWrapperInterface<*>>(), imageCaptor.capture())
         return imageCaptor.firstValue.widthOfImageInBits

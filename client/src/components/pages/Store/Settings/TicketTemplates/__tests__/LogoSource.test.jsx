@@ -3,15 +3,15 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { LogoImageSection, LogoSourceSelect } from "../LogoSource";
 
 jest.mock("@heroui/react", () => ({
-  Select: ({ label, children, onChange, selectedKeys }) => (
+  Select: ({ label: selectLabel, children: selectOptions, onChange, selectedKeys }) => (
     <label>
-      {label}
-      <select aria-label={label} onChange={onChange} value={(selectedKeys && selectedKeys[0]) ?? ""}>
-        {children}
+      {selectLabel}
+      <select aria-label={selectLabel} onChange={onChange} value={(selectedKeys && selectedKeys[0]) ?? ""}>
+        {selectOptions}
       </select>
     </label>
   ),
-  SelectItem: ({ value, children }) => <option value={value}>{children}</option>,
+  SelectItem: ({ value: optionValue, children: optionLabel }) => <option value={optionValue}>{optionLabel}</option>,
 }));
 
 jest.mock("@components/shared/ImageUploader", () => ({
@@ -61,8 +61,8 @@ describe("LogoSourceSelect", () => {
 
 describe("LogoImageSection", () => {
   it("renders nothing for a printable business logo", () => {
-    const { container } = renderLogoImageSection();
-    expect(container.firstChild).toBeEmptyDOMElement();
+    const { container: logoSectionContainer } = renderLogoImageSection();
+    expect(logoSectionContainer.firstChild).toBeEmptyDOMElement();
   });
 
   it("warns when the business has no logo", () => {

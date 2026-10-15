@@ -12,9 +12,9 @@ import { ElementTotalRow } from "./ElementTotalRow";
 
 const ALWAYS_VISIBLE_TYPES = ["SEPARATOR", "LINE_BREAK", "TABLE_ROW", "LOGO"];
 
-export function hasVisibleContent(elements) {
-  return Array.isArray(elements) && elements.some(
-    (el) => ALWAYS_VISIBLE_TYPES.includes(el.type) || el.value?.trim(),
+export function hasVisibleContent(templateElements) {
+  return Array.isArray(templateElements) && templateElements.some(
+    (templateElement) => ALWAYS_VISIBLE_TYPES.includes(templateElement.type) || templateElement.value?.trim(),
   );
 }
 
@@ -36,11 +36,11 @@ export function TicketElementsPreview({ templateElements, businessConfig, printF
   }
 
   return templateElements.flatMap((templateElement) => {
-    const style = templateElement.style || DEFAULT_STYLE;
-    const className = [
-      resolveAlignment(style.justification),
-      fontSizeClasses[style.fontSize] || fontSizeClasses.NORMAL,
-      style.bold ? "font-semibold" : "font-normal",
+    const elementStyle = templateElement.style || DEFAULT_STYLE;
+    const elementClassName = [
+      resolveAlignment(elementStyle.justification),
+      fontSizeClasses[elementStyle.fontSize] || fontSizeClasses.NORMAL,
+      elementStyle.bold ? "font-semibold" : "font-normal",
     ].join(" ");
 
     if (templateElement.type === "SEPARATOR") {
@@ -56,9 +56,9 @@ export function TicketElementsPreview({ templateElements, businessConfig, printF
           templateText={templateElement.value}
           businessConfig={businessConfig}
           printFormats={printFormats}
-          fontSize={style.fontSize}
-          justification={style.justification}
-          className={className}
+          fontSize={elementStyle.fontSize}
+          justification={elementStyle.justification}
+          className={elementClassName}
         />,
       ];
     }
@@ -68,14 +68,14 @@ export function TicketElementsPreview({ templateElements, businessConfig, printF
           key={`${templateElement.localId}-logo`}
           templateText={templateElement.value}
           businessConfig={businessConfig}
-          fontSize={style.fontSize}
-          justification={style.justification}
-          className={className}
+          fontSize={elementStyle.fontSize}
+          justification={elementStyle.justification}
+          className={elementClassName}
         />,
       ];
     }
     if (templateElement.type === "TABLE_ROW") {
-      return ElementTableRow({ localId: templateElement.localId, className });
+      return ElementTableRow({ localId: templateElement.localId, className: elementClassName });
     }
     if (templateElement.type === "TOTAL_ROW") {
       return ElementTotalRow({
@@ -83,7 +83,7 @@ export function TicketElementsPreview({ templateElements, businessConfig, printF
         templateText: templateElement.value,
         businessConfig,
         printFormats,
-        className,
+        className: elementClassName,
       });
     }
     return [
@@ -93,7 +93,7 @@ export function TicketElementsPreview({ templateElements, businessConfig, printF
         templateText={templateElement.value}
         businessConfig={businessConfig}
         printFormats={printFormats}
-        className={className}
+        className={elementClassName}
       />,
     ];
   });

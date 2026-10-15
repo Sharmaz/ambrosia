@@ -4,7 +4,7 @@ import { TicketElementsPreview } from "../TicketElements";
 
 jest.mock("react-qr-code", () => ({
   __esModule: true,
-  default: ({ value }) => <svg data-testid="qr-code" data-value={value} />,
+  default: ({ value: qrValue }) => <svg data-testid="qr-code" data-value={qrValue} />,
 }));
 
 const sampleConfig = {
@@ -20,27 +20,27 @@ function Preview({ templateElements, businessConfig }) {
 
 describe("TicketElementsPreview", () => {
   it("returns null for non-array input", () => {
-    const { container } = render(<Preview templateElements={null} businessConfig={null} />);
-    expect(container.firstChild.children).toHaveLength(0);
+    const { container: previewContainer } = render(<Preview templateElements={null} businessConfig={null} />);
+    expect(previewContainer.firstChild.children).toHaveLength(0);
   });
 
   it("returns null for empty elements", () => {
-    const { container } = render(<Preview templateElements={[]} businessConfig={null} />);
-    expect(container.firstChild.children).toHaveLength(0);
+    const { container: previewContainer } = render(<Preview templateElements={[]} businessConfig={null} />);
+    expect(previewContainer.firstChild.children).toHaveLength(0);
   });
 
   it("renders SEPARATOR as a dashed horizontal line", () => {
-    const { container } = render(
+    const { container: previewContainer } = render(
       <Preview templateElements={[{ localId: "s-1", type: "SEPARATOR", style: {} }]} businessConfig={null} />,
     );
-    expect(container.querySelector(".border-dashed")).toBeInTheDocument();
+    expect(previewContainer.querySelector(".border-dashed")).toBeInTheDocument();
   });
 
   it("renders LINE_BREAK as a spacer", () => {
-    const { container } = render(
+    const { container: previewContainer } = render(
       <Preview templateElements={[{ localId: "b-1", type: "LINE_BREAK", style: {} }]} businessConfig={null} />,
     );
-    expect(container.querySelector(".h-3")).toBeInTheDocument();
+    expect(previewContainer.querySelector(".h-3")).toBeInTheDocument();
   });
 
   it("renders QRCODE with a QR code and invoice fallback", () => {
@@ -100,12 +100,12 @@ describe("TicketElementsPreview", () => {
   });
 
   it("renders TOTAL_ROW with separator, label and total", () => {
-    const { container } = render(
+    const { container: previewContainer } = render(
       <Preview templateElements={[{ localId: "r-1", type: "TOTAL_ROW", value: "", style: {} }]} businessConfig={null} />,
     );
     expect(screen.getByText("TOTAL")).toBeInTheDocument();
     expect(screen.getByText("215")).toBeInTheDocument();
-    expect(container.querySelector(".border-t")).toBeInTheDocument();
+    expect(previewContainer.querySelector(".border-t")).toBeInTheDocument();
   });
 
   it("renders TOTAL_ROW with resolved label", () => {
@@ -129,61 +129,61 @@ describe("TicketElementsPreview", () => {
   });
 
   it("applies bold style", () => {
-    const { container } = render(
+    const { container: previewContainer } = render(
       <Preview
         templateElements={[{ localId: "tx-2", type: "TEXT", value: "Bold", style: { bold: true, justification: "LEFT", fontSize: "NORMAL" } }]}
         businessConfig={null}
       />,
     );
-    expect(container.querySelector(".font-semibold")).toBeInTheDocument();
+    expect(previewContainer.querySelector(".font-semibold")).toBeInTheDocument();
   });
 
   it("applies center alignment", () => {
-    const { container } = render(
+    const { container: previewContainer } = render(
       <Preview
         templateElements={[{ localId: "tx-3", type: "TEXT", value: "C", style: { bold: false, justification: "CENTER", fontSize: "NORMAL" } }]}
         businessConfig={null}
       />,
     );
-    expect(container.querySelector(".text-center")).toBeInTheDocument();
+    expect(previewContainer.querySelector(".text-center")).toBeInTheDocument();
   });
 
   it("applies right alignment", () => {
-    const { container } = render(
+    const { container: previewContainer } = render(
       <Preview
         templateElements={[{ localId: "tx-4", type: "TEXT", value: "R", style: { bold: false, justification: "RIGHT", fontSize: "NORMAL" } }]}
         businessConfig={null}
       />,
     );
-    expect(container.querySelector(".text-right")).toBeInTheDocument();
+    expect(previewContainer.querySelector(".text-right")).toBeInTheDocument();
   });
 
   it("applies LARGE font size", () => {
-    const { container } = render(
+    const { container: previewContainer } = render(
       <Preview
         templateElements={[{ localId: "tx-5", type: "TEXT", value: "L", style: { bold: false, justification: "LEFT", fontSize: "LARGE" } }]}
         businessConfig={null}
       />,
     );
-    expect(container.querySelector(".text-base")).toBeInTheDocument();
+    expect(previewContainer.querySelector(".text-base")).toBeInTheDocument();
   });
 
   it("applies EXTRA_LARGE font size", () => {
-    const { container } = render(
+    const { container: previewContainer } = render(
       <Preview
         templateElements={[{ localId: "tx-6", type: "TEXT", value: "XL", style: { bold: false, justification: "LEFT", fontSize: "EXTRA_LARGE" } }]}
         businessConfig={null}
       />,
     );
-    expect(container.querySelector(".text-lg")).toBeInTheDocument();
+    expect(previewContainer.querySelector(".text-lg")).toBeInTheDocument();
   });
 
   it("falls back to DEFAULT_STYLE when no style is provided", () => {
-    const { container } = render(
+    const { container: previewContainer } = render(
       <Preview templateElements={[{ localId: "tx-7", type: "TEXT", value: "No style" }]} businessConfig={null} />,
     );
-    expect(container.querySelector(".text-left")).toBeInTheDocument();
-    expect(container.querySelector(".font-normal")).toBeInTheDocument();
-    expect(container.querySelector(".text-sm")).toBeInTheDocument();
+    expect(previewContainer.querySelector(".text-left")).toBeInTheDocument();
+    expect(previewContainer.querySelector(".font-normal")).toBeInTheDocument();
+    expect(previewContainer.querySelector(".text-sm")).toBeInTheDocument();
   });
 });

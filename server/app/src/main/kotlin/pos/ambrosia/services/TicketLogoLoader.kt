@@ -56,15 +56,15 @@ class TicketLogoLoader(
     ): BufferedImage {
         val scaledHeightDots = maxOf((sourceImage.height.toDouble() * targetWidthDots / sourceImage.width).roundToInt(), 1)
         val scaledImage = BufferedImage(targetWidthDots, scaledHeightDots, BufferedImage.TYPE_INT_RGB)
-        val graphics = scaledImage.createGraphics()
+        val logoCanvas = scaledImage.createGraphics()
         try {
-            graphics.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR)
-            graphics.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY)
-            graphics.color = Color.WHITE
-            graphics.fillRect(0, 0, targetWidthDots, scaledHeightDots)
-            graphics.drawImage(sourceImage, 0, 0, targetWidthDots, scaledHeightDots, null)
+            logoCanvas.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR)
+            logoCanvas.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY)
+            logoCanvas.color = Color.WHITE
+            logoCanvas.fillRect(0, 0, targetWidthDots, scaledHeightDots)
+            logoCanvas.drawImage(sourceImage, 0, 0, targetWidthDots, scaledHeightDots, null)
         } finally {
-            graphics.dispose()
+            logoCanvas.dispose()
         }
         return scaledImage
     }

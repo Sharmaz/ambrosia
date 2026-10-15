@@ -3,7 +3,7 @@ import { render, screen } from "@testing-library/react";
 import { ElementLogo } from "../ElementLogo";
 
 jest.mock("@heroui/react", () => ({
-  Image: ({ src }) => <span data-testid="logo-image" data-src={src} />,
+  Image: ({ src: logoImageUrl }) => <span data-testid="logo-image" data-src={logoImageUrl} />,
 }));
 
 const businessConfig = { businessLogoUrl: "http://localhost:9154/uploads/2026-10/alice.png" };
@@ -39,9 +39,9 @@ describe("ElementLogo", () => {
     ["CENTER", "items-center"],
     ["RIGHT", "items-end"],
   ])("aligns the logo preview for %s", (justification, expectedAlignmentClass) => {
-    const { container } = render(
+    const { container: logoPreviewContainer } = render(
       <ElementLogo templateText="" businessConfig={businessConfig} justification={justification} className="" />,
     );
-    expect(container.firstChild).toHaveClass(expectedAlignmentClass);
+    expect(logoPreviewContainer.firstChild).toHaveClass(expectedAlignmentClass);
   });
 });

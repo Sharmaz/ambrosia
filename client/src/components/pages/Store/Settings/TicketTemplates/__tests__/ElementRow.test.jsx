@@ -3,34 +3,34 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { TemplateElementRow } from "../ElementRow";
 
 jest.mock("@heroui/react", () => ({
-  Button: ({ onPress, children, "aria-label": ariaLabel, isIconOnly, ...props }) => (
-    <button type="button" onClick={onPress} aria-label={ariaLabel} {...props}>
-      {children}
+  Button: ({ onPress, children: buttonContent, "aria-label": ariaLabel, isIconOnly, ...buttonProps }) => (
+    <button type="button" onClick={onPress} aria-label={ariaLabel} {...buttonProps}>
+      {buttonContent}
     </button>
   ),
-  Input: ({ label, value, onChange, onSelect, endContent }) => (
+  Input: ({ label: inputLabel, value: inputValue, onChange, onSelect, endContent }) => (
     <label>
-      {label}
-      <input aria-label={label} value={value ?? ""} onChange={onChange} onSelect={onSelect} />
+      {inputLabel}
+      <input aria-label={inputLabel} value={inputValue ?? ""} onChange={onChange} onSelect={onSelect} />
       {endContent}
     </label>
   ),
-  Select: ({ label, children, onChange, selectedKeys }) => (
+  Select: ({ label: selectLabel, children: selectOptions, onChange, selectedKeys }) => (
     <label>
-      {label}
+      {selectLabel}
       <select
-        aria-label={label}
+        aria-label={selectLabel}
         onChange={onChange}
         value={(selectedKeys && selectedKeys[0]) ?? ""}
       >
-        {children}
+        {selectOptions}
       </select>
     </label>
   ),
-  SelectItem: ({ value, children }) => (
-    <option value={value}>{children}</option>
+  SelectItem: ({ value: optionValue, children: optionLabel }) => (
+    <option value={optionValue}>{optionLabel}</option>
   ),
-  Tooltip: ({ children }) => <>{children}</>,
+  Tooltip: ({ children: tooltipTrigger }) => <>{tooltipTrigger}</>,
 }));
 
 jest.mock("@components/shared/DeleteButton", () => ({

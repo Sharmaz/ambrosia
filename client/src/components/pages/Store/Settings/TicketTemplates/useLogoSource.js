@@ -9,7 +9,7 @@ export function useLogoSource(templateText, onTemplateTextChange) {
   const [logoSource, setLogoSource] = useState(templateText ? "CUSTOM_IMAGE" : "BUSINESS_LOGO");
   const [uploadErrorKey, setUploadErrorKey] = useState(null);
   const [uploaderResetKey, setUploaderResetKey] = useState(0);
-  const { upload, isUploading } = useUpload();
+  const { upload: uploadFiles, isUploading } = useUpload();
 
   const selectLogoSource = (selectedLogoSource) => {
     setLogoSource(selectedLogoSource);
@@ -33,7 +33,7 @@ export function useLogoSource(templateText, onTemplateTextChange) {
       return;
     }
     try {
-      const [uploadedLogo] = await upload([logoFile]);
+      const [uploadedLogo] = await uploadFiles([logoFile]);
       if (uploadedLogo?.path) onTemplateTextChange(storedAssetUrl(uploadedLogo.path));
     } catch {
       rejectLogoFile("templates.logo.uploadError");
