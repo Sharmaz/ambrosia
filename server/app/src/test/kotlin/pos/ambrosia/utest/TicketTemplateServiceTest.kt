@@ -7,8 +7,10 @@ import pos.ambrosia.models.ElementStyle
 import pos.ambrosia.models.ElementType
 import pos.ambrosia.models.FontSize
 import pos.ambrosia.models.Justification
+import pos.ambrosia.models.TicketDateFormat
 import pos.ambrosia.models.TicketElementCreateRequest
 import pos.ambrosia.models.TicketTemplateRequest
+import pos.ambrosia.models.TicketTimeFormat
 import pos.ambrosia.services.TicketTemplateService
 import pos.ambrosia.utils.ExposedTestDb
 import java.io.File
@@ -37,7 +39,7 @@ class TicketTemplateServiceTest {
     @Test
     fun `addTemplate returns id on success`() {
         runBlocking {
-            val request =
+            val newTemplateRequest =
                 TicketTemplateRequest(
                     name = "New Template",
                     elements =
@@ -46,7 +48,7 @@ class TicketTemplateServiceTest {
                         ),
                 )
 
-            val resultId = service.addTemplate(request)
+            val resultId = service.addTemplate(newTemplateRequest)
             assertNotNull(resultId)
 
             val created = service.getTemplateById(resultId)
@@ -60,9 +62,9 @@ class TicketTemplateServiceTest {
     fun `addTemplate returns null if name exists`() {
         runBlocking {
             ExposedTestDb.seedTicketTemplate("Existing Template")
-            val request = TicketTemplateRequest(name = "Existing Template", elements = emptyList())
+            val duplicateNameTemplateRequest = TicketTemplateRequest(name = "Existing Template", elements = emptyList())
 
-            val resultId = service.addTemplate(request)
+            val resultId = service.addTemplate(duplicateNameTemplateRequest)
             assertNull(resultId)
         }
     }
@@ -142,7 +144,7 @@ class TicketTemplateServiceTest {
             val templateId = ExposedTestDb.seedTicketTemplate("Old Name")
             ExposedTestDb.seedTicketTemplateElement(templateId, order = 0, type = "TEXT", value = "Old")
 
-            val request =
+            val updatedTemplateRequest =
                 TicketTemplateRequest(
                     name = "Updated Name",
                     elements =
@@ -155,7 +157,7 @@ class TicketTemplateServiceTest {
                         ),
                 )
 
-            val success = service.updateTemplate(templateId, request)
+            val success = service.updateTemplate(templateId, updatedTemplateRequest)
             assertTrue(success)
 
             val updated = service.getTemplateById(templateId)
@@ -176,8 +178,8 @@ class TicketTemplateServiceTest {
     @Test
     fun `updateTemplate returns false for invalid uuid`() {
         runBlocking {
-            val request = TicketTemplateRequest(name = "Updated Name", elements = emptyList())
-            val success = service.updateTemplate("not-a-uuid", request)
+            val updatedNameTemplateRequest = TicketTemplateRequest(name = "Updated Name", elements = emptyList())
+            val success = service.updateTemplate("not-a-uuid", updatedNameTemplateRequest)
             assertFalse(success)
         }
     }
@@ -188,8 +190,8 @@ class TicketTemplateServiceTest {
             ExposedTestDb.seedTicketTemplate("Taken Name")
             val templateId = ExposedTestDb.seedTicketTemplate("My Template")
 
-            val request = TicketTemplateRequest(name = "Taken Name", elements = emptyList())
-            val success = service.updateTemplate(templateId, request)
+            val takenNameTemplateRequest = TicketTemplateRequest(name = "Taken Name", elements = emptyList())
+            val success = service.updateTemplate(templateId, takenNameTemplateRequest)
             assertFalse(success)
         }
     }
@@ -197,8 +199,8 @@ class TicketTemplateServiceTest {
     @Test
     fun `updateTemplate returns false when not found`() {
         runBlocking {
-            val request = TicketTemplateRequest(name = "Updated Name", elements = emptyList())
-            val success = service.updateTemplate(UUID.randomUUID().toString(), request)
+            val updatedNameTemplateRequest = TicketTemplateRequest(name = "Updated Name", elements = emptyList())
+            val success = service.updateTemplate(UUID.randomUUID().toString(), updatedNameTemplateRequest)
             assertFalse(success)
         }
     }
@@ -228,6 +230,56 @@ class TicketTemplateServiceTest {
         runBlocking {
             val success = service.deleteTemplate(UUID.randomUUID().toString())
             assertFalse(success)
+        }
+    }
+
+    @Test
+    fun `addTemplate stores the date and time formats`() {
+        runBlocking {
+            val monthFirstTwelveHourTemplateRequest =
+                TicketTemplateRequest(
+                    name = "alice",
+                    elements = emptyList(),
+                    dateFormat = TicketDateFormat.MONTH_DAY_YEAR,
+                    timeFormat = TicketTimeFormat.HOURS_12,
+                )
+
+            val createdTemplate = service.getTemplateById(assertNotNull(service.addTemplate(monthFirstTwelveHourTemplateRequest)))
+
+            assertEquals(TicketDateFormat.MONTH_DAY_YEAR, createdTemplate?.dateFormat)
+            assertEquals(TicketTimeFormat.HOURS_12, createdTemplate?.timeFormat)
+        }
+    }
+
+    @Test
+    fun `getTemplateById returns default formats for templates saved without them`() {
+        runBlocking {
+            val templateId = ExposedTestDb.seedTicketTemplate("bob")
+
+            val storedTemplate = service.getTemplateById(templateId)
+
+            assertEquals(TicketDateFormat.DAY_MONTH_YEAR, storedTemplate?.dateFormat)
+            assertEquals(TicketTimeFormat.HOURS_24, storedTemplate?.timeFormat)
+        }
+    }
+
+    @Test
+    fun `updateTemplate replaces the date and time formats`() {
+        runBlocking {
+            val templateId = ExposedTestDb.seedTicketTemplate("eve")
+            val yearFirstTwelveHourTemplateRequest =
+                TicketTemplateRequest(
+                    name = "eve",
+                    elements = emptyList(),
+                    dateFormat = TicketDateFormat.YEAR_MONTH_DAY,
+                    timeFormat = TicketTimeFormat.HOURS_12,
+                )
+
+            assertTrue(service.updateTemplate(templateId, yearFirstTwelveHourTemplateRequest))
+
+            val updatedTemplate = service.getTemplateById(templateId)
+            assertEquals(TicketDateFormat.YEAR_MONTH_DAY, updatedTemplate?.dateFormat)
+            assertEquals(TicketTimeFormat.HOURS_12, updatedTemplate?.timeFormat)
         }
     }
 }

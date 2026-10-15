@@ -16,10 +16,12 @@ import pos.ambrosia.models.ElementStyle
 import pos.ambrosia.models.ElementType
 import pos.ambrosia.models.FontSize
 import pos.ambrosia.models.Justification
+import pos.ambrosia.models.TicketDateFormat
 import pos.ambrosia.models.TicketElement
 import pos.ambrosia.models.TicketElementCreateRequest
 import pos.ambrosia.models.TicketTemplate
 import pos.ambrosia.models.TicketTemplateRequest
+import pos.ambrosia.models.TicketTimeFormat
 import java.util.UUID
 
 open class TicketTemplateService {
@@ -63,6 +65,8 @@ open class TicketTemplateService {
                 TicketTemplateEntity
                     .new(UUID.randomUUID()) {
                         this.name = request.name
+                        this.dateFormat = request.dateFormat.name
+                        this.timeFormat = request.timeFormat.name
                     }.id.value
 
             insertElements(templateId, request.elements)
@@ -128,6 +132,8 @@ open class TicketTemplateService {
 
             val entity = TicketTemplateEntity.findById(templateId) ?: return@transaction false
             entity.name = request.name
+            entity.dateFormat = request.dateFormat.name
+            entity.timeFormat = request.timeFormat.name
 
             TicketTemplateElementsTable.deleteWhere { TicketTemplateElementsTable.templateId eq EntityID(templateId, TicketTemplatesTable) }
             insertElements(templateId, request.elements)
@@ -170,6 +176,8 @@ open class TicketTemplateService {
                     .find { TicketTemplateElementsTable.templateId eq entity.id }
                     .sortedBy { it.elementOrder }
                     .map { toElement(it) },
+            dateFormat = TicketDateFormat.valueOf(entity.dateFormat),
+            timeFormat = TicketTimeFormat.valueOf(entity.timeFormat),
         )
 
     private fun toElement(entity: TicketTemplateElementEntity): TicketElement =

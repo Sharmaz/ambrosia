@@ -123,6 +123,8 @@ describe("TicketTemplatesModal", () => {
     const initialTemplate = {
       id: "tpl-1",
       name: "Kitchen",
+      dateFormat: "MONTH_DAY_YEAR",
+      timeFormat: "HOURS_12",
       elements: [
         {
           id: "e-1",
@@ -165,6 +167,8 @@ describe("TicketTemplatesModal", () => {
     );
 
     expect(screen.getByLabelText("templates.nameLabel")).toHaveValue("Kitchen");
+    expect(screen.getByLabelText("templates.dateFormatLabel")).toHaveValue("MONTH_DAY_YEAR");
+    expect(screen.getByLabelText("templates.timeFormatLabel")).toHaveValue("HOURS_12");
     expect(screen.getByText("Ambrosia")).toBeInTheDocument();
     expect(screen.getByText("2x Burger")).toBeInTheDocument();
     expect(screen.getByText("lnbc10u1p0exampleinvoice")).toBeInTheDocument();
@@ -173,6 +177,8 @@ describe("TicketTemplatesModal", () => {
 
     await waitFor(() => expect(updateTemplate).toHaveBeenCalledWith("tpl-1", {
       name: "Kitchen",
+      dateFormat: "MONTH_DAY_YEAR",
+      timeFormat: "HOURS_12",
       elements: expect.any(Array),
     }),
     );
@@ -232,6 +238,8 @@ describe("TicketTemplatesModal", () => {
 
     await waitFor(() => expect(createTemplate).toHaveBeenCalledWith({
       name: "New Template",
+      dateFormat: "DAY_MONTH_YEAR",
+      timeFormat: "HOURS_24",
       elements: expect.any(Array),
     }),
     );
@@ -373,6 +381,51 @@ describe("TicketTemplatesModal", () => {
       target: { value: "CUSTOMER" },
     });
     expect(screen.getByText("cardPrinters.types.CUSTOMER")).toBeInTheDocument();
+  });
+
+  it("saves the selected date and time formats and previews them", async () => {
+    jest.useFakeTimers({ now: new Date(2026, 9, 15, 21, 30) });
+    const createTemplate = jest.fn().mockResolvedValue({ id: "tpl-alice" });
+
+    useTemplates.mockReturnValue({
+      templates: [],
+      loading: false,
+      error: null,
+      createTemplate,
+      updateTemplate: jest.fn(),
+      deleteTemplate: jest.fn(),
+    });
+
+    usePrinters.mockReturnValue({ printTicket: jest.fn() });
+
+    render(
+      <TicketTemplatesModal
+        isOpen
+        onClose={jest.fn()}
+        initialTemplate={{
+          name: "alice",
+          elements: [{ id: "e-alice", type: "TEXT", value: "{{print.date}} {{print.time}}", style: {} }],
+        }}
+      />,
+    );
+
+    expect(screen.getByText("15/10/2026 21:30")).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("templates.dateFormatLabel"), {
+      target: { value: "YEAR_MONTH_DAY" },
+    });
+    fireEvent.change(screen.getByLabelText("templates.timeFormatLabel"), {
+      target: { value: "HOURS_12" },
+    });
+
+    expect(screen.getByText("2026-10-15 9:30 PM")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText("templates.saveNew"));
+    jest.useRealTimers();
+
+    await waitFor(() => expect(createTemplate).toHaveBeenCalledWith(
+      expect.objectContaining({ dateFormat: "YEAR_MONTH_DAY", timeFormat: "HOURS_12" }),
+    ));
   });
 
   it("opens with empty form when no initialTemplate is provided", () => {

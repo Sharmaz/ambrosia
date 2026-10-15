@@ -9,7 +9,7 @@ import { useConfigurations } from "@/providers/configurations/configurationsProv
 import { usePrinters } from "@components/pages/Store/hooks/usePrinter";
 import { useTemplates } from "@components/pages/Store/hooks/useTemplates";
 
-import { createElement, DEFAULT_STYLE } from "./defaults";
+import { createElement, DEFAULT_PRINT_FORMATS, DEFAULT_STYLE } from "./defaults";
 import { TicketTemplatesEditor } from "./Editor";
 import { TicketTemplatesFooter } from "./Footer";
 import { TemplatePreview } from "./Preview";
@@ -31,6 +31,7 @@ export function TicketTemplatesModal({ isOpen, onClose, initialTemplate = null }
   const [selectedId, setSelectedId] = useState("");
   const [name, setName] = useState("");
   const [elements, setElements] = useState([createElement()]);
+  const [printFormats, setPrintFormats] = useState(DEFAULT_PRINT_FORMATS);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [printing, setPrinting] = useState(false);
@@ -40,6 +41,10 @@ export function TicketTemplatesModal({ isOpen, onClose, initialTemplate = null }
     if (isOpen && initialTemplate) {
       setSelectedId(initialTemplate.id);
       setName(initialTemplate.name);
+      setPrintFormats({
+        dateFormat: initialTemplate.dateFormat || DEFAULT_PRINT_FORMATS.dateFormat,
+        timeFormat: initialTemplate.timeFormat || DEFAULT_PRINT_FORMATS.timeFormat,
+      });
       const mappedElements = (initialTemplate.elements || []).map((element) => ({
         localId: element.id || `tmp-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
         type: element.type,
@@ -50,6 +55,7 @@ export function TicketTemplatesModal({ isOpen, onClose, initialTemplate = null }
     } else if (isOpen && !initialTemplate) {
       setSelectedId("");
       setName("");
+      setPrintFormats(DEFAULT_PRINT_FORMATS);
       setElements([createElement()]);
     }
   }, [isOpen, initialTemplate]);
@@ -57,6 +63,7 @@ export function TicketTemplatesModal({ isOpen, onClose, initialTemplate = null }
   const resetForm = () => {
     setSelectedId("");
     setName("");
+    setPrintFormats(DEFAULT_PRINT_FORMATS);
     setElements([createElement()]);
   };
 
@@ -65,6 +72,8 @@ export function TicketTemplatesModal({ isOpen, onClose, initialTemplate = null }
     setSaving(true);
     const templatePayload = {
       name: name.trim(),
+      dateFormat: printFormats.dateFormat,
+      timeFormat: printFormats.timeFormat,
       elements: elements.map((element) => ({
         type: element.type,
         value: element.value ?? "",
@@ -158,6 +167,8 @@ export function TicketTemplatesModal({ isOpen, onClose, initialTemplate = null }
             <TicketTemplatesEditor
               name={name}
               onNameChange={(event) => setName(event.target.value)}
+              printFormats={printFormats}
+              onPrintFormatsChange={setPrintFormats}
               elements={elements}
               onElementChange={(updatedElement) => setElements((prev) => prev.map((element) => (element.localId === updatedElement.localId ? updatedElement : element)))}
               onElementAdd={() => {
@@ -172,8 +183,9 @@ export function TicketTemplatesModal({ isOpen, onClose, initialTemplate = null }
             />
 
             <TemplatePreview
-              elements={elements}
-              config={config}
+              templateElements={elements}
+              businessConfig={config}
+              printFormats={printFormats}
               printerType={printerType}
               onPrinterTypeChange={(event) => setPrinterType(event.target.value)}
               printerTypes={PRINTER_TYPES}

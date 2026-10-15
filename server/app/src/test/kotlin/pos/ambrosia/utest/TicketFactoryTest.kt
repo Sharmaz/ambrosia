@@ -2,9 +2,13 @@ package pos.ambrosia.utest
 
 import com.github.anastaciocintra.escpos.EscPos
 import com.github.anastaciocintra.escpos.Style
+import com.github.anastaciocintra.escpos.image.EscPosImage
+import com.github.anastaciocintra.escpos.image.ImageWrapperInterface
 import org.mockito.kotlin.any
 import org.mockito.kotlin.argumentCaptor
+import org.mockito.kotlin.atMost
 import org.mockito.kotlin.eq
+import org.mockito.kotlin.inOrder
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.times
 import org.mockito.kotlin.verify
@@ -15,19 +19,32 @@ import pos.ambrosia.models.FontSize
 import pos.ambrosia.models.Justification
 import pos.ambrosia.models.TicketData
 import pos.ambrosia.models.TicketDataItem
+import pos.ambrosia.models.TicketDateFormat
 import pos.ambrosia.models.TicketElement
 import pos.ambrosia.models.TicketTemplate
+import pos.ambrosia.models.TicketTimeFormat
 import pos.ambrosia.services.TicketFactory
+import pos.ambrosia.services.TicketLogoLoader
 import pos.ambrosia.utils.formatTicketLine
+import java.awt.image.BufferedImage
+import java.io.ByteArrayOutputStream
+import java.nio.file.Files
+import java.time.Clock
+import java.time.Instant
+import java.time.ZoneOffset
+import javax.imageio.ImageIO
+import kotlin.io.path.createDirectories
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 class TicketFactoryTest {
     @Test
     fun `build should process a simple text element`() {
         // Arrange
         val mockEscpos: EscPos = mock()
-        val template =
+        val ticketTemplate =
             TicketTemplate(
                 id = "template-1",
                 name = "Test Template",
@@ -51,7 +68,7 @@ class TicketFactoryTest {
                 items = emptyList(),
                 total = 0.0,
             )
-        val config =
+        val businessConfig =
             Config(
                 businessType = "restaurant",
                 businessName = "Ambrosia",
@@ -62,21 +79,58 @@ class TicketFactoryTest {
                 businessLogoUrl = null,
             )
 
-        val ticketFactory = TicketFactory(template)
+        val ticketFactory = TicketFactory(ticketTemplate)
 
         // Act
-        ticketFactory.build(mockEscpos, ticketData, config)
+        ticketFactory.build(mockEscpos, ticketData, businessConfig)
 
         // Assert
         verify(mockEscpos).writeLF(any<Style>(), eq("Welcome to Ambrosia"))
     }
 
     @Test
+    fun `build should pad and reset the printer before printing the template elements`() {
+        val mockEscpos: EscPos = mock()
+        val ticketTemplate =
+            TicketTemplate(
+                id = "template-reset",
+                name = "Reset Template",
+                elements =
+                    listOf(
+                        TicketElement(
+                            id = "elem-reset",
+                            templateId = "template-reset",
+                            order = 0,
+                            type = ElementType.HEADER,
+                            value = "alice",
+                        ),
+                    ),
+            )
+        val ticketData =
+            TicketData(
+                ticketId = "reset-001",
+                tableName = "Table 1",
+                roomName = "Main Room",
+                date = "2026-10-15",
+                items = emptyList(),
+                total = 0.0,
+            )
+
+        TicketFactory(ticketTemplate).build(mockEscpos, ticketData, null)
+
+        inOrder(mockEscpos) {
+            verify(mockEscpos).write(eq(ByteArray(TicketFactory.JOB_START_PADDING_BYTES)), eq(0), eq(TicketFactory.JOB_START_PADDING_BYTES))
+            verify(mockEscpos).initializePrinter()
+            verify(mockEscpos).writeLF(any<Style>(), eq("alice"))
+        }
+    }
+
+    @Test
     fun `build should process table row elements`() {
         // Arrange
         val mockEscpos: EscPos = mock()
-        val stringCaptor = argumentCaptor<String>()
-        val template =
+        val printedRowCaptor = argumentCaptor<String>()
+        val ticketTemplate =
             TicketTemplate(
                 id = "template-2",
                 name = "Table Row Template",
@@ -105,7 +159,7 @@ class TicketFactoryTest {
                     ),
                 total = 18.50,
             )
-        val config =
+        val businessConfig =
             Config(
                 businessType = "restaurant",
                 businessName = "Ambrosia",
@@ -116,28 +170,28 @@ class TicketFactoryTest {
                 businessLogoUrl = null,
             )
 
-        val ticketFactory = TicketFactory(template)
+        val ticketFactory = TicketFactory(ticketTemplate)
 
         // Act
-        ticketFactory.build(mockEscpos, ticketData, config)
+        ticketFactory.build(mockEscpos, ticketData, businessConfig)
 
         // Assert
-        verify(mockEscpos, times(4)).writeLF(any<Style>(), stringCaptor.capture())
-        val capturedStrings = stringCaptor.allValues
+        verify(mockEscpos, times(4)).writeLF(any<Style>(), printedRowCaptor.capture())
+        val printedRows = printedRowCaptor.allValues
 
-        assert(capturedStrings[0].startsWith("1x Burger"))
-        assert(capturedStrings[0].endsWith("12.5"))
-        assertEquals("  - No pickles", capturedStrings[1])
-        assertEquals("  - Well done", capturedStrings[2])
-        assert(capturedStrings[3].startsWith("2x Fries"))
-        assert(capturedStrings[3].endsWith("3.0"))
+        assert(printedRows[0].startsWith("1x Burger"))
+        assert(printedRows[0].endsWith("12.5"))
+        assertEquals("  - No pickles", printedRows[1])
+        assertEquals("  - Well done", printedRows[2])
+        assert(printedRows[3].startsWith("2x Fries"))
+        assert(printedRows[3].endsWith("3.0"))
     }
 
     @Test
     fun `build should process separator element`() {
         // Arrange
         val mockEscpos: EscPos = mock()
-        val template =
+        val ticketTemplate =
             TicketTemplate(
                 id = "template-3",
                 name = "Separator Template",
@@ -161,7 +215,7 @@ class TicketFactoryTest {
                 items = emptyList(),
                 total = 0.0,
             )
-        val config =
+        val businessConfig =
             Config(
                 businessType = "restaurant",
                 businessName = "Ambrosia",
@@ -172,20 +226,125 @@ class TicketFactoryTest {
                 businessLogoUrl = null,
             )
 
-        val ticketFactory = TicketFactory(template)
+        val ticketFactory = TicketFactory(ticketTemplate)
 
         // Act
-        ticketFactory.build(mockEscpos, ticketData, config)
+        ticketFactory.build(mockEscpos, ticketData, businessConfig)
 
         // Assert
         verify(mockEscpos).writeLF(any<Style>(), eq("-".repeat(48)))
     }
 
     @Test
+    fun `build should print a full dashed line for a separator without value`() {
+        assertEquals("-".repeat(48), printedSeparatorLine(storedValue = ""))
+    }
+
+    @Test
+    fun `build should print a full dashed line for a separator keeping a previous element value`() {
+        assertEquals("-".repeat(48), printedSeparatorLine(storedValue = "{{config.businessName}}"))
+    }
+
+    private fun printedSeparatorLine(storedValue: String): String {
+        val mockEscpos: EscPos = mock()
+        val printedLineCaptor = argumentCaptor<String>()
+        val ticketTemplate =
+            TicketTemplate(
+                id = "template-separator",
+                name = "Separator Template",
+                elements =
+                    listOf(
+                        TicketElement(
+                            id = "elem-separator",
+                            templateId = "template-separator",
+                            order = 0,
+                            type = ElementType.SEPARATOR,
+                            value = storedValue,
+                        ),
+                    ),
+            )
+        val ticketData =
+            TicketData(
+                ticketId = "separator-001",
+                tableName = "Table 1",
+                roomName = "Main Room",
+                date = "2026-10-15",
+                items = emptyList(),
+                total = 0.0,
+            )
+        val businessConfig =
+            Config(
+                businessName = "alice",
+                businessAddress = null,
+                businessPhone = null,
+                businessEmail = null,
+                businessTaxId = null,
+                businessLogoUrl = null,
+            )
+
+        TicketFactory(ticketTemplate).build(mockEscpos, ticketData, businessConfig)
+
+        verify(mockEscpos).writeLF(any<Style>(), printedLineCaptor.capture())
+        return printedLineCaptor.firstValue
+    }
+
+    @Test
+    fun `build should scale text height together with width for large text`() {
+        val printedBytes = printedTextBytes(FontSize.LARGE)
+
+        assertTrue(printedBytes.containsCommand(byteArrayOf(0x1D, 0x21, 0x11)))
+    }
+
+    @Test
+    fun `build should scale text height together with width for extra large text`() {
+        val printedBytes = printedTextBytes(FontSize.EXTRA_LARGE)
+
+        assertTrue(printedBytes.containsCommand(byteArrayOf(0x1D, 0x21, 0x22)))
+    }
+
+    private fun printedTextBytes(fontSize: FontSize): ByteArray {
+        val printedOutput = ByteArrayOutputStream()
+        val ticketTemplate =
+            TicketTemplate(
+                id = "template-font-size",
+                name = "Font Size Template",
+                elements =
+                    listOf(
+                        TicketElement(
+                            id = "elem-footer",
+                            templateId = "template-font-size",
+                            order = 0,
+                            type = ElementType.FOOTER,
+                            value = "bob",
+                            style = ElementStyle(fontSize = fontSize),
+                        ),
+                    ),
+            )
+        val ticketData =
+            TicketData(
+                ticketId = "font-size-001",
+                tableName = "Table 1",
+                roomName = "Main Room",
+                date = "2026-10-15",
+                items = emptyList(),
+                total = 0.0,
+            )
+
+        TicketFactory(ticketTemplate).build(EscPos(printedOutput), ticketData, null)
+
+        return printedOutput.toByteArray()
+    }
+
+    private fun ByteArray.containsCommand(command: ByteArray): Boolean =
+        (0..size - command.size).any { startIndex ->
+            command.indices.all { commandIndex -> this[startIndex + commandIndex] == command[commandIndex] }
+        }
+
+    @Test
     fun `build should process table header element`() {
         // Arrange
         val mockEscpos: EscPos = mock()
-        val template =
+        val ticketTemplate =
             TicketTemplate(
                 id = "template-4",
                 name = "Table Header Template",
@@ -209,7 +368,7 @@ class TicketFactoryTest {
                 items = emptyList(),
                 total = 0.0,
             )
-        val config =
+        val businessConfig =
             Config(
                 businessType = "restaurant",
                 businessName = "Ambrosia",
@@ -220,10 +379,10 @@ class TicketFactoryTest {
                 businessLogoUrl = null,
             )
 
-        val ticketFactory = TicketFactory(template)
+        val ticketFactory = TicketFactory(ticketTemplate)
 
         // Act
-        ticketFactory.build(mockEscpos, ticketData, config)
+        ticketFactory.build(mockEscpos, ticketData, businessConfig)
 
         // Assert
         verify(mockEscpos).writeLF(any<Style>(), eq("Item             Qty     Price"))
@@ -272,19 +431,19 @@ class TicketFactoryTest {
         val ticketFactory = TicketFactory(ticketTemplate)
         ticketFactory.build(mockEscpos, ticketData, businessConfig)
 
-        val captor = argumentCaptor<String>()
-        verify(mockEscpos, times(4)).writeLF(any<Style>(), captor.capture())
-        val lines = captor.allValues
-        assertEquals("-".repeat(TicketFactory.DEFAULT_TICKET_WIDTH), lines[0])
-        assertEquals(formatTicketLine("DISCOUNT", "-10.0"), lines[1])
-        assertEquals(formatTicketLine("TIP", "+15.0"), lines[2])
-        assertEquals(formatTicketLine("TOTAL", "115.0"), lines[3])
+        val printedLineCaptor = argumentCaptor<String>()
+        verify(mockEscpos, times(4)).writeLF(any<Style>(), printedLineCaptor.capture())
+        val printedLines = printedLineCaptor.allValues
+        assertEquals("-".repeat(TicketFactory.DEFAULT_TICKET_WIDTH), printedLines[0])
+        assertEquals(formatTicketLine("DISCOUNT", "-10.0"), printedLines[1])
+        assertEquals(formatTicketLine("TIP", "+15.0"), printedLines[2])
+        assertEquals(formatTicketLine("TOTAL", "115.0"), printedLines[3])
     }
 
     @Test
     fun `build should resolve ticket tipAmount placeholder`() {
         val mockEscpos: EscPos = mock()
-        val template =
+        val ticketTemplate =
             TicketTemplate(
                 id = "template-ph",
                 name = "Placeholder Template",
@@ -310,9 +469,259 @@ class TicketFactoryTest {
                 tipAmount = 5.0,
             )
 
-        val ticketFactory = TicketFactory(template)
+        val ticketFactory = TicketFactory(ticketTemplate)
         ticketFactory.build(mockEscpos, ticketData, null)
 
         verify(mockEscpos).writeLF(any<Style>(), eq("Tip: 5.0"))
+    }
+
+    @Test
+    fun `build should print short QR content smaller as the size decreases`() {
+        val socialLink = "https://instagram.com/alice"
+
+        val normalWidthDots = printedQrWidthDots(socialLink, FontSize.NORMAL)
+        val largeWidthDots = printedQrWidthDots(socialLink, FontSize.LARGE)
+        val extraLargeWidthDots = printedQrWidthDots(socialLink, FontSize.EXTRA_LARGE)
+
+        assertTrue(normalWidthDots < 200)
+        assertTrue(normalWidthDots < largeWidthDots)
+        assertTrue(largeWidthDots < extraLargeWidthDots)
+    }
+
+    @Test
+    fun `build should keep long QR content readable and within the printable width`() {
+        val longContent = "lnbc".padEnd(2000, 'q')
+
+        val normalWidthDots = printedQrWidthDots(longContent, FontSize.NORMAL)
+        val extraLargeWidthDots = printedQrWidthDots(longContent, FontSize.EXTRA_LARGE)
+
+        assertTrue(normalWidthDots > 320)
+        assertTrue(extraLargeWidthDots <= 576)
+    }
+
+    @Test
+    fun `build should resolve print date and time in the business timezone`() {
+        val printedLine =
+            printedTextLine(
+                value = "{{print.date}} {{print.time}}",
+                dateFormat = TicketDateFormat.DAY_MONTH_YEAR,
+                timeFormat = TicketTimeFormat.HOURS_24,
+            )
+
+        assertEquals("15/10/2026 21:30", printedLine)
+    }
+
+    @Test
+    fun `build should resolve print date and time with the template formats`() {
+        assertEquals(
+            "10/15/2026 9:30 PM",
+            printedTextLine(
+                value = "{{print.date}} {{print.time}}",
+                dateFormat = TicketDateFormat.MONTH_DAY_YEAR,
+                timeFormat = TicketTimeFormat.HOURS_12,
+            ),
+        )
+        assertEquals(
+            "2026-10-15",
+            printedTextLine(
+                value = "{{print.date}}",
+                dateFormat = TicketDateFormat.YEAR_MONTH_DAY,
+                timeFormat = TicketTimeFormat.HOURS_24,
+            ),
+        )
+    }
+
+    @Test
+    fun `build should resolve the combined print date and time`() {
+        assertEquals(
+            "Printed: 15/10/2026 9:30 PM",
+            printedTextLine(
+                value = "Printed: {{print.dateTime}}",
+                dateFormat = TicketDateFormat.DAY_MONTH_YEAR,
+                timeFormat = TicketTimeFormat.HOURS_12,
+            ),
+        )
+    }
+
+    private fun printedTextLine(
+        value: String,
+        dateFormat: TicketDateFormat,
+        timeFormat: TicketTimeFormat,
+    ): String {
+        val mockEscpos: EscPos = mock()
+        val printedLineCaptor = argumentCaptor<String>()
+        val ticketTemplate =
+            TicketTemplate(
+                id = "template-print-date",
+                name = "Print Date Template",
+                elements =
+                    listOf(
+                        TicketElement(
+                            id = "elem-print-date",
+                            templateId = "template-print-date",
+                            order = 0,
+                            type = ElementType.TEXT,
+                            value = value,
+                        ),
+                    ),
+                dateFormat = dateFormat,
+                timeFormat = timeFormat,
+            )
+        val ticketData =
+            TicketData(
+                ticketId = "print-001",
+                tableName = "Table 1",
+                roomName = "Main Room",
+                date = "2026-10-16",
+                items = emptyList(),
+                total = 0.0,
+            )
+        val businessConfig =
+            Config(
+                businessName = "alice",
+                businessAddress = null,
+                businessPhone = null,
+                businessEmail = null,
+                businessTaxId = null,
+                businessLogoUrl = null,
+                timezone = "America/Mexico_City",
+            )
+        val printClock = Clock.fixed(Instant.parse("2026-10-16T03:30:00Z"), ZoneOffset.UTC)
+
+        TicketFactory(ticketTemplate, printClock).build(mockEscpos, ticketData, businessConfig)
+
+        verify(mockEscpos).writeLF(any<Style>(), printedLineCaptor.capture())
+        return printedLineCaptor.firstValue
+    }
+
+    @Test
+    fun `build should print the business logo when the logo element has no image`() {
+        val printedWidthDots =
+            printedLogoWidthDots(
+                templateText = "",
+                fontSize = FontSize.NORMAL,
+                businessLogoUrl = "/uploads/2026-10/alice.png",
+            )
+
+        assertEquals(192, printedWidthDots)
+    }
+
+    @Test
+    fun `build should print the chosen logo image with the selected size`() {
+        val printedWidthDots =
+            printedLogoWidthDots(
+                templateText = "/uploads/2026-10/bob.png",
+                fontSize = FontSize.EXTRA_LARGE,
+                businessLogoUrl = "/uploads/2026-10/alice.png",
+            )
+
+        assertEquals(384, printedWidthDots)
+    }
+
+    @Test
+    fun `build should skip the logo element when there is no logo to print`() {
+        val printedWidthDots =
+            printedLogoWidthDots(
+                templateText = "",
+                fontSize = FontSize.NORMAL,
+                businessLogoUrl = null,
+            )
+
+        assertNull(printedWidthDots)
+    }
+
+    private fun printedLogoWidthDots(
+        templateText: String,
+        fontSize: FontSize,
+        businessLogoUrl: String?,
+    ): Int? {
+        val dataFolder = Files.createTempDirectory("ambrosia-factory-logo-test")
+        try {
+            val uploadRoot = dataFolder.resolve("uploads").createDirectories()
+            val logoFolder = uploadRoot.resolve("2026-10").createDirectories()
+            ImageIO.write(BufferedImage(100, 50, BufferedImage.TYPE_INT_RGB), "png", logoFolder.resolve("alice.png").toFile())
+            ImageIO.write(BufferedImage(200, 100, BufferedImage.TYPE_INT_RGB), "png", logoFolder.resolve("bob.png").toFile())
+            val mockEscpos: EscPos = mock()
+            val imageCaptor = argumentCaptor<EscPosImage>()
+            val ticketTemplate =
+                TicketTemplate(
+                    id = "template-logo",
+                    name = "Logo Template",
+                    elements =
+                        listOf(
+                            TicketElement(
+                                id = "elem-logo",
+                                templateId = "template-logo",
+                                order = 0,
+                                type = ElementType.LOGO,
+                                value = templateText,
+                                style = ElementStyle(fontSize = fontSize),
+                            ),
+                        ),
+                )
+            val ticketData =
+                TicketData(
+                    ticketId = "logo-001",
+                    tableName = "Table 1",
+                    roomName = "Main Room",
+                    date = "2026-10-15",
+                    items = emptyList(),
+                    total = 0.0,
+                )
+            val businessConfig =
+                Config(
+                    businessName = "alice",
+                    businessAddress = null,
+                    businessPhone = null,
+                    businessEmail = null,
+                    businessTaxId = null,
+                    businessLogoUrl = businessLogoUrl,
+                )
+
+            TicketFactory(ticketTemplate, logoLoader = TicketLogoLoader(uploadRoot)).build(mockEscpos, ticketData, businessConfig)
+
+            verify(mockEscpos, atMost(1)).write(any<ImageWrapperInterface<*>>(), imageCaptor.capture())
+            return imageCaptor.allValues.firstOrNull()?.widthOfImageInBits
+        } finally {
+            dataFolder.toFile().deleteRecursively()
+        }
+    }
+
+    private fun printedQrWidthDots(
+        qrContent: String,
+        fontSize: FontSize,
+    ): Int {
+        val mockEscpos: EscPos = mock()
+        val imageCaptor = argumentCaptor<EscPosImage>()
+        val ticketTemplate =
+            TicketTemplate(
+                id = "template-qr",
+                name = "QR Template",
+                elements =
+                    listOf(
+                        TicketElement(
+                            id = "elem-qr",
+                            templateId = "template-qr",
+                            order = 0,
+                            type = ElementType.QRCODE,
+                            value = qrContent,
+                            style = ElementStyle(fontSize = fontSize),
+                        ),
+                    ),
+            )
+        val ticketData =
+            TicketData(
+                ticketId = "qr-001",
+                tableName = "Table 1",
+                roomName = "Main Room",
+                date = "2026-10-15",
+                items = emptyList(),
+                total = 0.0,
+            )
+
+        TicketFactory(ticketTemplate).build(mockEscpos, ticketData, null)
+
+        verify(mockEscpos).write(any<ImageWrapperInterface<*>>(), imageCaptor.capture())
+        return imageCaptor.firstValue.widthOfImageInBits
     }
 }

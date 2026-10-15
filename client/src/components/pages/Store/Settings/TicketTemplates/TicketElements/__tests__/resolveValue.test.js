@@ -42,4 +42,20 @@ describe("resolveValue", () => {
   it("leaves unknown variables untouched", () => {
     expect(resolveValue("{{unknown.var}}", sampleConfig)).toBe("{{unknown.var}}");
   });
+
+  it("replaces print variables with the default formats", () => {
+    const printedAt = new Date(2026, 9, 15, 9, 5);
+    expect(resolveValue("{{print.date}} {{print.time}}", sampleConfig, undefined, printedAt)).toBe("15/10/2026 09:05");
+  });
+
+  it("replaces print variables with the template formats", () => {
+    const printedAt = new Date(2026, 9, 15, 21, 30);
+    const printFormats = { dateFormat: "MONTH_DAY_YEAR", timeFormat: "HOURS_12" };
+    expect(resolveValue("{{print.date}} {{print.time}}", sampleConfig, printFormats, printedAt)).toBe("10/15/2026 9:30 PM");
+  });
+
+  it("replaces the combined print date and time variable", () => {
+    const printedAt = new Date(2026, 9, 15, 21, 30);
+    expect(resolveValue("Printed: {{print.dateTime}}", sampleConfig, undefined, printedAt)).toBe("Printed: 15/10/2026 21:30");
+  });
 });

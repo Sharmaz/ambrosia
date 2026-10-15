@@ -20,8 +20,8 @@ jest.mock("@heroui/react", () => ({
 }));
 
 jest.mock("../TicketElements", () => ({
-  TicketElementsPreview: ({ elements }) => (
-    <div data-testid="elements-preview" data-count={elements.length} />
+  TicketElementsPreview: ({ templateElements }) => (
+    <div data-testid="elements-preview" data-count={templateElements.length} />
   ),
   hasVisibleContent: (elements) => Array.isArray(elements) && elements.some((element) => ["SEPARATOR", "LINE_BREAK", "TABLE_ROW"].includes(element.type) || element.value?.trim()),
 }));
@@ -29,8 +29,8 @@ jest.mock("../TicketElements", () => ({
 const settingsTranslations = (key) => key;
 
 const defaultProps = {
-  elements: [],
-  config: null,
+  templateElements: [],
+  businessConfig: null,
   printerType: "CUSTOMER",
   onPrinterTypeChange: jest.fn(),
   printerTypes: ["CUSTOMER"],
@@ -50,7 +50,7 @@ describe("TemplatePreview", () => {
     render(
       <TemplatePreview
         {...defaultProps}
-        elements={[{ localId: "e-1", type: "TEXT", value: "", style: {} }]}
+        templateElements={[{ localId: "e-1", type: "TEXT", value: "", style: {} }]}
       />,
     );
     expect(screen.getByText("templates.previewEmpty")).toBeInTheDocument();
@@ -60,7 +60,7 @@ describe("TemplatePreview", () => {
     render(
       <TemplatePreview
         {...defaultProps}
-        elements={[{ localId: "e-1", type: "TEXT", value: "Hi", style: {} }]}
+        templateElements={[{ localId: "e-1", type: "TEXT", value: "Hi", style: {} }]}
       />,
     );
     expect(screen.getByTestId("elements-preview")).toBeInTheDocument();
@@ -71,7 +71,7 @@ describe("TemplatePreview", () => {
     render(
       <TemplatePreview
         {...defaultProps}
-        elements={[{ localId: "e-2", type: "SEPARATOR", value: "", style: {} }]}
+        templateElements={[{ localId: "e-2", type: "SEPARATOR", value: "", style: {} }]}
       />,
     );
     expect(screen.queryByText("templates.previewEmpty")).not.toBeInTheDocument();

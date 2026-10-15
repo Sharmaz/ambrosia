@@ -11,8 +11,8 @@ jest.mock("@heroui/react", () => ({
 }));
 
 jest.mock("../ElementRow", () => ({
-  TemplateElementRow: ({ element }) => (
-    <div data-testid={`row-${element.localId}`} />
+  TemplateElementRow: ({ templateElement }) => (
+    <div data-testid={`row-${templateElement.localId}`} />
   ),
 }));
 

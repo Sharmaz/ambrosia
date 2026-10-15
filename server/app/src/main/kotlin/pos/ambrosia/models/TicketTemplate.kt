@@ -17,7 +17,26 @@ data class TicketTemplate(
     val id: String,
     val name: String,
     val elements: List<TicketElement>,
+    val dateFormat: TicketDateFormat = TicketDateFormat.DAY_MONTH_YEAR,
+    val timeFormat: TicketTimeFormat = TicketTimeFormat.HOURS_24,
 )
+
+@Serializable
+enum class TicketDateFormat(
+    val pattern: String,
+) {
+    DAY_MONTH_YEAR("dd/MM/yyyy"),
+    MONTH_DAY_YEAR("MM/dd/yyyy"),
+    YEAR_MONTH_DAY("yyyy-MM-dd"),
+}
+
+@Serializable
+enum class TicketTimeFormat(
+    val pattern: String,
+) {
+    HOURS_24("HH:mm"),
+    HOURS_12("h:mm a"),
+}
 
 @Serializable
 data class TicketElement(
@@ -40,6 +59,7 @@ enum class ElementType {
     TOTAL_ROW,
     FOOTER,
     QRCODE,
+    LOGO,
 }
 
 @Serializable
@@ -62,6 +82,8 @@ enum class ImageSize { SMALL, MEDIUM, LARGE }
 data class TicketTemplateRequest(
     val name: String,
     val elements: List<TicketElementCreateRequest>,
+    val dateFormat: TicketDateFormat = TicketDateFormat.DAY_MONTH_YEAR,
+    val timeFormat: TicketTimeFormat = TicketTimeFormat.HOURS_24,
 )
 
 @Serializable
