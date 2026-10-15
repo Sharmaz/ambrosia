@@ -235,6 +235,59 @@ class TicketFactoryTest {
     }
 
     @Test
+    fun `build should print a full dashed line for a separator without value`() {
+        assertEquals("-".repeat(48), printedSeparatorLine(storedValue = ""))
+    }
+
+    @Test
+    fun `build should print a full dashed line for a separator keeping a previous element value`() {
+        assertEquals("-".repeat(48), printedSeparatorLine(storedValue = "{{config.businessName}}"))
+    }
+
+    private fun printedSeparatorLine(storedValue: String): String {
+        val mockEscpos: EscPos = mock()
+        val printedLineCaptor = argumentCaptor<String>()
+        val ticketTemplate =
+            TicketTemplate(
+                id = "template-separator",
+                name = "Separator Template",
+                elements =
+                    listOf(
+                        TicketElement(
+                            id = "elem-separator",
+                            templateId = "template-separator",
+                            order = 0,
+                            type = ElementType.SEPARATOR,
+                            value = storedValue,
+                        ),
+                    ),
+            )
+        val ticketData =
+            TicketData(
+                ticketId = "separator-001",
+                tableName = "Table 1",
+                roomName = "Main Room",
+                date = "2026-10-15",
+                items = emptyList(),
+                total = 0.0,
+            )
+        val businessConfig =
+            Config(
+                businessName = "alice",
+                businessAddress = null,
+                businessPhone = null,
+                businessEmail = null,
+                businessTaxId = null,
+                businessLogoUrl = null,
+            )
+
+        TicketFactory(ticketTemplate).build(mockEscpos, ticketData, businessConfig)
+
+        verify(mockEscpos).writeLF(any<Style>(), printedLineCaptor.capture())
+        return printedLineCaptor.firstValue
+    }
+
+    @Test
     fun `build should process table header element`() {
         // Arrange
         val mockEscpos: EscPos = mock()
