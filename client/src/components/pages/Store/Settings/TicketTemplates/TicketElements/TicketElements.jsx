@@ -54,6 +54,8 @@ export function TicketElementsPreview({ elements, config }) {
           key={`${element.localId}-qr`}
           value={element.value}
           config={config}
+          fontSize={style.fontSize}
+          justification={style.justification}
           className={className}
         />,
       ];
