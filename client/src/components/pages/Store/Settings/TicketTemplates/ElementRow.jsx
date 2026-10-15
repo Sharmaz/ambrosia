@@ -1,5 +1,7 @@
 "use client";
 
+import { useRef } from "react";
+
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { Button, Input, Select, SelectItem, Tooltip } from "@heroui/react";
@@ -7,6 +9,8 @@ import { Bold, ChevronDown, ChevronUp, GripVertical } from "lucide-react";
 
 import { DeleteButton } from "@components/shared/DeleteButton";
 
+import { insertVariable } from "./insertVariable";
+import { removeVariable } from "./removeVariable";
 import { resolveValue } from "./TicketElements";
 import { TemplateVariablePicker } from "./VariablePicker";
 
@@ -27,9 +31,9 @@ const ELEMENT_TYPES = [
 const JUSTIFICATIONS = ["LEFT", "CENTER", "RIGHT"];
 const FONT_SIZES = ["NORMAL", "LARGE", "EXTRA_LARGE"];
 
-export function TemplateElementRow({ element, isOpen, onToggle, onChange, onRemove, config, settingsTranslations }) {
+export function TemplateElementRow({ templateElement, isOpen, onToggle, onChange, onRemove, businessConfig, printFormats, settingsTranslations }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
-    id: element.localId,
+    id: templateElement.localId,
   });
 
   const style = {
@@ -38,7 +42,7 @@ export function TemplateElementRow({ element, isOpen, onToggle, onChange, onRemo
     opacity: isDragging ? 0.5 : 1,
   };
 
-  const type = element.type;
+  const type = templateElement.type;
   const showValue = ["HEADER", "TEXT", "FOOTER", "TABLE_HEADER", "TOTAL_ROW", "QRCODE"].includes(type);
   const showVariablePicker = VARIABLE_PICKER_TYPES.includes(type);
   const showStyle = type !== "LINE_BREAK" && type !== "SEPARATOR";
@@ -46,12 +50,27 @@ export function TemplateElementRow({ element, isOpen, onToggle, onChange, onRemo
   const showJustification = showStyle;
   const showFontSize = showStyle;
 
-  const handleChange = (updates) => onChange({ ...element, ...updates });
+  const handleChange = (updates) => onChange({ ...templateElement, ...updates });
 
-  const selectVariable = (variable) => handleChange({ value: variable });
+  const cursorRangeRef = useRef(null);
+
+  const rememberCursorRange = (event) => {
+    cursorRangeRef.current = { start: event.target.selectionStart, end: event.target.selectionEnd };
+  };
+
+  const selectVariable = (variable) => {
+    const { updatedTemplateText, cursorPosition } = insertVariable(templateElement.value ?? "", variable, cursorRangeRef.current);
+    cursorRangeRef.current = { start: cursorPosition, end: cursorPosition };
+    handleChange({ value: updatedTemplateText });
+  };
+
+  const deselectVariable = (variable) => {
+    cursorRangeRef.current = null;
+    handleChange({ value: removeVariable(templateElement.value ?? "", variable) });
+  };
 
   const typeLabel = settingsTranslations(`templates.elementTypes.${type}`);
-  const resolvedSummary = resolveValue(element.value ?? "", config);
+  const resolvedSummary = resolveValue(templateElement.value ?? "", businessConfig, printFormats);
   const valueSummary = resolvedSummary ? `— "${resolvedSummary}"` : "";
 
   return (
@@ -84,7 +103,7 @@ export function TemplateElementRow({ element, isOpen, onToggle, onChange, onRemo
           >
             {isOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
           </Button>
-          <DeleteButton onPress={() => onRemove(element.localId)}>
+          <DeleteButton onPress={() => onRemove(templateElement.localId)}>
             <span className="hidden sm:inline">{settingsTranslations("templates.removeElement")}</span>
           </DeleteButton>
         </div>
@@ -95,7 +114,7 @@ export function TemplateElementRow({ element, isOpen, onToggle, onChange, onRemo
           <div className="mb-3">
             <Select
               label={settingsTranslations("templates.elementTypeLabel")}
-              selectedKeys={element.type ? [element.type] : []}
+              selectedKeys={templateElement.type ? [templateElement.type] : []}
               onChange={(event) => { if (event.target.value) handleChange({ type: event.target.value }); }}
             >
               {ELEMENT_TYPES.map((typeOption) => (
@@ -111,8 +130,9 @@ export function TemplateElementRow({ element, isOpen, onToggle, onChange, onRemo
               {showValue && (
                 <Input
                   label={settingsTranslations("templates.elementValueLabel")}
-                  value={element.value ?? ""}
+                  value={templateElement.value ?? ""}
                   onChange={(event) => handleChange({ value: event.target.value })}
+                  onSelect={rememberCursorRange}
                   endContent={showVariablePicker ? (
                     <Tooltip
                       showArrow
@@ -122,7 +142,12 @@ export function TemplateElementRow({ element, isOpen, onToggle, onChange, onRemo
                       classNames={{ base: "before:rounded-none before:shadow-none shadow-none", content: "rounded-md border-none shadow-none" }}
                     >
                       <div>
-                        <TemplateVariablePicker onSelect={selectVariable} settingsTranslations={settingsTranslations} />
+                        <TemplateVariablePicker
+                          templateText={templateElement.value ?? ""}
+                          onSelect={selectVariable}
+                          onDeselect={deselectVariable}
+                          settingsTranslations={settingsTranslations}
+                        />
                       </div>
                     </Tooltip>
                   ) : null}
@@ -132,9 +157,9 @@ export function TemplateElementRow({ element, isOpen, onToggle, onChange, onRemo
               {showJustification && (
                 <Select
                   label={settingsTranslations("templates.justificationLabel")}
-                  selectedKeys={element.style?.justification ? [element.style.justification] : []}
+                  selectedKeys={templateElement.style?.justification ? [templateElement.style.justification] : []}
                   onChange={(event) => handleChange({
-                    style: { ...element.style, justification: event.target.value },
+                    style: { ...templateElement.style, justification: event.target.value },
                   })}
                 >
                   {JUSTIFICATIONS.map((justification) => (
@@ -148,9 +173,9 @@ export function TemplateElementRow({ element, isOpen, onToggle, onChange, onRemo
               {showFontSize && (
                 <Select
                   label={settingsTranslations("templates.fontSizeLabel")}
-                  selectedKeys={element.style?.fontSize ? [element.style.fontSize] : []}
+                  selectedKeys={templateElement.style?.fontSize ? [templateElement.style.fontSize] : []}
                   onChange={(event) => handleChange({
-                    style: { ...element.style, fontSize: event.target.value },
+                    style: { ...templateElement.style, fontSize: event.target.value },
                   })}
                 >
                   {FONT_SIZES.map((fontSize) => (
@@ -165,10 +190,10 @@ export function TemplateElementRow({ element, isOpen, onToggle, onChange, onRemo
                 <Button
                   isIconOnly
                   size="sm"
-                  variant={element.style?.bold ? "solid" : "bordered"}
-                  color={element.style?.bold ? "primary" : "default"}
+                  variant={templateElement.style?.bold ? "solid" : "bordered"}
+                  color={templateElement.style?.bold ? "primary" : "default"}
                   onPress={() => handleChange({
-                    style: { ...element.style, bold: !element.style?.bold },
+                    style: { ...templateElement.style, bold: !templateElement.style?.bold },
                   })}
                   aria-label={settingsTranslations("templates.boldToggle")}
                 >

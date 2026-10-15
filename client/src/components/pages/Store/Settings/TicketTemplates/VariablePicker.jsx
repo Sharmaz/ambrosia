@@ -1,7 +1,7 @@
 "use client";
 
 import { Button, Chip, Popover, PopoverContent, PopoverTrigger } from "@heroui/react";
-import { Braces } from "lucide-react";
+import { Braces, Check } from "lucide-react";
 
 const VARIABLE_GROUPS = [
   {
@@ -13,9 +13,17 @@ const VARIABLE_GROUPS = [
       { key: "{{config.businessEmail}}", label: "businessEmail" },
     ],
   },
+  {
+    group: "print",
+    variables: [
+      { key: "{{print.date}}", label: "printDate" },
+      { key: "{{print.time}}", label: "printTime" },
+      { key: "{{print.dateTime}}", label: "printDateTime" },
+    ],
+  },
 ];
 
-export function TemplateVariablePicker({ onSelect, settingsTranslations }) {
+export function TemplateVariablePicker({ templateText = "", onSelect, onDeselect, settingsTranslations }) {
   return (
     <Popover placement="bottom-end">
       <PopoverTrigger>
@@ -30,24 +38,32 @@ export function TemplateVariablePicker({ onSelect, settingsTranslations }) {
         </Button>
       </PopoverTrigger>
       <PopoverContent className="p-3 w-60">
-        <p className="mb-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">
-          {settingsTranslations("templates.variables.title")}
-        </p>
         {VARIABLE_GROUPS.map(({ group, variables }) => (
-          <div key={group} className="mb-3 last:mb-0">
+          <div key={group} className="mb-3 w-full last:mb-0">
+            <p className="mb-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+              {settingsTranslations(`templates.variables.groups.${group}`)}
+            </p>
             <div className="flex flex-wrap gap-1">
-              {variables.map(({ key, label }) => (
-                <Chip
-                  key={key}
-                  size="sm"
-                  variant="flat"
-                  color="primary"
-                  className="cursor-pointer bg-green-200 text-xs text-green-800 border border-green-300"
-                  onClick={() => onSelect(key)}
-                >
-                  {settingsTranslations(`templates.variables.${label}`)}
-                </Chip>
-              ))}
+              {variables.map(({ key, label }) => {
+                const isSelected = templateText.includes(key);
+                return (
+                  <Chip
+                    key={key}
+                    size="sm"
+                    variant="flat"
+                    color="primary"
+                    role="button"
+                    aria-pressed={isSelected}
+                    startContent={isSelected ? <Check className="w-3 h-3" /> : null}
+                    className={isSelected
+                      ? "cursor-pointer bg-green-800 text-xs text-white border border-green-800"
+                      : "cursor-pointer bg-green-200 text-xs text-green-800 border border-green-300"}
+                    onClick={() => (isSelected ? onDeselect(key) : onSelect(key))}
+                  >
+                    {settingsTranslations(`templates.variables.${label}`)}
+                  </Chip>
+                );
+              })}
             </div>
           </div>
         ))}

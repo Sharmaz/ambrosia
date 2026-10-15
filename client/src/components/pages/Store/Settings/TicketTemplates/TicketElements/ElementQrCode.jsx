@@ -17,17 +17,17 @@ const qrAlignmentClasses = {
   RIGHT: "items-end",
 };
 
-export function ElementQrCode({ value, config, fontSize, justification, className }) {
-  const qrValue = resolveValue(value || "", config) || sampleTicket.invoice;
+export function ElementQrCode({ templateText, businessConfig, printFormats, fontSize, justification, className }) {
+  const qrContent = resolveValue(templateText || "", businessConfig, printFormats) || sampleTicket.invoice;
   const widthClass = qrWidthClasses[fontSize] || qrWidthClasses.NORMAL;
   const alignmentClass = qrAlignmentClasses[justification] || qrAlignmentClasses.LEFT;
 
   return (
     <div className={`flex flex-col gap-2 ${alignmentClass} ${className}`}>
       <div className={widthClass} data-testid="qr-preview">
-        <QRCode value={qrValue} size={256} style={{ height: "auto", maxWidth: "100%", width: "100%" }} />
+        <QRCode value={qrContent} size={256} style={{ height: "auto", maxWidth: "100%", width: "100%" }} />
       </div>
-      <span className="break-all text-xs text-gray-500">{qrValue}</span>
+      <span className="break-all text-xs text-gray-500">{qrContent}</span>
     </div>
   );
 }

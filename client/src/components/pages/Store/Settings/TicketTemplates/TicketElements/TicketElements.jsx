@@ -29,54 +29,57 @@ function resolveAlignment(justification) {
   return "text-left";
 }
 
-export function TicketElementsPreview({ elements, config }) {
-  if (!Array.isArray(elements) || elements.length === 0) {
+export function TicketElementsPreview({ templateElements, businessConfig, printFormats }) {
+  if (!Array.isArray(templateElements) || templateElements.length === 0) {
     return null;
   }
 
-  return elements.flatMap((element) => {
-    const style = element.style || DEFAULT_STYLE;
+  return templateElements.flatMap((templateElement) => {
+    const style = templateElement.style || DEFAULT_STYLE;
     const className = [
       resolveAlignment(style.justification),
       fontSizeClasses[style.fontSize] || fontSizeClasses.NORMAL,
       style.bold ? "font-semibold" : "font-normal",
     ].join(" ");
 
-    if (element.type === "SEPARATOR") {
-      return [<ElementSeparator key={`${element.localId}-sep`} />];
+    if (templateElement.type === "SEPARATOR") {
+      return [<ElementSeparator key={`${templateElement.localId}-sep`} />];
     }
-    if (element.type === "LINE_BREAK") {
-      return [<ElementLineBreak key={`${element.localId}-break`} />];
+    if (templateElement.type === "LINE_BREAK") {
+      return [<ElementLineBreak key={`${templateElement.localId}-break`} />];
     }
-    if (element.type === "QRCODE") {
+    if (templateElement.type === "QRCODE") {
       return [
         <ElementQrCode
-          key={`${element.localId}-qr`}
-          value={element.value}
-          config={config}
+          key={`${templateElement.localId}-qr`}
+          templateText={templateElement.value}
+          businessConfig={businessConfig}
+          printFormats={printFormats}
           fontSize={style.fontSize}
           justification={style.justification}
           className={className}
         />,
       ];
     }
-    if (element.type === "TABLE_ROW") {
-      return ElementTableRow({ localId: element.localId, className });
+    if (templateElement.type === "TABLE_ROW") {
+      return ElementTableRow({ localId: templateElement.localId, className });
     }
-    if (element.type === "TOTAL_ROW") {
+    if (templateElement.type === "TOTAL_ROW") {
       return ElementTotalRow({
-        localId: element.localId,
-        value: element.value,
-        config,
+        localId: templateElement.localId,
+        templateText: templateElement.value,
+        businessConfig,
+        printFormats,
         className,
       });
     }
     return [
       <ElementText
-        key={element.localId}
-        localId={element.localId}
-        value={element.value}
-        config={config}
+        key={templateElement.localId}
+        localId={templateElement.localId}
+        templateText={templateElement.value}
+        businessConfig={businessConfig}
+        printFormats={printFormats}
         className={className}
       />,
     ];

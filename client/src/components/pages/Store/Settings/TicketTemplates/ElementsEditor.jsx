@@ -8,7 +8,7 @@ import { Button } from "@heroui/react";
 
 import { TemplateElementRow } from "./ElementRow";
 
-export function TemplateElementsEditor({ elements, onChange, onAdd, onReorder, onRemove, config, settingsTranslations }) {
+export function TemplateElementsEditor({ elements, onChange, onAdd, onReorder, onRemove, config, printFormats, settingsTranslations }) {
   const [openIds, setOpenIds] = useState(() => new Set());
 
   const sensors = useSensors(
@@ -66,12 +66,13 @@ export function TemplateElementsEditor({ elements, onChange, onAdd, onReorder, o
             {elements.map((element) => (
               <TemplateElementRow
                 key={element.localId}
-                element={element}
+                templateElement={element}
                 isOpen={openIds.has(element.localId)}
                 onToggle={() => handleToggle(element.localId)}
                 onChange={onChange}
                 onRemove={onRemove}
-                config={config}
+                businessConfig={config}
+                printFormats={printFormats}
                 settingsTranslations={settingsTranslations}
               />
             ))}
