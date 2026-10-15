@@ -2,6 +2,8 @@ package pos.ambrosia.utest
 
 import com.github.anastaciocintra.escpos.EscPos
 import com.github.anastaciocintra.escpos.Style
+import com.github.anastaciocintra.escpos.image.EscPosImage
+import com.github.anastaciocintra.escpos.image.ImageWrapperInterface
 import org.mockito.kotlin.any
 import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.eq
@@ -21,6 +23,7 @@ import pos.ambrosia.services.TicketFactory
 import pos.ambrosia.utils.formatTicketLine
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 class TicketFactoryTest {
     @Test
@@ -314,5 +317,67 @@ class TicketFactoryTest {
         ticketFactory.build(mockEscpos, ticketData, null)
 
         verify(mockEscpos).writeLF(any<Style>(), eq("Tip: 5.0"))
+    }
+
+    @Test
+    fun `build should print short QR content smaller as the size decreases`() {
+        val socialLink = "https://instagram.com/alice"
+
+        val normalWidthDots = printedQrWidthDots(socialLink, FontSize.NORMAL)
+        val largeWidthDots = printedQrWidthDots(socialLink, FontSize.LARGE)
+        val extraLargeWidthDots = printedQrWidthDots(socialLink, FontSize.EXTRA_LARGE)
+
+        assertTrue(normalWidthDots < 200)
+        assertTrue(normalWidthDots < largeWidthDots)
+        assertTrue(largeWidthDots < extraLargeWidthDots)
+    }
+
+    @Test
+    fun `build should keep long QR content readable and within the printable width`() {
+        val longContent = "lnbc".padEnd(2000, 'q')
+
+        val normalWidthDots = printedQrWidthDots(longContent, FontSize.NORMAL)
+        val extraLargeWidthDots = printedQrWidthDots(longContent, FontSize.EXTRA_LARGE)
+
+        assertTrue(normalWidthDots > 320)
+        assertTrue(extraLargeWidthDots <= 576)
+    }
+
+    private fun printedQrWidthDots(
+        qrContent: String,
+        fontSize: FontSize,
+    ): Int {
+        val mockEscpos: EscPos = mock()
+        val imageCaptor = argumentCaptor<EscPosImage>()
+        val template =
+            TicketTemplate(
+                id = "template-qr",
+                name = "QR Template",
+                elements =
+                    listOf(
+                        TicketElement(
+                            id = "elem-qr",
+                            templateId = "template-qr",
+                            order = 0,
+                            type = ElementType.QRCODE,
+                            value = qrContent,
+                            style = ElementStyle(fontSize = fontSize),
+                        ),
+                    ),
+            )
+        val ticketData =
+            TicketData(
+                ticketId = "qr-001",
+                tableName = "Table 1",
+                roomName = "Main Room",
+                date = "2026-10-15",
+                items = emptyList(),
+                total = 0.0,
+            )
+
+        TicketFactory(template).build(mockEscpos, ticketData, null)
+
+        verify(mockEscpos).write(any<ImageWrapperInterface<*>>(), imageCaptor.capture())
+        return imageCaptor.firstValue.widthOfImageInBits
     }
 }
