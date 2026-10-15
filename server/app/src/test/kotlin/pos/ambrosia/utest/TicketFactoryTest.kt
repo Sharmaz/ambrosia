@@ -88,7 +88,7 @@ class TicketFactoryTest {
     }
 
     @Test
-    fun `build should reset the printer before printing the template elements`() {
+    fun `build should pad and reset the printer before printing the template elements`() {
         val mockEscpos: EscPos = mock()
         val ticketTemplate =
             TicketTemplate(
@@ -118,6 +118,7 @@ class TicketFactoryTest {
         TicketFactory(ticketTemplate).build(mockEscpos, ticketData, null)
 
         inOrder(mockEscpos) {
+            verify(mockEscpos).write(eq(ByteArray(TicketFactory.JOB_START_PADDING_BYTES)), eq(0), eq(TicketFactory.JOB_START_PADDING_BYTES))
             verify(mockEscpos).initializePrinter()
             verify(mockEscpos).writeLF(any<Style>(), eq("alice"))
         }
