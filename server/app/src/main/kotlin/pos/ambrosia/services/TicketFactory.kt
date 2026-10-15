@@ -32,6 +32,7 @@ import java.util.Locale
 class TicketFactory(
     private val template: TicketTemplate,
     private val clock: Clock = Clock.systemUTC(),
+    private val logoLoader: TicketLogoLoader? = null,
 ) {
     companion object {
         const val DEFAULT_TICKET_WIDTH = 48
@@ -49,6 +50,12 @@ class TicketFactory(
                 ImageSize.SMALL to 160,
                 ImageSize.MEDIUM to 240,
                 ImageSize.LARGE to 320,
+            )
+        private val LOGO_TARGET_WIDTH_DOTS =
+            mapOf(
+                FontSize.NORMAL to 192,
+                FontSize.LARGE to 288,
+                FontSize.EXTRA_LARGE to 384,
             )
         private const val QR_MIN_DOTS_PER_MODULE = 3
         private const val PRINTABLE_WIDTH_DOTS = 576
@@ -106,6 +113,13 @@ class TicketFactory(
                     }
                 }
 
+                ElementType.LOGO -> {
+                    val storedLogoUrl = element.value.ifBlank { config?.businessLogoUrl.orEmpty() }
+                    if (storedLogoUrl.isNotBlank()) {
+                        writeLogo(escpos, storedLogoUrl, element.style)
+                    }
+                }
+
                 else -> {
                     escpos.writeLF(style, content)
                 }
@@ -138,22 +152,46 @@ class TicketFactory(
                     image.setRGB(pixelX, pixelY, if (isDarkModule) 0x000000 else 0xFFFFFF)
                 }
             }
-            val escPosImage = EscPosImage(CoffeeImageImpl(image), BitonalThreshold())
-            val wrapper = RasterBitImageWrapper()
-            wrapper.setJustification(
-                when (elementStyle?.justification ?: Justification.LEFT) {
-                    Justification.LEFT -> EscPosConst.Justification.Left_Default
-                    Justification.CENTER -> EscPosConst.Justification.Center
-                    Justification.RIGHT -> EscPosConst.Justification.Right
-                },
-            )
-            escpos.write(wrapper, escPosImage)
-            escpos.feed(1)
+            writeRasterImage(escpos, image, elementStyle?.justification ?: Justification.LEFT)
         } catch (e: Exception) {
             logger.error("Failed to print QR image: ${e.message}", e)
             val fallbackStyle = convertToEscPosStyle(elementStyle)
             escpos.writeLF(fallbackStyle, content)
         }
+    }
+
+    private fun writeLogo(
+        escpos: EscPos,
+        storedLogoUrl: String,
+        elementStyle: ElementStyle?,
+    ) {
+        val targetWidthDots = LOGO_TARGET_WIDTH_DOTS.getValue(elementStyle?.fontSize ?: FontSize.NORMAL)
+        val logoImage =
+            try {
+                logoLoader?.loadScaledLogo(storedLogoUrl, targetWidthDots)
+            } catch (e: Exception) {
+                logger.error("Failed to load logo image: ${e.message}", e)
+                null
+            } ?: return
+        writeRasterImage(escpos, logoImage, elementStyle?.justification ?: Justification.LEFT)
+    }
+
+    private fun writeRasterImage(
+        escpos: EscPos,
+        image: BufferedImage,
+        justification: Justification,
+    ) {
+        val escPosImage = EscPosImage(CoffeeImageImpl(image), BitonalThreshold())
+        val wrapper = RasterBitImageWrapper()
+        wrapper.setJustification(
+            when (justification) {
+                Justification.LEFT -> EscPosConst.Justification.Left_Default
+                Justification.CENTER -> EscPosConst.Justification.Center
+                Justification.RIGHT -> EscPosConst.Justification.Right
+            },
+        )
+        escpos.write(wrapper, escPosImage)
+        escpos.feed(1)
     }
 
     private fun resolveQrDotsPerModule(

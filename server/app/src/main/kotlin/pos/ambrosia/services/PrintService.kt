@@ -2,6 +2,7 @@ package pos.ambrosia.services
 
 import com.github.anastaciocintra.escpos.EscPos
 import com.github.anastaciocintra.output.PrinterOutputStream
+import pos.ambrosia.datadir
 import pos.ambrosia.logger
 import pos.ambrosia.models.Config
 import pos.ambrosia.models.PrintRequest
@@ -9,10 +10,12 @@ import pos.ambrosia.models.PrinterType
 import pos.ambrosia.models.TicketData
 import pos.ambrosia.models.TicketTemplate
 import java.io.IOException
+import java.nio.file.Paths
 
 class PrintService(
     private val ticketTemplateService: TicketTemplateService,
     private val printerConfigService: PrinterConfigService,
+    private val logoLoader: TicketLogoLoader = TicketLogoLoader(Paths.get(datadir.toString(), "uploads")),
 ) {
     fun getAvailablePrinters(): Array<String> {
         val printerNames = PrinterOutputStream.getListPrintServicesNames()
@@ -106,7 +109,7 @@ class PrintService(
                 val printerOutputStream = PrinterOutputStream(printerService)
                 val escpos = EscPos(printerOutputStream)
                 escpos.setCharsetName(TicketFactory.DEFAULT_CHARSET)
-                val ticketFactory = TicketFactory(template)
+                val ticketFactory = TicketFactory(template, logoLoader = logoLoader)
                 ticketFactory.build(escpos, request.ticketData, config)
                 escpos.feed(TicketFactory.DEFAULT_FEED_LINES).cut(EscPos.CutMode.FULL)
                 escpos.close()

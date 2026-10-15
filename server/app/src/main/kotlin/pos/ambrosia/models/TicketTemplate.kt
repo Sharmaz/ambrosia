@@ -59,6 +59,7 @@ enum class ElementType {
     TOTAL_ROW,
     FOOTER,
     QRCODE,
+    LOGO,
 }
 
 @Serializable
