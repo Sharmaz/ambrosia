@@ -6,6 +6,7 @@ import com.github.anastaciocintra.escpos.image.EscPosImage
 import com.github.anastaciocintra.escpos.image.ImageWrapperInterface
 import org.mockito.kotlin.any
 import org.mockito.kotlin.argumentCaptor
+import org.mockito.kotlin.atMost
 import org.mockito.kotlin.eq
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.times
@@ -22,12 +23,18 @@ import pos.ambrosia.models.TicketElement
 import pos.ambrosia.models.TicketTemplate
 import pos.ambrosia.models.TicketTimeFormat
 import pos.ambrosia.services.TicketFactory
+import pos.ambrosia.services.TicketLogoLoader
 import pos.ambrosia.utils.formatTicketLine
+import java.awt.image.BufferedImage
+import java.nio.file.Files
 import java.time.Clock
 import java.time.Instant
 import java.time.ZoneOffset
+import javax.imageio.ImageIO
+import kotlin.io.path.createDirectories
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class TicketFactoryTest {
@@ -441,6 +448,99 @@ class TicketFactoryTest {
 
         verify(mockEscpos).writeLF(any<Style>(), printedLineCaptor.capture())
         return printedLineCaptor.firstValue
+    }
+
+    @Test
+    fun `build should print the business logo when the logo element has no image`() {
+        val printedWidthDots =
+            printedLogoWidthDots(
+                templateText = "",
+                fontSize = FontSize.NORMAL,
+                businessLogoUrl = "/uploads/2026-10/alice.png",
+            )
+
+        assertEquals(192, printedWidthDots)
+    }
+
+    @Test
+    fun `build should print the chosen logo image with the selected size`() {
+        val printedWidthDots =
+            printedLogoWidthDots(
+                templateText = "/uploads/2026-10/bob.png",
+                fontSize = FontSize.EXTRA_LARGE,
+                businessLogoUrl = "/uploads/2026-10/alice.png",
+            )
+
+        assertEquals(384, printedWidthDots)
+    }
+
+    @Test
+    fun `build should skip the logo element when there is no logo to print`() {
+        val printedWidthDots =
+            printedLogoWidthDots(
+                templateText = "",
+                fontSize = FontSize.NORMAL,
+                businessLogoUrl = null,
+            )
+
+        assertNull(printedWidthDots)
+    }
+
+    private fun printedLogoWidthDots(
+        templateText: String,
+        fontSize: FontSize,
+        businessLogoUrl: String?,
+    ): Int? {
+        val dataFolder = Files.createTempDirectory("ambrosia-factory-logo-test")
+        try {
+            val uploadRoot = dataFolder.resolve("uploads").createDirectories()
+            val logoFolder = uploadRoot.resolve("2026-10").createDirectories()
+            ImageIO.write(BufferedImage(100, 50, BufferedImage.TYPE_INT_RGB), "png", logoFolder.resolve("alice.png").toFile())
+            ImageIO.write(BufferedImage(200, 100, BufferedImage.TYPE_INT_RGB), "png", logoFolder.resolve("bob.png").toFile())
+            val mockEscpos: EscPos = mock()
+            val imageCaptor = argumentCaptor<EscPosImage>()
+            val template =
+                TicketTemplate(
+                    id = "template-logo",
+                    name = "Logo Template",
+                    elements =
+                        listOf(
+                            TicketElement(
+                                id = "elem-logo",
+                                templateId = "template-logo",
+                                order = 0,
+                                type = ElementType.LOGO,
+                                value = templateText,
+                                style = ElementStyle(fontSize = fontSize),
+                            ),
+                        ),
+                )
+            val ticketData =
+                TicketData(
+                    ticketId = "logo-001",
+                    tableName = "Table 1",
+                    roomName = "Main Room",
+                    date = "2026-10-15",
+                    items = emptyList(),
+                    total = 0.0,
+                )
+            val config =
+                Config(
+                    businessName = "alice",
+                    businessAddress = null,
+                    businessPhone = null,
+                    businessEmail = null,
+                    businessTaxId = null,
+                    businessLogoUrl = businessLogoUrl,
+                )
+
+            TicketFactory(template, logoLoader = TicketLogoLoader(uploadRoot)).build(mockEscpos, ticketData, config)
+
+            verify(mockEscpos, atMost(1)).write(any<ImageWrapperInterface<*>>(), imageCaptor.capture())
+            return imageCaptor.allValues.firstOrNull()?.widthOfImageInBits
+        } finally {
+            dataFolder.toFile().deleteRecursively()
+        }
     }
 
     private fun printedQrWidthDots(

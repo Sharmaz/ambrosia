@@ -40,6 +40,22 @@ class TicketTemplateMigrationsTest {
     }
 
     @Test
+    fun `V55 allows LOGO elements and preserves existing elements`() {
+        withTicketTemplateDatabase { statement ->
+            applyMigration(statement, "V11__ticket_template.sql")
+            applyMigration(statement, "V14__ticket_template_qrcode.sql")
+            applyMigration(statement, "V53__ticket_template_total_row.sql")
+            statement.execute("INSERT INTO ticket_templates (id, name) VALUES (X'01', 'alice')")
+            statement.execute(insertElementSql(elementId = "02", type = "TOTAL_ROW"))
+
+            applyMigration(statement, "V55__ticket_template_logo.sql")
+            statement.execute(insertElementSql(elementId = "03", type = "LOGO"))
+
+            assertEquals(listOf("TOTAL_ROW", "LOGO"), storedElementTypes(statement))
+        }
+    }
+
+    @Test
     fun `V54 gives existing templates the default date and time formats`() {
         withTicketTemplateDatabase { statement ->
             applyMigration(statement, "V11__ticket_template.sql")
