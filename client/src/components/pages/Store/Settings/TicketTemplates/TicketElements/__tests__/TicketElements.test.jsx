@@ -14,38 +14,38 @@ const sampleConfig = {
   businessEmail: "contact@ambrosia.mx",
 };
 
-function Preview({ elements, config }) {
-  return <div>{TicketElementsPreview({ elements, config })}</div>;
+function Preview({ templateElements, businessConfig }) {
+  return <div>{TicketElementsPreview({ templateElements, businessConfig })}</div>;
 }
 
 describe("TicketElementsPreview", () => {
   it("returns null for non-array input", () => {
-    const { container } = render(<Preview elements={null} config={null} />);
+    const { container } = render(<Preview templateElements={null} businessConfig={null} />);
     expect(container.firstChild.children).toHaveLength(0);
   });
 
   it("returns null for empty elements", () => {
-    const { container } = render(<Preview elements={[]} config={null} />);
+    const { container } = render(<Preview templateElements={[]} businessConfig={null} />);
     expect(container.firstChild.children).toHaveLength(0);
   });
 
   it("renders SEPARATOR as a dashed horizontal line", () => {
     const { container } = render(
-      <Preview elements={[{ localId: "s-1", type: "SEPARATOR", style: {} }]} config={null} />,
+      <Preview templateElements={[{ localId: "s-1", type: "SEPARATOR", style: {} }]} businessConfig={null} />,
     );
     expect(container.querySelector(".border-dashed")).toBeInTheDocument();
   });
 
   it("renders LINE_BREAK as a spacer", () => {
     const { container } = render(
-      <Preview elements={[{ localId: "b-1", type: "LINE_BREAK", style: {} }]} config={null} />,
+      <Preview templateElements={[{ localId: "b-1", type: "LINE_BREAK", style: {} }]} businessConfig={null} />,
     );
     expect(container.querySelector(".h-3")).toBeInTheDocument();
   });
 
   it("renders QRCODE with a QR code and invoice fallback", () => {
     render(
-      <Preview elements={[{ localId: "q-1", type: "QRCODE", value: "", style: {} }]} config={null} />,
+      <Preview templateElements={[{ localId: "q-1", type: "QRCODE", value: "", style: {} }]} businessConfig={null} />,
     );
     expect(screen.getByTestId("qr-code")).toBeInTheDocument();
     expect(screen.getByText("lnbc10u1p0exampleinvoice")).toBeInTheDocument();
@@ -54,13 +54,13 @@ describe("TicketElementsPreview", () => {
   it("renders QRCODE with the selected size and alignment", () => {
     render(
       <Preview
-        elements={[{
+        templateElements={[{
           localId: "q-3",
           type: "QRCODE",
           value: "https://instagram.com/bob",
           style: { fontSize: "EXTRA_LARGE", justification: "RIGHT" },
         }]}
-        config={null}
+        businessConfig={null}
       />,
     );
     const qrPreview = screen.getByTestId("qr-preview");
@@ -71,8 +71,8 @@ describe("TicketElementsPreview", () => {
   it("renders QRCODE with resolved value when provided", () => {
     render(
       <Preview
-        elements={[{ localId: "q-2", type: "QRCODE", value: "{{config.businessName}}", style: {} }]}
-        config={sampleConfig}
+        templateElements={[{ localId: "q-2", type: "QRCODE", value: "{{config.businessName}}", style: {} }]}
+        businessConfig={sampleConfig}
       />,
     );
     expect(screen.getByText("Ambrosia")).toBeInTheDocument();
@@ -80,7 +80,7 @@ describe("TicketElementsPreview", () => {
 
   it("renders TABLE_ROW with sample ticket items and comments", () => {
     render(
-      <Preview elements={[{ localId: "t-1", type: "TABLE_ROW", style: {} }]} config={null} />,
+      <Preview templateElements={[{ localId: "t-1", type: "TABLE_ROW", style: {} }]} businessConfig={null} />,
     );
     expect(screen.getByText("2x Burger")).toBeInTheDocument();
     expect(screen.getByText("1x Lemonade")).toBeInTheDocument();
@@ -89,7 +89,7 @@ describe("TicketElementsPreview", () => {
 
   it("renders TOTAL_ROW with separator, label and total", () => {
     const { container } = render(
-      <Preview elements={[{ localId: "r-1", type: "TOTAL_ROW", value: "", style: {} }]} config={null} />,
+      <Preview templateElements={[{ localId: "r-1", type: "TOTAL_ROW", value: "", style: {} }]} businessConfig={null} />,
     );
     expect(screen.getByText("TOTAL")).toBeInTheDocument();
     expect(screen.getByText("215")).toBeInTheDocument();
@@ -99,8 +99,8 @@ describe("TicketElementsPreview", () => {
   it("renders TOTAL_ROW with resolved label", () => {
     render(
       <Preview
-        elements={[{ localId: "r-2", type: "TOTAL_ROW", value: "{{config.businessName}}", style: {} }]}
-        config={sampleConfig}
+        templateElements={[{ localId: "r-2", type: "TOTAL_ROW", value: "{{config.businessName}}", style: {} }]}
+        businessConfig={sampleConfig}
       />,
     );
     expect(screen.getByText("Ambrosia")).toBeInTheDocument();
@@ -109,8 +109,8 @@ describe("TicketElementsPreview", () => {
   it("renders TEXT with resolved value", () => {
     render(
       <Preview
-        elements={[{ localId: "tx-1", type: "TEXT", value: "{{config.businessName}}", style: {} }]}
-        config={sampleConfig}
+        templateElements={[{ localId: "tx-1", type: "TEXT", value: "{{config.businessName}}", style: {} }]}
+        businessConfig={sampleConfig}
       />,
     );
     expect(screen.getByText("Ambrosia")).toBeInTheDocument();
@@ -119,8 +119,8 @@ describe("TicketElementsPreview", () => {
   it("applies bold style", () => {
     const { container } = render(
       <Preview
-        elements={[{ localId: "tx-2", type: "TEXT", value: "Bold", style: { bold: true, justification: "LEFT", fontSize: "NORMAL" } }]}
-        config={null}
+        templateElements={[{ localId: "tx-2", type: "TEXT", value: "Bold", style: { bold: true, justification: "LEFT", fontSize: "NORMAL" } }]}
+        businessConfig={null}
       />,
     );
     expect(container.querySelector(".font-semibold")).toBeInTheDocument();
@@ -129,8 +129,8 @@ describe("TicketElementsPreview", () => {
   it("applies center alignment", () => {
     const { container } = render(
       <Preview
-        elements={[{ localId: "tx-3", type: "TEXT", value: "C", style: { bold: false, justification: "CENTER", fontSize: "NORMAL" } }]}
-        config={null}
+        templateElements={[{ localId: "tx-3", type: "TEXT", value: "C", style: { bold: false, justification: "CENTER", fontSize: "NORMAL" } }]}
+        businessConfig={null}
       />,
     );
     expect(container.querySelector(".text-center")).toBeInTheDocument();
@@ -139,8 +139,8 @@ describe("TicketElementsPreview", () => {
   it("applies right alignment", () => {
     const { container } = render(
       <Preview
-        elements={[{ localId: "tx-4", type: "TEXT", value: "R", style: { bold: false, justification: "RIGHT", fontSize: "NORMAL" } }]}
-        config={null}
+        templateElements={[{ localId: "tx-4", type: "TEXT", value: "R", style: { bold: false, justification: "RIGHT", fontSize: "NORMAL" } }]}
+        businessConfig={null}
       />,
     );
     expect(container.querySelector(".text-right")).toBeInTheDocument();
@@ -149,8 +149,8 @@ describe("TicketElementsPreview", () => {
   it("applies LARGE font size", () => {
     const { container } = render(
       <Preview
-        elements={[{ localId: "tx-5", type: "TEXT", value: "L", style: { bold: false, justification: "LEFT", fontSize: "LARGE" } }]}
-        config={null}
+        templateElements={[{ localId: "tx-5", type: "TEXT", value: "L", style: { bold: false, justification: "LEFT", fontSize: "LARGE" } }]}
+        businessConfig={null}
       />,
     );
     expect(container.querySelector(".text-base")).toBeInTheDocument();
@@ -159,8 +159,8 @@ describe("TicketElementsPreview", () => {
   it("applies EXTRA_LARGE font size", () => {
     const { container } = render(
       <Preview
-        elements={[{ localId: "tx-6", type: "TEXT", value: "XL", style: { bold: false, justification: "LEFT", fontSize: "EXTRA_LARGE" } }]}
-        config={null}
+        templateElements={[{ localId: "tx-6", type: "TEXT", value: "XL", style: { bold: false, justification: "LEFT", fontSize: "EXTRA_LARGE" } }]}
+        businessConfig={null}
       />,
     );
     expect(container.querySelector(".text-lg")).toBeInTheDocument();
@@ -168,7 +168,7 @@ describe("TicketElementsPreview", () => {
 
   it("falls back to DEFAULT_STYLE when no style is provided", () => {
     const { container } = render(
-      <Preview elements={[{ localId: "tx-7", type: "TEXT", value: "No style" }]} config={null} />,
+      <Preview templateElements={[{ localId: "tx-7", type: "TEXT", value: "No style" }]} businessConfig={null} />,
     );
     expect(container.querySelector(".text-left")).toBeInTheDocument();
     expect(container.querySelector(".font-normal")).toBeInTheDocument();

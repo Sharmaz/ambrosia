@@ -8,10 +8,10 @@ jest.mock("@heroui/react", () => ({
       {children}
     </button>
   ),
-  Input: ({ label, value, onChange, endContent }) => (
+  Input: ({ label, value, onChange, onSelect, endContent }) => (
     <label>
       {label}
-      <input aria-label={label} value={value ?? ""} onChange={onChange} />
+      <input aria-label={label} value={value ?? ""} onChange={onChange} onSelect={onSelect} />
       {endContent}
     </label>
   ),
@@ -42,14 +42,23 @@ jest.mock("@components/shared/DeleteButton", () => ({
 }));
 
 jest.mock("../VariablePicker", () => ({
-  TemplateVariablePicker: ({ onSelect }) => (
-    <button
-      type="button"
-      data-testid="variable-picker"
-      onClick={() => onSelect("{{config.businessName}}")}
-    >
-      picker
-    </button>
+  TemplateVariablePicker: ({ onSelect, onDeselect }) => (
+    <>
+      <button
+        type="button"
+        data-testid="variable-picker"
+        onClick={() => onSelect("{{config.businessName}}")}
+      >
+        picker
+      </button>
+      <button
+        type="button"
+        data-testid="variable-deselect"
+        onClick={() => onDeselect("{{print.date}}")}
+      >
+        deselect
+      </button>
+    </>
   ),
 }));
 
@@ -70,7 +79,7 @@ jest.mock("@dnd-kit/utilities", () => ({
 
 const settingsTranslations = (key) => key;
 
-const element = {
+const textTemplateElement = {
   localId: "el-1",
   type: "TEXT",
   value: "",
@@ -84,12 +93,12 @@ describe("TemplateElementRow", () => {
 
     render(
       <TemplateElementRow
-        element={element}
+        templateElement={textTemplateElement}
         isOpen
         onToggle={jest.fn()}
         onChange={onChange}
         onRemove={onRemove}
-        config={null}
+        businessConfig={null}
         settingsTranslations={settingsTranslations}
       />,
     );
@@ -97,33 +106,33 @@ describe("TemplateElementRow", () => {
     fireEvent.change(screen.getByLabelText("templates.elementValueLabel"), {
       target: { value: "Hello" },
     });
-    expect(onChange).toHaveBeenCalledWith({ ...element, value: "Hello" });
+    expect(onChange).toHaveBeenCalledWith({ ...textTemplateElement, value: "Hello" });
 
     fireEvent.change(screen.getByLabelText("templates.elementTypeLabel"), {
       target: { value: "HEADER" },
     });
-    expect(onChange).toHaveBeenCalledWith({ ...element, type: "HEADER" });
+    expect(onChange).toHaveBeenCalledWith({ ...textTemplateElement, type: "HEADER" });
 
     fireEvent.change(screen.getByLabelText("templates.justificationLabel"), {
       target: { value: "RIGHT" },
     });
     expect(onChange).toHaveBeenCalledWith({
-      ...element,
-      style: { ...element.style, justification: "RIGHT" },
+      ...textTemplateElement,
+      style: { ...textTemplateElement.style, justification: "RIGHT" },
     });
 
     fireEvent.change(screen.getByLabelText("templates.fontSizeLabel"), {
       target: { value: "LARGE" },
     });
     expect(onChange).toHaveBeenCalledWith({
-      ...element,
-      style: { ...element.style, fontSize: "LARGE" },
+      ...textTemplateElement,
+      style: { ...textTemplateElement.style, fontSize: "LARGE" },
     });
 
     fireEvent.click(screen.getByRole("button", { name: "templates.boldToggle" }));
     expect(onChange).toHaveBeenCalledWith({
-      ...element,
-      style: { ...element.style, bold: true },
+      ...textTemplateElement,
+      style: { ...textTemplateElement.style, bold: true },
     });
 
     fireEvent.click(screen.getByTestId("delete-button"));
@@ -135,12 +144,12 @@ describe("TemplateElementRow", () => {
 
     render(
       <TemplateElementRow
-        element={element}
+        templateElement={textTemplateElement}
         isOpen={false}
         onToggle={onToggle}
         onChange={jest.fn()}
         onRemove={jest.fn()}
-        config={null}
+        businessConfig={null}
         settingsTranslations={settingsTranslations}
       />,
     );
@@ -154,12 +163,12 @@ describe("TemplateElementRow", () => {
   it("hides value and style controls for line breaks", () => {
     render(
       <TemplateElementRow
-        element={{ localId: "el-2", type: "LINE_BREAK", value: "", style: {} }}
+        templateElement={{ localId: "el-2", type: "LINE_BREAK", value: "", style: {} }}
         isOpen
         onToggle={jest.fn()}
         onChange={jest.fn()}
         onRemove={jest.fn()}
-        config={null}
+        businessConfig={null}
         settingsTranslations={settingsTranslations}
       />,
     );
@@ -174,12 +183,12 @@ describe("TemplateElementRow", () => {
     (type) => {
       render(
         <TemplateElementRow
-          element={{ localId: "el-3", type, value: "", style: {} }}
+          templateElement={{ localId: "el-3", type, value: "", style: {} }}
           isOpen
           onToggle={jest.fn()}
           onChange={jest.fn()}
           onRemove={jest.fn()}
-          config={null}
+          businessConfig={null}
           settingsTranslations={settingsTranslations}
         />,
       );
@@ -192,12 +201,12 @@ describe("TemplateElementRow", () => {
     (type) => {
       render(
         <TemplateElementRow
-          element={{ localId: "el-4", type, value: "", style: {} }}
+          templateElement={{ localId: "el-4", type, value: "", style: {} }}
           isOpen
           onToggle={jest.fn()}
           onChange={jest.fn()}
           onRemove={jest.fn()}
-          config={null}
+          businessConfig={null}
           settingsTranslations={settingsTranslations}
         />,
       );
@@ -205,22 +214,63 @@ describe("TemplateElementRow", () => {
     },
   );
 
-  it("selecting a variable replaces the entire input value", () => {
+  it("selecting a variable appends it when the cursor was never placed", () => {
     const onChange = jest.fn();
     render(
       <TemplateElementRow
-        element={{ localId: "el-5", type: "TEXT", value: "old value", style: {} }}
+        templateElement={{ localId: "el-5", type: "TEXT", value: "Welcome to", style: {} }}
         isOpen
         onToggle={jest.fn()}
         onChange={onChange}
         onRemove={jest.fn()}
-        config={null}
+        businessConfig={null}
         settingsTranslations={settingsTranslations}
       />,
     );
     fireEvent.click(screen.getByTestId("variable-picker"));
     expect(onChange).toHaveBeenCalledWith(
-      expect.objectContaining({ value: "{{config.businessName}}" }),
+      expect.objectContaining({ value: "Welcome to {{config.businessName}}" }),
+    );
+  });
+
+  it("deselecting a variable removes every occurrence from the value", () => {
+    const onChange = jest.fn();
+    render(
+      <TemplateElementRow
+        templateElement={{ localId: "el-7", type: "TEXT", value: "{{print.date}} {{print.date}} {{print.time}}", style: {} }}
+        isOpen
+        onToggle={jest.fn()}
+        onChange={onChange}
+        onRemove={jest.fn()}
+        businessConfig={null}
+        settingsTranslations={settingsTranslations}
+      />,
+    );
+    fireEvent.click(screen.getByTestId("variable-deselect"));
+    expect(onChange).toHaveBeenCalledWith(
+      expect.objectContaining({ value: "{{print.time}}" }),
+    );
+  });
+
+  it("selecting a variable inserts it at the cursor", () => {
+    const onChange = jest.fn();
+    render(
+      <TemplateElementRow
+        templateElement={{ localId: "el-6", type: "TEXT", value: "Hi alice!", style: {} }}
+        isOpen
+        onToggle={jest.fn()}
+        onChange={onChange}
+        onRemove={jest.fn()}
+        businessConfig={null}
+        settingsTranslations={settingsTranslations}
+      />,
+    );
+    const valueInput = screen.getByLabelText("templates.elementValueLabel");
+    valueInput.setSelectionRange(3, 8);
+    fireEvent.select(valueInput);
+    fireEvent.click(screen.getByTestId("variable-picker"));
+    expect(onChange).toHaveBeenCalledWith(
+      expect.objectContaining({ value: "Hi {{config.businessName}}!" }),
     );
   });
 });
