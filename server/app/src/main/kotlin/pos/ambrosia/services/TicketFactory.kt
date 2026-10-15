@@ -38,6 +38,7 @@ class TicketFactory(
         const val DEFAULT_TICKET_WIDTH = 48
         const val DEFAULT_FEED_LINES = 5
         const val DEFAULT_CHARSET = "cp850"
+        private val SEPARATOR_LINE = "-".repeat(DEFAULT_TICKET_WIDTH)
 
         private val QR_IMAGE_SIZE_BY_FONT_SIZE =
             mapOf(
@@ -75,7 +76,7 @@ class TicketFactory(
 
             when (templateElement.type) {
                 ElementType.SEPARATOR -> {
-                    escpos.writeLF(escPosStyle, resolvedContent.repeat(DEFAULT_TICKET_WIDTH))
+                    escpos.writeLF(escPosStyle, SEPARATOR_LINE)
                 }
 
                 ElementType.TABLE_HEADER -> {
@@ -96,7 +97,7 @@ class TicketFactory(
 
                 ElementType.TOTAL_ROW -> {
                     val totalLabel = resolvedContent.ifEmpty { "TOTAL" }
-                    escpos.writeLF(escPosStyle, "-".repeat(DEFAULT_TICKET_WIDTH))
+                    escpos.writeLF(escPosStyle, SEPARATOR_LINE)
                     if (ticketData.discountAmount > 0) {
                         val discountRow = formatTicketLine("DISCOUNT", "-${ticketData.discountAmount}")
                         escpos.writeLF(escPosStyle, discountRow)
