@@ -159,23 +159,23 @@ describe("TicketElementsPreview", () => {
   });
 
   it("applies LARGE font size", () => {
-    const { container: previewContainer } = render(
+    render(
       <Preview
         templateElements={[{ localId: "tx-5", type: "TEXT", value: "L", style: { bold: false, justification: "LEFT", fontSize: "LARGE" } }]}
         businessConfig={null}
       />,
     );
-    expect(previewContainer.querySelector(".text-base")).toBeInTheDocument();
+    expect(screen.getByText("L")).toHaveClass("text-[length:calc(100cqw/14.5)]");
   });
 
   it("applies EXTRA_LARGE font size", () => {
-    const { container: previewContainer } = render(
+    render(
       <Preview
         templateElements={[{ localId: "tx-6", type: "TEXT", value: "XL", style: { bold: false, justification: "LEFT", fontSize: "EXTRA_LARGE" } }]}
         businessConfig={null}
       />,
     );
-    expect(previewContainer.querySelector(".text-lg")).toBeInTheDocument();
+    expect(screen.getByText("XL")).toHaveClass("text-[length:calc(100cqw/9.7)]");
   });
 
   it("falls back to DEFAULT_STYLE when no style is provided", () => {
@@ -184,6 +184,6 @@ describe("TicketElementsPreview", () => {
     );
     expect(previewContainer.querySelector(".text-left")).toBeInTheDocument();
     expect(previewContainer.querySelector(".font-normal")).toBeInTheDocument();
-    expect(previewContainer.querySelector(".text-sm")).toBeInTheDocument();
+    expect(screen.getByText("No style")).toHaveClass("text-[length:calc(100cqw/29)]");
   });
 });
