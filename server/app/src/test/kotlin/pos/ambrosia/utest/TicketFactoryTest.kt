@@ -17,10 +17,15 @@ import pos.ambrosia.models.FontSize
 import pos.ambrosia.models.Justification
 import pos.ambrosia.models.TicketData
 import pos.ambrosia.models.TicketDataItem
+import pos.ambrosia.models.TicketDateFormat
 import pos.ambrosia.models.TicketElement
 import pos.ambrosia.models.TicketTemplate
+import pos.ambrosia.models.TicketTimeFormat
 import pos.ambrosia.services.TicketFactory
 import pos.ambrosia.utils.formatTicketLine
+import java.time.Clock
+import java.time.Instant
+import java.time.ZoneOffset
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -341,6 +346,101 @@ class TicketFactoryTest {
 
         assertTrue(normalWidthDots > 320)
         assertTrue(extraLargeWidthDots <= 576)
+    }
+
+    @Test
+    fun `build should resolve print date and time in the business timezone`() {
+        val printedLine =
+            printedTextLine(
+                value = "{{print.date}} {{print.time}}",
+                dateFormat = TicketDateFormat.DAY_MONTH_YEAR,
+                timeFormat = TicketTimeFormat.HOURS_24,
+            )
+
+        assertEquals("15/10/2026 21:30", printedLine)
+    }
+
+    @Test
+    fun `build should resolve print date and time with the template formats`() {
+        assertEquals(
+            "10/15/2026 9:30 PM",
+            printedTextLine(
+                value = "{{print.date}} {{print.time}}",
+                dateFormat = TicketDateFormat.MONTH_DAY_YEAR,
+                timeFormat = TicketTimeFormat.HOURS_12,
+            ),
+        )
+        assertEquals(
+            "2026-10-15",
+            printedTextLine(
+                value = "{{print.date}}",
+                dateFormat = TicketDateFormat.YEAR_MONTH_DAY,
+                timeFormat = TicketTimeFormat.HOURS_24,
+            ),
+        )
+    }
+
+    @Test
+    fun `build should resolve the combined print date and time`() {
+        assertEquals(
+            "Printed: 15/10/2026 9:30 PM",
+            printedTextLine(
+                value = "Printed: {{print.dateTime}}",
+                dateFormat = TicketDateFormat.DAY_MONTH_YEAR,
+                timeFormat = TicketTimeFormat.HOURS_12,
+            ),
+        )
+    }
+
+    private fun printedTextLine(
+        value: String,
+        dateFormat: TicketDateFormat,
+        timeFormat: TicketTimeFormat,
+    ): String {
+        val mockEscpos: EscPos = mock()
+        val printedLineCaptor = argumentCaptor<String>()
+        val template =
+            TicketTemplate(
+                id = "template-print-date",
+                name = "Print Date Template",
+                elements =
+                    listOf(
+                        TicketElement(
+                            id = "elem-print-date",
+                            templateId = "template-print-date",
+                            order = 0,
+                            type = ElementType.TEXT,
+                            value = value,
+                        ),
+                    ),
+                dateFormat = dateFormat,
+                timeFormat = timeFormat,
+            )
+        val ticketData =
+            TicketData(
+                ticketId = "print-001",
+                tableName = "Table 1",
+                roomName = "Main Room",
+                date = "2026-10-16",
+                items = emptyList(),
+                total = 0.0,
+            )
+        val config =
+            Config(
+                businessName = "alice",
+                businessAddress = null,
+                businessPhone = null,
+                businessEmail = null,
+                businessTaxId = null,
+                businessLogoUrl = null,
+                timezone = "America/Mexico_City",
+            )
+        val printClock = Clock.fixed(Instant.parse("2026-10-16T03:30:00Z"), ZoneOffset.UTC)
+
+        TicketFactory(template, printClock).build(mockEscpos, ticketData, config)
+
+        verify(mockEscpos).writeLF(any<Style>(), printedLineCaptor.capture())
+        return printedLineCaptor.firstValue
     }
 
     private fun printedQrWidthDots(
