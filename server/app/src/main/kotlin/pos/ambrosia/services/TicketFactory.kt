@@ -59,6 +59,7 @@ class TicketFactory(
             )
         private const val QR_MIN_DOTS_PER_MODULE = 3
         private const val PRINTABLE_WIDTH_DOTS = 576
+        const val JOB_START_PADDING_BYTES = 1024
     }
 
     fun build(
@@ -66,6 +67,7 @@ class TicketFactory(
         ticketData: TicketData,
         businessConfig: Config?,
     ) {
+        escpos.write(ByteArray(JOB_START_PADDING_BYTES), 0, JOB_START_PADDING_BYTES)
         escpos.initializePrinter()
         template.elements.forEach { templateElement ->
             val escPosStyle = convertToEscPosStyle(templateElement.style)
