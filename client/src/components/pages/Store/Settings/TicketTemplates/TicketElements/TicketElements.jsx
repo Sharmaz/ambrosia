@@ -3,13 +3,14 @@
 import { DEFAULT_STYLE } from "../defaults";
 
 import { ElementLineBreak } from "./ElementLineBreak";
+import { ElementLogo } from "./ElementLogo";
 import { ElementQrCode } from "./ElementQrCode";
 import { ElementSeparator } from "./ElementSeparator";
 import { ElementTableRow } from "./ElementTableRow";
 import { ElementText } from "./ElementText";
 import { ElementTotalRow } from "./ElementTotalRow";
 
-const ALWAYS_VISIBLE_TYPES = ["SEPARATOR", "LINE_BREAK", "TABLE_ROW"];
+const ALWAYS_VISIBLE_TYPES = ["SEPARATOR", "LINE_BREAK", "TABLE_ROW", "LOGO"];
 
 export function hasVisibleContent(elements) {
   return Array.isArray(elements) && elements.some(
@@ -55,6 +56,18 @@ export function TicketElementsPreview({ templateElements, businessConfig, printF
           templateText={templateElement.value}
           businessConfig={businessConfig}
           printFormats={printFormats}
+          fontSize={style.fontSize}
+          justification={style.justification}
+          className={className}
+        />,
+      ];
+    }
+    if (templateElement.type === "LOGO") {
+      return [
+        <ElementLogo
+          key={`${templateElement.localId}-logo`}
+          templateText={templateElement.value}
+          businessConfig={businessConfig}
           fontSize={style.fontSize}
           justification={style.justification}
           className={className}

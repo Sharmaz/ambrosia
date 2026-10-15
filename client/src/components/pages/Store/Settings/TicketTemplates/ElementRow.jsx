@@ -10,8 +10,10 @@ import { Bold, ChevronDown, ChevronUp, GripVertical } from "lucide-react";
 import { DeleteButton } from "@components/shared/DeleteButton";
 
 import { insertVariable } from "./insertVariable";
+import { LogoImageSection, LogoSourceSelect } from "./LogoSource";
 import { removeVariable } from "./removeVariable";
 import { resolveValue } from "./TicketElements";
+import { useLogoSource } from "./useLogoSource";
 import { TemplateVariablePicker } from "./VariablePicker";
 
 const VARIABLE_PICKER_TYPES = ["HEADER", "TEXT", "FOOTER", "TOTAL_ROW"];
@@ -26,6 +28,7 @@ const ELEMENT_TYPES = [
   "TOTAL_ROW",
   "FOOTER",
   "QRCODE",
+  "LOGO",
 ];
 
 const JUSTIFICATIONS = ["LEFT", "CENTER", "RIGHT"];
@@ -45,12 +48,15 @@ export function TemplateElementRow({ templateElement, isOpen, onToggle, onChange
   const type = templateElement.type;
   const showValue = ["HEADER", "TEXT", "FOOTER", "TABLE_HEADER", "TOTAL_ROW", "QRCODE"].includes(type);
   const showVariablePicker = VARIABLE_PICKER_TYPES.includes(type);
+  const showLogoSource = type === "LOGO";
   const showStyle = type !== "LINE_BREAK" && type !== "SEPARATOR";
-  const showBold = showStyle && type !== "QRCODE";
+  const showBold = showStyle && type !== "QRCODE" && type !== "LOGO";
   const showJustification = showStyle;
   const showFontSize = showStyle;
 
   const handleChange = (updates) => onChange({ ...templateElement, ...updates });
+
+  const logoSourceState = useLogoSource(templateElement.value ?? "", (updatedTemplateText) => handleChange({ value: updatedTemplateText }));
 
   const cursorRangeRef = useRef(null);
 
@@ -115,7 +121,11 @@ export function TemplateElementRow({ templateElement, isOpen, onToggle, onChange
             <Select
               label={settingsTranslations("templates.elementTypeLabel")}
               selectedKeys={templateElement.type ? [templateElement.type] : []}
-              onChange={(event) => { if (event.target.value) handleChange({ type: event.target.value }); }}
+              onChange={(event) => {
+                const selectedType = event.target.value;
+                if (!selectedType) return;
+                handleChange(selectedType === "LOGO" ? { type: selectedType, value: "" } : { type: selectedType });
+              }}
             >
               {ELEMENT_TYPES.map((typeOption) => (
                 <SelectItem key={typeOption} value={typeOption}>
@@ -127,6 +137,14 @@ export function TemplateElementRow({ templateElement, isOpen, onToggle, onChange
 
           {(showValue || showStyle) && (
             <div className="grid gap-3 lg:grid-cols-[1.2fr_160px_160px_auto] lg:items-end">
+              {showLogoSource && (
+                <LogoSourceSelect
+                  logoSource={logoSourceState.logoSource}
+                  onLogoSourceChange={logoSourceState.selectLogoSource}
+                  settingsTranslations={settingsTranslations}
+                />
+              )}
+
               {showValue && (
                 <Input
                   label={settingsTranslations("templates.elementValueLabel")}
@@ -201,6 +219,19 @@ export function TemplateElementRow({ templateElement, isOpen, onToggle, onChange
                 </Button>
               )}
             </div>
+          )}
+
+          {showLogoSource && (
+            <LogoImageSection
+              logoSource={logoSourceState.logoSource}
+              templateText={templateElement.value ?? ""}
+              businessConfig={businessConfig}
+              onLogoImageChange={logoSourceState.changeLogoImage}
+              isUploading={logoSourceState.isUploading}
+              uploadErrorKey={logoSourceState.uploadErrorKey}
+              uploaderResetKey={logoSourceState.uploaderResetKey}
+              settingsTranslations={settingsTranslations}
+            />
           )}
         </div>
       )}

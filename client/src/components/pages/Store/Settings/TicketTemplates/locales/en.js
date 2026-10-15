@@ -52,6 +52,7 @@ const ticketTemplatesEn = {
       TOTAL_ROW: "Total row",
       FOOTER: "Footer",
       QRCODE: "QR code",
+      LOGO: "Logo",
     },
     justifications: {
       LEFT: "Left",
@@ -71,6 +72,20 @@ const ticketTemplatesEn = {
       NORMAL: "Normal",
       LARGE: "Large",
       EXTRA_LARGE: "Extra large",
+    },
+    logo: {
+      sourceLabel: "Logo source",
+      sources: {
+        BUSINESS_LOGO: "Business logo",
+        CUSTOM_IMAGE: "Custom image",
+      },
+      chooseImage: "Choose image",
+      imageDescription: "PNG or JPEG",
+      uploading: "Uploading...",
+      uploadError: "The image could not be uploaded",
+      unsupportedFormat: "Use a PNG or JPEG image",
+      missingBusinessLogo: "The business has no logo configured",
+      unprintableBusinessLogo: "The business logo is WebP and cannot be printed. Use a custom PNG or JPEG image.",
     },
     variables: {
       title: "Variables",

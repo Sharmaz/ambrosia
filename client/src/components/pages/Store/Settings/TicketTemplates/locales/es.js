@@ -52,6 +52,7 @@ const ticketTemplatesEs = {
       TOTAL_ROW: "Fila de total",
       FOOTER: "Pie",
       QRCODE: "Codigo QR",
+      LOGO: "Logo",
     },
     justifications: {
       LEFT: "Izquierda",
@@ -71,6 +72,20 @@ const ticketTemplatesEs = {
     timeFormats: {
       HOURS_24: "24 horas (13:45)",
       HOURS_12: "12 horas (1:45 PM)",
+    },
+    logo: {
+      sourceLabel: "Origen del logo",
+      sources: {
+        BUSINESS_LOGO: "Logo del negocio",
+        CUSTOM_IMAGE: "Imagen propia",
+      },
+      chooseImage: "Elegir imagen",
+      imageDescription: "PNG o JPEG",
+      uploading: "Subiendo...",
+      uploadError: "No se pudo subir la imagen",
+      unsupportedFormat: "Usa una imagen PNG o JPEG",
+      missingBusinessLogo: "El negocio no tiene logo configurado",
+      unprintableBusinessLogo: "El logo del negocio es WebP y no se puede imprimir. Usa una imagen propia PNG o JPEG.",
     },
     variables: {
       title: "Variables",
