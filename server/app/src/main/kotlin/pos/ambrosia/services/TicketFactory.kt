@@ -110,6 +110,14 @@ class TicketFactory(
                     escpos.writeLF(escPosStyle, totalRow)
                 }
 
+                ElementType.PAYMENT_METHOD -> {
+                    val paymentMethodName = ticketData.paymentMethod.orEmpty()
+                    if (paymentMethodName.isNotBlank()) {
+                        val paymentMethodLabel = resolvedContent.ifEmpty { "PAYMENT METHOD" }
+                        escpos.writeLF(escPosStyle, formatTicketLine(paymentMethodLabel, paymentMethodName))
+                    }
+                }
+
                 ElementType.QRCODE -> {
                     val qrContent = if (resolvedContent.isNotBlank()) resolvedContent else (ticketData.invoice ?: "")
                     if (qrContent.isNotBlank()) {

@@ -57,6 +57,7 @@ enum class ElementType {
     TABLE_HEADER,
     TABLE_ROW,
     TOTAL_ROW,
+    PAYMENT_METHOD,
     FOOTER,
     QRCODE,
     LOGO,
