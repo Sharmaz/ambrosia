@@ -53,7 +53,9 @@ const ticketTemplatesEn = {
       FOOTER: "Footer",
       QRCODE: "QR code",
       LOGO: "Logo",
+      PAYMENT_METHOD: "Payment method row",
     },
+    paymentMethodDefaultLabel: "Payment method",
     justifications: {
       LEFT: "Left",
       CENTER: "Center",

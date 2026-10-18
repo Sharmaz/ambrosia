@@ -16,7 +16,7 @@ import { resolveValue } from "./TicketElements";
 import { useLogoSource } from "./useLogoSource";
 import { TemplateVariablePicker } from "./VariablePicker";
 
-const VARIABLE_PICKER_TYPES = ["HEADER", "TEXT", "FOOTER", "TOTAL_ROW"];
+const VARIABLE_PICKER_TYPES = ["HEADER", "TEXT", "FOOTER", "TOTAL_ROW", "PAYMENT_METHOD"];
 
 const ELEMENT_TYPES = [
   "HEADER",
@@ -26,6 +26,7 @@ const ELEMENT_TYPES = [
   "TABLE_HEADER",
   "TABLE_ROW",
   "TOTAL_ROW",
+  "PAYMENT_METHOD",
   "FOOTER",
   "QRCODE",
   "LOGO",
@@ -53,17 +54,25 @@ export function TemplateElementRow({ templateElement, isOpen, onToggle, onChange
   };
 
   const elementType = templateElement.type;
-  const showValue = ["HEADER", "TEXT", "FOOTER", "TABLE_HEADER", "TOTAL_ROW", "QRCODE"].includes(elementType);
+  const showValue = ["HEADER", "TEXT", "FOOTER", "TABLE_HEADER", "TOTAL_ROW", "PAYMENT_METHOD", "QRCODE"].includes(elementType);
   const showVariablePicker = VARIABLE_PICKER_TYPES.includes(elementType);
   const showLogoSource = elementType === "LOGO";
   const showStyle = elementType !== "LINE_BREAK" && elementType !== "SEPARATOR";
   const showBold = showStyle && elementType !== "QRCODE" && elementType !== "LOGO";
-  const showJustification = showStyle;
+  const showJustification = showStyle && elementType !== "PAYMENT_METHOD";
   const showFontSize = showStyle;
 
   const handleChange = (elementUpdates) => onChange({ ...templateElement, ...elementUpdates });
 
   const logoSourceState = useLogoSource(templateElement.value ?? "", (updatedTemplateText) => handleChange({ value: updatedTemplateText }));
+
+  const resolveTypeChange = (selectedType) => {
+    if (selectedType === "LOGO") return { type: selectedType, value: "" };
+    if (selectedType === "PAYMENT_METHOD" && !templateElement.value?.trim()) {
+      return { type: selectedType, value: settingsTranslations("templates.paymentMethodDefaultLabel") };
+    }
+    return { type: selectedType };
+  };
 
   const cursorRangeRef = useRef(null);
 
@@ -131,7 +140,7 @@ export function TemplateElementRow({ templateElement, isOpen, onToggle, onChange
               onChange={(event) => {
                 const selectedType = event.target.value;
                 if (!selectedType) return;
-                handleChange(selectedType === "LOGO" ? { type: selectedType, value: "" } : { type: selectedType });
+                handleChange(resolveTypeChange(selectedType));
               }}
             >
               {ELEMENT_TYPES.map((typeOption) => (
