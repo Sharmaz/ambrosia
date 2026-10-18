@@ -333,4 +333,57 @@ describe("TemplateElementRow", () => {
     fireEvent.change(screen.getByLabelText("templates.elementTypeLabel"), { target: { value: "LOGO" } });
     expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ type: "LOGO", value: "" }));
   });
+
+  it("fills the default label when switching an empty element to PAYMENT_METHOD", () => {
+    const onChange = jest.fn();
+    render(
+      <TemplateElementRow
+        templateElement={{ localId: "el-10", type: "TEXT", value: "", style: {} }}
+        isOpen
+        onToggle={jest.fn()}
+        onChange={onChange}
+        onRemove={jest.fn()}
+        businessConfig={null}
+        settingsTranslations={settingsTranslations}
+      />,
+    );
+    fireEvent.change(screen.getByLabelText("templates.elementTypeLabel"), { target: { value: "PAYMENT_METHOD" } });
+    expect(onChange).toHaveBeenCalledWith(
+      expect.objectContaining({ type: "PAYMENT_METHOD", value: "templates.paymentMethodDefaultLabel" }),
+    );
+  });
+
+  it("keeps the existing value when switching an element to PAYMENT_METHOD", () => {
+    const onChange = jest.fn();
+    render(
+      <TemplateElementRow
+        templateElement={{ localId: "el-11", type: "TEXT", value: "Pagado con", style: {} }}
+        isOpen
+        onToggle={jest.fn()}
+        onChange={onChange}
+        onRemove={jest.fn()}
+        businessConfig={null}
+        settingsTranslations={settingsTranslations}
+      />,
+    );
+    fireEvent.change(screen.getByLabelText("templates.elementTypeLabel"), { target: { value: "PAYMENT_METHOD" } });
+    expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ type: "PAYMENT_METHOD", value: "Pagado con" }));
+  });
+
+  it("hides the justification but keeps font size and bold for PAYMENT_METHOD", () => {
+    render(
+      <TemplateElementRow
+        templateElement={{ localId: "el-12", type: "PAYMENT_METHOD", value: "Método de pago", style: {} }}
+        isOpen
+        onToggle={jest.fn()}
+        onChange={jest.fn()}
+        onRemove={jest.fn()}
+        businessConfig={null}
+        settingsTranslations={settingsTranslations}
+      />,
+    );
+    expect(screen.queryByLabelText("templates.justificationLabel")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("templates.fontSizeLabel")).toBeInTheDocument();
+    expect(screen.getByLabelText("templates.boldToggle")).toBeInTheDocument();
+  });
 });

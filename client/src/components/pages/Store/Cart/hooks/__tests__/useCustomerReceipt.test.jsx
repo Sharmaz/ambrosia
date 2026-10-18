@@ -62,6 +62,26 @@ describe("useCustomerReceipt", () => {
     );
   });
 
+  it("sends the translated payment method name in the ticket data", async () => {
+    const { result: receiptHook } = renderHook(() => useCustomerReceipt());
+
+    await receiptHook.current.printCustomerReceipt({ items: [], totalCents: 0, ticketId: 7, paymentMethodName: "Cash" });
+
+    expect(mockPrintTicket).toHaveBeenCalledWith(
+      expect.objectContaining({ ticketData: expect.objectContaining({ paymentMethod: "cash" }) }),
+    );
+  });
+
+  it("keeps a custom payment method name as is in the ticket data", async () => {
+    const { result: receiptHook } = renderHook(() => useCustomerReceipt());
+
+    await receiptHook.current.printCustomerReceipt({ items: [], totalCents: 0, ticketId: 8, paymentMethodName: "Vales" });
+
+    expect(mockPrintTicket).toHaveBeenCalledWith(
+      expect.objectContaining({ ticketData: expect.objectContaining({ paymentMethod: "Vales" }) }),
+    );
+  });
+
   it("does not print when there is no enabled customer printer", async () => {
     mockPrinterConfigs = [{ id: "cfg-1", printerType: "KITCHEN", enabled: true }];
     const { result: receiptHook } = renderHook(() => useCustomerReceipt());

@@ -158,6 +158,7 @@ describe("paymentHandlers", () => {
         displayTotal: 100,
         cartItems: [{ id: 1 }],
         selectedPaymentMethod: "cash",
+        paymentMethodName: "Cash",
         currencyId: "cur-1",
       }),
     );
@@ -680,6 +681,7 @@ describe("paymentHandlers", () => {
   });
 
   it("completes cash payment flow", async () => {
+    const printCustomerReceipt = jest.fn(() => Promise.resolve());
     const dispatch = jest.fn();
     const onPay = jest.fn();
     const onResetCart = jest.fn();
@@ -706,6 +708,7 @@ describe("paymentHandlers", () => {
           total: 100,
         },
         selectedPaymentMethod: "cash",
+        paymentMethodName: "Cash",
         currencyId: "cur-1",
       }),
       setConfig: setCashPaymentConfig,
@@ -714,13 +717,14 @@ describe("paymentHandlers", () => {
       onResetCart,
       notifyError: jest.fn(),
       notifySuccess,
-      printCustomerReceipt: jest.fn(() => Promise.resolve()),
+      printCustomerReceipt,
       user: { userId: "u1" },
     });
 
     await handler({ cashReceived: 10, change: 2 });
 
     expect(processCheckout).toHaveBeenCalled();
+    expect(printCustomerReceipt).toHaveBeenCalledWith(expect.objectContaining({ paymentMethodName: "Cash" }));
     expect(onPay).toHaveBeenCalledWith(
       expect.objectContaining({ orderId: "order-1", cashReceived: 10, change: 2 }),
     );
@@ -767,6 +771,7 @@ describe("paymentHandlers", () => {
   });
 
   it("completes card payment flow", async () => {
+    const printCustomerReceipt = jest.fn(() => Promise.resolve());
     const dispatch = jest.fn();
     const onPay = jest.fn();
     const onResetCart = jest.fn();
@@ -802,13 +807,14 @@ describe("paymentHandlers", () => {
       onResetCart,
       notifyError: jest.fn(),
       notifySuccess,
-      printCustomerReceipt: jest.fn(() => Promise.resolve()),
+      printCustomerReceipt,
       user: { userId: "u1" },
     });
 
     await handler();
 
     expect(processCheckout).toHaveBeenCalled();
+    expect(printCustomerReceipt).toHaveBeenCalledWith(expect.objectContaining({ paymentMethodName: "Credit Card" }));
     expect(onPay).toHaveBeenCalledWith(
       expect.objectContaining({ orderId: "order-1", methodLabel: "Credit Card" }),
     );
