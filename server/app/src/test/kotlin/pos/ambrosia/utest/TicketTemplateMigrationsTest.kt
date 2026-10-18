@@ -56,6 +56,23 @@ class TicketTemplateMigrationsTest {
     }
 
     @Test
+    fun `V56 allows PAYMENT_METHOD elements and preserves existing elements`() {
+        withTicketTemplateDatabase { databaseStatement ->
+            applyMigration(databaseStatement, "V11__ticket_template.sql")
+            applyMigration(databaseStatement, "V14__ticket_template_qrcode.sql")
+            applyMigration(databaseStatement, "V53__ticket_template_total_row.sql")
+            applyMigration(databaseStatement, "V55__ticket_template_logo.sql")
+            databaseStatement.execute("INSERT INTO ticket_templates (id, name) VALUES (X'01', 'alice')")
+            databaseStatement.execute(insertElementSql(elementId = "02", elementType = "LOGO"))
+
+            applyMigration(databaseStatement, "V56__ticket_template_payment_method.sql")
+            databaseStatement.execute(insertElementSql(elementId = "03", elementType = "PAYMENT_METHOD"))
+
+            assertEquals(listOf("LOGO", "PAYMENT_METHOD"), storedElementTypes(databaseStatement))
+        }
+    }
+
+    @Test
     fun `V54 gives existing templates the default date and time formats`() {
         withTicketTemplateDatabase { databaseStatement ->
             applyMigration(databaseStatement, "V11__ticket_template.sql")

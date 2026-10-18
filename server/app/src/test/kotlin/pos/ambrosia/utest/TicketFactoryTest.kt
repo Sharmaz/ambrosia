@@ -476,6 +476,65 @@ class TicketFactoryTest {
     }
 
     @Test
+    fun `build should print the payment method row with the element label`() {
+        assertEquals(
+            listOf(formatTicketLine("Método de pago", "Efectivo")),
+            printedPaymentMethodLines(storedLabel = "Método de pago", paymentMethod = "Efectivo"),
+        )
+    }
+
+    @Test
+    fun `build should print the default label when the payment method element has no label`() {
+        assertEquals(
+            listOf(formatTicketLine("PAYMENT METHOD", "Card")),
+            printedPaymentMethodLines(storedLabel = "", paymentMethod = "Card"),
+        )
+    }
+
+    @Test
+    fun `build should skip the payment method row when the ticket has no payment method`() {
+        assertEquals(emptyList(), printedPaymentMethodLines(storedLabel = "Método de pago", paymentMethod = null))
+    }
+
+    private fun printedPaymentMethodLines(
+        storedLabel: String,
+        paymentMethod: String?,
+    ): List<String> {
+        val mockEscpos: EscPos = mock()
+        val printedLineCaptor = argumentCaptor<String>()
+        val ticketTemplate =
+            TicketTemplate(
+                id = "template-payment-method",
+                name = "Payment Method Template",
+                elements =
+                    listOf(
+                        TicketElement(
+                            id = "elem-payment-method",
+                            templateId = "template-payment-method",
+                            order = 0,
+                            type = ElementType.PAYMENT_METHOD,
+                            value = storedLabel,
+                        ),
+                    ),
+            )
+        val ticketData =
+            TicketData(
+                ticketId = "payment-001",
+                tableName = "Table 1",
+                roomName = "Main Room",
+                date = "2026-10-17",
+                items = emptyList(),
+                total = 100.0,
+                paymentMethod = paymentMethod,
+            )
+
+        TicketFactory(ticketTemplate).build(mockEscpos, ticketData, null)
+
+        verify(mockEscpos, atMost(1)).writeLF(any<Style>(), printedLineCaptor.capture())
+        return printedLineCaptor.allValues
+    }
+
+    @Test
     fun `build should print short QR content smaller as the size decreases`() {
         val socialLink = "https://instagram.com/alice"
 
