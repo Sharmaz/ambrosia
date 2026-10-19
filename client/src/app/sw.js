@@ -148,7 +148,7 @@ async function recoverPendingCheckouts() {
   for (const entry of pending) {
     try {
       const statusResponse = await httpClient(
-        `store/orders/payment-status/${entry.paymentHash}`,
+        `/store/orders/payment-status/${entry.paymentHash}`,
       );
       const statusData = await parseJsonResponse(statusResponse);
       if (!statusResponse.ok) continue;
@@ -159,7 +159,7 @@ async function recoverPendingCheckouts() {
       }
 
       if (statusData?.status === "paid") {
-        const checkoutResponse = await httpClient("store/orders/checkout", {
+        const checkoutResponse = await httpClient("/store/orders/checkout", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(entry.checkoutPayload),

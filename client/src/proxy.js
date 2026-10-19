@@ -21,6 +21,7 @@ export default async function proxy(request) {
 
   let initialized = null;
   let needsBusinessType = false;
+  let initialSetupConfirmed = false;
   try {
     const headers = { cookie: request.headers.get("cookie") || "" };
     const initialSetupUrl = new URL("/api/initial-setup", INTERNAL_ORIGIN);
@@ -30,23 +31,26 @@ export default async function proxy(request) {
       const setupData = await setupResponse.json();
       initialized = setupData?.initialized;
       needsBusinessType = setupData?.needsBusinessType === true;
+      initialSetupConfirmed = true;
     }
   } catch (error) {
     console.error(error);
   }
 
-  if (initialized === false && !isOnboardingRoute) {
-    return NextResponse.redirect(new URL("/onboarding", request.url));
-  }
+  if (initialSetupConfirmed) {
+    if (initialized === false && !isOnboardingRoute) {
+      return NextResponse.redirect(new URL("/onboarding", request.url));
+    }
 
-  if (needsBusinessType && !isOnboardingRoute) {
-    return NextResponse.redirect(new URL("/onboarding", request.url));
-  }
+    if (needsBusinessType && !isOnboardingRoute) {
+      return NextResponse.redirect(new URL("/onboarding", request.url));
+    }
 
-  if ((initialized !== false && !needsBusinessType) && isOnboardingRoute) {
-    return NextResponse.redirect(
-      new URL(refreshToken ? "/" : "/auth", request.url),
-    );
+    if ((initialized !== false && !needsBusinessType) && isOnboardingRoute) {
+      return NextResponse.redirect(
+        new URL(refreshToken ? "/" : "/auth", request.url),
+      );
+    }
   }
 
   if (!isAuthRoute && !isOnboardingRoute) {

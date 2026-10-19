@@ -27,6 +27,15 @@ function requestTo(pathname) {
   };
 }
 
+function mockBackendWithFailedInitialSetup() {
+  global.fetch = jest.fn((url) => {
+    if (url.pathname === "/api/initial-setup") {
+      return Promise.resolve({ ok: false, status: 429, json: () => Promise.resolve({}) });
+    }
+    return Promise.resolve({ ok: true, json: () => Promise.resolve({ businessType: null }) });
+  });
+}
+
 describe("proxy business type routing", () => {
   it.each([
     ["store", "/freelancer/clients", "/store"],
@@ -53,5 +62,23 @@ describe("proxy business type routing", () => {
 
     expect(passThroughResponse.redirectedTo).toBeUndefined();
     expect(passThroughResponse.cookies.set).toHaveBeenCalledWith("businessType", businessType, { path: "/" });
+  });
+});
+
+describe("proxy onboarding gating when initial-setup cannot be confirmed", () => {
+  it("does not redirect /onboarding away when the initial-setup check fails", async () => {
+    mockBackendWithFailedInitialSetup();
+
+    const passThroughResponse = await proxy(requestTo("/onboarding"));
+
+    expect(passThroughResponse.redirectedTo).toBeUndefined();
+  });
+
+  it("does not redirect /auth to /onboarding when the initial-setup check fails", async () => {
+    mockBackendWithFailedInitialSetup();
+
+    const passThroughResponse = await proxy(requestTo("/auth"));
+
+    expect(passThroughResponse.redirectedTo).toBeUndefined();
   });
 });
