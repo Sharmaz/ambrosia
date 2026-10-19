@@ -21,6 +21,7 @@ import pos.ambrosia.models.TicketData
 import pos.ambrosia.models.TicketDataItem
 import pos.ambrosia.models.TicketDateFormat
 import pos.ambrosia.models.TicketElement
+import pos.ambrosia.models.TicketLabels
 import pos.ambrosia.models.TicketTemplate
 import pos.ambrosia.models.TicketTimeFormat
 import pos.ambrosia.services.TicketFactory
@@ -67,6 +68,7 @@ class TicketFactoryTest {
                 date = "2025-10-31",
                 items = emptyList(),
                 total = 0.0,
+                labels = englishTicketLabels,
             )
         val businessConfig =
             Config(
@@ -114,6 +116,7 @@ class TicketFactoryTest {
                 date = "2026-10-15",
                 items = emptyList(),
                 total = 0.0,
+                labels = englishTicketLabels,
             )
 
         TicketFactory(ticketTemplate).build(mockEscpos, ticketData, null)
@@ -158,6 +161,7 @@ class TicketFactoryTest {
                         TicketDataItem(quantity = 2, name = "Fries", price = 3.00),
                     ),
                 total = 18.50,
+                labels = englishTicketLabels,
             )
         val businessConfig =
             Config(
@@ -214,6 +218,7 @@ class TicketFactoryTest {
                 date = "2025-10-31",
                 items = emptyList(),
                 total = 0.0,
+                labels = englishTicketLabels,
             )
         val businessConfig =
             Config(
@@ -271,6 +276,7 @@ class TicketFactoryTest {
                 date = "2026-10-15",
                 items = emptyList(),
                 total = 0.0,
+                labels = englishTicketLabels,
             )
         val businessConfig =
             Config(
@@ -328,6 +334,7 @@ class TicketFactoryTest {
                 date = "2026-10-15",
                 items = emptyList(),
                 total = 0.0,
+                labels = englishTicketLabels,
             )
 
         TicketFactory(ticketTemplate).build(EscPos(printedOutput), ticketData, null)
@@ -367,6 +374,7 @@ class TicketFactoryTest {
                 date = "2025-10-31",
                 items = emptyList(),
                 total = 0.0,
+                labels = englishTicketLabels,
             )
         val businessConfig =
             Config(
@@ -416,6 +424,7 @@ class TicketFactoryTest {
                 total = 115.0,
                 discountAmount = 10.0,
                 tipAmount = 15.0,
+                labels = englishTicketLabels,
             )
         val businessConfig =
             Config(
@@ -467,6 +476,7 @@ class TicketFactoryTest {
                 items = emptyList(),
                 total = 50.0,
                 tipAmount = 5.0,
+                labels = englishTicketLabels,
             )
 
         val ticketFactory = TicketFactory(ticketTemplate)
@@ -526,6 +536,7 @@ class TicketFactoryTest {
                 items = emptyList(),
                 total = 100.0,
                 paymentMethod = paymentMethod,
+                labels = englishTicketLabels,
             )
 
         TicketFactory(ticketTemplate).build(mockEscpos, ticketData, null)
@@ -634,6 +645,7 @@ class TicketFactoryTest {
                 date = "2026-10-16",
                 items = emptyList(),
                 total = 0.0,
+                labels = englishTicketLabels,
             )
         val businessConfig =
             Config(
@@ -726,6 +738,7 @@ class TicketFactoryTest {
                     date = "2026-10-15",
                     items = emptyList(),
                     total = 0.0,
+                    labels = englishTicketLabels,
                 )
             val businessConfig =
                 Config(
@@ -776,6 +789,7 @@ class TicketFactoryTest {
                 date = "2026-10-15",
                 items = emptyList(),
                 total = 0.0,
+                labels = englishTicketLabels,
             )
 
         TicketFactory(ticketTemplate).build(mockEscpos, ticketData, null)
@@ -784,3 +798,11 @@ class TicketFactoryTest {
         return imageCaptor.firstValue.widthOfImageInBits
     }
 }
+
+private val englishTicketLabels =
+    TicketLabels(
+        total = "TOTAL",
+        discount = "DISCOUNT",
+        tip = "TIP",
+        paymentMethod = "PAYMENT METHOD",
+    )

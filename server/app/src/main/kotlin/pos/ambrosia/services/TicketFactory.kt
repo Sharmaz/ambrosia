@@ -96,14 +96,14 @@ class TicketFactory(
                 }
 
                 ElementType.TOTAL_ROW -> {
-                    val totalLabel = resolvedContent.ifEmpty { "TOTAL" }
+                    val totalLabel = resolvedContent.ifEmpty { ticketData.labels.total }
                     escpos.writeLF(escPosStyle, SEPARATOR_LINE)
                     if (ticketData.discountAmount > 0) {
-                        val discountRow = formatTicketLine("DISCOUNT", "-${ticketData.discountAmount}")
+                        val discountRow = formatTicketLine(ticketData.labels.discount, "-${ticketData.discountAmount}")
                         escpos.writeLF(escPosStyle, discountRow)
                     }
                     if (ticketData.tipAmount > 0) {
-                        val tipRow = formatTicketLine("TIP", "+${ticketData.tipAmount}")
+                        val tipRow = formatTicketLine(ticketData.labels.tip, "+${ticketData.tipAmount}")
                         escpos.writeLF(escPosStyle, tipRow)
                     }
                     val totalRow = formatTicketLine(totalLabel, ticketData.total.toString())
@@ -113,7 +113,7 @@ class TicketFactory(
                 ElementType.PAYMENT_METHOD -> {
                     val paymentMethodName = ticketData.paymentMethod.orEmpty()
                     if (paymentMethodName.isNotBlank()) {
-                        val paymentMethodLabel = resolvedContent.ifEmpty { "PAYMENT METHOD" }
+                        val paymentMethodLabel = resolvedContent.ifEmpty { ticketData.labels.paymentMethod }
                         escpos.writeLF(escPosStyle, formatTicketLine(paymentMethodLabel, paymentMethodName))
                     }
                 }

@@ -8,6 +8,7 @@ import org.mockito.kotlin.whenever
 import pos.ambrosia.models.PrintRequest
 import pos.ambrosia.models.PrinterType
 import pos.ambrosia.models.TicketData
+import pos.ambrosia.models.TicketLabels
 import pos.ambrosia.services.PrintService
 import pos.ambrosia.services.PrinterConfigService
 import pos.ambrosia.services.TicketTemplateService
@@ -37,6 +38,7 @@ class PrintServiceTest {
                 date = "2023-10-27",
                 items = emptyList(),
                 total = 100.00,
+                labels = englishTicketLabels,
             )
 
         runBlocking {
@@ -66,6 +68,7 @@ class PrintServiceTest {
                 date = "2023-10-27",
                 items = emptyList(),
                 total = 100.00,
+                labels = englishTicketLabels,
             )
 
         runBlocking {
@@ -73,3 +76,11 @@ class PrintServiceTest {
         }
     }
 }
+
+private val englishTicketLabels =
+    TicketLabels(
+        total = "TOTAL",
+        discount = "DISCOUNT",
+        tip = "TIP",
+        paymentMethod = "PAYMENT METHOD",
+    )
