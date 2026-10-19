@@ -74,6 +74,8 @@ export function PrintersCard({ formState, data, loading, state }) {
                 onToggleDefault={(isDefault) => onUpdateConfig(config.id, { isDefault })}
                 onToggleEnabled={(enabled) => onUpdateConfig(config.id, { enabled })}
                 onRemove={() => onDeleteConfig(config.id)}
+                paymentMethods={data.paymentMethods}
+                onCashDrawerChange={(cashDrawerUpdates) => onUpdateConfig(config.id, cashDrawerUpdates)}
               />
             ))}
           </div>
