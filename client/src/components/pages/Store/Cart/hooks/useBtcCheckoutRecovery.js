@@ -27,7 +27,7 @@ export function useBtcCheckoutRecovery(onResetCart) {
 
     async function recoverPendingCheckout(pendingCheckout) {
       const paymentStatusResponse = await httpClient(
-        `store/orders/payment-status/${pendingCheckout.paymentHash}`,
+        `/store/orders/payment-status/${pendingCheckout.paymentHash}`,
         { skipForbiddenRedirect: true },
       );
       if (!paymentStatusResponse.ok) return;
@@ -39,7 +39,7 @@ export function useBtcCheckoutRecovery(onResetCart) {
       }
 
       if (paymentStatus?.status === "paid") {
-        const checkoutResponse = await httpClient("store/orders/checkout", {
+        const checkoutResponse = await httpClient("/store/orders/checkout", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(pendingCheckout.checkoutPayload),
