@@ -450,6 +450,117 @@ class TicketFactoryTest {
     }
 
     @Test
+    fun `build should print the total, discount and tip with the received labels without accents`() {
+        val mockEscpos: EscPos = mock()
+        val printedLineCaptor = argumentCaptor<String>()
+        val ticketTemplate =
+            TicketTemplate(
+                id = "template-labels",
+                name = "Labels Template",
+                elements =
+                    listOf(
+                        TicketElement(
+                            id = "elem-total",
+                            templateId = "template-labels",
+                            order = 0,
+                            type = ElementType.TOTAL_ROW,
+                            value = "",
+                        ),
+                        TicketElement(
+                            id = "elem-payment-method",
+                            templateId = "template-labels",
+                            order = 1,
+                            type = ElementType.PAYMENT_METHOD,
+                            value = "",
+                        ),
+                    ),
+            )
+        val ticketData =
+            TicketData(
+                ticketId = "labels-001",
+                tableName = "Mesa 1",
+                roomName = "Salón",
+                date = "2026-10-18",
+                items = emptyList(),
+                total = 115.0,
+                discountAmount = 10.0,
+                tipAmount = 15.0,
+                paymentMethod = "Tarjeta de débito",
+                labels =
+                    TicketLabels(
+                        total = "TOTAL",
+                        discount = "DESCUENTO",
+                        tip = "PROPINA",
+                        paymentMethod = "MÉTODO DE PAGO",
+                    ),
+            )
+
+        TicketFactory(ticketTemplate).build(mockEscpos, ticketData, null)
+
+        verify(mockEscpos, times(5)).writeLF(any<Style>(), printedLineCaptor.capture())
+        assertEquals(
+            listOf(
+                "-".repeat(TicketFactory.DEFAULT_TICKET_WIDTH),
+                formatTicketLine("DESCUENTO", "-10.0"),
+                formatTicketLine("PROPINA", "+15.0"),
+                formatTicketLine("TOTAL", "115.0"),
+                formatTicketLine("METODO DE PAGO", "Tarjeta de debito"),
+            ),
+            printedLineCaptor.allValues,
+        )
+    }
+
+    @Test
+    fun `build should remove accents from the template text and item names`() {
+        val mockEscpos: EscPos = mock()
+        val printedLineCaptor = argumentCaptor<String>()
+        val ticketTemplate =
+            TicketTemplate(
+                id = "template-accents",
+                name = "Accents Template",
+                elements =
+                    listOf(
+                        TicketElement(
+                            id = "elem-text",
+                            templateId = "template-accents",
+                            order = 0,
+                            type = ElementType.TEXT,
+                            value = "Gracias por tu visita, vuelve pronto al Salón",
+                        ),
+                        TicketElement(
+                            id = "elem-rows",
+                            templateId = "template-accents",
+                            order = 1,
+                            type = ElementType.TABLE_ROW,
+                            value = "",
+                        ),
+                    ),
+            )
+        val ticketData =
+            TicketData(
+                ticketId = "accents-001",
+                tableName = "Mesa 1",
+                roomName = "Salón",
+                date = "2026-10-18",
+                items = listOf(TicketDataItem(quantity = 1, name = "Piña colada", price = 80.0, comments = listOf("sin azúcar"))),
+                total = 80.0,
+                labels = englishTicketLabels,
+            )
+
+        TicketFactory(ticketTemplate).build(mockEscpos, ticketData, null)
+
+        verify(mockEscpos, times(3)).writeLF(any<Style>(), printedLineCaptor.capture())
+        assertEquals(
+            listOf(
+                "Gracias por tu visita, vuelve pronto al Salon",
+                formatTicketLine("1x Pina colada", "80.0"),
+                "  - sin azucar",
+            ),
+            printedLineCaptor.allValues,
+        )
+    }
+
+    @Test
     fun `build should resolve ticket tipAmount placeholder`() {
         val mockEscpos: EscPos = mock()
         val ticketTemplate =
