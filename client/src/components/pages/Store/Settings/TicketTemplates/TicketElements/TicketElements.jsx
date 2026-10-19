@@ -31,7 +31,7 @@ function resolveAlignment(justification) {
   return "text-left";
 }
 
-export function TicketElementsPreview({ templateElements, businessConfig, printFormats }) {
+export function TicketElementsPreview({ templateElements, businessConfig, printFormats, sampleTicket }) {
   if (!Array.isArray(templateElements) || templateElements.length === 0) {
     return null;
   }
@@ -76,7 +76,7 @@ export function TicketElementsPreview({ templateElements, businessConfig, printF
       ];
     }
     if (templateElement.type === "TABLE_ROW") {
-      return ElementTableRow({ localId: templateElement.localId, className: elementClassName });
+      return ElementTableRow({ localId: templateElement.localId, sampleTicket, className: elementClassName });
     }
     if (templateElement.type === "TOTAL_ROW") {
       return ElementTotalRow({
@@ -84,6 +84,7 @@ export function TicketElementsPreview({ templateElements, businessConfig, printF
         templateText: templateElement.value,
         businessConfig,
         printFormats,
+        sampleTicket,
         className: elementClassName,
       });
     }
@@ -94,6 +95,7 @@ export function TicketElementsPreview({ templateElements, businessConfig, printF
           templateText={templateElement.value}
           businessConfig={businessConfig}
           printFormats={printFormats}
+          sampleTicket={sampleTicket}
           className={elementClassName}
         />,
       ];

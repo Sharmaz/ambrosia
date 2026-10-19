@@ -1,8 +1,6 @@
 "use client";
 
-import { sampleTicket } from "./sampleData";
-
-export function ElementTableRow({ localId, className }) {
+export function ElementTableRow({ localId, sampleTicket, className }) {
   return sampleTicket.items.flatMap((item, index) => [
     <div
       key={`${localId}-row-${index}`}

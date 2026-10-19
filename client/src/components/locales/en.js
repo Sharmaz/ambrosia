@@ -63,6 +63,13 @@ const componentsEn = {
       tip: "TIP",
       paymentMethod: "PAYMENT METHOD",
     },
+    sample: {
+      tableName: "Table 4",
+      roomName: "Main Hall",
+      burger: "Burger",
+      lemonade: "Lemonade",
+      noOnion: "no onion",
+    },
   },
   status: {
     open: "Open",

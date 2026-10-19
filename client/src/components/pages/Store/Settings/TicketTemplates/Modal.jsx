@@ -13,7 +13,7 @@ import { createElement, DEFAULT_PRINT_FORMATS, DEFAULT_STYLE } from "./defaults"
 import { TicketTemplatesEditor } from "./Editor";
 import { TicketTemplatesFooter } from "./Footer";
 import { TemplatePreview } from "./Preview";
-import { sampleTicket } from "./TicketElements";
+import { useSampleTicket } from "./TicketElements";
 
 const PRINTER_TYPES = ["CUSTOMER"];
 
@@ -27,6 +27,7 @@ export function TicketTemplatesModal({ isOpen, onClose, initialTemplate = null }
   } = useTemplates();
   const { printTicket } = usePrinters();
   const { config } = useConfigurations();
+  const sampleTicket = useSampleTicket();
 
   const [selectedId, setSelectedId] = useState("");
   const [name, setName] = useState("");
