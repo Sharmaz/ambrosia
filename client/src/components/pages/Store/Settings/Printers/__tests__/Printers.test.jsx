@@ -12,6 +12,10 @@ jest.mock("next-intl", () => ({
   useTranslations: () => (key) => key,
 }));
 
+jest.mock("../../../Cart/hooks/usePaymentMethod", () => ({
+  usePaymentMethods: () => ({ paymentMethods: [{ id: "method-cash", name: "Cash" }] }),
+}));
+
 jest.mock("../../../hooks/usePrinter");
 jest.mock("../../../hooks/useTemplates");
 
@@ -179,5 +183,14 @@ describe("Printers", () => {
         color: "danger",
       });
     });
+  });
+
+  it("passes the payment methods to the printers card for the cash drawer settings", () => {
+    usePrintersHook.usePrinters.mockReturnValue(defaultPrinters);
+    useTemplatesHook.useTemplates.mockReturnValue(defaultTemplates);
+
+    render(<Printers />);
+
+    expect(capturedProps.data.paymentMethods).toEqual([{ id: "method-cash", name: "Cash" }]);
   });
 });

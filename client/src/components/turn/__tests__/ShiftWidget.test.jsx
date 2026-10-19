@@ -15,6 +15,20 @@ jest.mock("@/components/hooks/useCurrency", () => ({
   useCurrency: jest.fn(),
 }));
 
+const mockOpenCashDrawer = jest.fn();
+const mockOpenCashDrawerForShiftClose = jest.fn();
+jest.mock("@/hooks/useCashDrawer", () => ({
+  useCashDrawer: () => ({
+    openCashDrawer: mockOpenCashDrawer,
+    openCashDrawerForShiftClose: mockOpenCashDrawerForShiftClose,
+  }),
+}));
+
+let mockCanOpenCashDrawer = true;
+jest.mock("@/hooks/usePermission", () => ({
+  RequirePermission: ({ children: permittedContent }) => (mockCanOpenCashDrawer ? permittedContent : null),
+}));
+
 jest.mock("@/components/turn/CloseTurnModal", () => ({
   CloseTurnModal: ({ isOpen, onConfirm, onClose }) => (isOpen ? (
     <div data-testid="close-turn-modal">
@@ -59,6 +73,7 @@ function setupMocks({
 
 beforeEach(() => {
   jest.clearAllMocks();
+  mockCanOpenCashDrawer = true;
 });
 
 describe("ShiftWidget", () => {
@@ -250,6 +265,50 @@ describe("ShiftWidget", () => {
       await user.click(screen.getByText("cancel-close"));
       expect(mockCloseShift).not.toHaveBeenCalled();
       expect(screen.queryByTestId("close-turn-modal")).not.toBeInTheDocument();
+    });
+  });
+
+  describe("cash drawer", () => {
+    async function renderExpandedWidget() {
+      const user = userEvent.setup();
+      setupMocks();
+      render(<ShiftWidget />);
+      await user.click(screen.getByRole("button", { name: /shiftActive/ }));
+      return user;
+    }
+
+    it("opens the cash drawer and shows a success toast", async () => {
+      mockOpenCashDrawer.mockResolvedValue(undefined);
+      const user = await renderExpandedWidget();
+
+      await user.click(screen.getByText("openCashDrawer"));
+
+      expect(mockOpenCashDrawer).toHaveBeenCalledTimes(1);
+      await waitFor(() => expect(mockAddToast).toHaveBeenCalledWith({ color: "success", description: "openCashDrawerSuccess" }));
+    });
+
+    it("shows an error toast when the cash drawer cannot be opened", async () => {
+      mockOpenCashDrawer.mockRejectedValue(new Error("cash_drawer_not_opened"));
+      const user = await renderExpandedWidget();
+
+      await user.click(screen.getByText("openCashDrawer"));
+
+      await waitFor(() => expect(mockAddToast).toHaveBeenCalledWith({ color: "danger", description: "openCashDrawerError" }));
+    });
+
+    it("hides the open cash drawer button without the cash_drawer_open permission", async () => {
+      mockCanOpenCashDrawer = false;
+      await renderExpandedWidget();
+
+      expect(screen.queryByText("openCashDrawer")).not.toBeInTheDocument();
+    });
+
+    it("opens the cash drawer for the shift close when starting to close the shift", async () => {
+      const user = await renderExpandedWidget();
+
+      await user.click(screen.getByText("closeShiftButton"));
+
+      expect(mockOpenCashDrawerForShiftClose).toHaveBeenCalledWith(1);
     });
   });
 });

@@ -8,6 +8,10 @@ jest.mock("next-intl", () => ({
 
 jest.mock("@/hooks/usePermission");
 
+jest.mock("../CashDrawerSettings", () => ({
+  CashDrawerSettings: () => <div data-testid="cash-drawer-settings" />,
+}));
+
 jest.mock("@components/shared/DeleteButton", () => ({
   DeleteButton: ({ onPress }) => (
     <button type="button" onClick={onPress} aria-label="delete">delete</button>
