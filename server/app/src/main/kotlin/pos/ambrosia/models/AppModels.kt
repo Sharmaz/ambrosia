@@ -558,6 +558,12 @@ enum class PrinterType {
 }
 
 @Serializable
+enum class CashDrawerPin {
+    PIN_2,
+    PIN_5,
+}
+
+@Serializable
 data class PrinterConfig(
     val id: String,
     val printerType: PrinterType,
@@ -566,6 +572,12 @@ data class PrinterConfig(
     val isDefault: Boolean = false,
     val enabled: Boolean = true,
     val createdAt: String? = null,
+    val cashDrawerEnabled: Boolean = false,
+    val cashDrawerPin: CashDrawerPin = CashDrawerPin.PIN_2,
+    val cashDrawerPaymentMethodIds: List<String> = emptyList(),
+    val openCashDrawerOnRefund: Boolean = true,
+    val openCashDrawerOnShiftOpen: Boolean = true,
+    val openCashDrawerOnShiftClose: Boolean = true,
 )
 
 @Serializable
@@ -575,6 +587,12 @@ data class PrinterConfigCreateRequest(
     val templateName: String? = null,
     val isDefault: Boolean = false,
     val enabled: Boolean = true,
+    val cashDrawerEnabled: Boolean = false,
+    val cashDrawerPin: CashDrawerPin = CashDrawerPin.PIN_2,
+    val cashDrawerPaymentMethodIds: List<String> = emptyList(),
+    val openCashDrawerOnRefund: Boolean = true,
+    val openCashDrawerOnShiftOpen: Boolean = true,
+    val openCashDrawerOnShiftClose: Boolean = true,
 )
 
 @Serializable
@@ -584,6 +602,12 @@ data class PrinterConfigUpdateRequest(
     val templateName: String? = null,
     val isDefault: Boolean? = null,
     val enabled: Boolean? = null,
+    val cashDrawerEnabled: Boolean? = null,
+    val cashDrawerPin: CashDrawerPin? = null,
+    val cashDrawerPaymentMethodIds: List<String>? = null,
+    val openCashDrawerOnRefund: Boolean? = null,
+    val openCashDrawerOnShiftOpen: Boolean? = null,
+    val openCashDrawerOnShiftClose: Boolean? = null,
 )
 
 @Serializable data class SetPrinterRequest(
