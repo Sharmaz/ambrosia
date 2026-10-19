@@ -610,6 +610,11 @@ data class PrinterConfigUpdateRequest(
     val openCashDrawerOnShiftClose: Boolean? = null,
 )
 
+@Serializable
+data class OpenCashDrawerRequest(
+    val printerId: String? = null,
+)
+
 @Serializable data class SetPrinterRequest(
     val printerType: PrinterType,
     val printerName: String,
