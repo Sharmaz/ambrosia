@@ -131,6 +131,7 @@ const rolesEs = {
         settings_read: { label: "Ver configuración", description: "Leer datos de negocio y monedas." },
         settings_update: { label: "Editar configuración", description: "Actualizar datos de negocio." },
         printer_update: { label: "Configurar impresora", description: "Actualizar ajustes de tickets." },
+        cash_drawer_open: { label: "Abrir caja de dinero", description: "Abrir la caja sin una venta, por ejemplo para dar cambio." },
         dish_read: { label: "Ver platillos", description: "Listar platillos del menú." },
         dish_create: { label: "Crear platillos", description: "Dar de alta platillos." },
         dish_update: { label: "Editar platillos", description: "Actualizar recetas o precios." },

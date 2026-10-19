@@ -131,6 +131,7 @@ const rolesEn = {
         settings_read: { label: "View settings", description: "Read business data and currencies." },
         settings_update: { label: "Edit settings", description: "Update business data." },
         printer_update: { label: "Configure printer", description: "Update ticket printer settings." },
+        cash_drawer_open: { label: "Open cash drawer", description: "Open the drawer without a sale, for example to give change." },
         dish_read: { label: "View dishes", description: "List menu dishes." },
         dish_create: { label: "Create dishes", description: "Add dishes to menu." },
         dish_update: { label: "Edit dishes", description: "Update recipes or prices." },
