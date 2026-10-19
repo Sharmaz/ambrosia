@@ -54,6 +54,7 @@ describe("useCustomerReceipt", () => {
           ticketId: "42",
           total: 2,
           invoice: "ln-invoice",
+          labels: { total: "labels.total", discount: "labels.discount", tip: "labels.tip", paymentMethod: "labels.paymentMethod" },
           items: [
             expect.objectContaining({ name: "Jade", price: 1, quantity: 2 }),
           ],

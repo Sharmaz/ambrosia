@@ -170,7 +170,7 @@ describe("TicketTemplatesModal", () => {
     expect(screen.getByLabelText("templates.dateFormatLabel")).toHaveValue("MONTH_DAY_YEAR");
     expect(screen.getByLabelText("templates.timeFormatLabel")).toHaveValue("HOURS_12");
     expect(screen.getByText("Ambrosia")).toBeInTheDocument();
-    expect(screen.getByText("2x Burger")).toBeInTheDocument();
+    expect(screen.getByText("2x burger")).toBeInTheDocument();
     expect(screen.getByText("lnbc10u1p0exampleinvoice")).toBeInTheDocument();
 
     fireEvent.click(screen.getByText("templates.saveChanges"));
@@ -283,6 +283,13 @@ describe("TicketTemplatesModal", () => {
 
     fireEvent.click(screen.getByText("templates.printTest"));
 
+    await waitFor(() => expect(printTicket).toHaveBeenCalledWith(expect.objectContaining({
+      ticketData: expect.objectContaining({
+        tableName: "tableName",
+        paymentMethod: "cash",
+        labels: { total: "labels.total", discount: "labels.discount", tip: "labels.tip", paymentMethod: "labels.paymentMethod" },
+      }),
+    })));
     await waitFor(() => expect(addToast).toHaveBeenCalledWith({
       title: "templates.printSuccessTitle",
       description: "templates.printSuccessDescription",
