@@ -56,6 +56,14 @@ const componentsEn = {
     btc: "Bitcoin (Lightning)",
     bankTransfer: "Bank Transfer",
   },
+  ticketPrint: {
+    labels: {
+      total: "TOTAL",
+      discount: "DISCOUNT",
+      tip: "TIP",
+      paymentMethod: "PAYMENT METHOD",
+    },
+  },
   status: {
     open: "Open",
     closed: "Closed",

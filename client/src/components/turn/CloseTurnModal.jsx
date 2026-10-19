@@ -20,6 +20,7 @@ import { usePrinters } from "@/components/pages/Store/hooks/usePrinter";
 import { toNumberInputValue } from "@/components/utils/numberParsers";
 import { useTurn } from "@/hooks/turn/useTurn";
 import { usePaymentMethodLabel } from "@/hooks/usePaymentMethodLabel";
+import { useTicketLabels } from "@/hooks/useTicketLabels";
 
 export function CloseTurnModal({
   isOpen,
@@ -34,6 +35,7 @@ export function CloseTurnModal({
   const reportsTranslations = useTranslations("reports");
   const shiftTranslations = useTranslations("shifts");
   const { getPaymentMethodLabel } = usePaymentMethodLabel();
+  const ticketLabels = useTicketLabels();
 
   const {
     totalBalance, totalTips, cashTotal, refundedCashTotal, totalTickets, byPaymentMethod, ticketsLoading, breakdownLoading,
@@ -70,6 +72,7 @@ export function CloseTurnModal({
           total: totalBalance,
           tipAmount: totalTips,
           invoice: null,
+          labels: ticketLabels,
         },
       });
       if (!printCorteZResponse?.ok) throw new Error("print failed");

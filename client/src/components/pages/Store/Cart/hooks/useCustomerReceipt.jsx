@@ -6,6 +6,7 @@ import { addToast } from "@heroui/react";
 import { useTranslations } from "next-intl";
 
 import { usePaymentMethodLabel } from "@/hooks/usePaymentMethodLabel";
+import { useTicketLabels } from "@/hooks/useTicketLabels";
 
 import { usePrinters } from "../../hooks/usePrinter";
 
@@ -13,6 +14,7 @@ export function useCustomerReceipt() {
   const paymentTranslations = useTranslations("cart.payment");
   const { printTicket, printerConfigs, loadingConfigs } = usePrinters();
   const { getPaymentMethodLabel } = usePaymentMethodLabel();
+  const ticketLabels = useTicketLabels();
 
   const hasCustomerPrinter = useMemo(() => {
     if (!Array.isArray(printerConfigs)) return false;
@@ -40,6 +42,7 @@ export function useCustomerReceipt() {
         tipAmount: Number(tipAmountCents ?? 0) / 100,
         invoice: invoice || null,
         paymentMethod: getPaymentMethodLabel(paymentMethodName) || null,
+        labels: ticketLabels,
       };
       try {
         await printTicket({
@@ -56,7 +59,7 @@ export function useCustomerReceipt() {
         });
       }
     },
-    [hasCustomerPrinter, loadingConfigs, printTicket, paymentTranslations, getPaymentMethodLabel],
+    [hasCustomerPrinter, loadingConfigs, printTicket, paymentTranslations, getPaymentMethodLabel, ticketLabels],
   );
 
   return { printCustomerReceipt };
