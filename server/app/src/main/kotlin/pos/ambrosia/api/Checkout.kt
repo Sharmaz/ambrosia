@@ -13,6 +13,7 @@ import pos.ambrosia.models.Message
 import pos.ambrosia.models.StoreCheckoutRequest
 import pos.ambrosia.models.WalletErrorResponse
 import pos.ambrosia.services.ActiveLightningBackend
+import pos.ambrosia.services.CashDrawerService
 import pos.ambrosia.services.CheckoutResult
 import pos.ambrosia.services.CheckoutService
 import pos.ambrosia.utils.PaymentNotConfirmedException
@@ -21,10 +22,14 @@ import pos.ambrosia.utils.requirePermission
 
 fun Application.configureCheckout() {
     val checkoutService = CheckoutService(ActiveLightningBackend)
-    routing { route("/store/orders") { checkout(checkoutService) } }
+    val cashDrawerService = CashDrawerService()
+    routing { route("/store/orders") { checkout(checkoutService, cashDrawerService) } }
 }
 
-fun Route.checkout(checkoutService: CheckoutService) {
+fun Route.checkout(
+    checkoutService: CheckoutService,
+    cashDrawerService: CashDrawerService,
+) {
     authorizePermission("orders_create") {
         post("/checkout") {
             val checkoutRequest = call.receive<StoreCheckoutRequest>()
@@ -34,6 +39,9 @@ fun Route.checkout(checkoutService: CheckoutService) {
             when (val result = checkoutService.checkout(checkoutRequest)) {
                 is CheckoutResult.Success -> {
                     val status = if (result.alreadyExisted) HttpStatusCode.OK else HttpStatusCode.Created
+                    if (!result.alreadyExisted) {
+                        cashDrawerService.openForPaymentMethod(checkoutRequest.paymentMethodId)
+                    }
                     call.respond(status, result.response)
                 }
 
