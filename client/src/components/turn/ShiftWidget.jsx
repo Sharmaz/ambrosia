@@ -3,12 +3,14 @@ import { useState } from "react";
 
 import { Button, Card, CardBody, addToast } from "@heroui/react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Clock, X } from "lucide-react";
+import { Banknote, Clock, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import { useCurrency } from "@/components/hooks/useCurrency";
 import { CloseTurnModal } from "@/components/turn/CloseTurnModal";
 import { useTurn } from "@/hooks/turn/useTurn";
+import { useCashDrawer } from "@/hooks/useCashDrawer";
+import { RequirePermission } from "@/hooks/usePermission";
 
 export function ShiftWidget() {
   const [isExpanded, setIsExpanded] = useState(false);
@@ -18,6 +20,8 @@ export function ShiftWidget() {
   const shiftTranslations = useTranslations("shifts");
   const { openTurn, openShiftData, closeShift, totalBalance, totalTickets, ticketsLoading } = useTurn();
   const { formatAmount } = useCurrency();
+  const { openCashDrawer, openCashDrawerForShiftClose } = useCashDrawer();
+  const [openingCashDrawer, setOpeningCashDrawer] = useState(false);
 
   if (openTurn === null) return null;
 
@@ -39,6 +43,24 @@ export function ShiftWidget() {
     } finally {
       setClosingTurn(false);
     }
+  };
+
+  const handleOpenCashDrawer = async () => {
+    if (openingCashDrawer) return;
+    setOpeningCashDrawer(true);
+    try {
+      await openCashDrawer();
+      addToast({ color: "success", description: shiftTranslations("openCashDrawerSuccess") });
+    } catch {
+      addToast({ color: "danger", description: shiftTranslations("openCashDrawerError") });
+    } finally {
+      setOpeningCashDrawer(false);
+    }
+  };
+
+  const handleStartClose = () => {
+    setShowCloseModal(true);
+    openCashDrawerForShiftClose(openTurn);
   };
 
   return (
@@ -87,9 +109,20 @@ export function ShiftWidget() {
                   </div>
                 </div>
 
+                <RequirePermission allOf={["cash_drawer_open"]}>
+                  <Button
+                    variant="bordered"
+                    startContent={<Banknote className="w-4 h-4" />}
+                    onPress={handleOpenCashDrawer}
+                    isLoading={openingCashDrawer}
+                  >
+                    {shiftTranslations("openCashDrawer")}
+                  </Button>
+                </RequirePermission>
+
                 <Button
                   color="danger"
-                  onPress={() => setShowCloseModal(true)}
+                  onPress={handleStartClose}
                 >
                   {shiftTranslations("closeShiftButton")}
                 </Button>
