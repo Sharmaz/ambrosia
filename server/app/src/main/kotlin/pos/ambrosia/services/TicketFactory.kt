@@ -21,6 +21,7 @@ import pos.ambrosia.models.Justification
 import pos.ambrosia.models.TicketData
 import pos.ambrosia.models.TicketTemplate
 import pos.ambrosia.utils.formatTicketLine
+import pos.ambrosia.utils.removeAccents
 import java.awt.image.BufferedImage
 import java.time.Clock
 import java.time.ZoneId
@@ -76,11 +77,11 @@ class TicketFactory(
 
             when (templateElement.type) {
                 ElementType.SEPARATOR -> {
-                    escpos.writeLF(escPosStyle, SEPARATOR_LINE)
+                    writePrintableLine(escpos, escPosStyle, SEPARATOR_LINE)
                 }
 
                 ElementType.TABLE_HEADER -> {
-                    escpos.writeLF(escPosStyle, resolvedContent)
+                    writePrintableLine(escpos, escPosStyle, resolvedContent)
                 }
 
                 ElementType.TABLE_ROW -> {
@@ -88,33 +89,33 @@ class TicketFactory(
                         val itemText = "${ticketItem.quantity}x ${ticketItem.name}"
                         val priceText = ticketItem.price.toString()
                         val itemRow = formatTicketLine(itemText, priceText)
-                        escpos.writeLF(escPosStyle, itemRow)
+                        writePrintableLine(escpos, escPosStyle, itemRow)
                         ticketItem.comments.forEach { comment ->
-                            escpos.writeLF(escPosStyle, "  - $comment")
+                            writePrintableLine(escpos, escPosStyle, "  - $comment")
                         }
                     }
                 }
 
                 ElementType.TOTAL_ROW -> {
                     val totalLabel = resolvedContent.ifEmpty { ticketData.labels.total }
-                    escpos.writeLF(escPosStyle, SEPARATOR_LINE)
+                    writePrintableLine(escpos, escPosStyle, SEPARATOR_LINE)
                     if (ticketData.discountAmount > 0) {
                         val discountRow = formatTicketLine(ticketData.labels.discount, "-${ticketData.discountAmount}")
-                        escpos.writeLF(escPosStyle, discountRow)
+                        writePrintableLine(escpos, escPosStyle, discountRow)
                     }
                     if (ticketData.tipAmount > 0) {
                         val tipRow = formatTicketLine(ticketData.labels.tip, "+${ticketData.tipAmount}")
-                        escpos.writeLF(escPosStyle, tipRow)
+                        writePrintableLine(escpos, escPosStyle, tipRow)
                     }
                     val totalRow = formatTicketLine(totalLabel, ticketData.total.toString())
-                    escpos.writeLF(escPosStyle, totalRow)
+                    writePrintableLine(escpos, escPosStyle, totalRow)
                 }
 
                 ElementType.PAYMENT_METHOD -> {
                     val paymentMethodName = ticketData.paymentMethod.orEmpty()
                     if (paymentMethodName.isNotBlank()) {
                         val paymentMethodLabel = resolvedContent.ifEmpty { ticketData.labels.paymentMethod }
-                        escpos.writeLF(escPosStyle, formatTicketLine(paymentMethodLabel, paymentMethodName))
+                        writePrintableLine(escpos, escPosStyle, formatTicketLine(paymentMethodLabel, paymentMethodName))
                     }
                 }
 
@@ -133,10 +134,18 @@ class TicketFactory(
                 }
 
                 else -> {
-                    escpos.writeLF(escPosStyle, resolvedContent)
+                    writePrintableLine(escpos, escPosStyle, resolvedContent)
                 }
             }
         }
+    }
+
+    private fun writePrintableLine(
+        escpos: EscPos,
+        escPosStyle: Style,
+        lineText: String,
+    ) {
+        escpos.writeLF(escPosStyle, removeAccents(lineText))
     }
 
     private fun writeQrCode(
@@ -168,7 +177,7 @@ class TicketFactory(
         } catch (qrException: Exception) {
             logger.error("Failed to print QR image: ${qrException.message}", qrException)
             val fallbackStyle = convertToEscPosStyle(elementStyle)
-            escpos.writeLF(fallbackStyle, qrContent)
+            writePrintableLine(escpos, fallbackStyle, qrContent)
         }
     }
 

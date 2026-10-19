@@ -488,7 +488,7 @@ class TicketFactoryTest {
     @Test
     fun `build should print the payment method row with the element label`() {
         assertEquals(
-            listOf(formatTicketLine("Método de pago", "Efectivo")),
+            listOf(formatTicketLine("Metodo de pago", "Efectivo")),
             printedPaymentMethodLines(storedLabel = "Método de pago", paymentMethod = "Efectivo"),
         )
     }
