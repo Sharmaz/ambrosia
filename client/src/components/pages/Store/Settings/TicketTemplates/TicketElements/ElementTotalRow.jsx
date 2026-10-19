@@ -1,5 +1,6 @@
 "use client";
 
+import { removeAccents } from "./removeAccents";
 import { resolveTemplateVariables } from "./resolveTemplateVariables";
 
 export function ElementTotalRow({ localId, templateText, businessConfig, printFormats, sampleTicket, className }) {
@@ -10,7 +11,7 @@ export function ElementTotalRow({ localId, templateText, businessConfig, printFo
       key={`${localId}-total`}
       className={`flex justify-between gap-3 ${className}`}
     >
-      <span className="font-semibold">{totalLabel}</span>
+      <span className="font-semibold">{removeAccents(totalLabel)}</span>
       <span className="whitespace-nowrap font-semibold">{sampleTicket.total}</span>
     </div>,
   ];
