@@ -12,7 +12,7 @@ import { DeleteButton } from "@components/shared/DeleteButton";
 import { insertVariable } from "./insertVariable";
 import { LogoImageSection, LogoSourceSelect } from "./LogoSource";
 import { removeVariable } from "./removeVariable";
-import { resolveValue } from "./TicketElements";
+import { resolveTemplateVariables } from "./TicketElements";
 import { useLogoSource } from "./useLogoSource";
 import { TemplateVariablePicker } from "./VariablePicker";
 
@@ -92,7 +92,7 @@ export function TemplateElementRow({ templateElement, isOpen, onToggle, onChange
   };
 
   const typeLabel = settingsTranslations(`templates.elementTypes.${elementType}`);
-  const resolvedSummary = resolveValue(templateElement.value ?? "", businessConfig, printFormats);
+  const resolvedSummary = resolveTemplateVariables(templateElement.value ?? "", businessConfig, printFormats);
   const valueSummary = resolvedSummary ? `— "${resolvedSummary}"` : "";
 
   return (

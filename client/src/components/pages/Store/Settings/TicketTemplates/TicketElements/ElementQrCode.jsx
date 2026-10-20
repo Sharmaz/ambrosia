@@ -2,7 +2,7 @@
 
 import QRCode from "react-qr-code";
 
-import { resolveValue } from "./resolveValue";
+import { resolveTemplateVariables } from "./resolveTemplateVariables";
 import { sampleTicket } from "./sampleData";
 
 const qrWidthClasses = {
@@ -18,7 +18,7 @@ const qrAlignmentClasses = {
 };
 
 export function ElementQrCode({ templateText, businessConfig, printFormats, fontSize, justification, className }) {
-  const qrContent = resolveValue(templateText || "", businessConfig, printFormats) || sampleTicket.invoice;
+  const qrContent = resolveTemplateVariables(templateText || "", businessConfig, printFormats) || sampleTicket.invoice;
   const widthClass = qrWidthClasses[fontSize] || qrWidthClasses.NORMAL;
   const alignmentClass = qrAlignmentClasses[justification] || qrAlignmentClasses.LEFT;
 
