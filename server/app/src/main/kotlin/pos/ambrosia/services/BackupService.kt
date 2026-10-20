@@ -2,12 +2,14 @@ package pos.ambrosia.services
 
 import kotlinx.serialization.json.Json
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
+import pos.ambrosia.config.AppConfig
 import pos.ambrosia.config.readConfValues
 import pos.ambrosia.config.replaceConfFileProperty
 import pos.ambrosia.datadir
 import pos.ambrosia.logger
 import pos.ambrosia.models.BackupManifest
 import pos.ambrosia.models.BackupProgressPhase
+import pos.ambrosia.phoenixDatadir
 import pos.ambrosia.utils.PendingImportAlreadyStagedException
 import java.io.IOException
 import java.io.InputStream
@@ -17,6 +19,7 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
 import java.nio.file.StandardCopyOption
+import java.nio.file.attribute.FileTime
 import java.security.SecureRandom
 import java.sql.DriverManager
 import java.time.Duration
@@ -43,6 +46,8 @@ class BackupService(
     private val configFilePath: String = Paths.get(datadir.toString(), "ambrosia.conf").toString(),
     private val importStagingRoot: Path = Paths.get(datadir.toString(), "import-staging"),
     private val keyStoreFilePath: Path = Paths.get(datadir.toString(), "keystore.jks"),
+    private val phoenixDataDirectory: Path = Paths.get(phoenixDatadir.toString()),
+    private val phoenixConfigFilePath: String = Paths.get(phoenixDatadir.toString(), "phoenix.conf").toString(),
 ) {
     companion object {
         // PBKDF2 turns the plain-text password into an actual AES key.
@@ -76,7 +81,7 @@ class BackupService(
 
     fun prepareExportSnapshot(): Path {
         val databaseSnapshot = Files.createTempFile("ambrosia-backup-db-", ".sqlite")
-        snapshotDatabase(databaseSnapshot)
+        snapshotDatabase(databasePath, databaseSnapshot)
         return databaseSnapshot
     }
 
@@ -87,6 +92,7 @@ class BackupService(
         rolePassword: CharArray,
         databaseSnapshot: Path,
         backupOutputStream: OutputStream,
+        isLocalPhoenixd: Boolean = false,
         onProgress: (phase: String, bytesProcessed: Long, totalBytes: Long?) -> Unit = { _, _, _ -> },
     ) {
         try {
@@ -120,6 +126,7 @@ class BackupService(
                     writeManifestEntry(zip, businessName, totalExportBytes)
                     writeFileEntry(zip, databaseSnapshot, "ambrosia.db", onBytesWritten)
                     writeUploadsEntries(zip, onBytesWritten)
+                    if (isLocalPhoenixd) writePhoenixdEntries(zip)
                 }
             }
         } finally {
@@ -382,8 +389,11 @@ class BackupService(
         Files.writeString(stagingTempRoot.resolve(STAGED_SECRET_FILE_NAME), secret)
     }
 
-    private fun snapshotDatabase(destination: Path) {
-        DriverManager.getConnection("jdbc:sqlite:$databasePath").use { connection ->
+    private fun snapshotDatabase(
+        sourceDatabasePath: String,
+        destination: Path,
+    ) {
+        DriverManager.getConnection("jdbc:sqlite:$sourceDatabasePath").use { connection ->
             connection.createStatement().use { statement ->
                 statement.execute("VACUUM INTO '${destination.toAbsolutePath()}'")
             }
@@ -413,8 +423,16 @@ class BackupService(
                 secret = readSecret(),
                 totalUncompressedBytes = totalUncompressedBytes,
             )
-        zip.putNextEntry(ZipEntry("manifest.json"))
-        zip.write(Json.encodeToString(BackupManifest.serializer(), manifest).toByteArray(Charsets.UTF_8))
+        writeStringEntry(zip, "manifest.json", Json.encodeToString(BackupManifest.serializer(), manifest))
+    }
+
+    private fun writeStringEntry(
+        zip: ZipOutputStream,
+        entryName: String,
+        content: String,
+    ) {
+        zip.putNextEntry(ZipEntry(entryName))
+        zip.write(content.toByteArray(Charsets.UTF_8))
         zip.closeEntry()
     }
 
@@ -428,6 +446,57 @@ class BackupService(
         Files.newInputStream(source).use { fileInputStream -> copyWithProgress(fileInputStream, zip, onBytesWritten) }
         zip.closeEntry()
     }
+
+    private fun writePhoenixdEntries(zip: ZipOutputStream) {
+        runCatching { writePhoenixSeedEntry(zip) }
+            .onFailure { logger.warn("Could not include the phoenixd seed in the backup: ${it.message}") }
+        runCatching { writePhoenixConfigEntry(zip) }
+            .onFailure { logger.warn("Could not include the phoenixd config in the backup: ${it.message}") }
+        runCatching { writePhoenixHistoryDatabaseEntry(zip) }
+            .onFailure { logger.warn("Could not include the phoenixd history database in the backup: ${it.message}") }
+    }
+
+    private fun writePhoenixSeedEntry(zip: ZipOutputStream) {
+        val phoenixSeed = AppConfig.loadPhoenixSeed()
+        if (phoenixSeed.isBlank()) return
+        writeStringEntry(zip, "phoenix/seed.dat", phoenixSeed)
+    }
+
+    private fun writePhoenixConfigEntry(zip: ZipOutputStream) {
+        val phoenixConfigValues = readConfValues(KotlinIoPath(phoenixConfigFilePath))
+        val phoenixConfigKeyValueText =
+            listOfNotNull(
+                phoenixConfigValues["http-password"]?.let { "http-password=$it" },
+                phoenixConfigValues["webhook-secret"]?.let { "webhook-secret=$it" },
+            ).joinToString("\n")
+        if (phoenixConfigKeyValueText.isBlank()) return
+        writeStringEntry(zip, "phoenix/phoenix.conf", phoenixConfigKeyValueText)
+    }
+
+    private fun writePhoenixHistoryDatabaseEntry(zip: ZipOutputStream) {
+        val mostRecentPhoenixDatabase = findMostRecentPhoenixDatabase() ?: return
+        val phoenixHistorySnapshot = Files.createTempFile("ambrosia-backup-phoenix-history-", ".sqlite")
+        try {
+            snapshotDatabase(mostRecentPhoenixDatabase.toString(), phoenixHistorySnapshot)
+            writeFileEntry(zip, phoenixHistorySnapshot, "phoenix/history.db") {}
+        } finally {
+            Files.deleteIfExists(phoenixHistorySnapshot)
+        }
+    }
+
+    private fun findMostRecentPhoenixDatabase(): Path? {
+        if (!Files.exists(phoenixDataDirectory)) return null
+        Files.newDirectoryStream(phoenixDataDirectory, "phoenix.*.db").use { candidates ->
+            return candidates.maxByOrNull { candidate -> phoenixDatabaseFamilyMaxModifiedTime(candidate) }
+        }
+    }
+
+    private fun phoenixDatabaseFamilyMaxModifiedTime(databaseFile: Path): FileTime =
+        listOf("", "-shm", "-wal")
+            .map { companionSuffix -> Paths.get("$databaseFile$companionSuffix") }
+            .filter { Files.exists(it) }
+            .map { Files.getLastModifiedTime(it) }
+            .max()
 
     private fun writeUploadsEntries(
         zip: ZipOutputStream,

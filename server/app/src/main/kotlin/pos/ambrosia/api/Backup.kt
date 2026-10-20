@@ -34,6 +34,7 @@ import pos.ambrosia.services.ConfigService
 import pos.ambrosia.services.TokenService
 import pos.ambrosia.utils.InvalidCredentialsException
 import pos.ambrosia.utils.canRestartSelf
+import pos.ambrosia.utils.isLocalPhoenixd
 import java.nio.file.Files
 import java.nio.file.Path
 import java.time.LocalDate
@@ -102,13 +103,15 @@ fun Route.backup(
                     ContentDisposition.Attachment.withParameter(ContentDisposition.Parameters.FileName, fileName).toString(),
                 )
                 call.response.header("X-Backup-Total-Bytes", totalExportBytes.toString())
+                val isLocalPhoenixd = call.isLocalPhoenixd()
                 call.respondOutputStream(ContentType.Application.OctetStream, HttpStatusCode.OK) {
                     backupService.exportBackup(
-                        businessName,
-                        rolePassword.password.toCharArray(),
-                        databaseSnapshot,
-                        this,
-                        onExportProgress,
+                        businessName = businessName,
+                        rolePassword = rolePassword.password.toCharArray(),
+                        databaseSnapshot = databaseSnapshot,
+                        backupOutputStream = this,
+                        isLocalPhoenixd = isLocalPhoenixd,
+                        onProgress = onExportProgress,
                     )
                 }
             } finally {
