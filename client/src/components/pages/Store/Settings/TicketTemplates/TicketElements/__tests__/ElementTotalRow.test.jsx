@@ -2,10 +2,12 @@ import { render, screen } from "@testing-library/react";
 
 import { ElementTotalRow } from "../ElementTotalRow";
 
+import { previewSampleTicket } from "./utils/previewSampleTicket";
+
 const businessConfig = { businessName: "Ambrosia" };
 
 function Wrapper({ localId, templateText, businessConfig, className }) {
-  return <div>{ElementTotalRow({ localId, templateText, businessConfig, className })}</div>;
+  return <div>{ElementTotalRow({ localId, templateText, businessConfig, sampleTicket: previewSampleTicket, className })}</div>;
 }
 
 describe("ElementTotalRow", () => {

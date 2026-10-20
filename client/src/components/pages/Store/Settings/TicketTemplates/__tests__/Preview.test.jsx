@@ -20,6 +20,7 @@ jest.mock("@heroui/react", () => ({
 }));
 
 jest.mock("../TicketElements", () => ({
+  useSampleTicket: () => ({ items: [] }),
   TicketElementsPreview: ({ templateElements }) => (
     <div data-testid="elements-preview" data-count={templateElements.length} />
   ),

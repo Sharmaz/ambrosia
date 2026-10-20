@@ -2,6 +2,8 @@ import { render, screen } from "@testing-library/react";
 
 import { TicketElementsPreview } from "../TicketElements";
 
+import { previewSampleTicket } from "./utils/previewSampleTicket";
+
 jest.mock("react-qr-code", () => ({
   __esModule: true,
   default: ({ value: qrValue }) => <svg data-testid="qr-code" data-value={qrValue} />,
@@ -15,7 +17,7 @@ const sampleConfig = {
 };
 
 function Preview({ templateElements, businessConfig }) {
-  return <div>{TicketElementsPreview({ templateElements, businessConfig })}</div>;
+  return <div>{TicketElementsPreview({ templateElements, businessConfig, sampleTicket: previewSampleTicket })}</div>;
 }
 
 describe("TicketElementsPreview", () => {
@@ -94,9 +96,9 @@ describe("TicketElementsPreview", () => {
     render(
       <Preview templateElements={[{ localId: "t-1", type: "TABLE_ROW", style: {} }]} businessConfig={null} />,
     );
-    expect(screen.getByText("2x Burger")).toBeInTheDocument();
-    expect(screen.getByText("1x Lemonade")).toBeInTheDocument();
-    expect(screen.getByText("- no onion")).toBeInTheDocument();
+    expect(screen.getByText("2x Pina colada")).toBeInTheDocument();
+    expect(screen.getByText("1x Limonada")).toBeInTheDocument();
+    expect(screen.getByText("- sin azucar")).toBeInTheDocument();
   });
 
   it("renders TOTAL_ROW with separator, label and total", () => {
@@ -118,19 +120,19 @@ describe("TicketElementsPreview", () => {
     expect(screen.getByText("Ambrosia")).toBeInTheDocument();
   });
 
-  it("renders PAYMENT_METHOD with its label and the sample payment method", () => {
+  it("renders PAYMENT_METHOD with its label and the sample payment method without accents", () => {
     render(
       <Preview templateElements={[{ localId: "pm-1", type: "PAYMENT_METHOD", value: "Método de pago", style: {} }]} businessConfig={null} />,
     );
-    expect(screen.getByText("Método de pago")).toBeInTheDocument();
-    expect(screen.getByText("Cash")).toBeInTheDocument();
+    expect(screen.getByText("Metodo de pago")).toBeInTheDocument();
+    expect(screen.getByText("Tarjeta de debito")).toBeInTheDocument();
   });
 
-  it("renders PAYMENT_METHOD with the default label when it has no label", () => {
+  it("renders PAYMENT_METHOD with the translated default label when it has no label", () => {
     render(
       <Preview templateElements={[{ localId: "pm-2", type: "PAYMENT_METHOD", value: "", style: {} }]} businessConfig={null} />,
     );
-    expect(screen.getByText("PAYMENT METHOD")).toBeInTheDocument();
+    expect(screen.getByText("METODO DE PAGO")).toBeInTheDocument();
   });
 
   it("renders TEXT with resolved value", () => {
@@ -141,6 +143,26 @@ describe("TicketElementsPreview", () => {
       />,
     );
     expect(screen.getByText("Ambrosia")).toBeInTheDocument();
+  });
+
+  it("renders TOTAL_ROW with the translated default label", () => {
+    render(
+      <Preview
+        templateElements={[{ localId: "r-3", type: "TOTAL_ROW", value: "", style: {} }]}
+        businessConfig={null}
+      />,
+    );
+    expect(screen.getByText(previewSampleTicket.labels.total)).toBeInTheDocument();
+  });
+
+  it("renders TEXT without accents like the printer", () => {
+    render(
+      <Preview
+        templateElements={[{ localId: "tx-3", type: "TEXT", value: "Gracias por tu visita al Salón", style: {} }]}
+        businessConfig={null}
+      />,
+    );
+    expect(screen.getByText("Gracias por tu visita al Salon")).toBeInTheDocument();
   });
 
   it("applies bold style", () => {

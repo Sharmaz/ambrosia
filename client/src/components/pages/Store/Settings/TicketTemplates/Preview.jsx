@@ -2,7 +2,7 @@
 
 import { Button, Select, SelectItem } from "@heroui/react";
 
-import { hasVisibleContent, TicketElementsPreview } from "./TicketElements";
+import { hasVisibleContent, TicketElementsPreview, useSampleTicket } from "./TicketElements";
 
 export function TemplatePreview({
   templateElements,
@@ -16,6 +16,8 @@ export function TemplatePreview({
   templateExists,
   settingsTranslations,
 }) {
+  const sampleTicket = useSampleTicket();
+
   return (
     <div className="w-full lg:flex-1 lg:sticky lg:top-0">
       <div className="flex flex-col">
@@ -47,7 +49,12 @@ export function TemplatePreview({
 
       <div className="mt-2 max-h-[50vh] overflow-y-auto rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
         <div className="@container font-mono text-gray-900">
-          <TicketElementsPreview templateElements={templateElements} businessConfig={businessConfig} printFormats={printFormats} />
+          <TicketElementsPreview
+            templateElements={templateElements}
+            businessConfig={businessConfig}
+            printFormats={printFormats}
+            sampleTicket={sampleTicket}
+          />
         </div>
         {!hasVisibleContent(templateElements) && (
           <p className="text-sm text-gray-400 italic text-center py-4">

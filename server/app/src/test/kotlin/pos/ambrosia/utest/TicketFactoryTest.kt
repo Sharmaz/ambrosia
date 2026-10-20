@@ -21,6 +21,7 @@ import pos.ambrosia.models.TicketData
 import pos.ambrosia.models.TicketDataItem
 import pos.ambrosia.models.TicketDateFormat
 import pos.ambrosia.models.TicketElement
+import pos.ambrosia.models.TicketLabels
 import pos.ambrosia.models.TicketTemplate
 import pos.ambrosia.models.TicketTimeFormat
 import pos.ambrosia.services.TicketFactory
@@ -67,6 +68,7 @@ class TicketFactoryTest {
                 date = "2025-10-31",
                 items = emptyList(),
                 total = 0.0,
+                labels = englishTicketLabels,
             )
         val businessConfig =
             Config(
@@ -114,6 +116,7 @@ class TicketFactoryTest {
                 date = "2026-10-15",
                 items = emptyList(),
                 total = 0.0,
+                labels = englishTicketLabels,
             )
 
         TicketFactory(ticketTemplate).build(mockEscpos, ticketData, null)
@@ -158,6 +161,7 @@ class TicketFactoryTest {
                         TicketDataItem(quantity = 2, name = "Fries", price = 3.00),
                     ),
                 total = 18.50,
+                labels = englishTicketLabels,
             )
         val businessConfig =
             Config(
@@ -214,6 +218,7 @@ class TicketFactoryTest {
                 date = "2025-10-31",
                 items = emptyList(),
                 total = 0.0,
+                labels = englishTicketLabels,
             )
         val businessConfig =
             Config(
@@ -271,6 +276,7 @@ class TicketFactoryTest {
                 date = "2026-10-15",
                 items = emptyList(),
                 total = 0.0,
+                labels = englishTicketLabels,
             )
         val businessConfig =
             Config(
@@ -328,6 +334,7 @@ class TicketFactoryTest {
                 date = "2026-10-15",
                 items = emptyList(),
                 total = 0.0,
+                labels = englishTicketLabels,
             )
 
         TicketFactory(ticketTemplate).build(EscPos(printedOutput), ticketData, null)
@@ -367,6 +374,7 @@ class TicketFactoryTest {
                 date = "2025-10-31",
                 items = emptyList(),
                 total = 0.0,
+                labels = englishTicketLabels,
             )
         val businessConfig =
             Config(
@@ -416,6 +424,7 @@ class TicketFactoryTest {
                 total = 115.0,
                 discountAmount = 10.0,
                 tipAmount = 15.0,
+                labels = englishTicketLabels,
             )
         val businessConfig =
             Config(
@@ -438,6 +447,117 @@ class TicketFactoryTest {
         assertEquals(formatTicketLine("DISCOUNT", "-10.0"), printedLines[1])
         assertEquals(formatTicketLine("TIP", "+15.0"), printedLines[2])
         assertEquals(formatTicketLine("TOTAL", "115.0"), printedLines[3])
+    }
+
+    @Test
+    fun `build should print the total, discount and tip with the received labels without accents`() {
+        val mockEscpos: EscPos = mock()
+        val printedLineCaptor = argumentCaptor<String>()
+        val ticketTemplate =
+            TicketTemplate(
+                id = "template-labels",
+                name = "Labels Template",
+                elements =
+                    listOf(
+                        TicketElement(
+                            id = "elem-total",
+                            templateId = "template-labels",
+                            order = 0,
+                            type = ElementType.TOTAL_ROW,
+                            value = "",
+                        ),
+                        TicketElement(
+                            id = "elem-payment-method",
+                            templateId = "template-labels",
+                            order = 1,
+                            type = ElementType.PAYMENT_METHOD,
+                            value = "",
+                        ),
+                    ),
+            )
+        val ticketData =
+            TicketData(
+                ticketId = "labels-001",
+                tableName = "Mesa 1",
+                roomName = "Salón",
+                date = "2026-10-18",
+                items = emptyList(),
+                total = 115.0,
+                discountAmount = 10.0,
+                tipAmount = 15.0,
+                paymentMethod = "Tarjeta de débito",
+                labels =
+                    TicketLabels(
+                        total = "TOTAL",
+                        discount = "DESCUENTO",
+                        tip = "PROPINA",
+                        paymentMethod = "MÉTODO DE PAGO",
+                    ),
+            )
+
+        TicketFactory(ticketTemplate).build(mockEscpos, ticketData, null)
+
+        verify(mockEscpos, times(5)).writeLF(any<Style>(), printedLineCaptor.capture())
+        assertEquals(
+            listOf(
+                "-".repeat(TicketFactory.DEFAULT_TICKET_WIDTH),
+                formatTicketLine("DESCUENTO", "-10.0"),
+                formatTicketLine("PROPINA", "+15.0"),
+                formatTicketLine("TOTAL", "115.0"),
+                formatTicketLine("METODO DE PAGO", "Tarjeta de debito"),
+            ),
+            printedLineCaptor.allValues,
+        )
+    }
+
+    @Test
+    fun `build should remove accents from the template text and item names`() {
+        val mockEscpos: EscPos = mock()
+        val printedLineCaptor = argumentCaptor<String>()
+        val ticketTemplate =
+            TicketTemplate(
+                id = "template-accents",
+                name = "Accents Template",
+                elements =
+                    listOf(
+                        TicketElement(
+                            id = "elem-text",
+                            templateId = "template-accents",
+                            order = 0,
+                            type = ElementType.TEXT,
+                            value = "Gracias por tu visita, vuelve pronto al Salón",
+                        ),
+                        TicketElement(
+                            id = "elem-rows",
+                            templateId = "template-accents",
+                            order = 1,
+                            type = ElementType.TABLE_ROW,
+                            value = "",
+                        ),
+                    ),
+            )
+        val ticketData =
+            TicketData(
+                ticketId = "accents-001",
+                tableName = "Mesa 1",
+                roomName = "Salón",
+                date = "2026-10-18",
+                items = listOf(TicketDataItem(quantity = 1, name = "Piña colada", price = 80.0, comments = listOf("sin azúcar"))),
+                total = 80.0,
+                labels = englishTicketLabels,
+            )
+
+        TicketFactory(ticketTemplate).build(mockEscpos, ticketData, null)
+
+        verify(mockEscpos, times(3)).writeLF(any<Style>(), printedLineCaptor.capture())
+        assertEquals(
+            listOf(
+                "Gracias por tu visita, vuelve pronto al Salon",
+                formatTicketLine("1x Pina colada", "80.0"),
+                "  - sin azucar",
+            ),
+            printedLineCaptor.allValues,
+        )
     }
 
     @Test
@@ -467,6 +587,7 @@ class TicketFactoryTest {
                 items = emptyList(),
                 total = 50.0,
                 tipAmount = 5.0,
+                labels = englishTicketLabels,
             )
 
         val ticketFactory = TicketFactory(ticketTemplate)
@@ -478,7 +599,7 @@ class TicketFactoryTest {
     @Test
     fun `build should print the payment method row with the element label`() {
         assertEquals(
-            listOf(formatTicketLine("Método de pago", "Efectivo")),
+            listOf(formatTicketLine("Metodo de pago", "Efectivo")),
             printedPaymentMethodLines(storedLabel = "Método de pago", paymentMethod = "Efectivo"),
         )
     }
@@ -526,6 +647,7 @@ class TicketFactoryTest {
                 items = emptyList(),
                 total = 100.0,
                 paymentMethod = paymentMethod,
+                labels = englishTicketLabels,
             )
 
         TicketFactory(ticketTemplate).build(mockEscpos, ticketData, null)
@@ -634,6 +756,7 @@ class TicketFactoryTest {
                 date = "2026-10-16",
                 items = emptyList(),
                 total = 0.0,
+                labels = englishTicketLabels,
             )
         val businessConfig =
             Config(
@@ -726,6 +849,7 @@ class TicketFactoryTest {
                     date = "2026-10-15",
                     items = emptyList(),
                     total = 0.0,
+                    labels = englishTicketLabels,
                 )
             val businessConfig =
                 Config(
@@ -776,6 +900,7 @@ class TicketFactoryTest {
                 date = "2026-10-15",
                 items = emptyList(),
                 total = 0.0,
+                labels = englishTicketLabels,
             )
 
         TicketFactory(ticketTemplate).build(mockEscpos, ticketData, null)
@@ -784,3 +909,11 @@ class TicketFactoryTest {
         return imageCaptor.firstValue.widthOfImageInBits
     }
 }
+
+private val englishTicketLabels =
+    TicketLabels(
+        total = "TOTAL",
+        discount = "DISCOUNT",
+        tip = "TIP",
+        paymentMethod = "PAYMENT METHOD",
+    )
