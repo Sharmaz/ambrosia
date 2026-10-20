@@ -7,6 +7,7 @@ import kotlinx.serialization.json.Json
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.junit.After
 import org.junit.Before
+import pos.ambrosia.config.AppConfig
 import pos.ambrosia.models.BackupManifest
 import pos.ambrosia.models.BackupProgressPhase
 import pos.ambrosia.services.BackupService
@@ -20,7 +21,9 @@ import java.nio.file.FileSystemException
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
+import java.nio.file.attribute.FileTime
 import java.security.SecureRandom
+import java.sql.DriverManager
 import java.time.Duration
 import java.time.Instant
 import java.time.temporal.ChronoUnit
@@ -84,10 +87,10 @@ class BackupServiceTest {
     private fun zipEntryNames(zipBytes: ByteArray): List<String> {
         val entryNames = mutableListOf<String>()
         ZipInputStream(zipBytes.inputStream()).use { zip ->
-            var entry = zip.nextEntry
-            while (entry != null) {
-                entryNames.add(entry.name)
-                entry = zip.nextEntry
+            var zipEntry = zip.nextEntry
+            while (zipEntry != null) {
+                entryNames.add(zipEntry.name)
+                zipEntry = zip.nextEntry
             }
         }
         return entryNames
@@ -98,10 +101,10 @@ class BackupServiceTest {
         entryName: String,
     ): String {
         ZipInputStream(zipBytes.inputStream()).use { zip ->
-            var entry = zip.nextEntry
-            while (entry != null) {
-                if (entry.name == entryName) return zip.readBytes().toString(Charsets.UTF_8)
-                entry = zip.nextEntry
+            var zipEntry = zip.nextEntry
+            while (zipEntry != null) {
+                if (zipEntry.name == entryName) return zip.readBytes().toString(Charsets.UTF_8)
+                zipEntry = zip.nextEntry
             }
         }
         throw NoSuchElementException("Zip entry not found: $entryName")
@@ -146,11 +149,16 @@ class BackupServiceTest {
     @Test
     fun `exportBackup produces a zip decryptable with the same password, containing manifest and db snapshot`() {
         val backupService = BackupService(uploadsRoot, databaseFile.absolutePath, configFile.absolutePath)
-        val output = ByteArrayOutputStream()
+        val backupOutputStream = ByteArrayOutputStream()
 
-        backupService.exportBackup("My Test Store", "correct-password".toCharArray(), backupService.prepareExportSnapshot(), output)
+        backupService.exportBackup(
+            "My Test Store",
+            "correct-password".toCharArray(),
+            backupService.prepareExportSnapshot(),
+            backupOutputStream,
+        )
 
-        val decryptedZip = decryptBackup(output.toByteArray(), "correct-password".toCharArray())
+        val decryptedZip = decryptBackup(backupOutputStream.toByteArray(), "correct-password".toCharArray())
         val entries = zipEntryNames(decryptedZip)
 
         assertTrue(entries.contains("manifest.json"))
@@ -160,11 +168,16 @@ class BackupServiceTest {
     @Test
     fun `exportBackup manifest contains the business name`() {
         val backupService = BackupService(uploadsRoot, databaseFile.absolutePath, configFile.absolutePath)
-        val output = ByteArrayOutputStream()
+        val backupOutputStream = ByteArrayOutputStream()
 
-        backupService.exportBackup("My Test Store", "correct-password".toCharArray(), backupService.prepareExportSnapshot(), output)
+        backupService.exportBackup(
+            "My Test Store",
+            "correct-password".toCharArray(),
+            backupService.prepareExportSnapshot(),
+            backupOutputStream,
+        )
 
-        val decryptedZip = decryptBackup(output.toByteArray(), "correct-password".toCharArray())
+        val decryptedZip = decryptBackup(backupOutputStream.toByteArray(), "correct-password".toCharArray())
         val manifestJson = readZipEntry(decryptedZip, "manifest.json")
 
         assertTrue(manifestJson.contains("\"businessName\":\"My Test Store\""))
@@ -173,11 +186,16 @@ class BackupServiceTest {
     @Test
     fun `exportBackup manifest contains the secret from ambrosia conf`() {
         val backupService = BackupService(uploadsRoot, databaseFile.absolutePath, configFile.absolutePath)
-        val output = ByteArrayOutputStream()
+        val backupOutputStream = ByteArrayOutputStream()
 
-        backupService.exportBackup("My Test Store", "correct-password".toCharArray(), backupService.prepareExportSnapshot(), output)
+        backupService.exportBackup(
+            "My Test Store",
+            "correct-password".toCharArray(),
+            backupService.prepareExportSnapshot(),
+            backupOutputStream,
+        )
 
-        val decryptedZip = decryptBackup(output.toByteArray(), "correct-password".toCharArray())
+        val decryptedZip = decryptBackup(backupOutputStream.toByteArray(), "correct-password".toCharArray())
         val manifestJson = readZipEntry(decryptedZip, "manifest.json")
 
         assertTrue(manifestJson.contains("\"secret\":\"$TEST_SECRET\""))
@@ -187,10 +205,15 @@ class BackupServiceTest {
     fun `exportBackup throws when ambrosia conf has no secret`() {
         configFile.writeText("nwc-uri=nostr+walletconnect://example\n")
         val backupService = BackupService(uploadsRoot, databaseFile.absolutePath, configFile.absolutePath)
-        val output = ByteArrayOutputStream()
+        val backupOutputStream = ByteArrayOutputStream()
 
         assertFailsWith<IllegalStateException> {
-            backupService.exportBackup("My Test Store", "correct-password".toCharArray(), backupService.prepareExportSnapshot(), output)
+            backupService.exportBackup(
+                "My Test Store",
+                "correct-password".toCharArray(),
+                backupService.prepareExportSnapshot(),
+                backupOutputStream,
+            )
         }
     }
 
@@ -199,11 +222,16 @@ class BackupServiceTest {
         val dateDir = Files.createDirectory(uploadsRoot.resolve("2026-08-24"))
         Files.write(dateDir.resolve("logo.png"), "fake-image-bytes".toByteArray())
         val backupService = BackupService(uploadsRoot, databaseFile.absolutePath, configFile.absolutePath)
-        val output = ByteArrayOutputStream()
+        val backupOutputStream = ByteArrayOutputStream()
 
-        backupService.exportBackup("My Test Store", "correct-password".toCharArray(), backupService.prepareExportSnapshot(), output)
+        backupService.exportBackup(
+            "My Test Store",
+            "correct-password".toCharArray(),
+            backupService.prepareExportSnapshot(),
+            backupOutputStream,
+        )
 
-        val decryptedZip = decryptBackup(output.toByteArray(), "correct-password".toCharArray())
+        val decryptedZip = decryptBackup(backupOutputStream.toByteArray(), "correct-password".toCharArray())
         val entries = zipEntryNames(decryptedZip)
 
         assertTrue(entries.contains("uploads/2026-08-24/logo.png"))
@@ -213,11 +241,16 @@ class BackupServiceTest {
     fun `exportBackup produces no uploads entries when the uploads directory does not exist`() {
         val backupService =
             BackupService(uploadsRoot.resolve("does-not-exist"), databaseFile.absolutePath, configFile.absolutePath)
-        val output = ByteArrayOutputStream()
+        val backupOutputStream = ByteArrayOutputStream()
 
-        backupService.exportBackup("My Test Store", "correct-password".toCharArray(), backupService.prepareExportSnapshot(), output)
+        backupService.exportBackup(
+            "My Test Store",
+            "correct-password".toCharArray(),
+            backupService.prepareExportSnapshot(),
+            backupOutputStream,
+        )
 
-        val decryptedZip = decryptBackup(output.toByteArray(), "correct-password".toCharArray())
+        val decryptedZip = decryptBackup(backupOutputStream.toByteArray(), "correct-password".toCharArray())
         val entries = zipEntryNames(decryptedZip)
 
         assertTrue(entries.none { it.startsWith("uploads/") })
@@ -226,22 +259,27 @@ class BackupServiceTest {
     @Test
     fun `decrypting the backup with the wrong password fails`() {
         val backupService = BackupService(uploadsRoot, databaseFile.absolutePath, configFile.absolutePath)
-        val output = ByteArrayOutputStream()
+        val backupOutputStream = ByteArrayOutputStream()
 
-        backupService.exportBackup("My Test Store", "correct-password".toCharArray(), backupService.prepareExportSnapshot(), output)
+        backupService.exportBackup(
+            "My Test Store",
+            "correct-password".toCharArray(),
+            backupService.prepareExportSnapshot(),
+            backupOutputStream,
+        )
 
         assertFailsWith<BadPaddingException> {
-            decryptBackup(output.toByteArray(), "wrong-password".toCharArray())
+            decryptBackup(backupOutputStream.toByteArray(), "wrong-password".toCharArray())
         }
     }
 
     @Test
     fun `exportBackup clears the password array after use`() {
         val backupService = BackupService(uploadsRoot, databaseFile.absolutePath, configFile.absolutePath)
-        val output = ByteArrayOutputStream()
+        val backupOutputStream = ByteArrayOutputStream()
         val password = "correct-password".toCharArray()
 
-        backupService.exportBackup("My Test Store", password, backupService.prepareExportSnapshot(), output)
+        backupService.exportBackup("My Test Store", password, backupService.prepareExportSnapshot(), backupOutputStream)
 
         assertTrue(password.all { it == Char(0) })
     }
@@ -270,14 +308,14 @@ class BackupServiceTest {
         val backupService = BackupService(uploadsRoot, databaseFile.absolutePath, configFile.absolutePath)
         val databaseSnapshot = backupService.prepareExportSnapshot()
         val totalExportBytes = backupService.calculateExportTotalBytes(databaseSnapshot)
-        val output = ByteArrayOutputStream()
+        val backupOutputStream = ByteArrayOutputStream()
         val progressUpdates = mutableListOf<Triple<String, Long, Long?>>()
 
         backupService.exportBackup(
             "My Test Store",
             "correct-password".toCharArray(),
             databaseSnapshot,
-            output,
+            backupOutputStream,
         ) { phase, bytesProcessed, totalBytes -> progressUpdates.add(Triple(phase, bytesProcessed, totalBytes)) }
 
         assertTrue(progressUpdates.isNotEmpty())
@@ -292,19 +330,292 @@ class BackupServiceTest {
         val backupService = BackupService(uploadsRoot, databaseFile.absolutePath, configFile.absolutePath)
         val databaseSnapshot = backupService.prepareExportSnapshot()
         val totalExportBytes = backupService.calculateExportTotalBytes(databaseSnapshot)
-        val output = ByteArrayOutputStream()
+        val backupOutputStream = ByteArrayOutputStream()
         val progressUpdates = mutableListOf<Triple<String, Long, Long?>>()
 
         backupService.exportBackup(
             "My Test Store",
             "correct-password".toCharArray(),
             databaseSnapshot,
-            output,
+            backupOutputStream,
         ) { phase, bytesProcessed, totalBytes -> progressUpdates.add(Triple(phase, bytesProcessed, totalBytes)) }
 
         assertTrue(progressUpdates.size > 2)
         val bytesProcessedPerUpdate = progressUpdates.map { it.second }
         assertEquals(bytesProcessedPerUpdate.sorted(), bytesProcessedPerUpdate)
+        assertEquals(totalExportBytes, progressUpdates.last().second)
+    }
+
+    private fun createMinimalSqliteFile(
+        destination: Path,
+        markerValue: String,
+    ) {
+        DriverManager.getConnection("jdbc:sqlite:$destination").use { connection ->
+            connection.createStatement().use { statement ->
+                statement.execute("CREATE TABLE marker (value TEXT)")
+                statement.execute("INSERT INTO marker (value) VALUES ('$markerValue')")
+            }
+        }
+    }
+
+    private fun readZipEntryBytes(
+        zipBytes: ByteArray,
+        entryName: String,
+    ): ByteArray {
+        ZipInputStream(zipBytes.inputStream()).use { zip ->
+            var zipEntry = zip.nextEntry
+            while (zipEntry != null) {
+                if (zipEntry.name == entryName) return zip.readBytes()
+                zipEntry = zip.nextEntry
+            }
+        }
+        throw NoSuchElementException("Zip entry not found: $entryName")
+    }
+
+    @Test
+    fun `exportBackup omits phoenixd entries when isLocalPhoenixd is false`() {
+        val phoenixDataDirectory = Files.createTempDirectory("backupServiceTestPhoenixData")
+        createMinimalSqliteFile(phoenixDataDirectory.resolve("phoenix.mainnet.abc123.db"), "unused-marker")
+        val backupService =
+            BackupService(
+                uploadsRoot = uploadsRoot,
+                databasePath = databaseFile.absolutePath,
+                configFilePath = configFile.absolutePath,
+                phoenixDataDirectory = phoenixDataDirectory,
+            )
+        val backupOutputStream = ByteArrayOutputStream()
+
+        backupService.exportBackup(
+            "My Test Store",
+            "correct-password".toCharArray(),
+            backupService.prepareExportSnapshot(),
+            backupOutputStream,
+            isLocalPhoenixd = false,
+        )
+
+        val decryptedZip = decryptBackup(backupOutputStream.toByteArray(), "correct-password".toCharArray())
+        assertTrue(zipEntryNames(decryptedZip).none { it.startsWith("phoenix/") })
+    }
+
+    @Test
+    fun `exportBackup includes the seed entry exactly when the real phoenix seed file is available`() {
+        val backupService = BackupService(uploadsRoot, databaseFile.absolutePath, configFile.absolutePath)
+        val backupOutputStream = ByteArrayOutputStream()
+
+        backupService.exportBackup(
+            "My Test Store",
+            "correct-password".toCharArray(),
+            backupService.prepareExportSnapshot(),
+            backupOutputStream,
+            isLocalPhoenixd = true,
+        )
+
+        val decryptedZip = decryptBackup(backupOutputStream.toByteArray(), "correct-password".toCharArray())
+        val seedEntryPresent = zipEntryNames(decryptedZip).contains("phoenix/seed.dat")
+        val realPhoenixSeedAvailable = AppConfig.loadPhoenixSeed().isNotBlank()
+        assertEquals(realPhoenixSeedAvailable, seedEntryPresent)
+    }
+
+    @Test
+    fun `exportBackup includes the phoenix config entry with the http-password and webhook-secret`() {
+        val phoenixConfigFile = Files.createTempFile("backupServiceTestPhoenixConfig", ".conf")
+        Files.writeString(phoenixConfigFile, "http-password=test-http-password\nwebhook-secret=test-webhook-secret\n")
+        val backupService =
+            BackupService(
+                uploadsRoot = uploadsRoot,
+                databasePath = databaseFile.absolutePath,
+                configFilePath = configFile.absolutePath,
+                phoenixConfigFilePath = phoenixConfigFile.toString(),
+            )
+        val backupOutputStream = ByteArrayOutputStream()
+
+        backupService.exportBackup(
+            "My Test Store",
+            "correct-password".toCharArray(),
+            backupService.prepareExportSnapshot(),
+            backupOutputStream,
+            isLocalPhoenixd = true,
+        )
+
+        val decryptedZip = decryptBackup(backupOutputStream.toByteArray(), "correct-password".toCharArray())
+        val phoenixConfigEntry = readZipEntry(decryptedZip, "phoenix/phoenix.conf")
+        assertTrue(phoenixConfigEntry.contains("http-password=test-http-password"))
+        assertTrue(phoenixConfigEntry.contains("webhook-secret=test-webhook-secret"))
+    }
+
+    @Test
+    fun `exportBackup omits the phoenix config entry when the phoenix conf file is unavailable`() {
+        val backupService =
+            BackupService(
+                uploadsRoot = uploadsRoot,
+                databasePath = databaseFile.absolutePath,
+                configFilePath = configFile.absolutePath,
+                phoenixConfigFilePath =
+                    Files
+                        .createTempDirectory("backupServiceTestPhoenixConfigParent")
+                        .resolve("does-not-exist.conf")
+                        .toString(),
+            )
+        val backupOutputStream = ByteArrayOutputStream()
+
+        backupService.exportBackup(
+            "My Test Store",
+            "correct-password".toCharArray(),
+            backupService.prepareExportSnapshot(),
+            backupOutputStream,
+            isLocalPhoenixd = true,
+        )
+
+        val decryptedZip = decryptBackup(backupOutputStream.toByteArray(), "correct-password".toCharArray())
+        assertTrue(zipEntryNames(decryptedZip).none { it == "phoenix/phoenix.conf" })
+    }
+
+    @Test
+    fun `exportBackup omits the history database entry when no phoenixd database is found`() {
+        val phoenixDataDirectory = Files.createTempDirectory("backupServiceTestPhoenixData")
+        val backupService =
+            BackupService(
+                uploadsRoot = uploadsRoot,
+                databasePath = databaseFile.absolutePath,
+                configFilePath = configFile.absolutePath,
+                phoenixDataDirectory = phoenixDataDirectory,
+            )
+        val backupOutputStream = ByteArrayOutputStream()
+
+        backupService.exportBackup(
+            "My Test Store",
+            "correct-password".toCharArray(),
+            backupService.prepareExportSnapshot(),
+            backupOutputStream,
+            isLocalPhoenixd = true,
+        )
+
+        val decryptedZip = decryptBackup(backupOutputStream.toByteArray(), "correct-password".toCharArray())
+        assertTrue(zipEntryNames(decryptedZip).none { it == "phoenix/history.db" })
+    }
+
+    @Test
+    fun `exportBackup includes a snapshot of the phoenixd database with the most recent family mtime`() {
+        val phoenixDataDirectory = Files.createTempDirectory("backupServiceTestPhoenixData")
+        val staleCandidate = phoenixDataDirectory.resolve("phoenix.mainnet.stale1.db")
+        val recentCandidate = phoenixDataDirectory.resolve("phoenix.mainnet.recent1.db")
+        createMinimalSqliteFile(staleCandidate, "stale-marker-value")
+        createMinimalSqliteFile(recentCandidate, "recent-marker-value")
+        Files.setLastModifiedTime(staleCandidate, FileTime.from(Instant.now().minusSeconds(3600)))
+        Files.setLastModifiedTime(recentCandidate, FileTime.from(Instant.now()))
+        val backupService =
+            BackupService(
+                uploadsRoot = uploadsRoot,
+                databasePath = databaseFile.absolutePath,
+                configFilePath = configFile.absolutePath,
+                phoenixDataDirectory = phoenixDataDirectory,
+            )
+        val backupOutputStream = ByteArrayOutputStream()
+
+        backupService.exportBackup(
+            "My Test Store",
+            "correct-password".toCharArray(),
+            backupService.prepareExportSnapshot(),
+            backupOutputStream,
+            isLocalPhoenixd = true,
+        )
+
+        val decryptedZip = decryptBackup(backupOutputStream.toByteArray(), "correct-password".toCharArray())
+        val historyDatabaseContent = String(readZipEntryBytes(decryptedZip, "phoenix/history.db"), Charsets.ISO_8859_1)
+        assertTrue(historyDatabaseContent.contains("recent-marker-value"))
+        assertFalse(historyDatabaseContent.contains("stale-marker-value"))
+    }
+
+    @Test
+    fun `exportBackup picks the phoenixd database whose wal file is more recent than its main file`() {
+        val phoenixDataDirectory = Files.createTempDirectory("backupServiceTestPhoenixData")
+        val staleCandidate = phoenixDataDirectory.resolve("phoenix.mainnet.stale1.db")
+        val recentCandidate = phoenixDataDirectory.resolve("phoenix.mainnet.recent1.db")
+        createMinimalSqliteFile(staleCandidate, "stale-marker-value")
+        createMinimalSqliteFile(recentCandidate, "recent-marker-value")
+        val now = Instant.now()
+        Files.setLastModifiedTime(staleCandidate, FileTime.from(now.minusSeconds(3600)))
+        Files.setLastModifiedTime(recentCandidate, FileTime.from(now.minusSeconds(7200)))
+        val recentCandidateWalFile = Paths.get("$recentCandidate-wal")
+        Files.write(recentCandidateWalFile, "wal-bytes".toByteArray())
+        Files.setLastModifiedTime(recentCandidateWalFile, FileTime.from(now))
+        val backupService =
+            BackupService(
+                uploadsRoot = uploadsRoot,
+                databasePath = databaseFile.absolutePath,
+                configFilePath = configFile.absolutePath,
+                phoenixDataDirectory = phoenixDataDirectory,
+            )
+        val backupOutputStream = ByteArrayOutputStream()
+
+        backupService.exportBackup(
+            "My Test Store",
+            "correct-password".toCharArray(),
+            backupService.prepareExportSnapshot(),
+            backupOutputStream,
+            isLocalPhoenixd = true,
+        )
+
+        val decryptedZip = decryptBackup(backupOutputStream.toByteArray(), "correct-password".toCharArray())
+        val historyDatabaseContent = String(readZipEntryBytes(decryptedZip, "phoenix/history.db"), Charsets.ISO_8859_1)
+        assertTrue(historyDatabaseContent.contains("recent-marker-value"))
+    }
+
+    @Test
+    fun `exportBackup does not fail when a phoenixd database candidate is not valid sqlite`() {
+        val phoenixDataDirectory = Files.createTempDirectory("backupServiceTestPhoenixData")
+        Files.write(phoenixDataDirectory.resolve("phoenix.mainnet.corrupt1.db"), "not a real sqlite file".toByteArray())
+        val backupService =
+            BackupService(
+                uploadsRoot = uploadsRoot,
+                databasePath = databaseFile.absolutePath,
+                configFilePath = configFile.absolutePath,
+                phoenixDataDirectory = phoenixDataDirectory,
+            )
+        val backupOutputStream = ByteArrayOutputStream()
+
+        backupService.exportBackup(
+            "My Test Store",
+            "correct-password".toCharArray(),
+            backupService.prepareExportSnapshot(),
+            backupOutputStream,
+            isLocalPhoenixd = true,
+        )
+
+        val decryptedZip = decryptBackup(backupOutputStream.toByteArray(), "correct-password".toCharArray())
+        val entries = zipEntryNames(decryptedZip)
+        assertTrue(entries.contains("ambrosia.db"))
+        assertTrue(entries.none { it == "phoenix/history.db" })
+    }
+
+    @Test
+    fun `exportBackup does not count phoenixd entries toward the reported total bytes`() {
+        val phoenixDataDirectory = Files.createTempDirectory("backupServiceTestPhoenixData")
+        createMinimalSqliteFile(phoenixDataDirectory.resolve("phoenix.mainnet.abc123.db"), "marker-value")
+        val phoenixConfigFile = Files.createTempFile("backupServiceTestPhoenixConfig", ".conf")
+        Files.writeString(phoenixConfigFile, "http-password=test-http-password\nwebhook-secret=test-webhook-secret\n")
+        val backupService =
+            BackupService(
+                uploadsRoot = uploadsRoot,
+                databasePath = databaseFile.absolutePath,
+                configFilePath = configFile.absolutePath,
+                phoenixDataDirectory = phoenixDataDirectory,
+                phoenixConfigFilePath = phoenixConfigFile.toString(),
+            )
+        val databaseSnapshot = backupService.prepareExportSnapshot()
+        val totalExportBytes = backupService.calculateExportTotalBytes(databaseSnapshot)
+        val backupOutputStream = ByteArrayOutputStream()
+        val progressUpdates = mutableListOf<Triple<String, Long, Long?>>()
+
+        backupService.exportBackup(
+            "My Test Store",
+            "correct-password".toCharArray(),
+            databaseSnapshot,
+            backupOutputStream,
+            isLocalPhoenixd = true,
+        ) { phase, bytesProcessed, totalBytes -> progressUpdates.add(Triple(phase, bytesProcessed, totalBytes)) }
+
+        assertTrue(progressUpdates.all { it.third == totalExportBytes })
         assertEquals(totalExportBytes, progressUpdates.last().second)
     }
 
@@ -323,12 +634,12 @@ class BackupServiceTest {
         val cipher = Cipher.getInstance("AES/GCM/NoPadding")
         cipher.init(Cipher.ENCRYPT_MODE, secretKey, GCMParameterSpec(128, initializationVector))
 
-        val output = ByteArrayOutputStream()
-        output.write(magicHeader)
-        output.write(salt)
-        output.write(initializationVector)
+        val backupOutputStream = ByteArrayOutputStream()
+        backupOutputStream.write(magicHeader)
+        backupOutputStream.write(salt)
+        backupOutputStream.write(initializationVector)
 
-        CipherOutputStream(output, cipher).use { encryptedOutput ->
+        CipherOutputStream(backupOutputStream, cipher).use { encryptedOutput ->
             ZipOutputStream(encryptedOutput).use { zip ->
                 zipEntries.forEach { (entryName, entryBytes) ->
                     zip.putNextEntry(ZipEntry(entryName))
@@ -337,7 +648,7 @@ class BackupServiceTest {
                 }
             }
         }
-        return output.toByteArray()
+        return backupOutputStream.toByteArray()
     }
 
     private fun manifestZipEntry(manifest: BackupManifest): ByteArray =
