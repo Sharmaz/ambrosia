@@ -9,6 +9,7 @@ export const sampleTicket = {
   ],
   total: 215,
   invoice: "lnbc10u1p0exampleinvoice",
+  paymentMethod: "Cash",
 };
 
 export const sampleConfig = {

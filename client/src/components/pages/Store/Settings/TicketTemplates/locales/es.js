@@ -53,7 +53,9 @@ const ticketTemplatesEs = {
       FOOTER: "Pie",
       QRCODE: "Código QR",
       LOGO: "Logo",
+      PAYMENT_METHOD: "Fila de método de pago",
     },
+    paymentMethodDefaultLabel: "Método de pago",
     justifications: {
       LEFT: "Izquierda",
       CENTER: "Centro",

@@ -72,7 +72,7 @@ class TicketFactory(
         escpos.initializePrinter()
         template.elements.forEach { templateElement ->
             val escPosStyle = convertToEscPosStyle(templateElement.style)
-            val resolvedContent = resolveValue(templateElement.value, ticketData, businessConfig)
+            val resolvedContent = resolveTemplateVariables(templateElement.value, ticketData, businessConfig)
 
             when (templateElement.type) {
                 ElementType.SEPARATOR -> {
@@ -108,6 +108,14 @@ class TicketFactory(
                     }
                     val totalRow = formatTicketLine(totalLabel, ticketData.total.toString())
                     escpos.writeLF(escPosStyle, totalRow)
+                }
+
+                ElementType.PAYMENT_METHOD -> {
+                    val paymentMethodName = ticketData.paymentMethod.orEmpty()
+                    if (paymentMethodName.isNotBlank()) {
+                        val paymentMethodLabel = resolvedContent.ifEmpty { "PAYMENT METHOD" }
+                        escpos.writeLF(escPosStyle, formatTicketLine(paymentMethodLabel, paymentMethodName))
+                    }
                 }
 
                 ElementType.QRCODE -> {
@@ -207,7 +215,7 @@ class TicketFactory(
         return minOf(readableDotsPerModule, maxDotsPerModule)
     }
 
-    private fun resolveValue(
+    private fun resolveTemplateVariables(
         templateText: String,
         ticketData: TicketData,
         businessConfig: Config?,

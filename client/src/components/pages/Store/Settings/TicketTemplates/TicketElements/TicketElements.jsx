@@ -4,6 +4,7 @@ import { DEFAULT_STYLE } from "../defaults";
 
 import { ElementLineBreak } from "./ElementLineBreak";
 import { ElementLogo } from "./ElementLogo";
+import { ElementPaymentMethodRow } from "./ElementPaymentMethodRow";
 import { ElementQrCode } from "./ElementQrCode";
 import { ElementSeparator } from "./ElementSeparator";
 import { ElementTableRow } from "./ElementTableRow";
@@ -85,6 +86,17 @@ export function TicketElementsPreview({ templateElements, businessConfig, printF
         printFormats,
         className: elementClassName,
       });
+    }
+    if (templateElement.type === "PAYMENT_METHOD") {
+      return [
+        <ElementPaymentMethodRow
+          key={`${templateElement.localId}-payment-method`}
+          templateText={templateElement.value}
+          businessConfig={businessConfig}
+          printFormats={printFormats}
+          className={elementClassName}
+        />,
+      ];
     }
     return [
       <ElementText

@@ -118,6 +118,21 @@ describe("TicketElementsPreview", () => {
     expect(screen.getByText("Ambrosia")).toBeInTheDocument();
   });
 
+  it("renders PAYMENT_METHOD with its label and the sample payment method", () => {
+    render(
+      <Preview templateElements={[{ localId: "pm-1", type: "PAYMENT_METHOD", value: "Método de pago", style: {} }]} businessConfig={null} />,
+    );
+    expect(screen.getByText("Método de pago")).toBeInTheDocument();
+    expect(screen.getByText("Cash")).toBeInTheDocument();
+  });
+
+  it("renders PAYMENT_METHOD with the default label when it has no label", () => {
+    render(
+      <Preview templateElements={[{ localId: "pm-2", type: "PAYMENT_METHOD", value: "", style: {} }]} businessConfig={null} />,
+    );
+    expect(screen.getByText("PAYMENT METHOD")).toBeInTheDocument();
+  });
+
   it("renders TEXT with resolved value", () => {
     render(
       <Preview

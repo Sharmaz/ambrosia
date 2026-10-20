@@ -1,10 +1,10 @@
 "use client";
 
-import { resolveValue } from "./resolveValue";
+import { resolveTemplateVariables } from "./resolveTemplateVariables";
 import { sampleTicket } from "./sampleData";
 
 export function ElementTotalRow({ localId, templateText, businessConfig, printFormats, className }) {
-  const totalLabel = resolveValue(templateText || "", businessConfig, printFormats).trim() || "TOTAL";
+  const totalLabel = resolveTemplateVariables(templateText || "", businessConfig, printFormats).trim() || "TOTAL";
   return [
     <div key={`${localId}-total-sep`} className="border-t border-gray-400 my-2" />,
     <div

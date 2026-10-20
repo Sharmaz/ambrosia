@@ -3,7 +3,7 @@ import { DEFAULT_PRINT_FORMATS } from "../defaults";
 import { formatPrintDate, formatPrintTime } from "./formatPrintDateTime";
 import { sampleConfig, sampleTicket } from "./sampleData";
 
-export function resolveValue(templateText, businessConfig, printFormats = DEFAULT_PRINT_FORMATS, printedAt = new Date()) {
+export function resolveTemplateVariables(templateText, businessConfig, printFormats = DEFAULT_PRINT_FORMATS, printedAt = new Date()) {
   if (!templateText) return "";
   const resolvedBusinessConfig = businessConfig ?? sampleConfig;
   const printDate = formatPrintDate(printedAt, printFormats.dateFormat);
