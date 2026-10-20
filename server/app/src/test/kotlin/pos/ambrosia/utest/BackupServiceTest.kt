@@ -670,6 +670,49 @@ class BackupServiceTest {
     }
 
     @Test
+    fun `importBackup returns includesPhoenixdData true after an export with isLocalPhoenixd`() {
+        val backupService =
+            BackupService(uploadsRoot, databaseFile.absolutePath, configFile.absolutePath, importStagingRoot)
+        val exportedBackup = ByteArrayOutputStream()
+        backupService.exportBackup(
+            "My Test Store",
+            "correct-password".toCharArray(),
+            backupService.prepareExportSnapshot(),
+            exportedBackup,
+            isLocalPhoenixd = true,
+        )
+
+        val importedManifest =
+            backupService.importBackup(
+                exportedBackup.toByteArray().inputStream(),
+                "correct-password".toCharArray(),
+            )
+
+        assertTrue(importedManifest.includesPhoenixdData)
+    }
+
+    @Test
+    fun `importBackup returns includesPhoenixdData false after an export without isLocalPhoenixd`() {
+        val backupService =
+            BackupService(uploadsRoot, databaseFile.absolutePath, configFile.absolutePath, importStagingRoot)
+        val exportedBackup = ByteArrayOutputStream()
+        backupService.exportBackup(
+            "My Test Store",
+            "correct-password".toCharArray(),
+            backupService.prepareExportSnapshot(),
+            exportedBackup,
+        )
+
+        val importedManifest =
+            backupService.importBackup(
+                exportedBackup.toByteArray().inputStream(),
+                "correct-password".toCharArray(),
+            )
+
+        assertFalse(importedManifest.includesPhoenixdData)
+    }
+
+    @Test
     fun `importBackup returns the manifest from a real exportBackup output`() {
         val backupService =
             BackupService(uploadsRoot, databaseFile.absolutePath, configFile.absolutePath, importStagingRoot)
@@ -1001,6 +1044,18 @@ class BackupServiceTest {
         backupService.writeConfirmationToken(confirmationTokenService(secret).generateBackupConfirmationToken(operationId))
     }
 
+    private fun importAndConfirmPendingImport(
+        destinationService: BackupService,
+        encryptedBackup: ByteArray,
+        destinationSecret: String,
+        confirm: Boolean = true,
+    ) {
+        destinationService.importBackup(encryptedBackup.inputStream(), "correct-password".toCharArray())
+        if (confirm) {
+            confirmPendingImport(destinationService, destinationSecret)
+        }
+    }
+
     private fun prepareStagedImport(
         destinationUploadsRoot: Path,
         destinationDatabaseFile: Path,
@@ -1026,15 +1081,100 @@ class BackupServiceTest {
                 importStagingRoot,
                 destinationKeyStoreFile,
             )
-        destinationService.importBackup(
-            exportedBackup.toByteArray().inputStream(),
-            "correct-password".toCharArray(),
-        )
-        if (confirm) {
-            val destinationSecret = destinationConfigFile.readText().trim().removePrefix("secret=")
-            confirmPendingImport(destinationService, destinationSecret)
-        }
+        val destinationSecret = destinationConfigFile.readText().trim().removePrefix("secret=")
+        importAndConfirmPendingImport(destinationService, exportedBackup.toByteArray(), destinationSecret, confirm)
         return destinationService
+    }
+
+    private fun prepareStagedPhoenixdImport(
+        zipPhoenixEntries: Map<String, ByteArray> = emptyMap(),
+        destinationPhoenixDataDirectory: Path = Files.createTempDirectory("backupServiceTestDestinationPhoenixData"),
+        destinationPhoenixConfigFile: File =
+            Files.createTempFile("backupServiceTestDestinationPhoenixConfig", ".conf").toFile(),
+    ): BackupService {
+        val destinationUploadsRoot = Files.createTempDirectory("backupServiceTestDestinationUploads")
+        val destinationDatabaseFile = Files.createTempFile("backupServiceTestDestinationDb", ".db")
+        val destinationConfigFile = Files.createTempFile("backupServiceTestDestinationConfig", ".conf").toFile()
+        destinationConfigFile.writeText("secret=old-destination-secret\n")
+        val destinationKeyStoreFile =
+            Files.createTempDirectory("backupServiceTestDestinationKeyStoreParent").resolve("keystore.jks")
+        val destinationService =
+            BackupService(
+                destinationUploadsRoot,
+                destinationDatabaseFile.toString(),
+                destinationConfigFile.absolutePath,
+                importStagingRoot,
+                destinationKeyStoreFile,
+                destinationPhoenixDataDirectory,
+                destinationPhoenixConfigFile.absolutePath,
+            )
+
+        val backupWithPhoenixEntries =
+            buildEncryptedBackup(
+                "correct-password".toCharArray(),
+                mapOf(
+                    "manifest.json" to manifestZipEntry(sampleImportedManifest()),
+                    "ambrosia.db" to "fake-database-bytes".toByteArray(),
+                ) + zipPhoenixEntries,
+            )
+        importAndConfirmPendingImport(destinationService, backupWithPhoenixEntries, "old-destination-secret")
+        return destinationService
+    }
+
+    @Test
+    fun `applyPendingImport restores the staged phoenix seed file`() {
+        val destinationPhoenixDataDirectory = Files.createTempDirectory("backupServiceTestDestinationPhoenixData")
+        val destinationService =
+            prepareStagedPhoenixdImport(
+                zipPhoenixEntries = mapOf("phoenix/seed.dat" to "test seed phrase words".toByteArray()),
+                destinationPhoenixDataDirectory = destinationPhoenixDataDirectory,
+            )
+
+        destinationService.applyPendingImport()
+
+        assertEquals("test seed phrase words", Files.readString(destinationPhoenixDataDirectory.resolve("seed.dat")))
+    }
+
+    @Test
+    fun `applyPendingImport merges the staged phoenix config into the live phoenix conf, preserving other keys`() {
+        val destinationPhoenixConfigFile =
+            Files.createTempFile("backupServiceTestDestinationPhoenixConfig", ".conf").toFile()
+        destinationPhoenixConfigFile.writeText("node-alias=my-node\nhttp-password=old-password\n")
+        val destinationService =
+            prepareStagedPhoenixdImport(
+                zipPhoenixEntries =
+                    mapOf(
+                        "phoenix/phoenix.conf" to
+                            "http-password=staged-http-password\nwebhook-secret=staged-webhook-secret".toByteArray(),
+                    ),
+                destinationPhoenixConfigFile = destinationPhoenixConfigFile,
+            )
+
+        destinationService.applyPendingImport()
+
+        val mergedPhoenixConfigText = destinationPhoenixConfigFile.readText()
+        assertTrue(mergedPhoenixConfigText.contains("node-alias=my-node"))
+        assertTrue(mergedPhoenixConfigText.contains("http-password=staged-http-password"))
+        assertTrue(mergedPhoenixConfigText.contains("webhook-secret=staged-webhook-secret"))
+        assertFalse(mergedPhoenixConfigText.contains("http-password=old-password"))
+    }
+
+    @Test
+    fun `applyPendingImport does not touch the live phoenix data when none was staged`() {
+        val destinationPhoenixDataDirectory = Files.createTempDirectory("backupServiceTestDestinationPhoenixData")
+        val destinationPhoenixConfigFile =
+            Files.createTempFile("backupServiceTestDestinationPhoenixConfig", ".conf").toFile()
+        destinationPhoenixConfigFile.writeText("node-alias=my-node\n")
+        val destinationService =
+            prepareStagedPhoenixdImport(
+                destinationPhoenixDataDirectory = destinationPhoenixDataDirectory,
+                destinationPhoenixConfigFile = destinationPhoenixConfigFile,
+            )
+
+        destinationService.applyPendingImport()
+
+        assertFalse(Files.exists(destinationPhoenixDataDirectory.resolve("seed.dat")))
+        assertEquals("node-alias=my-node\n", destinationPhoenixConfigFile.readText())
     }
 
     @Test

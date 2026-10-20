@@ -5,6 +5,7 @@ import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import pos.ambrosia.config.AppConfig
 import pos.ambrosia.config.readConfValues
 import pos.ambrosia.config.replaceConfFileProperty
+import pos.ambrosia.config.writeConfValues
 import pos.ambrosia.datadir
 import pos.ambrosia.logger
 import pos.ambrosia.models.BackupManifest
@@ -71,6 +72,8 @@ class BackupService(
         const val STAGED_SECRET_FILE_NAME = "imported-secret"
         const val STAGED_DATABASE_FILE_NAME = "ambrosia.db"
         const val STAGED_UPLOADS_DIR_NAME = "uploads"
+        const val STAGED_PHOENIX_SEED_FILE_NAME = "phoenix/seed.dat"
+        const val STAGED_PHOENIX_CONFIG_FILE_NAME = "phoenix/phoenix.conf"
         const val STAGED_AT_FILE_NAME = "staged-at"
         const val STAGED_OPERATION_ID_FILE_NAME = "operation-id"
         const val STAGED_CONFIRMATION_TOKEN_FILE_NAME = "confirmation-token"
@@ -123,7 +126,7 @@ class BackupService(
 
             CipherOutputStream(backupOutputStream, cipher).use { encryptedOutput ->
                 ZipOutputStream(encryptedOutput).use { zip ->
-                    writeManifestEntry(zip, businessName, totalExportBytes)
+                    writeManifestEntry(zip, businessName, totalExportBytes, isLocalPhoenixd)
                     writeFileEntry(zip, databaseSnapshot, "ambrosia.db", onBytesWritten)
                     writeUploadsEntries(zip, onBytesWritten)
                     if (isLocalPhoenixd) writePhoenixdEntries(zip)
@@ -230,12 +233,32 @@ class BackupService(
             Files.move(stagedUploadsDirectory, uploadsRoot, StandardCopyOption.ATOMIC_MOVE)
         }
 
+        restoreStagedPhoenixdData()
+
         replaceConfFileProperty(KotlinIoPath(configFilePath), "secret", stagedSecret)
         retryOnFileLock { Files.deleteIfExists(keyStoreFilePath) }
         importStagingRoot.toFile().deleteRecursively()
 
         logger.info("Applied a pending data import staged at $importStagingRoot")
         return true
+    }
+
+    private fun restoreStagedPhoenixdData() {
+        val stagedPhoenixSeedFile = importStagingRoot.resolve(STAGED_PHOENIX_SEED_FILE_NAME)
+        if (Files.exists(stagedPhoenixSeedFile)) {
+            Files.createDirectories(phoenixDataDirectory)
+            Files.move(
+                stagedPhoenixSeedFile,
+                phoenixDataDirectory.resolve("seed.dat"),
+                StandardCopyOption.REPLACE_EXISTING,
+            )
+        }
+
+        val stagedPhoenixConfigFile = importStagingRoot.resolve(STAGED_PHOENIX_CONFIG_FILE_NAME)
+        if (Files.exists(stagedPhoenixConfigFile)) {
+            val stagedPhoenixConfigValues = readConfValues(KotlinIoPath(stagedPhoenixConfigFile.toString()))
+            writeConfValues(KotlinIoPath(phoenixConfigFilePath), stagedPhoenixConfigValues)
+        }
     }
 
     private fun deleteStaleWalFiles() {
@@ -414,6 +437,7 @@ class BackupService(
         zip: ZipOutputStream,
         businessName: String,
         totalUncompressedBytes: Long,
+        includesPhoenixdData: Boolean,
     ) {
         val manifest =
             BackupManifest(
@@ -422,6 +446,7 @@ class BackupService(
                 businessName = businessName,
                 secret = readSecret(),
                 totalUncompressedBytes = totalUncompressedBytes,
+                includesPhoenixdData = includesPhoenixdData,
             )
         writeStringEntry(zip, "manifest.json", Json.encodeToString(BackupManifest.serializer(), manifest))
     }

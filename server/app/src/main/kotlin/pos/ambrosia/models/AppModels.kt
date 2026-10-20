@@ -1174,6 +1174,7 @@ data class BackupManifest(
     val businessName: String,
     val secret: String,
     val totalUncompressedBytes: Long? = null,
+    val includesPhoenixdData: Boolean = false,
 )
 
 @Serializable
