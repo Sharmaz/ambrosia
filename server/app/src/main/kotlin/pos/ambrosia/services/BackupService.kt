@@ -74,6 +74,7 @@ class BackupService(
         const val STAGED_UPLOADS_DIR_NAME = "uploads"
         const val STAGED_PHOENIX_SEED_FILE_NAME = "phoenix/seed.dat"
         const val STAGED_PHOENIX_CONFIG_FILE_NAME = "phoenix/phoenix.conf"
+        const val STAGED_PHOENIX_DIRECTORY_NAME = "phoenix"
         const val STAGED_AT_FILE_NAME = "staged-at"
         const val STAGED_OPERATION_ID_FILE_NAME = "operation-id"
         const val STAGED_CONFIRMATION_TOKEN_FILE_NAME = "confirmation-token"
@@ -259,6 +260,21 @@ class BackupService(
             val stagedPhoenixConfigValues = readConfValues(KotlinIoPath(stagedPhoenixConfigFile.toString()))
             writeConfValues(KotlinIoPath(phoenixConfigFilePath), stagedPhoenixConfigValues)
         }
+
+        val stagedPhoenixHistoryDatabase = findStagedPhoenixHistoryDatabase()
+        if (stagedPhoenixHistoryDatabase != null) {
+            Files.createDirectories(phoenixDataDirectory)
+            Files.move(
+                stagedPhoenixHistoryDatabase,
+                phoenixDataDirectory.resolve(stagedPhoenixHistoryDatabase.fileName),
+                StandardCopyOption.REPLACE_EXISTING,
+            )
+        }
+    }
+
+    private fun findStagedPhoenixHistoryDatabase(): Path? {
+        val stagedPhoenixDirectory = importStagingRoot.resolve(STAGED_PHOENIX_DIRECTORY_NAME)
+        return findPhoenixDatabaseCandidates(stagedPhoenixDirectory).firstOrNull()
     }
 
     private fun deleteStaleWalFiles() {
@@ -503,17 +519,19 @@ class BackupService(
         val phoenixHistorySnapshot = Files.createTempFile("ambrosia-backup-phoenix-history-", ".sqlite")
         try {
             snapshotDatabase(mostRecentPhoenixDatabase.toString(), phoenixHistorySnapshot)
-            writeFileEntry(zip, phoenixHistorySnapshot, "phoenix/history.db") {}
+            writeFileEntry(zip, phoenixHistorySnapshot, "phoenix/${mostRecentPhoenixDatabase.fileName}") {}
         } finally {
             Files.deleteIfExists(phoenixHistorySnapshot)
         }
     }
 
-    private fun findMostRecentPhoenixDatabase(): Path? {
-        if (!Files.exists(phoenixDataDirectory)) return null
-        Files.newDirectoryStream(phoenixDataDirectory, "phoenix.*.db").use { candidates ->
-            return candidates.maxByOrNull { candidate -> phoenixDatabaseFamilyMaxModifiedTime(candidate) }
-        }
+    private fun findMostRecentPhoenixDatabase(): Path? =
+        findPhoenixDatabaseCandidates(phoenixDataDirectory)
+            .maxByOrNull { candidate -> phoenixDatabaseFamilyMaxModifiedTime(candidate) }
+
+    private fun findPhoenixDatabaseCandidates(candidatesDirectory: Path): List<Path> {
+        if (!Files.exists(candidatesDirectory)) return emptyList()
+        Files.newDirectoryStream(candidatesDirectory, "phoenix.*.db").use { candidates -> return candidates.toList() }
     }
 
     private fun phoenixDatabaseFamilyMaxModifiedTime(databaseFile: Path): FileTime =

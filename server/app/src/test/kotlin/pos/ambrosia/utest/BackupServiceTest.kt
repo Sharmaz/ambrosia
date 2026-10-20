@@ -491,7 +491,7 @@ class BackupServiceTest {
         )
 
         val decryptedZip = decryptBackup(backupOutputStream.toByteArray(), "correct-password".toCharArray())
-        assertTrue(zipEntryNames(decryptedZip).none { it == "phoenix/history.db" })
+        assertTrue(zipEntryNames(decryptedZip).none { it.startsWith("phoenix/phoenix.") && it.endsWith(".db") })
     }
 
     @Test
@@ -521,7 +521,8 @@ class BackupServiceTest {
         )
 
         val decryptedZip = decryptBackup(backupOutputStream.toByteArray(), "correct-password".toCharArray())
-        val historyDatabaseContent = String(readZipEntryBytes(decryptedZip, "phoenix/history.db"), Charsets.ISO_8859_1)
+        val historyDatabaseContent =
+            String(readZipEntryBytes(decryptedZip, "phoenix/${recentCandidate.fileName}"), Charsets.ISO_8859_1)
         assertTrue(historyDatabaseContent.contains("recent-marker-value"))
         assertFalse(historyDatabaseContent.contains("stale-marker-value"))
     }
@@ -557,7 +558,8 @@ class BackupServiceTest {
         )
 
         val decryptedZip = decryptBackup(backupOutputStream.toByteArray(), "correct-password".toCharArray())
-        val historyDatabaseContent = String(readZipEntryBytes(decryptedZip, "phoenix/history.db"), Charsets.ISO_8859_1)
+        val historyDatabaseContent =
+            String(readZipEntryBytes(decryptedZip, "phoenix/${recentCandidate.fileName}"), Charsets.ISO_8859_1)
         assertTrue(historyDatabaseContent.contains("recent-marker-value"))
     }
 
@@ -585,7 +587,7 @@ class BackupServiceTest {
         val decryptedZip = decryptBackup(backupOutputStream.toByteArray(), "correct-password".toCharArray())
         val entries = zipEntryNames(decryptedZip)
         assertTrue(entries.contains("ambrosia.db"))
-        assertTrue(entries.none { it == "phoenix/history.db" })
+        assertTrue(entries.none { it.startsWith("phoenix/phoenix.") && it.endsWith(".db") })
     }
 
     @Test
@@ -1160,6 +1162,21 @@ class BackupServiceTest {
     }
 
     @Test
+    fun `applyPendingImport restores the staged phoenix history database under its original file name`() {
+        val destinationPhoenixDataDirectory = Files.createTempDirectory("backupServiceTestDestinationPhoenixData")
+        val destinationService =
+            prepareStagedPhoenixdImport(
+                zipPhoenixEntries = mapOf("phoenix/phoenix.mainnet.abc123.db" to "history-database-bytes".toByteArray()),
+                destinationPhoenixDataDirectory = destinationPhoenixDataDirectory,
+            )
+
+        destinationService.applyPendingImport()
+
+        val restoredHistoryDatabase = destinationPhoenixDataDirectory.resolve("phoenix.mainnet.abc123.db")
+        assertEquals("history-database-bytes", Files.readString(restoredHistoryDatabase))
+    }
+
+    @Test
     fun `applyPendingImport does not touch the live phoenix data when none was staged`() {
         val destinationPhoenixDataDirectory = Files.createTempDirectory("backupServiceTestDestinationPhoenixData")
         val destinationPhoenixConfigFile =
@@ -1175,6 +1192,8 @@ class BackupServiceTest {
 
         assertFalse(Files.exists(destinationPhoenixDataDirectory.resolve("seed.dat")))
         assertEquals("node-alias=my-node\n", destinationPhoenixConfigFile.readText())
+        val remainingPhoenixDataDirectoryEntries = Files.list(destinationPhoenixDataDirectory).use { it.toList() }
+        assertTrue(remainingPhoenixDataDirectoryEntries.isEmpty())
     }
 
     @Test
