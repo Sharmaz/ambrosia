@@ -188,6 +188,53 @@ describe("ImportData", () => {
     });
   });
 
+  describe("Lightning wallet warning", () => {
+    it("does not show the Lightning wallet warning when the import has no phoenixd data", async () => {
+      jest.spyOn(backupService, "importBackup").mockResolvedValue({ businessName: "Awesome Store" });
+      render(<ImportData />);
+
+      await unlockSelectFileAndImport();
+
+      expect(screen.queryByText("cardImportData.lightningWalletWarningModal.title")).not.toBeInTheDocument();
+      expect(backupService.confirmPendingImport).toHaveBeenCalledTimes(1);
+    });
+
+    it("shows the Lightning wallet warning when the import includes phoenixd data", async () => {
+      jest.spyOn(backupService, "importBackup").mockResolvedValue({ includesPhoenixdData: true });
+      render(<ImportData />);
+
+      await unlockSelectFileAndImport();
+
+      expect(screen.getByText("cardImportData.lightningWalletWarningModal.title")).toBeInTheDocument();
+      expect(backupService.confirmPendingImport).not.toHaveBeenCalled();
+    });
+
+    it("confirms the pending import and shows the restart modal once the Lightning wallet warning is confirmed", async () => {
+      jest.spyOn(backupService, "importBackup").mockResolvedValue({ includesPhoenixdData: true });
+      render(<ImportData />);
+
+      await unlockSelectFileAndImport();
+      await act(async () => {
+        fireEvent.click(screen.getByText("cardImportData.lightningWalletWarningModal.confirmButton"));
+      });
+
+      expect(backupService.confirmPendingImport).toHaveBeenCalledTimes(1);
+      expect(screen.getByTestId("restart-modal")).toBeInTheDocument();
+    });
+
+    it("does not confirm the pending import when the Lightning wallet warning is cancelled", async () => {
+      jest.spyOn(backupService, "importBackup").mockResolvedValue({ includesPhoenixdData: true });
+      render(<ImportData />);
+
+      await unlockSelectFileAndImport();
+      fireEvent.click(screen.getByText("cardImportData.lightningWalletWarningModal.cancelButton"));
+
+      expect(backupService.confirmPendingImport).not.toHaveBeenCalled();
+      expect(screen.queryByTestId("restart-modal")).not.toBeInTheDocument();
+      expect(screen.queryByText("cardImportData.lightningWalletWarningModal.title")).not.toBeInTheDocument();
+    });
+  });
+
   describe("Failed import", () => {
     it("shows an error inside the card when importBackup throws", async () => {
       jest.spyOn(backupService, "importBackup").mockRejectedValue(new Error("Invalid backup file"));
