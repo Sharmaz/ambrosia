@@ -172,8 +172,8 @@ fun Route.shifts(
         }
 
         post("/{id}/cash-drawer") {
-            val id = call.parameters["id"]
-            if (id == null || shiftService.getOpenShift(null)?.id != id) {
+            val closingShiftId = call.parameters["id"]
+            if (closingShiftId == null || shiftService.getOpenShift(null)?.id != closingShiftId) {
                 call.respond(HttpStatusCode.NotFound, "Open shift not found")
                 return@post
             }

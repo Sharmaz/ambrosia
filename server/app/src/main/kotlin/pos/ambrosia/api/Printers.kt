@@ -66,8 +66,8 @@ fun Route.printers(
                     OpenCashDrawerRequest()
                 }
             try {
-                val openedCount = cashDrawerService.openManually(openCashDrawerRequest.printerId)
-                call.respond(HttpStatusCode.OK, mapOf("openedCount" to openedCount))
+                val openedCashDrawerCount = cashDrawerService.openManually(openCashDrawerRequest.printerId)
+                call.respond(HttpStatusCode.OK, mapOf("openedCashDrawerCount" to openedCashDrawerCount))
             } catch (openCashDrawerError: Exception) {
                 throw PrintTicketException(openCashDrawerError.message ?: "The cash drawer could not be opened.")
             }

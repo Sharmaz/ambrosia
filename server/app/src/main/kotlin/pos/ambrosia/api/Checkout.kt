@@ -36,13 +36,13 @@ fun Route.checkout(
             if (checkoutRequest.discountAmount > 0.0) {
                 call.requirePermission("orders_discount")
             }
-            when (val result = checkoutService.checkout(checkoutRequest)) {
+            when (val checkoutResult = checkoutService.checkout(checkoutRequest)) {
                 is CheckoutResult.Success -> {
-                    val status = if (result.alreadyExisted) HttpStatusCode.OK else HttpStatusCode.Created
-                    if (!result.alreadyExisted) {
+                    val checkoutResponseStatus = if (checkoutResult.alreadyExisted) HttpStatusCode.OK else HttpStatusCode.Created
+                    if (!checkoutResult.alreadyExisted) {
                         cashDrawerService.openForPaymentMethod(checkoutRequest.paymentMethodId)
                     }
-                    call.respond(status, result.response)
+                    call.respond(checkoutResponseStatus, checkoutResult.response)
                 }
 
                 CheckoutResult.NotPaid -> {
@@ -52,7 +52,7 @@ fun Route.checkout(
                 is CheckoutResult.Invalid -> {
                     call.respond(
                         HttpStatusCode.BadRequest,
-                        WalletErrorResponse(result.message, result.code, "ambrosia"),
+                        WalletErrorResponse(checkoutResult.message, checkoutResult.code, "ambrosia"),
                     )
                 }
             }

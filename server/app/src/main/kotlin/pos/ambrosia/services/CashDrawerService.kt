@@ -76,12 +76,12 @@ open class CashDrawerService(
     }
 
     fun openManually(printerConfigId: String?): Int {
-        val openedCount =
+        val openedCashDrawerCount =
             openCashDrawers { printerConfig -> printerConfigId == null || printerConfig.id == printerConfigId }
-        if (openedCount == 0) {
+        if (openedCashDrawerCount == 0) {
             throw IOException("No printer with a cash drawer could be opened.")
         }
-        return openedCount
+        return openedCashDrawerCount
     }
 
     private fun openCashDrawers(shouldOpen: (PrinterConfig) -> Boolean): Int =
