@@ -211,7 +211,11 @@ private fun Route.initialSetupRoutes() {
                     )
                     SecretsStore.setSecret("phoenixd-password", phoenixdPassword)
                     logger.info("Remote phoenixd node saved to ambrosia.conf — hot-reloading backend")
-                    ActiveLightningBackend.reinitializePhoenixBackend(trimmedPhoenixdUrl, phoenixdPassword)
+                    ActiveLightningBackend.reinitializePhoenixBackend(
+                        trimmedPhoenixdUrl,
+                        phoenixdPassword,
+                        isRemote = true,
+                    )
                     true
                 } catch (exception: Exception) {
                     logger.error("Failed to save or activate remote phoenixd node: ${exception.message}")
