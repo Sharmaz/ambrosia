@@ -35,6 +35,7 @@ jest.mock("../PrinterConfigRow", () => ({
     onToggleDefault,
     onToggleEnabled,
     onRemove,
+    onCashDrawerChange,
   }) => (
     <div data-testid={`row-${config.id}`}>
       {config.printerName}
@@ -43,6 +44,7 @@ jest.mock("../PrinterConfigRow", () => ({
       <button type="button" onClick={() => onToggleDefault(false)}>toggle-default</button>
       <button type="button" onClick={() => onToggleEnabled(false)}>toggle-enabled</button>
       <button type="button" onClick={onRemove}>remove</button>
+      <button type="button" onClick={() => onCashDrawerChange({ cashDrawerEnabled: true })}>cash-drawer-change</button>
     </div>
   ),
 }));
@@ -134,5 +136,21 @@ describe("PrintersCard", () => {
 
     fireEvent.click(screen.getByText("remove"));
     expect(onDeleteConfig).toHaveBeenCalledWith("cfg-1");
+  });
+
+  it("saves the cash drawer changes of a row through onUpdateConfig", () => {
+    const onUpdateConfig = jest.fn();
+    render(
+      <PrintersCard
+        formState={defaultFormState}
+        data={{ ...defaultData, configRows: [{ id: "cfg-1", printerName: "alice-printer", printerType: "CUSTOMER" }] }}
+        loading={defaultLoading}
+        state={{ ...defaultState, onUpdateConfig }}
+      />,
+    );
+
+    fireEvent.click(screen.getByText("cash-drawer-change"));
+
+    expect(onUpdateConfig).toHaveBeenCalledWith("cfg-1", { cashDrawerEnabled: true });
   });
 });

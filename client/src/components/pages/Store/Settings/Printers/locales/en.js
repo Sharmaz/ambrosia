@@ -37,6 +37,23 @@ const printersEn = {
     setDefaultError: "Failed to update default printer",
     deleteSuccess: "Printer removed successfully",
     deleteError: "Failed to remove printer",
+    cashDrawer: {
+      enabledLabel: "Cash drawer connected",
+      pinLabel: "Drawer pin",
+      pinDescription: "Most drawers use pin 2. If it does not open, try pin 5.",
+      pins: {
+        PIN_2: "Pin 2",
+        PIN_5: "Pin 5",
+      },
+      paymentMethodsLabel: "Open when charging with",
+      paymentMethodsDescription: "It also opens when refunding orders paid with these methods.",
+      openOnRefund: "Open on refunds",
+      openOnShiftOpen: "Open when opening a shift",
+      openOnShiftClose: "Open when closing a shift",
+      testButton: "Test drawer",
+      testSuccess: "The signal to open the drawer was sent.",
+      testError: "The drawer could not be opened. Check the cable and the pin.",
+    },
   },
 };
 

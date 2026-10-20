@@ -15,6 +15,8 @@ import pos.ambrosia.logger
 import pos.ambrosia.models.CloseShiftRequest
 import pos.ambrosia.models.Message
 import pos.ambrosia.models.Shift
+import pos.ambrosia.services.CashDrawerService
+import pos.ambrosia.services.CashDrawerTrigger
 import pos.ambrosia.services.ShiftService
 import pos.ambrosia.utils.authorizeAdminPermission
 import pos.ambrosia.utils.authorizePermission
@@ -34,10 +36,14 @@ private fun parseShiftsReportDateQueryParam(
 
 fun Application.configureShifts() {
     val shiftService = ShiftService()
-    routing { route("/shifts") { shifts(shiftService) } }
+    val cashDrawerService = CashDrawerService()
+    routing { route("/shifts") { shifts(shiftService, cashDrawerService) } }
 }
 
-fun Route.shifts(shiftService: ShiftService) {
+fun Route.shifts(
+    shiftService: ShiftService,
+    cashDrawerService: CashDrawerService,
+) {
     authorizePermission("shifts_read") {
         get("") {
             val shifts = shiftService.getShifts()
@@ -138,6 +144,7 @@ fun Route.shifts(shiftService: ShiftService) {
                 call.respond(HttpStatusCode.BadRequest, "Failed to add shift")
                 return@post
             }
+            cashDrawerService.openForTrigger(CashDrawerTrigger.SHIFT_OPEN)
             call.respond(
                 HttpStatusCode.Created,
                 mapOf("id" to createdShift, "message" to "Shift added successfully"),
@@ -162,6 +169,16 @@ fun Route.shifts(shiftService: ShiftService) {
 
                 call.respond(HttpStatusCode.OK, mapOf("id" to id, "message" to "Shift updated successfully"))
             }
+        }
+
+        post("/{id}/cash-drawer") {
+            val closingShiftId = call.parameters["id"]
+            if (closingShiftId == null || shiftService.getOpenShift(null)?.id != closingShiftId) {
+                call.respond(HttpStatusCode.NotFound, "Open shift not found")
+                return@post
+            }
+            cashDrawerService.openForTrigger(CashDrawerTrigger.SHIFT_CLOSE)
+            call.respond(HttpStatusCode.NoContent)
         }
 
         post("/{id}/close") {

@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { addToast } from "@heroui/react";
 import { useTranslations } from "next-intl";
 
+import { usePaymentMethods } from "../../Cart/hooks/usePaymentMethod";
 import { usePrinters } from "../../hooks/usePrinter";
 import { useTemplates } from "../../hooks/useTemplates";
 
@@ -24,6 +25,7 @@ export function Printers() {
     setDefaultPrinterConfig,
   } = usePrinters();
   const { templates, loading: loadingTemplates } = useTemplates();
+  const { paymentMethods } = usePaymentMethods();
 
   const [printerType, setPrinterType] = useState("CUSTOMER");
   const [printerName, setPrinterName] = useState("");
@@ -122,7 +124,7 @@ export function Printers() {
     onDefaultChange: setIsDefault,
     onEnabledChange: setEnabled,
   };
-  const printerData = { availablePrinters, configRows, templates };
+  const printerData = { availablePrinters, configRows, templates, paymentMethods };
   const printerLoading = { available: loadingAvailable, configs: loadingConfigs, templates: loadingTemplates };
   const printerState = {
     error,

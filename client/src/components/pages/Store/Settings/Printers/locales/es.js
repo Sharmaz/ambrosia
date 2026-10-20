@@ -37,6 +37,23 @@ const printersEs = {
     setDefaultError: "Error al actualizar impresora predeterminada",
     deleteSuccess: "Impresora eliminada con éxito",
     deleteError: "Error al eliminar impresora",
+    cashDrawer: {
+      enabledLabel: "Caja de dinero conectada",
+      pinLabel: "Pin de la caja",
+      pinDescription: "La mayoría de las cajas usa el pin 2. Si no abre, prueba el pin 5.",
+      pins: {
+        PIN_2: "Pin 2",
+        PIN_5: "Pin 5",
+      },
+      paymentMethodsLabel: "Abrir al cobrar con",
+      paymentMethodsDescription: "También se abre al reembolsar pedidos pagados con estos métodos.",
+      openOnRefund: "Abrir en reembolsos",
+      openOnShiftOpen: "Abrir al abrir turno",
+      openOnShiftClose: "Abrir al cerrar turno",
+      testButton: "Probar caja",
+      testSuccess: "Se envió la señal para abrir la caja.",
+      testError: "No se pudo abrir la caja. Revisa el cable y el pin.",
+    },
   },
 };
 

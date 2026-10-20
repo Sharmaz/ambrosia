@@ -45,6 +45,7 @@ import pos.ambrosia.db.tables.PayoutAccountEntity
 import pos.ambrosia.db.tables.PayoutAccountsTable
 import pos.ambrosia.db.tables.PermissionEntity
 import pos.ambrosia.db.tables.PermissionsTable
+import pos.ambrosia.db.tables.PrinterConfigCashDrawerPaymentMethodsTable
 import pos.ambrosia.db.tables.PrinterConfigEntity
 import pos.ambrosia.db.tables.PrinterConfigsTable
 import pos.ambrosia.db.tables.ProductBundleComponentsTable
@@ -127,6 +128,7 @@ object ExposedTestDb {
                 DishesIngredientsTable,
                 ShiftsTable,
                 PrinterConfigsTable,
+                PrinterConfigCashDrawerPaymentMethodsTable,
                 TicketTemplatesTable,
                 TicketTemplateElementsTable,
                 OrderProductsTable,
@@ -165,6 +167,7 @@ object ExposedTestDb {
                 OrderProductsTable,
                 TicketTemplateElementsTable,
                 TicketTemplatesTable,
+                PrinterConfigCashDrawerPaymentMethodsTable,
                 PrinterConfigsTable,
                 PushSubscriptionsTable,
                 InvoicePaymentsTable,

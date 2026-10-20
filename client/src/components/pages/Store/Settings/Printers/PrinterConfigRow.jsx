@@ -6,6 +6,8 @@ import { useTranslations } from "next-intl";
 import { RequirePermission } from "@/hooks/usePermission";
 import { DeleteButton } from "@components/shared/DeleteButton";
 
+import { CashDrawerSettings } from "./CashDrawerSettings";
+
 export function PrinterConfigRow({
   config,
   templates,
@@ -15,6 +17,8 @@ export function PrinterConfigRow({
   onToggleDefault,
   onToggleEnabled,
   onRemove,
+  paymentMethods,
+  onCashDrawerChange,
 }) {
   const settingsTranslations = useTranslations("settings");
   return (
@@ -59,6 +63,12 @@ export function PrinterConfigRow({
                 </SelectItem>
               ))}
           </Select>
+
+          <CashDrawerSettings
+            printerConfig={config}
+            paymentMethods={paymentMethods}
+            onCashDrawerChange={onCashDrawerChange}
+          />
 
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-3 flex-wrap">
