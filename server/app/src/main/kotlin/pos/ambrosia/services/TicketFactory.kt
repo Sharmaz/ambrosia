@@ -72,7 +72,7 @@ class TicketFactory(
         escpos.initializePrinter()
         template.elements.forEach { templateElement ->
             val escPosStyle = convertToEscPosStyle(templateElement.style)
-            val resolvedContent = resolveValue(templateElement.value, ticketData, businessConfig)
+            val resolvedContent = resolveTemplateVariables(templateElement.value, ticketData, businessConfig)
 
             when (templateElement.type) {
                 ElementType.SEPARATOR -> {
@@ -215,7 +215,7 @@ class TicketFactory(
         return minOf(readableDotsPerModule, maxDotsPerModule)
     }
 
-    private fun resolveValue(
+    private fun resolveTemplateVariables(
         templateText: String,
         ticketData: TicketData,
         businessConfig: Config?,
