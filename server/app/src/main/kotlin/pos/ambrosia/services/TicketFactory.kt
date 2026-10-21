@@ -24,9 +24,11 @@ import pos.ambrosia.utils.formatTicketLine
 import pos.ambrosia.utils.removeAccents
 import java.awt.image.BufferedImage
 import java.time.Clock
+import java.time.LocalDateTime
 import java.time.ZoneId
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
+import java.time.format.DateTimeParseException
 import java.util.EnumMap
 import java.util.Locale
 
@@ -250,7 +252,7 @@ class TicketFactory(
             put("{{ticket.discountAmount}}", ticketData.discountAmount.toString())
             put("{{ticket.tipAmount}}", ticketData.tipAmount.toString())
             put("{{ticket.invoice}}", ticketData.invoice ?: "")
-            val printedAt = resolvePrintedAt(businessConfig)
+            val printedAt = resolvePrintedAt(ticketData, businessConfig)
             val printDate = printedAt.format(DateTimeFormatter.ofPattern(template.dateFormat.pattern, Locale.US))
             val printTime = printedAt.format(DateTimeFormatter.ofPattern(template.timeFormat.pattern, Locale.US))
             put("{{print.date}}", printDate)
@@ -264,10 +266,24 @@ class TicketFactory(
             }
         }
 
-    private fun resolvePrintedAt(businessConfig: Config?): ZonedDateTime {
+    private fun resolvePrintedAt(
+        ticketData: TicketData,
+        businessConfig: Config?,
+    ): ZonedDateTime {
         val businessZone = businessConfig?.timezone?.let(ZoneId::of) ?: clock.zone
-        return ZonedDateTime.now(clock).withZoneSameInstant(businessZone)
+        return ticketData.issuedAt
+            ?.let(::parseIssuedAt)
+            ?.atZone(businessZone)
+            ?: ZonedDateTime.now(clock).withZoneSameInstant(businessZone)
     }
+
+    private fun parseIssuedAt(issuedAt: String): LocalDateTime? =
+        try {
+            LocalDateTime.parse(issuedAt)
+        } catch (invalidIssuedAtException: DateTimeParseException) {
+            logger.warn("Ignoring invalid ticket issuedAt '$issuedAt': ${invalidIssuedAtException.message}")
+            null
+        }
 
     private fun convertToEscPosStyle(elementStyle: ElementStyle?): Style {
         val escposStyle = Style()

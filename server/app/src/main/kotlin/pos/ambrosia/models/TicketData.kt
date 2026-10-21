@@ -14,6 +14,7 @@ data class TicketData(
     val tipAmount: Double = 0.0,
     val invoice: String? = null,
     val paymentMethod: String? = null,
+    val issuedAt: String? = null,
     val labels: TicketLabels,
 )
 
