@@ -724,10 +724,37 @@ class TicketFactoryTest {
         )
     }
 
+    @Test
+    fun `build should resolve print date and time from the ticket issue date`() {
+        assertEquals(
+            "10/10/2026 15:18",
+            printedTextLine(
+                value = "{{print.date}} {{print.time}}",
+                dateFormat = TicketDateFormat.DAY_MONTH_YEAR,
+                timeFormat = TicketTimeFormat.HOURS_24,
+                issuedAt = "2026-10-10T15:18:42.123456",
+            ),
+        )
+    }
+
+    @Test
+    fun `build should resolve print date and time from the clock when the ticket issue date is invalid`() {
+        assertEquals(
+            "15/10/2026 21:30",
+            printedTextLine(
+                value = "{{print.date}} {{print.time}}",
+                dateFormat = TicketDateFormat.DAY_MONTH_YEAR,
+                timeFormat = TicketTimeFormat.HOURS_24,
+                issuedAt = "not-a-date",
+            ),
+        )
+    }
+
     private fun printedTextLine(
         value: String,
         dateFormat: TicketDateFormat,
         timeFormat: TicketTimeFormat,
+        issuedAt: String? = null,
     ): String {
         val mockEscpos: EscPos = mock()
         val printedLineCaptor = argumentCaptor<String>()
@@ -756,6 +783,7 @@ class TicketFactoryTest {
                 date = "2026-10-16",
                 items = emptyList(),
                 total = 0.0,
+                issuedAt = issuedAt,
                 labels = englishTicketLabels,
             )
         val businessConfig =
