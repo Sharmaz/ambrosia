@@ -76,6 +76,8 @@ const ordersEs = {
         paymentHash: "Hash del pago",
         copy: "Copiar",
       },
+      reprint: "Reimprimir ticket",
+      reprintSuccess: "Ticket reimpreso",
       refund: "Reembolsar",
       refundTitle: "Reembolsar orden",
       refundDescription: "Esto restaurará el stock de los productos y marcará la orden como reembolsada.",
