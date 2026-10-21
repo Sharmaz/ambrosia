@@ -26,6 +26,7 @@ import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import pos.ambrosia.config.AppConfig
 import pos.ambrosia.logger
+import pos.ambrosia.models.phoenix.Channel
 import pos.ambrosia.models.phoenix.CloseChannelRequest
 import pos.ambrosia.models.phoenix.CloseChannelResponse
 import pos.ambrosia.models.phoenix.CreateInvoiceRequest
@@ -453,7 +454,8 @@ class PhoenixService(
                 )
             }
 
-            return response.body<NodeInfo>()
+            val nodeInfo = response.body<NodeInfo>()
+            return nodeInfo.copy(channels = nodeInfo.channels.map { it.withNormalizedState() })
         } catch (e: PhoenixNodeInfoException) {
             throw e
         } catch (e: Exception) {
@@ -634,6 +636,8 @@ class PhoenixService(
 
         logger.info("Outgoing Lightning payment diagnostic: $diagnosticPayload")
     }
+
+    private fun Channel.withNormalizedState(): Channel = copy(state = state.substringBefore('('))
 
     private fun elapsedMilliseconds(startedAtMillis: Long): Long = System.currentTimeMillis() - startedAtMillis
 

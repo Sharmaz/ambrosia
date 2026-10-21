@@ -1568,12 +1568,51 @@ class PhoenixServiceTest {
         val nodeInfo = runBlocking { phoenixService.getNodeInfo() }
 
         val incompleteChannel = nodeInfo.channels.single()
-        assertEquals("Syncing(Normal)", incompleteChannel.state)
+        assertEquals("Syncing", incompleteChannel.state)
         assertEquals(null, incompleteChannel.channelId)
         assertEquals(null, incompleteChannel.balanceSat)
         assertEquals(null, incompleteChannel.capacitySat)
         assertEquals(null, incompleteChannel.inboundLiquiditySat)
         assertEquals(null, incompleteChannel.fundingTxId)
+    }
+
+    @Test
+    fun `getNodeInfo strips the parenthesized wrapper from channel state`() {
+        val wrappedAndPlainStateJsonResponse =
+            """
+            {
+                "nodeId": "02f3c93f2bsd...",
+                "channels": [
+                    { "state": "Syncing(Normal)" },
+                    { "state": "Normal" }
+                ],
+                "chain": "mainnet",
+                "blockHeight": 800000,
+                "version": "0.9.1"
+            }
+            """.trimIndent()
+
+        val mockEngine =
+            MockEngine { request ->
+                respond(
+                    content = ByteReadChannel(wrappedAndPlainStateJsonResponse.toByteArray(Charsets.UTF_8)),
+                    status = HttpStatusCode.OK,
+                    headers = headersOf(HttpHeaders.ContentType, "application/json"),
+                )
+            }
+
+        val mockHttpClient =
+            HttpClient(mockEngine) {
+                install(ContentNegotiation) {
+                    json(Json { ignoreUnknownKeys = true })
+                }
+            }
+
+        val phoenixService = phoenixServiceWith(mockHttpClient)
+        val nodeInfo = runBlocking { phoenixService.getNodeInfo() }
+
+        assertEquals("Syncing", nodeInfo.channels[0].state)
+        assertEquals("Normal", nodeInfo.channels[1].state)
     }
 
     @Test
