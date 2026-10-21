@@ -417,4 +417,64 @@ describe("NodeInfo Component", () => {
       expect(progressBars[1]).toHaveAttribute("aria-valuenow", "37.5");
     });
   });
+
+  describe("Null Channel Fields", () => {
+    const channelWithNullDetails = {
+      channelId: null,
+      balanceSat: null,
+      capacitySat: null,
+      inboundLiquiditySat: null,
+      state: "Syncing",
+    };
+
+    it("shows a dash instead of the balance when it is null", () => {
+      const info = {
+        ...mockNodeInfo,
+        channels: [{ ...channelWithNullDetails, capacitySat: 2000, inboundLiquiditySat: 1000 }],
+      };
+      renderNodeInfo(info);
+
+      expect(screen.getByText("— nodeInfo.sats")).toBeInTheDocument();
+    });
+
+    it("shows a dash instead of the capacity when it is null", () => {
+      const info = {
+        ...mockNodeInfo,
+        channels: [{ ...channelWithNullDetails, balanceSat: 1000, inboundLiquiditySat: 1000 }],
+      };
+      renderNodeInfo(info);
+
+      expect(screen.getByText("— nodeInfo.sats")).toBeInTheDocument();
+    });
+
+    it("shows a dash instead of the inbound liquidity when it is null", () => {
+      const info = {
+        ...mockNodeInfo,
+        channels: [{ ...channelWithNullDetails, balanceSat: 1000, capacitySat: 2000 }],
+      };
+      renderNodeInfo(info);
+
+      expect(screen.getByText("— nodeInfo.sats")).toBeInTheDocument();
+    });
+
+    it("does not render the progress bar when balance or capacity is null", () => {
+      const info = { ...mockNodeInfo, channels: [channelWithNullDetails] };
+      const { container } = renderNodeInfo(info);
+
+      const progressBars = container.querySelectorAll('[aria-label="closeChannel.balanceSummaryLabel"]');
+      expect(progressBars).toHaveLength(0);
+    });
+
+    it("disables the close channel button when channelId is null even if the channel is Normal", () => {
+      const info = {
+        ...mockNodeInfo,
+        channels: [
+          { ...channelWithNullDetails, balanceSat: 1000, capacitySat: 2000, inboundLiquiditySat: 1000, state: "NORMAL" },
+        ],
+      };
+      renderNodeInfo(info);
+
+      expect(screen.getByRole("button", { name: "closeChannel.buttonLabel" })).toBeDisabled();
+    });
+  });
 });

@@ -54,7 +54,7 @@ export function NodeInfo({ info, balance, onRefresh, currentRate, currencyAcrony
               <h4 className="font-semibold text-deep">{walletTranslations("nodeInfo.subtitle")}</h4>
               {(info.channels ?? []).map((channel, index) => (
                 <ChannelCard
-                  key={channel.channelId}
+                  key={channel.channelId ?? index}
                   channel={channel}
                   index={index}
                   onClose={handleOpenCloseModal}

@@ -30,6 +30,14 @@ describe("formatSats", () => {
   it("handles very large numbers", () => {
     expect(formatSats(1000000000)).toBe("1,000,000,000");
   });
+
+  it("returns a dash when the amount is null", () => {
+    expect(formatSats(null)).toBe("—");
+  });
+
+  it("returns a dash when the amount is undefined", () => {
+    expect(formatSats(undefined)).toBe("—");
+  });
 });
 
 describe("formatFiat", () => {

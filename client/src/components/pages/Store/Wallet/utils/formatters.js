@@ -1,4 +1,4 @@
-export const formatSats = (amount) => new Intl.NumberFormat().format(amount);
+export const formatSats = (amount) => (amount == null ? "—" : new Intl.NumberFormat().format(amount));
 
 export function formatFiat({
   value,

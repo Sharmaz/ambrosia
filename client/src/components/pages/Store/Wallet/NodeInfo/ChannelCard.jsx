@@ -78,19 +78,21 @@ export function ChannelCard({ channel, index, onClose }) {
               {formatSats(channel.inboundLiquiditySat)} {walletTranslations("nodeInfo.sats")}
             </span>
           </div>
-          <Progress
-            aria-label={walletTranslations("closeChannel.balanceSummaryLabel")}
-            value={(channel.balanceSat / channel.capacitySat) * 100}
-            className="max-w-full"
-            color="primary"
-            size="sm"
-          />
+          {channel.balanceSat != null && channel.capacitySat != null && (
+            <Progress
+              aria-label={walletTranslations("closeChannel.balanceSummaryLabel")}
+              value={(channel.balanceSat / channel.capacitySat) * 100}
+              className="max-w-full"
+              color="primary"
+              size="sm"
+            />
+          )}
           <Button
             className="mt-4"
             size="sm"
             color="danger"
             onPress={() => onClose(channel)}
-            isDisabled={!isNormal}
+            isDisabled={!isNormal || !channel.channelId}
           >
             {walletTranslations("closeChannel.buttonLabel")}
           </Button>
