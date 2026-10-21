@@ -1994,6 +1994,26 @@ class PhoenixServiceTest {
             runBlocking { phoenixService.closeChannel(request) }
         }
     }
+
+    @Test
+    fun `closeChannel throws PhoenixChannelNotAvailableException when phoenixd reports no channel available`() {
+        val mockEngine =
+            MockEngine { request ->
+                respond(
+                    content = ByteReadChannel("no channel available"),
+                    status = HttpStatusCode.BadRequest,
+                )
+            }
+        val mockHttpClient = HttpClient(mockEngine)
+        val phoenixService = phoenixServiceWith(mockHttpClient)
+
+        val request =
+            pos.ambrosia.models.phoenix
+                .CloseChannelRequest(channelId = "channelId", address = "address", feerateSatByte = 10)
+        assertFailsWith<pos.ambrosia.utils.PhoenixChannelNotAvailableException> {
+            runBlocking { phoenixService.closeChannel(request) }
+        }
+    }
     //endregion
 
     private fun payInvoiceFailureFor(

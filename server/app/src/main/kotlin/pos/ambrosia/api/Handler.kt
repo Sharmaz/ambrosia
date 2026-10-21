@@ -33,6 +33,7 @@ import pos.ambrosia.utils.PaymentNotConfirmedException
 import pos.ambrosia.utils.PendingImportAlreadyStagedException
 import pos.ambrosia.utils.PermissionDeniedException
 import pos.ambrosia.utils.PhoenixBalanceException
+import pos.ambrosia.utils.PhoenixChannelNotAvailableException
 import pos.ambrosia.utils.PhoenixConnectionException
 import pos.ambrosia.utils.PhoenixNodeInfoException
 import pos.ambrosia.utils.PhoenixServiceException
@@ -161,6 +162,15 @@ fun Application.handler() {
             call.respond(
                 HttpStatusCode.ServiceUnavailable,
                 Message("Unable to retrieve balance information"),
+            )
+        }
+        exception<PhoenixChannelNotAvailableException> { call, cause ->
+            logger.warn("Close channel rejected — channel not available: ${cause.message}")
+            call.respondWalletError(
+                HttpStatusCode.UnprocessableEntity,
+                cause.message ?: "Channel is not in a closeable state",
+                cause.code,
+                cause.source,
             )
         }
         exception<PhoenixServiceException> { call, cause ->

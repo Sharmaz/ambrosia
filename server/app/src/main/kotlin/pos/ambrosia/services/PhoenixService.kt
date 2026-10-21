@@ -45,6 +45,7 @@ import pos.ambrosia.models.phoenix.PaymentResponse
 import pos.ambrosia.models.phoenix.PhoenixBalance
 import pos.ambrosia.utils.Bolt11Decoder
 import pos.ambrosia.utils.PhoenixBalanceException
+import pos.ambrosia.utils.PhoenixChannelNotAvailableException
 import pos.ambrosia.utils.PhoenixConnectionException
 import pos.ambrosia.utils.PhoenixNodeInfoException
 import pos.ambrosia.utils.PhoenixServiceException
@@ -496,10 +497,18 @@ class PhoenixService(
                         },
                 )
             if (response.status.value != 200) {
-                throw PhoenixServiceException("Phoenix node returned ${response.status.value}")
+                val errorBody = response.bodyAsText()
+                if (errorBody.contains("no channel available")) {
+                    throw PhoenixChannelNotAvailableException()
+                }
+                throw PhoenixServiceException("Phoenix node returned ${response.status.value}: $errorBody")
             }
 
             return CloseChannelResponse(txId = response.bodyAsText().trim())
+        } catch (e: PhoenixChannelNotAvailableException) {
+            throw e
+        } catch (e: PhoenixServiceException) {
+            throw e
         } catch (e: Exception) {
             throw PhoenixServiceException("Failed to close channel on Phoenix: ${e.message}")
         }
