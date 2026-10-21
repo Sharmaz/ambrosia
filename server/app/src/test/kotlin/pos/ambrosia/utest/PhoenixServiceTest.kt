@@ -35,6 +35,18 @@ class PhoenixServiceTest {
         mock {
             on { config } doReturn mockConfig
         }
+    private val syncingChannelNodeInfoJsonResponse =
+        """
+        {
+            "nodeId": "02f3c93f2bsd...",
+            "channels": [
+                { "state": "Syncing" }
+            ],
+            "chain": "mainnet",
+            "blockHeight": 800000,
+            "version": "0.9.1"
+        }
+        """.trimIndent()
 
     //region Payments
 
@@ -1616,6 +1628,164 @@ class PhoenixServiceTest {
     }
 
     @Test
+    fun `getNodeInfo resolves the channel id from listchannels when exactly one channel is missing it`() {
+        val listChannelsJsonResponse =
+            """
+            [
+                { "type": "fr.acinq.lightning.channel.states.Normal", "commitments": { "channelParams": { "channelId": "abc123" } } }
+            ]
+            """.trimIndent()
+
+        val mockEngine = mockEngineRoutingByPath(syncingChannelNodeInfoJsonResponse, listChannelsJsonResponse)
+        val mockHttpClient =
+            HttpClient(mockEngine) {
+                install(ContentNegotiation) {
+                    json(Json { ignoreUnknownKeys = true })
+                }
+            }
+
+        val phoenixService = phoenixServiceWith(mockHttpClient)
+        val nodeInfo = runBlocking { phoenixService.getNodeInfo() }
+
+        assertEquals("abc123", nodeInfo.channels.single().channelId)
+    }
+
+    @Test
+    fun `getNodeInfo does not resolve channel ids when more than one channel is missing it`() {
+        val nodeInfoJsonResponse =
+            """
+            {
+                "nodeId": "02f3c93f2bsd...",
+                "channels": [
+                    { "state": "Syncing" },
+                    { "state": "Syncing" }
+                ],
+                "chain": "mainnet",
+                "blockHeight": 800000,
+                "version": "0.9.1"
+            }
+            """.trimIndent()
+        val listChannelsJsonResponse =
+            """
+            [
+                { "type": "fr.acinq.lightning.channel.states.Normal", "commitments": { "channelParams": { "channelId": "abc123" } } },
+                { "type": "fr.acinq.lightning.channel.states.Normal", "commitments": { "channelParams": { "channelId": "def456" } } }
+            ]
+            """.trimIndent()
+
+        val mockEngine = mockEngineRoutingByPath(nodeInfoJsonResponse, listChannelsJsonResponse)
+        val mockHttpClient =
+            HttpClient(mockEngine) {
+                install(ContentNegotiation) {
+                    json(Json { ignoreUnknownKeys = true })
+                }
+            }
+
+        val phoenixService = phoenixServiceWith(mockHttpClient)
+        val nodeInfo = runBlocking { phoenixService.getNodeInfo() }
+
+        assertEquals(listOf(null, null), nodeInfo.channels.map { it.channelId })
+    }
+
+    @Test
+    fun `getNodeInfo leaves channels without a channel id when listchannels fails`() {
+        val mockEngine =
+            MockEngine { request ->
+                if (request.url.encodedPath.endsWith("/listchannels")) {
+                    respond(content = ByteReadChannel(""), status = HttpStatusCode.InternalServerError)
+                } else {
+                    respond(
+                        content = ByteReadChannel(syncingChannelNodeInfoJsonResponse.toByteArray(Charsets.UTF_8)),
+                        status = HttpStatusCode.OK,
+                        headers = headersOf(HttpHeaders.ContentType, "application/json"),
+                    )
+                }
+            }
+        val mockHttpClient =
+            HttpClient(mockEngine) {
+                install(ContentNegotiation) {
+                    json(Json { ignoreUnknownKeys = true })
+                }
+            }
+
+        val phoenixService = phoenixServiceWith(mockHttpClient)
+        val nodeInfo = runBlocking { phoenixService.getNodeInfo() }
+
+        assertEquals(null, nodeInfo.channels.single().channelId)
+    }
+
+    @Test
+    fun `getNodeInfo ignores a malformed listchannels entry without breaking channel id extraction`() {
+        val listChannelsJsonResponse =
+            """
+            [
+                { "type": "fr.acinq.lightning.channel.states.Offline" },
+                { "type": "fr.acinq.lightning.channel.states.Normal", "commitments": { "channelParams": { "channelId": "abc123" } } }
+            ]
+            """.trimIndent()
+
+        val mockEngine = mockEngineRoutingByPath(syncingChannelNodeInfoJsonResponse, listChannelsJsonResponse)
+        val mockHttpClient =
+            HttpClient(mockEngine) {
+                install(ContentNegotiation) {
+                    json(Json { ignoreUnknownKeys = true })
+                }
+            }
+
+        val phoenixService = phoenixServiceWith(mockHttpClient)
+        val nodeInfo = runBlocking { phoenixService.getNodeInfo() }
+
+        assertEquals("abc123", nodeInfo.channels.single().channelId)
+    }
+
+    @Test
+    fun `getNodeInfo does not call listchannels when every channel already has a channel id`() {
+        val nodeInfoJsonResponse =
+            """
+            {
+                "nodeId": "02f3c93f2bsd...",
+                "channels": [
+                    {
+                        "state": "Normal",
+                        "channelId": "abc123",
+                        "balanceSat": 1000,
+                        "inboundLiquiditySat": 1000,
+                        "capacitySat": 2000,
+                        "fundingTxId": "tx123"
+                    }
+                ],
+                "chain": "mainnet",
+                "blockHeight": 800000,
+                "version": "0.9.1"
+            }
+            """.trimIndent()
+
+        var listChannelsRequestCount = 0
+        val mockEngine =
+            MockEngine { request ->
+                if (request.url.encodedPath.endsWith("/listchannels")) {
+                    listChannelsRequestCount += 1
+                }
+                respond(
+                    content = ByteReadChannel(nodeInfoJsonResponse.toByteArray(Charsets.UTF_8)),
+                    status = HttpStatusCode.OK,
+                    headers = headersOf(HttpHeaders.ContentType, "application/json"),
+                )
+            }
+        val mockHttpClient =
+            HttpClient(mockEngine) {
+                install(ContentNegotiation) {
+                    json(Json { ignoreUnknownKeys = true })
+                }
+            }
+
+        val phoenixService = phoenixServiceWith(mockHttpClient)
+        runBlocking { phoenixService.getNodeInfo() }
+
+        assertEquals(0, listChannelsRequestCount)
+    }
+
+    @Test
     fun `getNodeInfo throws PhoenixNodeInfoException on non-200 response`() {
         // Arrange: Configure the MockEngine to return a server error
         val mockEngine =
@@ -1856,4 +2026,18 @@ class PhoenixServiceTest {
 
         return PhoenixService(mockEnv, mockHttpClient)
     }
+
+    private fun mockEngineRoutingByPath(
+        nodeInfoJsonResponse: String,
+        listChannelsJsonResponse: String,
+    ): MockEngine =
+        MockEngine { request ->
+            val responseBody =
+                if (request.url.encodedPath.endsWith("/listchannels")) listChannelsJsonResponse else nodeInfoJsonResponse
+            respond(
+                content = ByteReadChannel(responseBody.toByteArray(Charsets.UTF_8)),
+                status = HttpStatusCode.OK,
+                headers = headersOf(HttpHeaders.ContentType, "application/json"),
+            )
+        }
 }

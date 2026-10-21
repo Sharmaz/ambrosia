@@ -17,10 +17,12 @@ import io.ktor.http.Parameters
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.application.ApplicationEnvironment
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObjectBuilder
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
@@ -455,7 +457,8 @@ class PhoenixService(
             }
 
             val nodeInfo = response.body<NodeInfo>()
-            return nodeInfo.copy(channels = nodeInfo.channels.map { it.withNormalizedState() })
+            val normalizedChannels = nodeInfo.channels.map { it.withNormalizedState() }
+            return nodeInfo.copy(channels = resolveMissingChannelId(normalizedChannels))
         } catch (e: PhoenixNodeInfoException) {
             throw e
         } catch (e: Exception) {
@@ -638,6 +641,60 @@ class PhoenixService(
     }
 
     private fun Channel.withNormalizedState(): Channel = copy(state = state.substringBefore('('))
+
+    private suspend fun resolveMissingChannelId(channels: List<Channel>): List<Channel> {
+        val channelsMissingChannelId = channels.filter { it.channelId == null }
+        if (channelsMissingChannelId.isEmpty()) return channels
+
+        val knownChannelIds = channels.mapNotNull { it.channelId }.toSet()
+        val unassignedChannelIds =
+            try {
+                fetchChannelIdsFromListChannels().filterNot { it in knownChannelIds }
+            } catch (e: Exception) {
+                logger.warn("Failed to resolve channel IDs from /listchannels: ${e.message}")
+                return channels
+            }
+
+        if (channelsMissingChannelId.size != 1 || unassignedChannelIds.size != 1) {
+            logger.warn(
+                "Cannot safely resolve channel IDs from /listchannels: " +
+                    "${channelsMissingChannelId.size} channel(s) missing an ID, " +
+                    "${unassignedChannelIds.size} unassigned ID(s) found",
+            )
+            return channels
+        }
+
+        val resolvedChannelId = unassignedChannelIds.single()
+        return channels.map { channel ->
+            if (channel.channelId == null) channel.copy(channelId = resolvedChannelId) else channel
+        }
+    }
+
+    private suspend fun fetchChannelIdsFromListChannels(): List<String> {
+        val response = httpClient.get("$phoenixdUrl/listchannels")
+        if (response.status.value != 200) {
+            throw PhoenixServiceException("Phoenix node returned ${response.status.value}")
+        }
+
+        val listChannelsJson = phoenixJson.parseToJsonElement(response.bodyAsText()).jsonArray
+        return listChannelsJson.mapNotNull { channelElement -> channelElement.extractChannelIdOrNull() }
+    }
+
+    private fun JsonElement.extractChannelIdOrNull(): String? =
+        try {
+            val channelObject = jsonObject
+            val commitments =
+                channelObject["commitments"]?.jsonObject
+                    ?: channelObject["state"]?.jsonObject?.get("commitments")?.jsonObject
+            commitments
+                ?.get("channelParams")
+                ?.jsonObject
+                ?.get("channelId")
+                ?.jsonPrimitive
+                ?.contentOrNull
+        } catch (e: Exception) {
+            null
+        }
 
     private fun elapsedMilliseconds(startedAtMillis: Long): Long = System.currentTimeMillis() - startedAtMillis
 
