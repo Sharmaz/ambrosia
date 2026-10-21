@@ -15,7 +15,7 @@ jest.mock("next-intl", () => ({
   useTranslations: () => (translationKey) => translationKey,
 }));
 
-jest.mock("../../../hooks/usePrinter", () => ({
+jest.mock("../usePrinter", () => ({
   usePrinters: () => ({
     printTicket: mockPrintTicket,
     printerConfigs: mockPrinterConfigs,

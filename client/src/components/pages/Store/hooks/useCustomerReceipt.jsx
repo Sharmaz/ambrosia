@@ -8,7 +8,7 @@ import { useTranslations } from "next-intl";
 import { usePaymentMethodLabel } from "@/hooks/usePaymentMethodLabel";
 import { useTicketLabels } from "@/hooks/useTicketLabels";
 
-import { usePrinters } from "../../hooks/usePrinter";
+import { usePrinters } from "./usePrinter";
 
 export function useCustomerReceipt() {
   const paymentTranslations = useTranslations("cart.payment");
