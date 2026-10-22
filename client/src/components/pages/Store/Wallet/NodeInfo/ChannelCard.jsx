@@ -44,7 +44,6 @@ function ChannelStateLabel({ state }) {
 
 export function ChannelCard({ channel, index, onClose }) {
   const walletTranslations = useTranslations("wallet");
-  const isNormal = channel.state?.toUpperCase() === CHANNEL_STATE_NORMAL;
 
   return (
     <Card className="border" shadow="none">
@@ -92,7 +91,7 @@ export function ChannelCard({ channel, index, onClose }) {
             size="sm"
             color="danger"
             onPress={() => onClose(channel)}
-            isDisabled={!isNormal || !channel.channelId}
+            isDisabled={!channel.channelId}
           >
             {walletTranslations("closeChannel.buttonLabel")}
           </Button>

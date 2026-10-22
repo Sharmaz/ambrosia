@@ -464,17 +464,31 @@ describe("NodeInfo Component", () => {
       const progressBars = container.querySelectorAll('[aria-label="closeChannel.balanceSummaryLabel"]');
       expect(progressBars).toHaveLength(0);
     });
+  });
 
+  describe("Close Channel Button", () => {
     it("disables the close channel button when channelId is null even if the channel is Normal", () => {
       const info = {
         ...mockNodeInfo,
         channels: [
-          { ...channelWithNullDetails, balanceSat: 1000, capacitySat: 2000, inboundLiquiditySat: 1000, state: "NORMAL" },
+          { channelId: null, balanceSat: 1000, capacitySat: 2000, inboundLiquiditySat: 1000, state: "NORMAL" },
         ],
       };
       renderNodeInfo(info);
 
       expect(screen.getByRole("button", { name: "closeChannel.buttonLabel" })).toBeDisabled();
+    });
+
+    it("enables the close channel button when channelId is present even if the channel is not Normal", () => {
+      const info = {
+        ...mockNodeInfo,
+        channels: [
+          { channelId: "ch-1", balanceSat: null, capacitySat: null, inboundLiquiditySat: null, state: "Syncing" },
+        ],
+      };
+      renderNodeInfo(info);
+
+      expect(screen.getByRole("button", { name: "closeChannel.buttonLabel" })).toBeEnabled();
     });
   });
 });
