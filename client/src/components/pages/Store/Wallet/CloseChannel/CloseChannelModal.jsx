@@ -5,8 +5,9 @@ import { useEffect, useRef, useState } from "react";
 import { addToast, Modal, ModalContent, ModalHeader } from "@heroui/react";
 import { useTranslations } from "next-intl";
 
-import { closeChannel, isSecretsLockedError } from "@/services/walletService";
+import { closeChannel, isChannelNotAvailableError, isSecretsLockedError } from "@/services/walletService";
 
+import { ModalChannelNotAvailable } from "./ModalChannelNotAvailable";
 import { ModalConfirm } from "./ModalConfirm";
 import { ModalForm } from "./ModalForm";
 import { ModalSuccess } from "./ModalSuccess";
@@ -72,6 +73,10 @@ export function CloseChannelModal({ isOpen, onClose, channel, onSuccess }) {
       });
       onSuccess?.();
     } catch (closeChannelError) {
+      if (isChannelNotAvailableError(closeChannelError)) {
+        setStep("channelNotAvailable");
+        return;
+      }
       addToast({
         title: walletTranslations("closeChannel.errorToast"),
         description: isSecretsLockedError(closeChannelError)
@@ -121,6 +126,13 @@ export function CloseChannelModal({ isOpen, onClose, channel, onSuccess }) {
             isLoading={isLoading}
             onCancel={onClose}
             onNext={handleNext}
+          />
+        ) : step === "channelNotAvailable" ? (
+          <ModalChannelNotAvailable
+            channel={channel}
+            isLoading={isLoading}
+            onRetry={handleConfirm}
+            onClose={onClose}
           />
         ) : (
           <ModalConfirm

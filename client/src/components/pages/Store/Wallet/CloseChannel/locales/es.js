@@ -27,6 +27,14 @@ const closeChannelEs = {
     validationAddressInvalid: "Formato de dirección Bitcoin inválido.",
     validationFeerateRequired: "La tarifa es obligatoria.",
     validationFeerateInvalid: "La tarifa debe ser un número entero positivo.",
+    stuckTitle: "No se pudo cerrar el canal",
+    stuckDescription: "phoenixd no puede cerrar el canal porque todavía está sincronizando con el otro nodo de la red Lightning.",
+    stuckChannelIdLabel: "ID del canal",
+    copyChannelIdButton: "Copiar ID del canal",
+    stuckOptionRetry: "Espera un momento y vuelve a intentarlo: el otro nodo podría reconectarse en cualquier momento.",
+    stuckOptionContact: "Reportar el problema a ACINQ →",
+    stuckRetryButton: "Reintentar",
+    stuckCloseButton: "Cerrar",
   },
 };
 
