@@ -30,12 +30,20 @@ describe("formatSats", () => {
   it("handles very large numbers", () => {
     expect(formatSats(1000000000)).toBe("1,000,000,000");
   });
+
+  it("returns a dash when the amount is null", () => {
+    expect(formatSats(null)).toBe("—");
+  });
+
+  it("returns a dash when the amount is undefined", () => {
+    expect(formatSats(undefined)).toBe("—");
+  });
 });
 
 describe("formatFiat", () => {
   it("formats fiat values using currency and locale", () => {
     expect(formatFiat({
-      value: 12.5,
+      fiatAmount: 12.5,
       currencyAcronym: "USD",
       locale: "en-US",
     })).toBe("$12.50");
@@ -43,7 +51,7 @@ describe("formatFiat", () => {
 
   it("falls back when Intl currency formatting fails", () => {
     expect(formatFiat({
-      value: 12.5,
+      fiatAmount: 12.5,
       currencyAcronym: "INVALID",
       locale: "en-US",
     })).toBe("INVALID 12.50");

@@ -26,7 +26,7 @@ export function NodeSummary({ info, totalBalance, currentRate, currencyAcronym, 
 
   const totalBalanceFiat = currentRate != null
     ? formatFiat({
-      value: (totalBalance / 100_000_000) * currentRate,
+      fiatAmount: (totalBalance / 100_000_000) * currentRate,
       currencyAcronym,
       locale,
     })

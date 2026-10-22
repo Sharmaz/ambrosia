@@ -231,44 +231,44 @@ describe("NodeInfo Component", () => {
 
     closingStates.forEach(({ state, labelKey }) => {
       it(`shows orange indicator for ${state} state`, () => {
-        const info = {
+        const closingStateInfo = {
           ...mockNodeInfo,
           channels: [{ ...mockNodeInfo.channels[0], state }],
         };
-        const { container } = renderNodeInfo(info);
+        const { container } = renderNodeInfo(closingStateInfo);
 
         const orangeIndicators = container.querySelectorAll(".bg-orange-400");
         expect(orangeIndicators.length).toBeGreaterThan(0);
       });
 
       it(`shows descriptive label for ${state} state`, () => {
-        const info = {
+        const closingStateInfo = {
           ...mockNodeInfo,
           channels: [{ ...mockNodeInfo.channels[0], state }],
         };
-        renderNodeInfo(info);
+        renderNodeInfo(closingStateInfo);
 
         expect(screen.getByText(labelKey)).toBeInTheDocument();
       });
     });
 
     it("shows red indicator for unknown state", () => {
-      const info = {
+      const unknownStateInfo = {
         ...mockNodeInfo,
         channels: [{ ...mockNodeInfo.channels[0], state: "UnknownState" }],
       };
-      const { container } = renderNodeInfo(info);
+      const { container } = renderNodeInfo(unknownStateInfo);
 
       const redIndicators = container.querySelectorAll(".bg-red-500");
       expect(redIndicators.length).toBeGreaterThan(0);
     });
 
     it("shows raw state name for unknown state", () => {
-      const info = {
+      const unknownStateInfo = {
         ...mockNodeInfo,
         channels: [{ ...mockNodeInfo.channels[0], state: "UnknownState" }],
       };
-      renderNodeInfo(info);
+      renderNodeInfo(unknownStateInfo);
 
       expect(screen.getByText("UnknownState")).toBeInTheDocument();
     });
@@ -362,38 +362,38 @@ describe("NodeInfo Component", () => {
 
   describe("Channel Count Filtering", () => {
     it("uses the balance prop regardless of what the channels sum to", () => {
-      const info = {
+      const mismatchedBalanceInfo = {
         ...mockNodeInfo,
         channels: [
           { channelId: "ch-1", balanceSat: 999999, capacitySat: 999999, inboundLiquiditySat: 999999, state: "NORMAL" },
         ],
       };
-      renderNodeInfo(info, { balance: { balanceSat: 12345, feeCreditSat: 0 } });
+      renderNodeInfo(mismatchedBalanceInfo, { balance: { balanceSat: 12345, feeCreditSat: 0 } });
 
       expect(screen.getByText("12,345 sats")).toBeInTheDocument();
     });
 
     it("excludes closing channels from channel count", () => {
-      const info = {
+      const mixedChannelStatesInfo = {
         ...mockNodeInfo,
         channels: [
           { channelId: "ch-1", balanceSat: 50000, capacitySat: 100000, inboundLiquiditySat: 50000, state: "NORMAL" },
           { channelId: "ch-2", balanceSat: 30000, capacitySat: 80000, inboundLiquiditySat: 50000, state: "Closing" },
         ],
       };
-      renderNodeInfo(info);
+      renderNodeInfo(mixedChannelStatesInfo);
 
       expect(screen.getByText("1")).toBeInTheDocument();
     });
 
     it("shows 0 channel count when all channels are closing", () => {
-      const info = {
+      const allClosingChannelsInfo = {
         ...mockNodeInfo,
         channels: [
           { channelId: "ch-1", balanceSat: 20000, capacitySat: 50000, inboundLiquiditySat: 30000, state: "Closing" },
         ],
       };
-      renderNodeInfo(info);
+      renderNodeInfo(allClosingChannelsInfo);
 
       expect(screen.getByText("0")).toBeInTheDocument();
     });
@@ -415,6 +415,80 @@ describe("NodeInfo Component", () => {
       expect(progressBars[0]).toHaveAttribute("aria-valuenow", "50");
 
       expect(progressBars[1]).toHaveAttribute("aria-valuenow", "37.5");
+    });
+  });
+
+  describe("Null Channel Fields", () => {
+    const channelWithNullDetails = {
+      channelId: null,
+      balanceSat: null,
+      capacitySat: null,
+      inboundLiquiditySat: null,
+      state: "Syncing",
+    };
+
+    it("shows a dash instead of the balance when it is null", () => {
+      const nullBalanceInfo = {
+        ...mockNodeInfo,
+        channels: [{ ...channelWithNullDetails, capacitySat: 2000, inboundLiquiditySat: 1000 }],
+      };
+      renderNodeInfo(nullBalanceInfo);
+
+      expect(screen.getByText("— nodeInfo.sats")).toBeInTheDocument();
+    });
+
+    it("shows a dash instead of the capacity when it is null", () => {
+      const nullCapacityInfo = {
+        ...mockNodeInfo,
+        channels: [{ ...channelWithNullDetails, balanceSat: 1000, inboundLiquiditySat: 1000 }],
+      };
+      renderNodeInfo(nullCapacityInfo);
+
+      expect(screen.getByText("— nodeInfo.sats")).toBeInTheDocument();
+    });
+
+    it("shows a dash instead of the inbound liquidity when it is null", () => {
+      const nullInboundLiquidityInfo = {
+        ...mockNodeInfo,
+        channels: [{ ...channelWithNullDetails, balanceSat: 1000, capacitySat: 2000 }],
+      };
+      renderNodeInfo(nullInboundLiquidityInfo);
+
+      expect(screen.getByText("— nodeInfo.sats")).toBeInTheDocument();
+    });
+
+    it("does not render the progress bar when balance or capacity is null", () => {
+      const nullChannelDetailsInfo = { ...mockNodeInfo, channels: [channelWithNullDetails] };
+      const { container } = renderNodeInfo(nullChannelDetailsInfo);
+
+      const progressBars = container.querySelectorAll('[aria-label="closeChannel.balanceSummaryLabel"]');
+      expect(progressBars).toHaveLength(0);
+    });
+  });
+
+  describe("Close Channel Button", () => {
+    it("disables the close channel button when channelId is null even if the channel is Normal", () => {
+      const nullChannelIdInfo = {
+        ...mockNodeInfo,
+        channels: [
+          { channelId: null, balanceSat: 1000, capacitySat: 2000, inboundLiquiditySat: 1000, state: "NORMAL" },
+        ],
+      };
+      renderNodeInfo(nullChannelIdInfo);
+
+      expect(screen.getByRole("button", { name: "closeChannel.buttonLabel" })).toBeDisabled();
+    });
+
+    it("enables the close channel button when channelId is present even if the channel is not Normal", () => {
+      const syncingChannelInfo = {
+        ...mockNodeInfo,
+        channels: [
+          { channelId: "ch-1", balanceSat: null, capacitySat: null, inboundLiquiditySat: null, state: "Syncing" },
+        ],
+      };
+      renderNodeInfo(syncingChannelInfo);
+
+      expect(screen.getByRole("button", { name: "closeChannel.buttonLabel" })).toBeEnabled();
     });
   });
 });

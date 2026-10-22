@@ -28,6 +28,12 @@ class PhoenixBalanceException(
     message: String = "Failed to retrieve balance information from Phoenix",
 ) : RuntimeException(message)
 
+class PhoenixChannelNotAvailableException(
+    message: String = "Channel is not in a closeable state (currently syncing or offline)",
+    val code: String = "channel_not_available",
+    val source: String = "phoenixd",
+) : RuntimeException(message)
+
 class PhoenixServiceException(
     message: String = "Phoenix Lightning node service error",
     val code: String = "unknown",

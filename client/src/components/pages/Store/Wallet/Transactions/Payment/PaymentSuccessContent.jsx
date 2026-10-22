@@ -54,7 +54,7 @@ export function PaymentSuccessContent({
               {estimatedFiatIsLoading && walletTranslations("payments.send.confirmModal.fiatLoading")}
               {estimatedFiatHasError && walletTranslations("payments.send.confirmModal.fiatError")}
               {!estimatedFiatIsLoading && !estimatedFiatHasError && estimatedFiat != null && formatFiat({
-                value: estimatedFiat,
+                fiatAmount: estimatedFiat,
                 currencyAcronym: currency.acronym,
                 locale: currency.locale,
               })}
