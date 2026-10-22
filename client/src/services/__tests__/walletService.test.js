@@ -26,6 +26,7 @@ import {
   getPhoenixdRemoteStatus,
   closeChannel,
   isSecretsLockedError,
+  isChannelNotAvailableError,
 } from "../walletService";
 
 function makeResponse(status, ok = true) {
@@ -575,6 +576,21 @@ describe("walletService", () => {
     it("returns false when the error is null or undefined", () => {
       expect(isSecretsLockedError(null)).toBe(false);
       expect(isSecretsLockedError(undefined)).toBe(false);
+    });
+  });
+
+  describe("isChannelNotAvailableError", () => {
+    it("returns true when the error code is channel_not_available", () => {
+      expect(isChannelNotAvailableError({ code: "channel_not_available" })).toBe(true);
+    });
+
+    it("returns false when the error code is something else", () => {
+      expect(isChannelNotAvailableError({ code: "unknown" })).toBe(false);
+    });
+
+    it("returns false when the error is null or undefined", () => {
+      expect(isChannelNotAvailableError(null)).toBe(false);
+      expect(isChannelNotAvailableError(undefined)).toBe(false);
     });
   });
 });
