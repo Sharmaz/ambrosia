@@ -43,7 +43,7 @@ describe("formatSats", () => {
 describe("formatFiat", () => {
   it("formats fiat values using currency and locale", () => {
     expect(formatFiat({
-      value: 12.5,
+      fiatAmount: 12.5,
       currencyAcronym: "USD",
       locale: "en-US",
     })).toBe("$12.50");
@@ -51,7 +51,7 @@ describe("formatFiat", () => {
 
   it("falls back when Intl currency formatting fails", () => {
     expect(formatFiat({
-      value: 12.5,
+      fiatAmount: 12.5,
       currencyAcronym: "INVALID",
       locale: "en-US",
     })).toBe("INVALID 12.50");

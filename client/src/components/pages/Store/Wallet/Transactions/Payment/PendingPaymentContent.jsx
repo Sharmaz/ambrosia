@@ -59,7 +59,7 @@ export function PendingPaymentContent({
   }, [getConfirmAmount, onConfirm]);
 
   const estimatedFiatDisplay = formatFiat({
-    value: estimatedFiat ?? 0,
+    fiatAmount: estimatedFiat ?? 0,
     currencyAcronym: currency.acronym,
     locale: currency.locale,
   });
