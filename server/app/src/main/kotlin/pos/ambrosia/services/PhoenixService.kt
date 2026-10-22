@@ -498,13 +498,15 @@ class PhoenixService(
                 )
             if (response.status.value != 200) {
                 val errorBody = response.bodyAsText()
-                if (errorBody.contains("no channel available")) {
-                    throw PhoenixChannelNotAvailableException()
-                }
                 throw PhoenixServiceException("Phoenix node returned ${response.status.value}: $errorBody")
             }
 
-            return CloseChannelResponse(txId = response.bodyAsText().trim())
+            val txId = response.bodyAsText().trim()
+            if (txId.contains("no channel available")) {
+                throw PhoenixChannelNotAvailableException()
+            }
+
+            return CloseChannelResponse(txId = txId)
         } catch (e: PhoenixChannelNotAvailableException) {
             throw e
         } catch (e: PhoenixServiceException) {

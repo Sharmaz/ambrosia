@@ -2001,7 +2001,7 @@ class PhoenixServiceTest {
             MockEngine { request ->
                 respond(
                     content = ByteReadChannel("no channel available"),
-                    status = HttpStatusCode.BadRequest,
+                    status = HttpStatusCode.OK,
                 )
             }
         val mockHttpClient = HttpClient(mockEngine)
