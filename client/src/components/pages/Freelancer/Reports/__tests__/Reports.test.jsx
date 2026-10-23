@@ -1,0 +1,160 @@
+import { fireEvent, render, screen } from "@testing-library/react";
+
+import { printHtmlDocument } from "@/utils/printHtmlDocument";
+
+import { useFreelanceReport, useReportSatsTotal } from "../../hooks";
+import { Reports } from "../Reports";
+import { downloadFreelanceReportCsv } from "../utils/reportCsv";
+
+import { freelanceReportFixture } from "./utils/freelanceReportFixture";
+
+jest.mock("@/utils/printHtmlDocument", () => ({
+  printHtmlDocument: jest.fn(),
+}));
+
+jest.mock("../utils/reportCsv", () => ({
+  ...jest.requireActual("../utils/reportCsv"),
+  downloadFreelanceReportCsv: jest.fn(),
+}));
+
+jest.mock("../../hooks", () => ({
+  useFreelanceReport: jest.fn(),
+  useReportSatsTotal: jest.fn(),
+}));
+
+jest.mock("next-intl", () => ({
+  useTranslations: () => (translationKey, translationValues) => (
+    translationValues?.currency ? `${translationKey} ${translationValues.currency}` : translationKey
+  ),
+}));
+
+jest.mock("@providers/configurations/configurationsProvider", () => ({
+  useConfigurations: () => ({ config: { businessName: "Alice Studio" } }),
+}));
+
+jest.mock("@/components/shared/PageHeader", () => ({
+  PageHeader: ({ title, actions }) => (
+    <header>
+      <h1>{title}</h1>
+      {actions}
+    </header>
+  ),
+}));
+
+jest.mock("@/components/shared/PermissionBlockedMessage", () => ({
+  PermissionBlockedMessage: ({ title }) => <p>{title}</p>,
+}));
+
+jest.mock("../../../Store/Reports/Filters", () => ({
+  PeriodFilter: () => <div>period-filter</div>,
+}));
+
+jest.mock("../../../Store/Reports/Summary", () => ({
+  SummaryCard: ({ stats }) => (
+    <ul>
+      {stats.map(({ label, value }) => <li key={label}>{`${label}: ${value}`}</li>)}
+    </ul>
+  ),
+}));
+
+jest.mock("@heroui/react", () => ({
+  addToast: jest.fn(),
+  Button: ({ children, isDisabled, onPress }) => (
+    <button type="button" disabled={isDisabled} onClick={onPress}>{children}</button>
+  ),
+  Card: ({ children }) => <div>{children}</div>,
+  CardBody: ({ children }) => <div>{children}</div>,
+  Spinner: () => <div>spinner</div>,
+  Table: ({ children }) => <table>{children}</table>,
+  TableHeader: ({ children }) => <thead><tr>{children}</tr></thead>,
+  TableColumn: ({ children }) => <th>{children}</th>,
+  TableBody: ({ children }) => <tbody>{children}</tbody>,
+  TableRow: ({ children }) => <tr>{children}</tr>,
+  TableCell: ({ children }) => <td>{children}</td>,
+}));
+
+const fetchReport = jest.fn();
+
+function mockReportState(reportState) {
+  useFreelanceReport.mockReturnValue({
+    report: freelanceReportFixture,
+    loading: false,
+    error: null,
+    forbidden: false,
+    fetchReport,
+    ...reportState,
+  });
+}
+
+describe("Freelancer Reports", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockReportState();
+    useReportSatsTotal.mockReturnValue({ totalSatoshis: 350000, loading: false, unavailable: false });
+  });
+
+  it("loads the current month report on mount", () => {
+    render(<Reports />);
+
+    expect(fetchReport).toHaveBeenCalledWith({ period: "month" });
+  });
+
+  it("shows every currency total, the sats total and the project rows", () => {
+    render(<Reports />);
+
+    expect(screen.getByText("summary.currencyTotal EUR: EUR 50.00")).toBeInTheDocument();
+    expect(screen.getByText("summary.currencyTotal USD: USD 250.00")).toBeInTheDocument();
+    expect(screen.getByText(`summary.totalSatoshis: ${(350000).toLocaleString()} sats`)).toBeInTheDocument();
+    expect(screen.getAllByText("Alice Website").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Development").length).toBeGreaterThan(0);
+  });
+
+  it("exports the report to pdf through the shared print mechanism", () => {
+    render(<Reports />);
+
+    fireEvent.click(screen.getByRole("button", { name: "exportPdf" }));
+
+    expect(printHtmlDocument).toHaveBeenCalledWith(expect.objectContaining({
+      title: "document.reportTitle",
+      htmlContent: expect.stringContaining("Alice Website"),
+    }));
+  });
+
+  it("exports the report rows to csv", () => {
+    render(<Reports />);
+
+    fireEvent.click(screen.getByRole("button", { name: "exportCsv" }));
+
+    expect(downloadFreelanceReportCsv).toHaveBeenCalledWith(
+      expect.stringContaining('"Alice Website","Development","Alice","1h 30m","USD 150.00"'),
+      freelanceReportFixture,
+    );
+  });
+
+  it("disables the exports while the sats total is calculating", () => {
+    useReportSatsTotal.mockReturnValue({ totalSatoshis: null, loading: true, unavailable: false });
+
+    render(<Reports />);
+
+    expect(screen.getByRole("button", { name: "exportPdf" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "exportCsv" })).toBeDisabled();
+  });
+
+  it("shows the empty state and disables the exports without billable time", () => {
+    mockReportState({ report: { ...freelanceReportFixture, currencies: [] } });
+
+    render(<Reports />);
+
+    expect(screen.getByText("emptyState")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "exportPdf" })).toBeDisabled();
+  });
+
+  it("shows the permission message when the report is forbidden", () => {
+    mockReportState({ report: null, forbidden: true });
+
+    render(<Reports />);
+
+    expect(screen.getByText("permissionBlocked.title")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "exportPdf" })).not.toBeInTheDocument();
+  });
+});
