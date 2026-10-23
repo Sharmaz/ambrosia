@@ -8,7 +8,7 @@ import { useTranslations } from "next-intl";
 import { usePaymentMethodLabel } from "@/hooks/usePaymentMethodLabel";
 import { useTicketLabels } from "@/hooks/useTicketLabels";
 
-import { usePrinters } from "../../hooks/usePrinter";
+import { usePrinters } from "./usePrinter";
 
 export function useCustomerReceipt() {
   const paymentTranslations = useTranslations("cart.payment");
@@ -24,13 +24,13 @@ export function useCustomerReceipt() {
   }, [printerConfigs]);
 
   const printCustomerReceipt = useCallback(
-    async ({ items, totalCents, discountAmountCents, tipAmountCents, ticketId, invoice, paymentMethodName }) => {
-      if (loadingConfigs || !hasCustomerPrinter) return;
+    async ({ items, totalCents, discountAmountCents, tipAmountCents, ticketId, invoice, paymentMethodName, issuedAt }) => {
+      if (loadingConfigs || !hasCustomerPrinter) return false;
       const ticketData = {
         ticketId: ticketId?.toString() || "",
         tableName: paymentTranslations("receipt.tableName"),
         roomName: "",
-        date: new Date().toISOString(),
+        date: issuedAt ?? new Date().toISOString(),
         items: (items || []).map((item) => ({
           quantity: Number(item.quantity) || 1,
           name: item.name || "",
@@ -42,6 +42,7 @@ export function useCustomerReceipt() {
         tipAmount: Number(tipAmountCents ?? 0) / 100,
         invoice: invoice || null,
         paymentMethod: getPaymentMethodLabel(paymentMethodName) || null,
+        issuedAt: issuedAt ?? null,
         labels: ticketLabels,
       };
       try {
@@ -51,16 +52,18 @@ export function useCustomerReceipt() {
           printerType: "CUSTOMER",
           broadcast: false,
         });
+        return true;
       } catch (customerReceiptPrintError) {
         console.error("Error printing customer ticket:", customerReceiptPrintError);
         addToast({
           color: "warning",
           description: paymentTranslations("errors.printCustomer"),
         });
+        return false;
       }
     },
     [hasCustomerPrinter, loadingConfigs, printTicket, paymentTranslations, getPaymentMethodLabel, ticketLabels],
   );
 
-  return { printCustomerReceipt };
+  return { printCustomerReceipt, hasCustomerPrinter, loadingConfigs };
 }

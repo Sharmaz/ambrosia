@@ -13,6 +13,7 @@ import { usePaymentMethodLabel } from "@/hooks/usePaymentMethodLabel";
 import { usePermission } from "@/hooks/usePermission";
 import formatDate from "@lib/formatDate";
 
+import { useOrderReceiptReprint } from "../hooks/useOrderReceiptReprint";
 import { RefundModal } from "../RefundModal";
 
 import { MetaField } from "./MetaField";
@@ -23,6 +24,7 @@ export function OrderDetailsModal({ order, isOpen, onClose, onRefunded, formatAm
   const { getPaymentMethodLabel } = usePaymentMethodLabel();
   const canRefund = usePermission({ allOf: ["orders_refund"] });
   const [isRefundOpen, setIsRefundOpen] = useState(false);
+  const { canReprint, isReprinting, reprintReceipt } = useOrderReceiptReprint(order);
   const {
     id,
     userName,
@@ -170,13 +172,25 @@ export function OrderDetailsModal({ order, isOpen, onClose, onRefunded, formatAm
                 {ordersTranslations("details.refund")}
               </Button>
             )}
-            <Button
-              className="px-6 py-2 border border-border text-foreground hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              variant="bordered"
-              onPress={onClose}
-            >
-              {ordersTranslations("details.close")}
-            </Button>
+            <div className="ml-auto flex gap-2">
+              <Button
+                className="px-6 py-2 border border-border text-foreground hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                variant="bordered"
+                onPress={onClose}
+              >
+                {ordersTranslations("details.close")}
+              </Button>
+              {canReprint && (
+                <Button
+                  className="bg-green-800"
+                  color="primary"
+                  isLoading={isReprinting}
+                  onPress={reprintReceipt}
+                >
+                  {ordersTranslations("details.reprint")}
+                </Button>
+              )}
+            </div>
           </ModalFooter>
         </ModalContent>
       </Modal>
