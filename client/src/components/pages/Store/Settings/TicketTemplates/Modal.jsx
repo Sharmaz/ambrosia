@@ -53,13 +53,13 @@ export function TicketTemplatesModal({ isOpen, onClose, initialTemplate = null }
         dateFormat: initialTemplate.dateFormat || DEFAULT_PRINT_FORMATS.dateFormat,
         timeFormat: initialTemplate.timeFormat || DEFAULT_PRINT_FORMATS.timeFormat,
       });
-      const mappedElements = (initialTemplate.elements || []).map((element) => ({
-        localId: element.id || `tmp-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-        type: element.type,
-        value: element.value,
-        style: element.style || DEFAULT_STYLE,
+      const editableTemplateElements = (initialTemplate.elements || []).map((savedTemplateElement) => ({
+        localId: savedTemplateElement.id || `tmp-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+        type: savedTemplateElement.type,
+        value: savedTemplateElement.value,
+        style: savedTemplateElement.style || DEFAULT_STYLE,
       }));
-      setTemplateElements(mappedElements.length ? mappedElements : [createElement()]);
+      setTemplateElements(editableTemplateElements.length ? editableTemplateElements : [createElement()]);
     } else if (isOpen && !initialTemplate) {
       setSelectedId("");
       setTemplateName("");
@@ -92,10 +92,10 @@ export function TicketTemplatesModal({ isOpen, onClose, initialTemplate = null }
       ticketType,
       dateFormat: printFormats.dateFormat,
       timeFormat: printFormats.timeFormat,
-      elements: templateElements.map((element) => ({
-        type: element.type,
-        value: element.value ?? "",
-        style: element.style || DEFAULT_STYLE,
+      elements: templateElements.map((editedTemplateElement) => ({
+        type: editedTemplateElement.type,
+        value: editedTemplateElement.value ?? "",
+        style: editedTemplateElement.style || DEFAULT_STYLE,
       })),
     };
     try {
@@ -211,14 +211,14 @@ export function TicketTemplatesModal({ isOpen, onClose, initialTemplate = null }
               printFormats={printFormats}
               onPrintFormatsChange={setPrintFormats}
               templateElements={templateElements}
-              onElementChange={(updatedElement) => setTemplateElements((currentTemplateElements) => currentTemplateElements.map((element) => (element.localId === updatedElement.localId ? updatedElement : element)))}
+              onElementChange={(updatedTemplateElement) => setTemplateElements((currentTemplateElements) => currentTemplateElements.map((existingTemplateElement) => (existingTemplateElement.localId === updatedTemplateElement.localId ? updatedTemplateElement : existingTemplateElement)))}
               onElementAdd={() => {
-                const newElement = createElement();
-                setTemplateElements((currentTemplateElements) => [...currentTemplateElements, newElement]);
-                return newElement;
+                const emptyTextTemplateElement = createElement();
+                setTemplateElements((currentTemplateElements) => [...currentTemplateElements, emptyTextTemplateElement]);
+                return emptyTextTemplateElement;
               }}
-              onElementReorder={(reorderedElements) => setTemplateElements(reorderedElements)}
-              onElementRemove={(localId) => setTemplateElements((currentTemplateElements) => currentTemplateElements.filter((element) => element.localId !== localId))}
+              onElementReorder={(reorderedTemplateElements) => setTemplateElements(reorderedTemplateElements)}
+              onElementRemove={(localId) => setTemplateElements((currentTemplateElements) => currentTemplateElements.filter((remainingTemplateElement) => remainingTemplateElement.localId !== localId))}
               config={config}
               settingsTranslations={settingsTranslations}
             />
