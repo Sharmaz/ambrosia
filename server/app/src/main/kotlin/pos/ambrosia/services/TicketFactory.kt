@@ -84,10 +84,10 @@ class TicketFactory(
     ) {
         escpos.write(ByteArray(JOB_START_PADDING_BYTES), 0, JOB_START_PADDING_BYTES)
         escpos.initializePrinter()
-        val replacements = buildReplacementMap(printableTicket, businessConfig)
+        val templateVariableValues = buildTemplateVariableValues(printableTicket, businessConfig)
         template.elements.forEach { templateElement ->
             val escPosStyle = convertToEscPosStyle(templateElement.style)
-            val resolvedContent = resolveTemplateVariables(templateElement.value, replacements)
+            val resolvedContent = resolveTemplateVariables(templateElement.value, templateVariableValues)
 
             when (templateElement.type) {
                 ElementType.SEPARATOR -> {
@@ -305,16 +305,16 @@ class TicketFactory(
 
     private fun resolveTemplateVariables(
         templateText: String,
-        replacements: Map<String, String>,
+        templateVariableValues: Map<String, String>,
     ): String {
         var resolvedText = templateText
-        replacements.forEach { (placeholder, replacement) ->
-            resolvedText = resolvedText.replace(placeholder, replacement)
+        templateVariableValues.forEach { (variablePlaceholder, variableValue) ->
+            resolvedText = resolvedText.replace(variablePlaceholder, variableValue)
         }
         return resolvedText
     }
 
-    private fun buildReplacementMap(
+    private fun buildTemplateVariableValues(
         printableTicket: PrintableTicket,
         businessConfig: Config?,
     ): Map<String, String> =
