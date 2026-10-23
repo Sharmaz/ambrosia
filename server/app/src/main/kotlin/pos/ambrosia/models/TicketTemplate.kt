@@ -13,12 +13,20 @@ data class PrintRequest(
 )
 
 @Serializable
+enum class PrintableTicketType {
+    RECEIPT,
+    SHIFT_CLOSE,
+}
+
+@Serializable
 data class TicketTemplate(
     val id: String,
     val name: String,
     val elements: List<TicketElement>,
     val dateFormat: TicketDateFormat = TicketDateFormat.DAY_MONTH_YEAR,
     val timeFormat: TicketTimeFormat = TicketTimeFormat.HOURS_24,
+    val ticketType: PrintableTicketType = PrintableTicketType.RECEIPT,
+    val isDefault: Boolean = false,
 )
 
 @Serializable
@@ -61,6 +69,7 @@ enum class ElementType {
     FOOTER,
     QRCODE,
     LOGO,
+    SHIFT_SUMMARY,
 }
 
 @Serializable
@@ -85,6 +94,7 @@ data class TicketTemplateRequest(
     val elements: List<TicketElementCreateRequest>,
     val dateFormat: TicketDateFormat = TicketDateFormat.DAY_MONTH_YEAR,
     val timeFormat: TicketTimeFormat = TicketTimeFormat.HOURS_24,
+    val ticketType: PrintableTicketType = PrintableTicketType.RECEIPT,
 )
 
 @Serializable
