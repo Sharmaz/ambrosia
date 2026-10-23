@@ -28,3 +28,8 @@ data class ShiftReportLabels(
     val difference: String,
     val paymentMethods: Map<String, String> = emptyMap(),
 )
+
+@Serializable
+data class PrintShiftReportRequest(
+    val labels: ShiftReportLabels,
+)

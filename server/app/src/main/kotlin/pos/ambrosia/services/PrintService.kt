@@ -8,6 +8,7 @@ import pos.ambrosia.models.Config
 import pos.ambrosia.models.PrintRequest
 import pos.ambrosia.models.PrintableTicketType
 import pos.ambrosia.models.PrinterType
+import pos.ambrosia.models.ShiftReportPrintData
 import pos.ambrosia.models.TicketTemplate
 import java.io.IOException
 import java.nio.file.Paths
@@ -113,6 +114,20 @@ class PrintService(
         }
 
         logger.info("Successfully sent print job to ${printRequest.printerType} printer(s).")
+    }
+
+    fun printShiftReport(
+        shiftReport: ShiftReportPrintData,
+        businessConfig: Config?,
+    ) {
+        printTicket(
+            PrintRequest(
+                shiftReport = shiftReport,
+                ticketType = PrintableTicketType.SHIFT_CLOSE,
+                printerType = PrinterType.CUSTOMER,
+            ),
+            businessConfig,
+        )
     }
 
     private fun resolveTemplate(printRequest: PrintRequest): TicketTemplate? {
