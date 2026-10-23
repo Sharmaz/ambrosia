@@ -1,6 +1,8 @@
 import { buildIssuerMarkup, escapeHtml } from "../../Invoices/invoiceDocument";
 import { formatInvoicePeriod } from "../../Invoices/invoiceFormatters";
 
+import { buildReportChartData } from "./reportCharts";
+import { buildReportChartsMarkup } from "./reportChartsDocument";
 import { REPORT_ROW_TYPES } from "./reportRows";
 
 function buildSummaryMarkup(summaryStats) {
@@ -56,7 +58,7 @@ export function buildFreelanceReportHtmlDocument({ report, projectRows, summaryS
     <meta charset="utf-8">
     <title>${escapeHtml(documentTranslations.reportTitle)}</title>
   </head>
-  <body style="box-sizing:border-box;color:#172016;font-family:Arial,sans-serif;line-height:1.4;margin:0;padding:40px;">
+  <body style="box-sizing:border-box;color:#172016;font-family:Arial,sans-serif;line-height:1.4;margin:0;padding:40px;-webkit-print-color-adjust:exact;print-color-adjust:exact;">
     <main style="box-sizing:border-box;margin:0 auto;max-width:840px;">
       ${buildIssuerMarkup(businessConfig, documentTranslations)}
       <section style="margin:28px 0 16px;">
@@ -66,6 +68,7 @@ export function buildFreelanceReportHtmlDocument({ report, projectRows, summaryS
       <section style="display:grid;gap:16px;grid-template-columns:repeat(3,minmax(0,1fr));margin-bottom:28px;">
         ${buildSummaryMarkup(summaryStats)}
       </section>
+      ${buildReportChartsMarkup(buildReportChartData(report), documentTranslations.charts)}
       <section>
         <h2 style="color:#14532d;font-size:16px;margin:0 0 10px;">${escapeHtml(documentTranslations.projects)}</h2>
         <table style="border-collapse:collapse;margin-top:10px;width:100%;">

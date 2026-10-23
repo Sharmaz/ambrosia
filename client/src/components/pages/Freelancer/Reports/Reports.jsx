@@ -90,6 +90,11 @@ export function Reports() {
           duration: reportTranslations("duration"),
           amount: reportTranslations("amount"),
           noProjects: reportTranslations("emptyState"),
+          charts: {
+            durationByProject: reportTranslations("charts.durationByProject"),
+            durationByClient: reportTranslations("charts.durationByClient"),
+            durationByTask: reportTranslations("charts.durationByTask"),
+          },
         },
       });
       printHtmlDocument({ htmlContent: reportHtmlDocument, title: reportTranslations("document.reportTitle") });
