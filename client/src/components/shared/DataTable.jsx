@@ -3,7 +3,7 @@
 import { Table, TableHeader, TableColumn, TableBody, TableRow, TableCell } from "@heroui/react";
 import { useTranslations } from "next-intl";
 
-export function DataTable({ columns, items, getKey, emptyState }) {
+export function DataTable({ columns, items, getKey, getRowClassName, emptyState }) {
   const ordersTranslations = useTranslations("orders");
   return (
     <div className="overflow-x-auto">
@@ -20,7 +20,10 @@ export function DataTable({ columns, items, getKey, emptyState }) {
         </TableHeader>
         <TableBody emptyContent={emptyState ?? "—"}>
           {items.map((item, i) => (
-            <TableRow key={getKey ? getKey(item, i) : String(i)} className="hover:bg-gray-50">
+            <TableRow
+              key={getKey ? getKey(item, i) : String(i)}
+              className={getRowClassName ? getRowClassName(item) : "hover:bg-gray-50"}
+            >
               {columns.map((col) => (
                 <TableCell
                   key={col.key}
