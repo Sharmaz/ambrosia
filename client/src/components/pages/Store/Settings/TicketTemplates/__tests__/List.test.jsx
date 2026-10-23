@@ -20,10 +20,10 @@ jest.mock("@heroui/react", () => ({
       </select>
     </div>
   ),
-  SelectItem: ({ children, value, description }) => <option value={value}>{children} {description}</option>,
+  SelectItem: ({ children, value: templateId, description }) => <option value={templateId}>{children} {description}</option>,
 }));
 
-const settingsTranslations = (key) => key;
+const settingsTranslations = (translationKey) => translationKey;
 
 describe("TemplateList", () => {
   it("shows loading state and error message", () => {
