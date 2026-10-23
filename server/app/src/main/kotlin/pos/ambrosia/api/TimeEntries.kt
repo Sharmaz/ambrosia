@@ -23,6 +23,7 @@ import pos.ambrosia.utils.ResourceNotFoundException
 import pos.ambrosia.utils.UnauthorizedApiException
 import pos.ambrosia.utils.authorizePermission
 import pos.ambrosia.utils.getCurrentUser
+import pos.ambrosia.utils.hasPermission
 
 fun Application.configureTimeEntries() {
     val timeEntryService = TimeEntryService()
@@ -62,7 +63,8 @@ fun Route.timeEntries(timeEntryService: TimeEntryService) {
     authorizePermission("time_entries_create") {
         post("") {
             val request = call.receiveCreateRequest()
-            call.respond(HttpStatusCode.Created, timeEntryService.createTimeEntry(request))
+            val canCreateTask = call.hasPermission("tasks_create")
+            call.respond(HttpStatusCode.Created, timeEntryService.createTimeEntry(request, canCreateTask))
         }
     }
 
@@ -70,7 +72,8 @@ fun Route.timeEntries(timeEntryService: TimeEntryService) {
         put("/{id}") {
             val id = call.parameters["id"] ?: throw InvalidTimeEntryException("Missing time entry ID")
             val request = call.receiveUpdateRequest()
-            call.respond(HttpStatusCode.OK, timeEntryService.updateTimeEntry(id, request))
+            val canCreateTask = call.hasPermission("tasks_create")
+            call.respond(HttpStatusCode.OK, timeEntryService.updateTimeEntry(id, request, canCreateTask))
         }
     }
 
