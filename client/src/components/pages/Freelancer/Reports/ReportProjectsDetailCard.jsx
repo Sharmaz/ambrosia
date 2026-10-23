@@ -6,7 +6,7 @@ import { useTranslations } from "next-intl";
 
 import { ReportProjectsList } from "./ReportProjectsList";
 
-export function ReportProjectsDetailCard({ projectGroups, projectRows, isExportDisabled, onExportCsv, onExportPdf }) {
+export function ReportProjectsDetailCard({ filters, projectGroups, projectRows, isExportDisabled, onExportCsv, onExportPdf }) {
   const reportTranslations = useTranslations("freelanceReports");
 
   return (
@@ -42,6 +42,8 @@ export function ReportProjectsDetailCard({ projectGroups, projectRows, isExportD
             </Button>
           </div>
         </div>
+
+        {filters}
 
         <ReportProjectsList projectGroups={projectGroups} projectRows={projectRows} />
       </CardBody>

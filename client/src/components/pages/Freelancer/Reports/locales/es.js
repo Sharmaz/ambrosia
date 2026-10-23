@@ -20,6 +20,19 @@ const freelanceReportsEs = {
     client: "Cliente",
     duration: "Duración",
     amount: "Importe",
+    filters: {
+      search: "Buscar",
+      searchPlaceholder: "Proyecto, tarea o cliente",
+      client: "Cliente",
+      project: "Proyecto",
+      allClients: "Todos los clientes",
+      allProjects: "Todos los proyectos",
+    },
+    charts: {
+      durationByProject: "Tiempo por proyecto",
+      durationByClient: "Tiempo por cliente",
+      durationByTask: "Tiempo por tarea",
+    },
     summary: {
       currencyTotal: "Total {currency}",
       totalDuration: "Tiempo total",
