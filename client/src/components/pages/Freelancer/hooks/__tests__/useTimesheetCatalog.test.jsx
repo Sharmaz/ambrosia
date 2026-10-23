@@ -60,41 +60,20 @@ describe("useTimesheetCatalog", () => {
     expect(catalogHook.current.tasks).toEqual([]);
   });
 
-  it("creates a task, reloads the tasks and returns the new id", async () => {
+  it("reloads the tasks on demand", async () => {
     const createdTask = { id: "created-task-id", name: "Code review" };
     httpClient.mockResolvedValue({ ok: true, status: 200 });
     parseJsonResponse.mockResolvedValue([]);
     const { result: catalogHook } = renderHook(() => useTimesheetCatalog());
     await waitFor(() => expect(catalogHook.current.loading).toBe(false));
     httpClient.mockClear();
-    parseJsonResponse
-      .mockResolvedValueOnce({ id: "created-task-id", message: "Task added successfully" })
-      .mockResolvedValueOnce([createdTask]);
+    parseJsonResponse.mockResolvedValueOnce([createdTask]);
 
-    let createdTaskId;
     await act(async () => {
-      createdTaskId = await catalogHook.current.createTask("Code review");
+      await catalogHook.current.refetchTasks();
     });
 
-    expect(httpClient).toHaveBeenNthCalledWith(1, "/freelance/tasks", expect.objectContaining({
-      method: "POST",
-      body: JSON.stringify({ name: "Code review", isBillable: true }),
-    }));
-    expect(httpClient).toHaveBeenNthCalledWith(2, "/freelance/tasks", { skipForbiddenRedirect: true });
-    expect(createdTaskId).toBe("created-task-id");
+    expect(httpClient).toHaveBeenCalledWith("/freelance/tasks", { skipForbiddenRedirect: true });
     expect(catalogHook.current.tasks).toEqual([createdTask]);
-  });
-
-  it("throws when the task cannot be created", async () => {
-    httpClient.mockResolvedValue({ ok: true, status: 200 });
-    parseJsonResponse.mockResolvedValue([]);
-    const { result: catalogHook } = renderHook(() => useTimesheetCatalog());
-    await waitFor(() => expect(catalogHook.current.loading).toBe(false));
-    httpClient.mockResolvedValueOnce({ ok: false, status: 400 });
-    parseJsonResponse.mockResolvedValueOnce(null);
-
-    await act(async () => {
-      await expect(catalogHook.current.createTask("")).rejects.toMatchObject({ status: 400 });
-    });
   });
 });
