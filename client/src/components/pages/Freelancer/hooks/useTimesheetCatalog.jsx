@@ -1,7 +1,6 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
 
-import { buildParsedHttpError } from "@/components/pages/Store/utils/buildHttpError";
 import { toArray } from "@/components/utils/array";
 import { httpClient, parseJsonResponse } from "@/lib/http";
 
@@ -38,26 +37,9 @@ export function useTimesheetCatalog() {
     }
   }, [fetchTasks]);
 
-  const createTask = useCallback(async (taskName) => {
-    const createTaskResponse = await httpClient("/freelance/tasks", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: taskName, isBillable: true }),
-      notShowError: false,
-      skipForbiddenRedirect: true,
-    });
-    if (!createTaskResponse.ok) {
-      throw await buildParsedHttpError(createTaskResponse, "Error creating task");
-    }
-    const createdTask = await parseJsonResponse(createTaskResponse, {});
-
-    await fetchTasks();
-    return createdTask?.id;
-  }, [fetchTasks]);
-
   useEffect(() => {
     fetchCatalog();
   }, [fetchCatalog]);
 
-  return { clients, projects, tasks, loading, error, createTask, refetch: fetchCatalog };
+  return { clients, projects, tasks, loading, error, refetchTasks: fetchTasks, refetch: fetchCatalog };
 }

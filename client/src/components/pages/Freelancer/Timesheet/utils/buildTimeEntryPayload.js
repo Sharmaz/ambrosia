@@ -1,10 +1,11 @@
 import { snapToQuarterHour } from "./quarterHour";
 
-export function buildTimeEntryPayload({ projectId, taskId, entryDate, description, durationMinutes, startTime, endTime }) {
+export function buildTimeEntryPayload({ projectId, taskId, taskName, entryDate, description, durationMinutes, startTime, endTime }) {
   const trimmedDescription = description?.trim();
   return {
     projectId,
-    taskId,
+    taskId: taskId || null,
+    taskName: taskId ? null : taskName?.trim() || null,
     entryDate,
     description: trimmedDescription || null,
     durationMinutes: snapToQuarterHour(durationMinutes),
