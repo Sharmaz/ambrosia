@@ -203,6 +203,18 @@ describe("Freelancer Reports", () => {
     expect(exportedReport.currencies).toEqual([expect.objectContaining({ currencyAcronym: "USD" })]);
   });
 
+  it("exports the pdf with the charts of the filtered projects only", () => {
+    render(<Reports />);
+
+    fireEvent.click(screen.getByRole("button", { name: "filter-Alice Website" }));
+    fireEvent.click(screen.getByRole("button", { name: "exportPdf" }));
+
+    const [{ htmlContent }] = printHtmlDocument.mock.calls[0];
+    expect(htmlContent).toContain("charts.durationByProject");
+    expect(htmlContent).toContain("Alice Website");
+    expect(htmlContent).not.toContain("Bob App");
+  });
+
   it("shows the permission message when the report is forbidden", () => {
     mockReportState({ report: null, forbidden: true });
 

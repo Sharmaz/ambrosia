@@ -11,6 +11,11 @@ const documentTranslations = {
   duration: "Duration",
   amount: "Amount",
   noProjects: "No billable time in this period.",
+  charts: {
+    durationByProject: "Time by project",
+    durationByClient: "Time by client",
+    durationByTask: "Time by task",
+  },
 };
 
 const businessConfig = {
@@ -50,6 +55,29 @@ describe("buildFreelanceReportHtmlDocument", () => {
     ["Bob App", "Review", "Alice Website", "Design", "Development", "USD 150.00", "1h 30m"].forEach((rowValue) => {
       expect(reportHtmlDocument).toContain(rowValue);
     });
+  });
+
+  it("includes the time charts of the exported report", () => {
+    const reportHtmlDocument = buildDocument(
+      flattenReportProjectGroups(buildReportProjectGroups(freelanceReportFixture)),
+    );
+
+    expect(reportHtmlDocument).toContain("Time by project");
+    expect(reportHtmlDocument).toContain("Time by client");
+    expect(reportHtmlDocument).toContain("Time by task");
+    expect(reportHtmlDocument).toContain("print-color-adjust:exact");
+  });
+
+  it("leaves the charts out when the report has no projects", () => {
+    const reportHtmlDocument = buildFreelanceReportHtmlDocument({
+      report: { ...freelanceReportFixture, currencies: [] },
+      projectRows: [],
+      summaryStats,
+      businessConfig,
+      documentTranslations,
+    });
+
+    expect(reportHtmlDocument).not.toContain("Time by project");
   });
 
   it("shows the empty state without rows", () => {
