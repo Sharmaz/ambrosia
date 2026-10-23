@@ -49,7 +49,24 @@ jest.mock("../../../Store/Reports/Filters", () => ({
   PeriodFilter: () => <div>period-filter</div>,
 }));
 
+jest.mock("../ReportProjectsFilters", () => ({
+  ReportProjectsFilters: ({ projects, onReportFiltersChange }) => (
+    <div>
+      {projects.map((project) => (
+        <button key={project.id} type="button" onClick={() => onReportFiltersChange({ projectId: project.id })}>
+          {`filter-${project.name}`}
+        </button>
+      ))}
+    </div>
+  ),
+}));
+
+jest.mock("../Charts", () => ({
+  ReportAnalyticsCard: ({ report }) => <div>{`report-analytics-${report.currencies.length}`}</div>,
+}));
+
 jest.mock("../../../Store/Reports/Summary", () => ({
+  ReportSkeleton: () => <div>report-skeleton</div>,
   SummaryCard: ({ stats }) => (
     <ul>
       {stats.map(({ label, value }) => <li key={label}>{`${label}: ${value}`}</li>)}
@@ -107,6 +124,7 @@ describe("Freelancer Reports", () => {
     expect(screen.getByText(`summary.totalSatoshis: ${(350000).toLocaleString()} sats`)).toBeInTheDocument();
     expect(screen.getAllByText("Alice Website").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Development").length).toBeGreaterThan(0);
+    expect(screen.getByText("report-analytics-2")).toBeInTheDocument();
   });
 
   it("exports the report to pdf through the shared print mechanism", () => {
@@ -146,7 +164,43 @@ describe("Freelancer Reports", () => {
     render(<Reports />);
 
     expect(screen.getByText("emptyState")).toBeInTheDocument();
+    expect(screen.queryByText(/report-analytics/)).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "exportPdf" })).toBeDisabled();
+  });
+
+  it("shows the loading skeleton only before the first report arrives", () => {
+    mockReportState({ report: null, loading: true });
+
+    render(<Reports />);
+
+    expect(screen.getByText("report-skeleton")).toBeInTheDocument();
+  });
+
+  it("offers the projects of the report as filter options", () => {
+    render(<Reports />);
+
+    expect(screen.getByRole("button", { name: "filter-Alice Website" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "filter-Bob App" })).toBeInTheDocument();
+  });
+
+  it("filters only the rows and the exports while the totals and charts keep the whole period", () => {
+    render(<Reports />);
+
+    fireEvent.click(screen.getByRole("button", { name: "filter-Alice Website" }));
+
+    expect(screen.getByText("summary.currencyTotal EUR: EUR 50.00")).toBeInTheDocument();
+    expect(screen.getByText("summary.currencyTotal USD: USD 250.00")).toBeInTheDocument();
+    expect(screen.getByText("report-analytics-2")).toBeInTheDocument();
+    expect(screen.queryAllByText("Bob App")).toHaveLength(0);
+    expect(useReportSatsTotal).toHaveBeenCalledWith(freelanceReportFixture.currencies);
+    expect(useReportSatsTotal).toHaveBeenLastCalledWith([expect.objectContaining({ currencyAcronym: "USD" })]);
+
+    fireEvent.click(screen.getByRole("button", { name: "exportCsv" }));
+
+    const [exportedCsvContent, exportedReport] = downloadFreelanceReportCsv.mock.calls[0];
+    expect(exportedCsvContent).not.toContain("Bob App");
+    expect(exportedCsvContent).not.toContain("EUR 50.00");
+    expect(exportedReport.currencies).toEqual([expect.objectContaining({ currencyAcronym: "USD" })]);
   });
 
   it("shows the permission message when the report is forbidden", () => {
