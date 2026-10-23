@@ -1,6 +1,7 @@
 import freelanceClientsEs from "../Clients/locales/es";
 import freelanceInvoicesEs from "../Invoices/locales/es";
 import freelanceProjectsEs from "../Projects/locales/es";
+import freelanceReportsEs from "../Reports/locales/es";
 import freelancerSettingsEs from "../Settings/locales/es";
 
 const freelancerEs = {
@@ -84,6 +85,7 @@ const freelancerEs = {
   ...freelanceClientsEs,
   ...freelanceInvoicesEs,
   ...freelanceProjectsEs,
+  ...freelanceReportsEs,
   ...freelancerSettingsEs,
 };
 
