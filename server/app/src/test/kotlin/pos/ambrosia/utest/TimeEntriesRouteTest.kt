@@ -113,6 +113,59 @@ class TimeEntriesRouteTest {
         }
 
     @Test
+    fun `post resolves an existing task by name and rejects a new name without the tasks create permission`() =
+        testApplication {
+            val auth = installNonAdminAuth("time-task-name-role", "time-task-name-user")
+            grantPermission("time-task-name-role", "time_entries_create")
+            val fixture = seedFixture()
+            application {
+                install(ContentNegotiation) { json() }
+                handler()
+                configureTimeEntries()
+            }
+
+            val existingTaskResponse =
+                client.post("/freelance/time-entries") {
+                    withAuthCookies(auth)
+                    header(HttpHeaders.ContentType, "application/json")
+                    setBody(requestBodyByTaskName(fixture.projectId, "development"))
+                }
+            assertEquals(HttpStatusCode.Created, existingTaskResponse.status)
+            assertEquals(fixture.taskId, Json.decodeFromString<TimeEntryResponse>(existingTaskResponse.bodyAsText()).taskId)
+
+            val newTaskResponse =
+                client.post("/freelance/time-entries") {
+                    withAuthCookies(auth)
+                    header(HttpHeaders.ContentType, "application/json")
+                    setBody(requestBodyByTaskName(fixture.projectId, "Code review"))
+                }
+            assertEquals(HttpStatusCode.Forbidden, newTaskResponse.status)
+        }
+
+    @Test
+    fun `post creates the task from the task name with the tasks create permission`() =
+        testApplication {
+            val auth = installNonAdminAuth("time-task-create-role", "time-task-create-user")
+            grantPermissions("time-task-create-role", "time_entries_create", "tasks_create")
+            val fixture = seedFixture()
+            application {
+                install(ContentNegotiation) { json() }
+                handler()
+                configureTimeEntries()
+            }
+
+            val response =
+                client.post("/freelance/time-entries") {
+                    withAuthCookies(auth)
+                    header(HttpHeaders.ContentType, "application/json")
+                    setBody(requestBodyByTaskName(fixture.projectId, "Code review"))
+                }
+
+            assertEquals(HttpStatusCode.Created, response.status)
+            assertEquals("Code review", Json.decodeFromString<TimeEntryResponse>(response.bodyAsText()).taskName)
+        }
+
+    @Test
     fun `get requires from and to and returns weekly entries`() =
         testApplication {
             val auth = installNonAdminAuth("time-read-role", "time-read-user")
@@ -379,6 +432,19 @@ class TimeEntriesRouteTest {
             "endTime":"10:00",
             "description":"$description",
             "durationMinutes":$durationMinutes
+        }
+        """.trimIndent()
+
+    private fun requestBodyByTaskName(
+        projectId: String,
+        taskName: String,
+    ): String =
+        """
+        {
+            "projectId":"$projectId",
+            "taskName":"$taskName",
+            "entryDate":"2026-08-19",
+            "durationMinutes":15
         }
         """.trimIndent()
 

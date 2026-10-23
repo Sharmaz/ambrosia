@@ -1,19 +1,26 @@
 package pos.ambrosia.utest
 
+import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.junit.After
 import org.junit.Before
+import pos.ambrosia.db.tables.TaskEntity
+import pos.ambrosia.db.tables.TasksTable
 import pos.ambrosia.models.CreateTimeEntryRequest
 import pos.ambrosia.models.UpdateTimeEntryRequest
 import pos.ambrosia.services.TimeEntryService
 import pos.ambrosia.utils.ExposedTestDb
 import pos.ambrosia.utils.InvalidTimeEntryException
+import pos.ambrosia.utils.PermissionDeniedException
 import pos.ambrosia.utils.TimeEntryLockedException
 import java.io.File
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
+import kotlin.test.assertNotEquals
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 class TimeEntryServiceTest {
     private lateinit var testDatabaseFile: File
@@ -38,6 +45,77 @@ class TimeEntryServiceTest {
         assertEquals(timeEntryFixture.taskId, createdTimeEntry.taskId)
         assertEquals(60, createdTimeEntry.durationMinutes)
         assertNull(createdTimeEntry.invoiceId)
+    }
+
+    @Test
+    fun `reuses an existing task when the task name matches ignoring case and spaces`() {
+        val timeEntryFixture = createTimeEntryFixture()
+        val createdTimeEntry =
+            timeEntryService.createTimeEntry(createTimeEntryRequestByTaskName(timeEntryFixture, "  development "))
+
+        assertEquals(timeEntryFixture.taskId, createdTimeEntry.taskId)
+        assertEquals(1, countActiveTasks())
+    }
+
+    @Test
+    fun `creates the task from the task name when it does not exist and creation is allowed`() {
+        val timeEntryFixture = createTimeEntryFixture()
+        val createdTimeEntry =
+            timeEntryService.createTimeEntry(
+                createTimeEntryRequestByTaskName(timeEntryFixture, "  Code review "),
+                canCreateTask = true,
+            )
+
+        assertEquals("Code review", createdTimeEntry.taskName)
+        assertNotEquals(timeEntryFixture.taskId, createdTimeEntry.taskId)
+        assertTrue(createdTimeEntry.isBillable)
+        assertEquals(2, countActiveTasks())
+    }
+
+    @Test
+    fun `does not reuse a deleted task with the same name`() {
+        val timeEntryFixture = createTimeEntryFixture()
+        val deletedTaskId = ExposedTestDb.seedTask("Code review", isDeleted = true)
+        val createdTimeEntry =
+            timeEntryService.createTimeEntry(
+                createTimeEntryRequestByTaskName(timeEntryFixture, "Code review"),
+                canCreateTask = true,
+            )
+
+        assertNotEquals(deletedTaskId, createdTimeEntry.taskId)
+    }
+
+    @Test
+    fun `rejects a new task name without permission to create tasks and creates nothing`() {
+        val timeEntryFixture = createTimeEntryFixture()
+
+        assertFailsWith<PermissionDeniedException> {
+            timeEntryService.createTimeEntry(createTimeEntryRequestByTaskName(timeEntryFixture, "Code review"))
+        }
+        assertEquals(1, countActiveTasks())
+    }
+
+    @Test
+    fun `rejects a request without task id or task name`() {
+        val timeEntryFixture = createTimeEntryFixture()
+
+        assertFailsWith<InvalidTimeEntryException> {
+            timeEntryService.createTimeEntry(createTimeEntryRequestByTaskName(timeEntryFixture, "   "), canCreateTask = true)
+        }
+    }
+
+    @Test
+    fun `updates an entry to a new task created from the task name`() {
+        val timeEntryFixture = createTimeEntryFixture()
+        val createdTimeEntry = timeEntryService.createTimeEntry(createTimeEntryRequest(timeEntryFixture))
+        val updatedTimeEntry =
+            timeEntryService.updateTimeEntry(
+                createdTimeEntry.id,
+                updateTimeEntryRequest(timeEntryFixture).copy(taskId = null, taskName = "Code review"),
+                canCreateTask = true,
+            )
+
+        assertEquals("Code review", updatedTimeEntry.taskName)
     }
 
     @Test
@@ -152,6 +230,19 @@ class TimeEntryServiceTest {
             entryDate = entryDate,
             durationMinutes = 60,
         )
+
+    private fun createTimeEntryRequestByTaskName(
+        timeEntryFixture: TimeEntryFixture,
+        taskName: String,
+    ): CreateTimeEntryRequest =
+        CreateTimeEntryRequest(
+            projectId = timeEntryFixture.projectId,
+            taskName = taskName,
+            entryDate = "2026-08-19",
+            durationMinutes = 60,
+        )
+
+    private fun countActiveTasks(): Long = transaction { TaskEntity.find { TasksTable.isDeleted eq false }.count() }
 
     private fun updateTimeEntryRequest(timeEntryFixture: TimeEntryFixture): UpdateTimeEntryRequest =
         UpdateTimeEntryRequest(
