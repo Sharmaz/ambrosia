@@ -12,12 +12,15 @@ import org.mockito.kotlin.whenever
 import pos.ambrosia.models.PrintRequest
 import pos.ambrosia.models.PrintableTicketType
 import pos.ambrosia.models.PrinterType
+import pos.ambrosia.models.ShiftBreakdown
+import pos.ambrosia.models.ShiftReportPrintData
 import pos.ambrosia.models.TicketData
 import pos.ambrosia.models.TicketLabels
 import pos.ambrosia.models.TicketTemplate
 import pos.ambrosia.services.PrintService
 import pos.ambrosia.services.PrinterConfigService
 import pos.ambrosia.services.TicketTemplateService
+import pos.ambrosia.utils.shiftReportLabels
 import java.io.IOException
 import kotlin.test.assertFailsWith
 import kotlin.test.assertNotNull
@@ -116,6 +119,17 @@ class PrintServiceTest {
             )
         }
     }
+
+    @Test
+    fun `printShiftReport prints with the default shift close template on the customer printer`() {
+        doReturn(receiptTemplate).whenever(ticketTemplateService).getDefaultTemplate(PrintableTicketType.SHIFT_CLOSE)
+        doReturn(null).whenever(printerConfigService).getDefaultByType(PrinterType.CUSTOMER)
+
+        assertFailsWith<IOException> { printService.printShiftReport(aliceShiftReport, null) }
+
+        verify(ticketTemplateService).getDefaultTemplate(PrintableTicketType.SHIFT_CLOSE)
+        verify(printerConfigService).getDefaultByType(PrinterType.CUSTOMER)
+    }
 }
 
 private val receiptTemplate = TicketTemplate(id = "template-alice", name = "alice", elements = emptyList())
@@ -135,6 +149,28 @@ private val aliceTicketData =
                 tip = "TIP",
                 paymentMethod = "PAYMENT METHOD",
             ),
+    )
+
+private val aliceShiftReport =
+    ShiftReportPrintData(
+        cashierName = "alice",
+        openedAt = "2026-10-10T09:00:00",
+        closedAt = "2026-10-10T18:00:00",
+        breakdown =
+            ShiftBreakdown(
+                shiftId = "shift-alice",
+                initialAmount = 100.0,
+                finalAmount = 600.0,
+                difference = 0.0,
+                totalSales = 500.0,
+                totalTips = 0.0,
+                cashSales = 500.0,
+                cashRefunds = 0.0,
+                expectedTotal = 600.0,
+                totalTickets = 5,
+                byPaymentMethod = emptyList(),
+            ),
+        labels = shiftReportLabels(),
     )
 
 private val englishTicketLabels =

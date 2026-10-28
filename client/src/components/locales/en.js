@@ -124,6 +124,8 @@ const componentsEn = {
     printCorteZ: "Print Z Report",
     printCorteZSuccess: "Z Report printed successfully",
     printCorteZError: "Error printing Z Report",
+    printCorteZOnClose: "Print Z Report when closing",
+    reprintCorteZ: "Reprint Z Report",
     shiftPeriod: "Shift period",
     totalSales: "Total sales",
     totalTips: "Total tips",
