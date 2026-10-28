@@ -2,9 +2,9 @@ import { createDefaultElements, ELEMENT_TYPES_BY_TICKET_TYPE } from "@/component
 
 describe("ticket template defaults", () => {
   it("starts a Z report template with the business header, shift summary and print date", () => {
-    const defaultElements = createDefaultElements("SHIFT_CLOSE");
+    const shiftCloseDefaultElements = createDefaultElements("SHIFT_CLOSE");
 
-    expect(defaultElements.map(({ type, value }) => [type, value])).toEqual([
+    expect(shiftCloseDefaultElements.map(({ type: elementType, value: elementValue }) => [elementType, elementValue])).toEqual([
       ["HEADER", "{{config.businessName}}"],
       ["SEPARATOR", ""],
       ["SHIFT_SUMMARY", ""],
@@ -14,7 +14,7 @@ describe("ticket template defaults", () => {
   });
 
   it("starts a receipt template with one empty text element", () => {
-    expect(createDefaultElements("RECEIPT").map(({ type, value }) => [type, value])).toEqual([["TEXT", ""]]);
+    expect(createDefaultElements("RECEIPT").map(({ type: elementType, value: elementValue }) => [elementType, elementValue])).toEqual([["TEXT", ""]]);
   });
 
   it("keeps the sale elements out of Z report templates", () => {

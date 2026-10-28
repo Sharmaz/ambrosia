@@ -948,7 +948,7 @@ class TicketFactoryTest {
     fun `build should print the shift summary with translated payment methods and the cash block`() {
         val printedLines =
             printedShiftReportLines(
-                elements = listOf(shiftReportElement(ElementType.SHIFT_SUMMARY)),
+                shiftReportTemplateElements = listOf(shiftReportTemplateElement(ElementType.SHIFT_SUMMARY)),
                 closedAt = "2026-10-10T18:05:00",
             )
 
@@ -980,7 +980,7 @@ class TicketFactoryTest {
     fun `build should skip the closing rows of the shift summary while the shift is still open`() {
         val printedLines =
             printedShiftReportLines(
-                elements = listOf(shiftReportElement(ElementType.SHIFT_SUMMARY)),
+                shiftReportTemplateElements = listOf(shiftReportTemplateElement(ElementType.SHIFT_SUMMARY)),
                 closedAt = null,
                 finalAmount = null,
                 difference = null,
@@ -995,12 +995,12 @@ class TicketFactoryTest {
     fun `build should skip sale elements when printing a shift report`() {
         val printedLines =
             printedShiftReportLines(
-                elements =
+                shiftReportTemplateElements =
                     listOf(
-                        shiftReportElement(ElementType.TABLE_HEADER, "Products"),
-                        shiftReportElement(ElementType.TOTAL_ROW),
-                        shiftReportElement(ElementType.PAYMENT_METHOD),
-                        shiftReportElement(ElementType.TEXT, "Cashier {{shift.cashier}}"),
+                        shiftReportTemplateElement(ElementType.TABLE_HEADER, "Products"),
+                        shiftReportTemplateElement(ElementType.TOTAL_ROW),
+                        shiftReportTemplateElement(ElementType.PAYMENT_METHOD),
+                        shiftReportTemplateElement(ElementType.TEXT, "Cashier {{shift.cashier}}"),
                     ),
                 closedAt = "2026-10-10T18:05:00",
             )
@@ -1015,7 +1015,7 @@ class TicketFactoryTest {
             TicketTemplate(
                 id = "template-shift-report",
                 name = "Shift Report Template",
-                elements = listOf(shiftReportElement(ElementType.SHIFT_SUMMARY)),
+                elements = listOf(shiftReportTemplateElement(ElementType.SHIFT_SUMMARY)),
             )
         val ticketData =
             TicketData(
@@ -1037,10 +1037,10 @@ class TicketFactoryTest {
     fun `build should resolve shift variables and print the shift closing time as the print date`() {
         val printedLines =
             printedShiftReportLines(
-                elements =
+                shiftReportTemplateElements =
                     listOf(
-                        shiftReportElement(ElementType.TEXT, "{{shift.expectedCash}} {{shift.countedCash}} {{shift.difference}}"),
-                        shiftReportElement(ElementType.TEXT, "{{print.dateTime}}"),
+                        shiftReportTemplateElement(ElementType.TEXT, "{{shift.expectedCash}} {{shift.countedCash}} {{shift.difference}}"),
+                        shiftReportTemplateElement(ElementType.TEXT, "{{print.dateTime}}"),
                     ),
                 closedAt = "2026-10-10T18:05:00",
             )
@@ -1048,20 +1048,20 @@ class TicketFactoryTest {
         assertEquals(listOf("170.0 175.0 5.0", "10/10/2026 18:05"), printedLines)
     }
 
-    private fun shiftReportElement(
+    private fun shiftReportTemplateElement(
         elementType: ElementType,
-        value: String = "",
+        elementValue: String = "",
     ): TicketElement =
         TicketElement(
-            id = "elem-${elementType.name}-$value",
+            id = "elem-${elementType.name}-$elementValue",
             templateId = "template-shift-report",
             order = 0,
             type = elementType,
-            value = value,
+            value = elementValue,
         )
 
     private fun printedShiftReportLines(
-        elements: List<TicketElement>,
+        shiftReportTemplateElements: List<TicketElement>,
         closedAt: String?,
         finalAmount: Double? = 175.0,
         difference: Double? = 5.0,
@@ -1072,7 +1072,7 @@ class TicketFactoryTest {
             TicketTemplate(
                 id = "template-shift-report",
                 name = "Shift Report Template",
-                elements = elements,
+                elements = shiftReportTemplateElements,
             )
         val shiftReport =
             ShiftReportPrintData(
