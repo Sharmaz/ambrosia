@@ -124,6 +124,8 @@ const componentsEs = {
     printCorteZ: "Imprimir Corte Z",
     printCorteZSuccess: "Corte Z impreso exitosamente",
     printCorteZError: "Error al imprimir el Corte Z",
+    printCorteZOnClose: "Imprimir Corte Z al cerrar",
+    reprintCorteZ: "Reimprimir Corte Z",
     shiftPeriod: "Período del turno",
     totalSales: "Total de ventas",
     totalTips: "Total de propinas",
