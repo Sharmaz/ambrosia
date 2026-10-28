@@ -7,6 +7,7 @@ import { useCurrency } from "@/components/hooks/useCurrency";
 import { useAuth } from "@/hooks/auth/useAuth";
 import { useTurn } from "@/hooks/turn/useTurn";
 
+import { useCustomerReceipt } from "../../hooks/useCustomerReceipt";
 import { usePaymentCurrency } from "../../hooks/usePaymentCurrency";
 import { usePaymentMethods } from "../hooks/usePaymentMethod";
 import {
@@ -21,7 +22,6 @@ import {
   buildHandleTransferComplete,
 } from "./paymentHandlers";
 import { useBtcPayment } from "./useBtcPayment";
-import { useCustomerReceipt } from "./useCustomerReceipt";
 import { usePaymentChannel } from "./usePaymentChannel";
 import { usePaymentState } from "./usePaymentState";
 
