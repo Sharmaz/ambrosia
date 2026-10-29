@@ -115,9 +115,9 @@ class TimeEntriesRouteTest {
     @Test
     fun `post resolves an existing task by name and rejects a new name without the tasks create permission`() =
         testApplication {
-            val auth = installNonAdminAuth("time-task-name-role", "time-task-name-user")
+            val nonAdminAuth = installNonAdminAuth("time-task-name-role", "time-task-name-user")
             grantPermission("time-task-name-role", "time_entries_create")
-            val fixture = seedFixture()
+            val timeEntryFixture = seedFixture()
             application {
                 install(ContentNegotiation) { json() }
                 handler()
@@ -126,18 +126,18 @@ class TimeEntriesRouteTest {
 
             val existingTaskResponse =
                 client.post("/freelance/time-entries") {
-                    withAuthCookies(auth)
+                    withAuthCookies(nonAdminAuth)
                     header(HttpHeaders.ContentType, "application/json")
-                    setBody(requestBodyByTaskName(fixture.projectId, "development"))
+                    setBody(requestBodyByTaskName(timeEntryFixture.projectId, "development"))
                 }
             assertEquals(HttpStatusCode.Created, existingTaskResponse.status)
-            assertEquals(fixture.taskId, Json.decodeFromString<TimeEntryResponse>(existingTaskResponse.bodyAsText()).taskId)
+            assertEquals(timeEntryFixture.taskId, Json.decodeFromString<TimeEntryResponse>(existingTaskResponse.bodyAsText()).taskId)
 
             val newTaskResponse =
                 client.post("/freelance/time-entries") {
-                    withAuthCookies(auth)
+                    withAuthCookies(nonAdminAuth)
                     header(HttpHeaders.ContentType, "application/json")
-                    setBody(requestBodyByTaskName(fixture.projectId, "Code review"))
+                    setBody(requestBodyByTaskName(timeEntryFixture.projectId, "Code review"))
                 }
             assertEquals(HttpStatusCode.Forbidden, newTaskResponse.status)
         }
@@ -145,24 +145,24 @@ class TimeEntriesRouteTest {
     @Test
     fun `post creates the task from the task name with the tasks create permission`() =
         testApplication {
-            val auth = installNonAdminAuth("time-task-create-role", "time-task-create-user")
+            val nonAdminAuth = installNonAdminAuth("time-task-create-role", "time-task-create-user")
             grantPermissions("time-task-create-role", "time_entries_create", "tasks_create")
-            val fixture = seedFixture()
+            val timeEntryFixture = seedFixture()
             application {
                 install(ContentNegotiation) { json() }
                 handler()
                 configureTimeEntries()
             }
 
-            val response =
+            val createTimeEntryResponse =
                 client.post("/freelance/time-entries") {
-                    withAuthCookies(auth)
+                    withAuthCookies(nonAdminAuth)
                     header(HttpHeaders.ContentType, "application/json")
-                    setBody(requestBodyByTaskName(fixture.projectId, "Code review"))
+                    setBody(requestBodyByTaskName(timeEntryFixture.projectId, "Code review"))
                 }
 
-            assertEquals(HttpStatusCode.Created, response.status)
-            assertEquals("Code review", Json.decodeFromString<TimeEntryResponse>(response.bodyAsText()).taskName)
+            assertEquals(HttpStatusCode.Created, createTimeEntryResponse.status)
+            assertEquals("Code review", Json.decodeFromString<TimeEntryResponse>(createTimeEntryResponse.bodyAsText()).taskName)
         }
 
     @Test

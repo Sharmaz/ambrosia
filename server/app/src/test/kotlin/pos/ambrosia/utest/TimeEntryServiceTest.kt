@@ -63,7 +63,7 @@ class TimeEntryServiceTest {
         val createdTimeEntry =
             timeEntryService.createTimeEntry(
                 createTimeEntryRequestByTaskName(timeEntryFixture, "  Code review "),
-                canCreateTask = true,
+                hasTasksCreatePermission = true,
             )
 
         assertEquals("Code review", createdTimeEntry.taskName)
@@ -79,7 +79,7 @@ class TimeEntryServiceTest {
         val createdTimeEntry =
             timeEntryService.createTimeEntry(
                 createTimeEntryRequestByTaskName(timeEntryFixture, "Code review"),
-                canCreateTask = true,
+                hasTasksCreatePermission = true,
             )
 
         assertNotEquals(deletedTaskId, createdTimeEntry.taskId)
@@ -100,7 +100,7 @@ class TimeEntryServiceTest {
         val timeEntryFixture = createTimeEntryFixture()
 
         assertFailsWith<InvalidTimeEntryException> {
-            timeEntryService.createTimeEntry(createTimeEntryRequestByTaskName(timeEntryFixture, "   "), canCreateTask = true)
+            timeEntryService.createTimeEntry(createTimeEntryRequestByTaskName(timeEntryFixture, "   "), hasTasksCreatePermission = true)
         }
     }
 
@@ -112,7 +112,7 @@ class TimeEntryServiceTest {
             timeEntryService.updateTimeEntry(
                 createdTimeEntry.id,
                 updateTimeEntryRequest(timeEntryFixture).copy(taskId = null, taskName = "Code review"),
-                canCreateTask = true,
+                hasTasksCreatePermission = true,
             )
 
         assertEquals("Code review", updatedTimeEntry.taskName)
