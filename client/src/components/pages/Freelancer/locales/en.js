@@ -1,6 +1,7 @@
 import freelanceClientsEn from "../Clients/locales/en";
 import freelanceInvoicesEn from "../Invoices/locales/en";
 import freelanceProjectsEn from "../Projects/locales/en";
+import freelanceReportsEn from "../Reports/locales/en";
 import freelancerSettingsEn from "../Settings/locales/en";
 
 const freelancerEn = {
@@ -53,9 +54,10 @@ const freelancerEn = {
       projectPlaceholder: "Select a project",
       noProjects: "There are no projects in progress",
       taskLabel: "Task",
-      taskPlaceholder: "Select or type a task",
-      createTaskOption: '+ Create "{name}"',
-      noTasks: "No tasks yet. Type to create one.",
+      taskPlaceholder: "Type the task name",
+      taskSelectPlaceholder: "Search an existing task",
+      newTaskHint: 'The task "{name}" will be created when you save',
+      unknownTask: "There is no task with that name",
       selectProjectFirst: "Select a project first",
       descriptionLabel: "Description",
       descriptionPlaceholder: "What did you work on?",
@@ -78,12 +80,12 @@ const freelancerEn = {
       lockedDescription: "This time entry is already invoiced and can't be changed.",
       genericErrorTitle: "Something went wrong",
       genericErrorDescription: "The time entry could not be saved. Please try again.",
-      createTaskError: "The task could not be created. Please try again.",
     },
   },
   ...freelanceClientsEn,
   ...freelanceInvoicesEn,
   ...freelanceProjectsEn,
+  ...freelanceReportsEn,
   ...freelancerSettingsEn,
 };
 

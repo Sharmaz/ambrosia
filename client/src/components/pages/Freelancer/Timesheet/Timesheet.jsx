@@ -28,6 +28,7 @@ function createEmptyTimeEntryForm(entryDate) {
   return {
     projectId: "",
     taskId: "",
+    taskName: "",
     entryDate,
     description: "",
     durationMinutes: null,
@@ -40,6 +41,7 @@ function toTimeEntryForm(timeEntry) {
   return {
     projectId: timeEntry.projectId,
     taskId: timeEntry.taskId,
+    taskName: timeEntry.taskName ?? "",
     entryDate: timeEntry.entryDate,
     description: timeEntry.description ?? "",
     durationMinutes: timeEntry.durationMinutes,
@@ -81,7 +83,7 @@ export function Timesheet() {
     clientId: timesheetFilters.clientId,
     projectId: timesheetFilters.projectId,
   });
-  const { clients, projects, tasks, createTask } = useTimesheetCatalog();
+  const { clients, projects, tasks, refetchTasks } = useTimesheetCatalog();
   const openedTimeEntry = timeEntries.find((timeEntry) => timeEntry.id === editingTimeEntryId) ?? null;
   const projectOptions = withOpenedTimeEntryOption(projects, openedTimeEntry?.projectId, openedTimeEntry?.projectName);
   const taskOptions = withOpenedTimeEntryOption(tasks, openedTimeEntry?.taskId, openedTimeEntry?.taskName);
@@ -131,6 +133,7 @@ export function Timesheet() {
       await createTimeEntry(timeEntryForm);
       addToast({ description: timesheetTranslations("toasts.createSuccess"), color: "success" });
     }
+    if (!timeEntryForm.taskId) refetchTasks();
     handleCloseTimeEntryModal();
   };
 
@@ -216,7 +219,6 @@ export function Timesheet() {
         timeEntryForm={timeEntryForm}
         projects={projectOptions}
         tasks={taskOptions}
-        createTask={createTask}
         canCreateTask={canCreateTask}
         canDelete={canDelete}
         onChange={handleTimeEntryFormChange}

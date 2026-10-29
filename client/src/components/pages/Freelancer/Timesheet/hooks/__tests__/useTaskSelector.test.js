@@ -1,11 +1,6 @@
-import { addToast } from "@heroui/react";
 import { act, renderHook } from "@testing-library/react";
 
 import { useTaskSelector } from "../useTaskSelector";
-
-jest.mock("@heroui/react", () => ({
-  addToast: jest.fn(),
-}));
 
 const tasks = [
   { id: "development-id", name: "Development" },
@@ -14,85 +9,68 @@ const tasks = [
 
 function renderUseTaskSelector(hookOptions = {}) {
   const onTaskChange = jest.fn();
-  const createTask = jest.fn().mockResolvedValue("created-task-id");
   const renderedTaskSelectorHook = renderHook(() => useTaskSelector({
     tasks,
+    taskName: "",
     onTaskChange,
-    createTask,
     canCreateTask: true,
     ...hookOptions,
   }));
-  return { ...renderedTaskSelectorHook, onTaskChange, createTask };
+  return { ...renderedTaskSelectorHook, onTaskChange };
 }
 
 describe("useTaskSelector", () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
+  it("keeps a typed name without a task id when no task has that name", () => {
+    const { result: taskSelectorHook, onTaskChange } = renderUseTaskSelector();
+
+    act(() => taskSelectorHook.current.handleInputChange("Code review"));
+
+    expect(onTaskChange).toHaveBeenCalledWith({ taskName: "Code review", taskId: "" });
   });
 
-  it("offers to create the typed task when no task has that name", () => {
-    const { result: taskSelectorHook } = renderUseTaskSelector();
+  it("resolves a typed name to the existing task ignoring case and spaces", () => {
+    const { result: taskSelectorHook, onTaskChange } = renderUseTaskSelector();
 
-    act(() => taskSelectorHook.current.setSearchValue("  Code review "));
+    act(() => taskSelectorHook.current.handleInputChange("  development "));
 
-    expect(taskSelectorHook.current.typedTaskName).toBe("Code review");
-    expect(taskSelectorHook.current.createTaskOptionKey).toBe("create-task:Code review");
+    expect(onTaskChange).toHaveBeenCalledWith({ taskName: "  development ", taskId: "development-id" });
   });
 
-  it("does not offer to create a task that already exists ignoring case", () => {
-    const { result: taskSelectorHook } = renderUseTaskSelector();
-
-    act(() => taskSelectorHook.current.setSearchValue("development"));
-
-    expect(taskSelectorHook.current.createTaskOptionKey).toBeNull();
-  });
-
-  it("does not offer to create tasks without the create permission", () => {
-    const { result: taskSelectorHook } = renderUseTaskSelector({ canCreateTask: false });
-
-    act(() => taskSelectorHook.current.setSearchValue("Code review"));
-
-    expect(taskSelectorHook.current.createTaskOptionKey).toBeNull();
-  });
-
-  it("selects an existing task", () => {
-    const { result: taskSelectorHook, onTaskChange, createTask } = renderUseTaskSelector();
+  it("selects an existing task from the suggestions", () => {
+    const { result: taskSelectorHook, onTaskChange } = renderUseTaskSelector();
 
     act(() => taskSelectorHook.current.handleSelectionChange("design-id"));
 
-    expect(onTaskChange).toHaveBeenCalledWith("design-id");
-    expect(createTask).not.toHaveBeenCalled();
+    expect(onTaskChange).toHaveBeenCalledWith({ taskName: "Design", taskId: "design-id" });
   });
 
-  it("clears the task when the selection is removed", () => {
+  it("ignores a cleared selection so the typed name is kept", () => {
     const { result: taskSelectorHook, onTaskChange } = renderUseTaskSelector();
 
     act(() => taskSelectorHook.current.handleSelectionChange(null));
 
-    expect(onTaskChange).toHaveBeenCalledWith("");
-  });
-
-  it("creates the task and selects it", async () => {
-    const { result: taskSelectorHook, onTaskChange, createTask } = renderUseTaskSelector();
-
-    await act(async () => {
-      await taskSelectorHook.current.handleSelectionChange("create-task:Code review");
-    });
-
-    expect(createTask).toHaveBeenCalledWith("Code review");
-    expect(onTaskChange).toHaveBeenCalledWith("created-task-id");
-    expect(taskSelectorHook.current.isCreatingTask).toBe(false);
-  });
-
-  it("shows a toast and keeps the selection empty when the task cannot be created", async () => {
-    const createTask = jest.fn().mockRejectedValue({ responseMessage: "Invalid task data" });
-    const { result: taskSelectorHook, onTaskChange } = renderUseTaskSelector({ createTask });
-
-    await act(async () => {
-      await taskSelectorHook.current.handleSelectionChange("create-task:Code review");
-    });
-
     expect(onTaskChange).not.toHaveBeenCalled();
-    expect(addToast).toHaveBeenCalledWith(expect.objectContaining({ description: "Invalid task data" }));
+  });
+
+  it("announces that a new task will be created when the name is new", () => {
+    const { result: taskSelectorHook } = renderUseTaskSelector({ taskName: "  Code review " });
+
+    expect(taskSelectorHook.current.typedTaskName).toBe("Code review");
+    expect(taskSelectorHook.current.willCreateTask).toBe(true);
+    expect(taskSelectorHook.current.isUnknownTask).toBe(false);
+  });
+
+  it("does not announce a new task when the name already exists", () => {
+    const { result: taskSelectorHook } = renderUseTaskSelector({ taskName: "DESIGN" });
+
+    expect(taskSelectorHook.current.willCreateTask).toBe(false);
+    expect(taskSelectorHook.current.isUnknownTask).toBe(false);
+  });
+
+  it("marks a new name as unknown without the create permission", () => {
+    const { result: taskSelectorHook } = renderUseTaskSelector({ taskName: "Code review", canCreateTask: false });
+
+    expect(taskSelectorHook.current.willCreateTask).toBe(false);
+    expect(taskSelectorHook.current.isUnknownTask).toBe(true);
   });
 });

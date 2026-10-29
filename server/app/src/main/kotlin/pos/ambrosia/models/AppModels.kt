@@ -1120,7 +1120,8 @@ data class IncomingPaymentWithRate(
 @Serializable
 data class CreateTimeEntryRequest(
     val projectId: String,
-    val taskId: String,
+    val taskId: String? = null,
+    val taskName: String? = null,
     val entryDate: String,
     val startTime: String? = null,
     val endTime: String? = null,
@@ -1131,7 +1132,8 @@ data class CreateTimeEntryRequest(
 @Serializable
 data class UpdateTimeEntryRequest(
     val projectId: String,
-    val taskId: String,
+    val taskId: String? = null,
+    val taskName: String? = null,
     val entryDate: String,
     val startTime: String? = null,
     val endTime: String? = null,

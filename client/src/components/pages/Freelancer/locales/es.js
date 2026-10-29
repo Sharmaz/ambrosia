@@ -1,6 +1,7 @@
 import freelanceClientsEs from "../Clients/locales/es";
 import freelanceInvoicesEs from "../Invoices/locales/es";
 import freelanceProjectsEs from "../Projects/locales/es";
+import freelanceReportsEs from "../Reports/locales/es";
 import freelancerSettingsEs from "../Settings/locales/es";
 
 const freelancerEs = {
@@ -53,9 +54,10 @@ const freelancerEs = {
       projectPlaceholder: "Selecciona un proyecto",
       noProjects: "No hay proyectos en progreso",
       taskLabel: "Tarea",
-      taskPlaceholder: "Selecciona o escribe una tarea",
-      createTaskOption: '+ Crear "{name}"',
-      noTasks: "Aún no hay tareas. Escribe para crear una.",
+      taskPlaceholder: "Escribe el nombre de la tarea",
+      taskSelectPlaceholder: "Busca una tarea existente",
+      newTaskHint: 'Se creará la tarea "{name}" al guardar',
+      unknownTask: "No existe una tarea con ese nombre",
       selectProjectFirst: "Primero selecciona un proyecto",
       descriptionLabel: "Descripción",
       descriptionPlaceholder: "¿En qué trabajaste?",
@@ -78,12 +80,12 @@ const freelancerEs = {
       lockedDescription: "Este registro ya está facturado y no se puede modificar.",
       genericErrorTitle: "Algo salió mal",
       genericErrorDescription: "No se pudo guardar el registro. Inténtalo de nuevo.",
-      createTaskError: "No se pudo crear la tarea. Inténtalo de nuevo.",
     },
   },
   ...freelanceClientsEs,
   ...freelanceInvoicesEs,
   ...freelanceProjectsEs,
+  ...freelanceReportsEs,
   ...freelancerSettingsEs,
 };
 

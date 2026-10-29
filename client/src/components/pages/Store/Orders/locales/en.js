@@ -76,6 +76,8 @@ const ordersEn = {
         paymentHash: "Payment hash",
         copy: "Copy",
       },
+      reprint: "Reprint receipt",
+      reprintSuccess: "Receipt reprinted",
       refund: "Refund",
       refundTitle: "Refund order",
       refundDescription: "This will restore product stock and mark the order as refunded.",

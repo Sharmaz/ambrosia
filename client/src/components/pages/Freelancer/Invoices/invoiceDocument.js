@@ -7,7 +7,7 @@ import {
   parsePayoutSnapshot,
 } from "./invoiceFormatters";
 
-function escapeHtml(rawValue) {
+export function escapeHtml(rawValue) {
   return String(rawValue ?? "")
     .replaceAll("&", "&amp;")
     .replaceAll("<", "&lt;")
@@ -16,7 +16,7 @@ function escapeHtml(rawValue) {
     .replaceAll("'", "&#039;");
 }
 
-function buildIssuerMarkup(businessConfig, documentTranslations) {
+export function buildIssuerMarkup(businessConfig, documentTranslations) {
   const businessName = businessConfig?.businessName || documentTranslations.businessFallbackName;
   const issuerRows = [
     businessConfig?.businessAddress,
