@@ -9,7 +9,7 @@ import { REPORT_ROW_TYPES } from "./utils/reportRows";
 export function ReportProjectsTable({ projectRows }) {
   const reportTranslations = useTranslations("freelanceReports");
 
-  const columns = [
+  const reportTableColumns = [
     {
       key: "projectTask",
       label: reportTranslations("projectTask"),
@@ -48,7 +48,7 @@ export function ReportProjectsTable({ projectRows }) {
 
   return (
     <DataTable
-      columns={columns}
+      columns={reportTableColumns}
       items={projectRows}
       getKey={(projectRow) => projectRow.rowKey}
       getRowClassName={(projectRow) => (projectRow.rowType === REPORT_ROW_TYPES.project ? "bg-green-50" : "hover:bg-gray-50")}

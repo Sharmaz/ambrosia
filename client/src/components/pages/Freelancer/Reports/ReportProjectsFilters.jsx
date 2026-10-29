@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 const ALL_OPTIONS_KEY = "all";
 
 function toFilterValue(selectedKeys) {
-  const selectedKey = Array.from(selectedKeys)[0] ?? ALL_OPTIONS_KEY;
+  const [selectedKey = ALL_OPTIONS_KEY] = selectedKeys;
   return selectedKey === ALL_OPTIONS_KEY ? "" : selectedKey;
 }
 
