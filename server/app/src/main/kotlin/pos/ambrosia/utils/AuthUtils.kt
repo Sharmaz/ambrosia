@@ -93,24 +93,26 @@ data class UserInfo(
     val isAdmin: Boolean,
 )
 
-suspend fun ApplicationCall.requirePermission(name: String) {
-    val principal = principal<JWTPrincipal>() ?: throw PermissionDeniedException()
-    val userId = principal.getClaim("userId", String::class) ?: throw PermissionDeniedException()
-    transaction {
+fun ApplicationCall.hasPermission(name: String): Boolean {
+    val jwtPrincipal = principal<JWTPrincipal>() ?: return false
+    val userId = jwtPrincipal.getClaim("userId", String::class) ?: return false
+    return transaction {
         val user =
             UserEntity.findById(UUID.fromString(userId))?.takeIf { !it.isDeleted }
-                ?: throw PermissionDeniedException()
-        val roleId = user.roleId ?: throw PermissionDeniedException()
-        val hasPermission =
-            (RolePermissionsTable innerJoin PermissionsTable)
-                .selectAll()
-                .where {
-                    (RolePermissionsTable.roleId eq roleId) and
-                        (PermissionsTable.name eq name) and
-                        (PermissionsTable.enabled eq true)
-                }.count() > 0
-        if (!hasPermission) throw PermissionDeniedException()
+                ?: return@transaction false
+        val roleId = user.roleId ?: return@transaction false
+        (RolePermissionsTable innerJoin PermissionsTable)
+            .selectAll()
+            .where {
+                (RolePermissionsTable.roleId eq roleId) and
+                    (PermissionsTable.name eq name) and
+                    (PermissionsTable.enabled eq true)
+            }.count() > 0
     }
+}
+
+fun ApplicationCall.requirePermission(name: String) {
+    if (!hasPermission(name)) throw PermissionDeniedException()
 }
 
 fun Route.authorizePermission(

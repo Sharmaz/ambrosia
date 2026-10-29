@@ -5,27 +5,28 @@ import { useTranslations } from "next-intl";
 
 import { useTaskSelector } from "./hooks/useTaskSelector";
 
-export function TaskSelector({ tasks, selectedTaskId, onTaskChange, createTask, canCreateTask, isDisabled = false, isReadOnly = false, isRequired = true }) {
+function buildTaskDescription({ timesheetTranslations, isDisabled, willCreateTask, typedTaskName }) {
+  if (isDisabled) return timesheetTranslations("modal.selectProjectFirst");
+  if (willCreateTask) return timesheetTranslations("modal.newTaskHint", { name: typedTaskName });
+  return undefined;
+}
+
+export function TaskSelector({ tasks, taskName, selectedTaskId, onTaskChange, canCreateTask, isDisabled = false, isReadOnly = false, isRequired = true }) {
   const timesheetTranslations = useTranslations("timesheet");
   const {
-    setSearchValue,
     typedTaskName,
-    createTaskOptionKey,
-    isCreatingTask,
+    willCreateTask,
+    isUnknownTask,
+    handleInputChange,
     handleSelectionChange,
-  } = useTaskSelector({ tasks, onTaskChange, createTask, canCreateTask });
-  const createTaskOptionLabel = createTaskOptionKey
-    ? timesheetTranslations("modal.createTaskOption", { name: typedTaskName })
-    : null;
-  const showEmptyTasksMessage = tasks.length === 0 && !createTaskOptionKey;
+  } = useTaskSelector({ tasks, taskName, onTaskChange, canCreateTask });
 
   if (isReadOnly) {
-    const selectedTaskName = tasks.find((task) => task.id === selectedTaskId)?.name ?? "";
     return (
       <Input
         label={timesheetTranslations("modal.taskLabel")}
         isReadOnly
-        value={selectedTaskName}
+        value={taskName}
         classNames={{ inputWrapper: "bg-transparent shadow-none px-0 rounded-none border-b border-gray-100 data-[hover=true]:bg-transparent group-data-[focus=true]:bg-transparent" }}
       />
     );
@@ -34,16 +35,17 @@ export function TaskSelector({ tasks, selectedTaskId, onTaskChange, createTask, 
   return (
     <Autocomplete
       label={timesheetTranslations("modal.taskLabel")}
-      placeholder={timesheetTranslations("modal.taskPlaceholder")}
+      placeholder={timesheetTranslations(canCreateTask ? "modal.taskPlaceholder" : "modal.taskSelectPlaceholder")}
       isRequired={isRequired}
       allowsCustomValue
-      allowsEmptyCollection
       menuTrigger="focus"
-      isLoading={isCreatingTask}
       isDisabled={isDisabled}
-      description={isDisabled ? timesheetTranslations("modal.selectProjectFirst") : undefined}
+      description={buildTaskDescription({ timesheetTranslations, isDisabled, willCreateTask, typedTaskName })}
+      isInvalid={isUnknownTask}
+      errorMessage={isUnknownTask ? timesheetTranslations("modal.unknownTask") : undefined}
+      inputValue={taskName}
       selectedKey={selectedTaskId || null}
-      onInputChange={setSearchValue}
+      onInputChange={handleInputChange}
       onSelectionChange={handleSelectionChange}
     >
       {tasks.map((task) => (
@@ -51,18 +53,6 @@ export function TaskSelector({ tasks, selectedTaskId, onTaskChange, createTask, 
           {task.name}
         </AutocompleteItem>
       ))}
-
-      {showEmptyTasksMessage ? (
-        <AutocompleteItem key="empty-tasks" isDisabled textValue={timesheetTranslations("modal.noTasks")}>
-          {timesheetTranslations("modal.noTasks")}
-        </AutocompleteItem>
-      ) : null}
-
-      {createTaskOptionKey ? (
-        <AutocompleteItem key={createTaskOptionKey} textValue={createTaskOptionLabel}>
-          {createTaskOptionLabel}
-        </AutocompleteItem>
-      ) : null}
     </Autocomplete>
   );
 }

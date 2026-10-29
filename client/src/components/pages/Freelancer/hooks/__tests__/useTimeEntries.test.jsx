@@ -98,6 +98,7 @@ describe("useTimeEntries", () => {
     expect(httpClient).toHaveBeenNthCalledWith(2, "/freelance/time-entries", expect.objectContaining({ method: "POST" }));
     expect(JSON.parse(httpClient.mock.calls[1][1].body)).toEqual({
       ...timeEntryForm,
+      taskName: null,
       startTime: null,
       endTime: null,
     });

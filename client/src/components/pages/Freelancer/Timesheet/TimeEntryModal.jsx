@@ -31,7 +31,6 @@ export function TimeEntryModal({
   timeEntryForm,
   projects,
   tasks,
-  createTask,
   canCreateTask,
   canDelete,
   onChange,
@@ -51,8 +50,9 @@ export function TimeEntryModal({
     : timesheetTranslations(isEditing ? "modal.titleEdit" : "modal.titleAdd");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const isSubmittingRef = useRef(false);
+  const hasValidTask = Boolean(timeEntryForm.taskId) || (canCreateTask && Boolean(timeEntryForm.taskName?.trim()));
   const isFormComplete = Boolean(
-    timeEntryForm.projectId && timeEntryForm.taskId && timeEntryForm.entryDate && timeEntryForm.durationMinutes,
+    timeEntryForm.projectId && hasValidTask && timeEntryForm.entryDate && timeEntryForm.durationMinutes,
   );
 
   const handleSubmit = async (submitEvent) => {
@@ -104,7 +104,7 @@ export function TimeEntryModal({
               classNames={isReadOnly ? { base: "opacity-100", trigger: "bg-transparent shadow-none px-0 rounded-none border-b border-gray-100 data-[hover=true]:bg-transparent group-data-[focus=true]:bg-transparent", selectorIcon: "hidden" } : undefined}
               selectedKeys={timeEntryForm.projectId ? [timeEntryForm.projectId] : []}
               onChange={(changeEvent) => onChange(
-                changeEvent.target.value ? { projectId: changeEvent.target.value } : { projectId: "", taskId: "" },
+                changeEvent.target.value ? { projectId: changeEvent.target.value } : { projectId: "", taskId: "", taskName: "" },
               )}
               description={projects.length === 0 ? timesheetTranslations("modal.noProjects") : undefined}
             >
@@ -115,9 +115,9 @@ export function TimeEntryModal({
 
             <TaskSelector
               tasks={tasks}
+              taskName={timeEntryForm.taskName}
               selectedTaskId={timeEntryForm.taskId}
-              onTaskChange={(taskId) => onChange({ taskId })}
-              createTask={createTask}
+              onTaskChange={onChange}
               canCreateTask={canCreateTask}
               isDisabled={!timeEntryForm.projectId}
               isReadOnly={isReadOnly}

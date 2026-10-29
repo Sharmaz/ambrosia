@@ -23,6 +23,7 @@ import pos.ambrosia.models.CreateTimeEntryRequest
 import pos.ambrosia.models.TimeEntryResponse
 import pos.ambrosia.models.UpdateTimeEntryRequest
 import pos.ambrosia.utils.InvalidTimeEntryException
+import pos.ambrosia.utils.PermissionDeniedException
 import pos.ambrosia.utils.ResourceNotFoundException
 import pos.ambrosia.utils.TimeEntryLockedException
 import java.time.LocalDate
@@ -85,12 +86,17 @@ class TimeEntryService {
             findEntry(id)?.let(::toResponse)
         }
 
-    fun createTimeEntry(request: CreateTimeEntryRequest): TimeEntryResponse =
+    fun createTimeEntry(
+        request: CreateTimeEntryRequest,
+        hasTasksCreatePermission: Boolean = false,
+    ): TimeEntryResponse =
         transaction {
             val validatedTimeEntryInput =
                 validateInput(
                     projectId = request.projectId,
                     taskId = request.taskId,
+                    taskName = request.taskName,
+                    hasTasksCreatePermission = hasTasksCreatePermission,
                     entryDate = request.entryDate,
                     startTime = request.startTime,
                     endTime = request.endTime,
@@ -117,6 +123,7 @@ class TimeEntryService {
     fun updateTimeEntry(
         id: String,
         request: UpdateTimeEntryRequest,
+        hasTasksCreatePermission: Boolean = false,
     ): TimeEntryResponse =
         transaction {
             val timeEntry = findEntry(id) ?: throw ResourceNotFoundException("Time entry not found")
@@ -125,6 +132,8 @@ class TimeEntryService {
                 validateInput(
                     projectId = request.projectId,
                     taskId = request.taskId,
+                    taskName = request.taskName,
+                    hasTasksCreatePermission = hasTasksCreatePermission,
                     entryDate = request.entryDate,
                     startTime = request.startTime,
                     endTime = request.endTime,
@@ -160,7 +169,9 @@ class TimeEntryService {
 
     private fun validateInput(
         projectId: String,
-        taskId: String,
+        taskId: String?,
+        taskName: String?,
+        hasTasksCreatePermission: Boolean,
         entryDate: String,
         startTime: String?,
         endTime: String?,
@@ -179,9 +190,7 @@ class TimeEntryService {
             throw InvalidTimeEntryException("Invalid project status. Time tracking is only allowed in the 'in_progress' state.")
         }
 
-        val task =
-            TaskEntity.findById(parseUuid(taskId, "taskId"))?.takeIf { !it.isDeleted }
-                ?: throw ResourceNotFoundException("Task not found")
+        val task = resolveTask(taskId, taskName, hasTasksCreatePermission)
         val isBillable = task.isBillable && project.isBillable
 
         return ValidatedTimeEntry(
@@ -194,6 +203,35 @@ class TimeEntryService {
             durationMinutes = durationMinutes,
             isBillable = isBillable,
         )
+    }
+
+    private fun resolveTask(
+        taskId: String?,
+        taskName: String?,
+        hasTasksCreatePermission: Boolean,
+    ): TaskEntity {
+        if (!taskId.isNullOrBlank()) {
+            return TaskEntity.findById(parseUuid(taskId, "taskId"))?.takeIf { !it.isDeleted }
+                ?: throw ResourceNotFoundException("Task not found")
+        }
+        val trimmedTaskName = taskName?.trim()
+        if (trimmedTaskName.isNullOrEmpty()) throw InvalidTimeEntryException("taskId or taskName is required")
+        if (trimmedTaskName.length > MAX_TASK_NAME_LENGTH) {
+            throw InvalidTimeEntryException("taskName must be at most $MAX_TASK_NAME_LENGTH characters")
+        }
+        val normalizedTaskName = trimmedTaskName.lowercase()
+        val existingTask =
+            TaskEntity
+                .find { TasksTable.isDeleted eq false }
+                .firstOrNull { task -> task.name.trim().lowercase() == normalizedTaskName }
+        if (existingTask != null) return existingTask
+        if (!hasTasksCreatePermission) throw PermissionDeniedException()
+        return TaskEntity.new(UUID.randomUUID()) {
+            name = trimmedTaskName
+            isBillable = true
+            isDeleted = false
+            createdAt = LocalDateTime.now().toString()
+        }
     }
 
     private fun ensureUnlocked(timeEntry: TimeEntryEntity) {
@@ -284,6 +322,7 @@ class TimeEntryService {
 
     companion object {
         private const val DURATION_INCREMENT_MINUTES = 15
+        private const val MAX_TASK_NAME_LENGTH = 255
         private val isoDatePattern = Regex("\\d{4}-\\d{2}-\\d{2}")
         private val timestampFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
 

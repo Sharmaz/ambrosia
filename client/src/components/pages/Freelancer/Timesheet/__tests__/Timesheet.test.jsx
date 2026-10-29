@@ -70,6 +70,7 @@ function renderTimesheet(timeEntriesHookOverrides = {}) {
     clients: [{ id: "client-id", name: "Acme" }],
     projects: [{ id: "project-id", clientId: "client-id", name: "Website" }],
     tasks: [{ id: "task-id", name: "Development" }],
+    refetchTasks: jest.fn(),
   });
   return render(<Timesheet />);
 }
@@ -259,6 +260,35 @@ describe("Timesheet", () => {
     const editDialog = await openEditModalFromDetails("Development");
 
     expect(within(editDialog).getByRole("combobox", { name: /modal.taskLabel/ })).not.toBeDisabled();
+  });
+
+  it("saves a typed task name that does not exist yet and reloads the tasks", async () => {
+    mockGrantedPermissions = new Set([...ALL_TIME_ENTRY_PERMISSIONS, "tasks_create"]);
+    renderTimesheet();
+
+    const editDialog = await openEditModalFromDetails("Development");
+    fireEvent.change(within(editDialog).getByRole("combobox", { name: /modal.taskLabel/ }), { target: { value: "Code review" } });
+
+    expect(within(editDialog).getByText("modal.newTaskHint")).toBeInTheDocument();
+    await act(async () => {
+      fireEvent.click(within(editDialog).getByRole("button", { name: "modal.saveButton" }));
+    });
+
+    expect(timeEntriesHookValue.updateTimeEntry).toHaveBeenCalledWith("editable-id", expect.objectContaining({
+      taskId: "",
+      taskName: "Code review",
+    }));
+    expect(useTimesheetCatalog.mock.results.at(-1).value.refetchTasks).toHaveBeenCalled();
+  });
+
+  it("does not allow saving an unknown task name without the create permission", async () => {
+    renderTimesheet();
+
+    const editDialog = await openEditModalFromDetails("Development");
+    fireEvent.change(within(editDialog).getByRole("combobox", { name: /modal.taskLabel/ }), { target: { value: "Code review" } });
+
+    expect(within(editDialog).getByText("modal.unknownTask")).toBeInTheDocument();
+    expect(within(editDialog).getByRole("button", { name: "modal.saveButton" })).toBeDisabled();
   });
 
   it("deletes an entry from the edit modal after confirming", async () => {
