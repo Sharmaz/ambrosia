@@ -94,8 +94,8 @@ data class UserInfo(
 )
 
 fun ApplicationCall.hasPermission(name: String): Boolean {
-    val principal = principal<JWTPrincipal>() ?: return false
-    val userId = principal.getClaim("userId", String::class) ?: return false
+    val jwtPrincipal = principal<JWTPrincipal>() ?: return false
+    val userId = jwtPrincipal.getClaim("userId", String::class) ?: return false
     return transaction {
         val user =
             UserEntity.findById(UUID.fromString(userId))?.takeIf { !it.isDeleted }

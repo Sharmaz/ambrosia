@@ -88,7 +88,7 @@ class TimeEntryService {
 
     fun createTimeEntry(
         request: CreateTimeEntryRequest,
-        canCreateTask: Boolean = false,
+        hasTasksCreatePermission: Boolean = false,
     ): TimeEntryResponse =
         transaction {
             val validatedTimeEntryInput =
@@ -96,7 +96,7 @@ class TimeEntryService {
                     projectId = request.projectId,
                     taskId = request.taskId,
                     taskName = request.taskName,
-                    canCreateTask = canCreateTask,
+                    hasTasksCreatePermission = hasTasksCreatePermission,
                     entryDate = request.entryDate,
                     startTime = request.startTime,
                     endTime = request.endTime,
@@ -123,7 +123,7 @@ class TimeEntryService {
     fun updateTimeEntry(
         id: String,
         request: UpdateTimeEntryRequest,
-        canCreateTask: Boolean = false,
+        hasTasksCreatePermission: Boolean = false,
     ): TimeEntryResponse =
         transaction {
             val timeEntry = findEntry(id) ?: throw ResourceNotFoundException("Time entry not found")
@@ -133,7 +133,7 @@ class TimeEntryService {
                     projectId = request.projectId,
                     taskId = request.taskId,
                     taskName = request.taskName,
-                    canCreateTask = canCreateTask,
+                    hasTasksCreatePermission = hasTasksCreatePermission,
                     entryDate = request.entryDate,
                     startTime = request.startTime,
                     endTime = request.endTime,
@@ -171,7 +171,7 @@ class TimeEntryService {
         projectId: String,
         taskId: String?,
         taskName: String?,
-        canCreateTask: Boolean,
+        hasTasksCreatePermission: Boolean,
         entryDate: String,
         startTime: String?,
         endTime: String?,
@@ -190,7 +190,7 @@ class TimeEntryService {
             throw InvalidTimeEntryException("Invalid project status. Time tracking is only allowed in the 'in_progress' state.")
         }
 
-        val task = resolveTask(taskId, taskName, canCreateTask)
+        val task = resolveTask(taskId, taskName, hasTasksCreatePermission)
         val isBillable = task.isBillable && project.isBillable
 
         return ValidatedTimeEntry(
@@ -208,7 +208,7 @@ class TimeEntryService {
     private fun resolveTask(
         taskId: String?,
         taskName: String?,
-        canCreateTask: Boolean,
+        hasTasksCreatePermission: Boolean,
     ): TaskEntity {
         if (!taskId.isNullOrBlank()) {
             return TaskEntity.findById(parseUuid(taskId, "taskId"))?.takeIf { !it.isDeleted }
@@ -225,7 +225,7 @@ class TimeEntryService {
                 .find { TasksTable.isDeleted eq false }
                 .firstOrNull { task -> task.name.trim().lowercase() == normalizedTaskName }
         if (existingTask != null) return existingTask
-        if (!canCreateTask) throw PermissionDeniedException()
+        if (!hasTasksCreatePermission) throw PermissionDeniedException()
         return TaskEntity.new(UUID.randomUUID()) {
             name = trimmedTaskName
             isBillable = true

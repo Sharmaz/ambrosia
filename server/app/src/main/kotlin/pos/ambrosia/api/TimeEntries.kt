@@ -62,18 +62,18 @@ fun Route.timeEntries(timeEntryService: TimeEntryService) {
 
     authorizePermission("time_entries_create") {
         post("") {
-            val request = call.receiveCreateRequest()
-            val canCreateTask = call.hasPermission("tasks_create")
-            call.respond(HttpStatusCode.Created, timeEntryService.createTimeEntry(request, canCreateTask))
+            val createTimeEntryRequest = call.receiveCreateRequest()
+            val hasTasksCreatePermission = call.hasPermission("tasks_create")
+            call.respond(HttpStatusCode.Created, timeEntryService.createTimeEntry(createTimeEntryRequest, hasTasksCreatePermission))
         }
     }
 
     authorizePermission("time_entries_update") {
         put("/{id}") {
             val id = call.parameters["id"] ?: throw InvalidTimeEntryException("Missing time entry ID")
-            val request = call.receiveUpdateRequest()
-            val canCreateTask = call.hasPermission("tasks_create")
-            call.respond(HttpStatusCode.OK, timeEntryService.updateTimeEntry(id, request, canCreateTask))
+            val updateTimeEntryRequest = call.receiveUpdateRequest()
+            val hasTasksCreatePermission = call.hasPermission("tasks_create")
+            call.respond(HttpStatusCode.OK, timeEntryService.updateTimeEntry(id, updateTimeEntryRequest, hasTasksCreatePermission))
         }
     }
 
