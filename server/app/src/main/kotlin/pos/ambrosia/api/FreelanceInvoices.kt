@@ -21,7 +21,7 @@ import pos.ambrosia.utils.ResourceNotFoundException
 import pos.ambrosia.utils.authorizePermission
 
 fun Application.configureFreelanceInvoices() {
-    val freelanceInvoiceService = FreelanceInvoiceService()
+    val freelanceInvoiceService = FreelanceInvoiceService(environment)
     routing { route("/freelance/invoices") { freelanceInvoices(freelanceInvoiceService) } }
 }
 
@@ -41,6 +41,11 @@ fun Route.freelanceInvoices(freelanceInvoiceService: FreelanceInvoiceService) {
     }
 
     authorizePermission("invoices_create") {
+        post("/preview") {
+            val createFreelanceInvoiceRequest = call.receiveCreateFreelanceInvoiceRequest()
+            call.respond(HttpStatusCode.OK, freelanceInvoiceService.previewDraftInvoice(createFreelanceInvoiceRequest))
+        }
+
         post("") {
             val createFreelanceInvoiceRequest = call.receiveCreateFreelanceInvoiceRequest()
             call.respond(HttpStatusCode.Created, freelanceInvoiceService.createDraftInvoice(createFreelanceInvoiceRequest))

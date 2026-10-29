@@ -335,6 +335,86 @@ describe("CloseChannelModal", () => {
     });
   });
 
+  describe("Stuck step", () => {
+    const goToConfirm = () => {
+      renderModal();
+      fireEvent.change(screen.getByLabelText("closeChannel.addressLabel"), {
+        target: { value: VALID_ADDRESS },
+      });
+      fireEvent.change(screen.getByLabelText("closeChannel.feerateLabel"), {
+        target: { value: "10" },
+      });
+      fireEvent.click(screen.getByText("closeChannel.nextButton"));
+    };
+
+    const goToStuck = async () => {
+      const channelNotAvailableError = new Error("Channel is not in a closeable state");
+      channelNotAvailableError.code = "channel_not_available";
+      jest.spyOn(walletService, "closeChannel").mockRejectedValue(channelNotAvailableError);
+      goToConfirm();
+
+      await act(async () => {
+        fireEvent.click(screen.getByText("closeChannel.confirmButton"));
+      });
+
+      await waitFor(() => {
+        expect(screen.getByText("closeChannel.stuckTitle")).toBeInTheDocument();
+      });
+    };
+
+    it("shows the stuck step instead of an error toast when closeChannel is rejected as unavailable", async () => {
+      await goToStuck();
+
+      expect(addToast).not.toHaveBeenCalled();
+    });
+
+    it("shows the channel id in the stuck step", async () => {
+      await goToStuck();
+
+      expect(screen.getByText(mockChannel.channelId)).toBeInTheDocument();
+    });
+
+    it("retries closeChannel when retry is clicked from the stuck step", async () => {
+      await goToStuck();
+      walletService.closeChannel.mockResolvedValue({ txId: "abc-tx-123" });
+
+      await act(async () => {
+        fireEvent.click(screen.getByText("closeChannel.stuckRetryButton"));
+      });
+
+      await waitFor(() => {
+        expect(walletService.closeChannel).toHaveBeenCalledTimes(2);
+        expect(screen.getByText("closeChannel.successTitle")).toBeInTheDocument();
+      });
+    });
+
+    it("calls onClose when the stuck-step close button is clicked", async () => {
+      const onClose = jest.fn();
+      const channelNotAvailableError = new Error("Channel is not in a closeable state");
+      channelNotAvailableError.code = "channel_not_available";
+      jest.spyOn(walletService, "closeChannel").mockRejectedValue(channelNotAvailableError);
+      renderModal({ onClose });
+      fireEvent.change(screen.getByLabelText("closeChannel.addressLabel"), {
+        target: { value: VALID_ADDRESS },
+      });
+      fireEvent.change(screen.getByLabelText("closeChannel.feerateLabel"), {
+        target: { value: "10" },
+      });
+      fireEvent.click(screen.getByText("closeChannel.nextButton"));
+
+      await act(async () => {
+        fireEvent.click(screen.getByText("closeChannel.confirmButton"));
+      });
+
+      await waitFor(() => {
+        expect(screen.getByText("closeChannel.stuckTitle")).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByText("closeChannel.stuckCloseButton"));
+      expect(onClose).toHaveBeenCalled();
+    });
+  });
+
   describe("Channel state guard", () => {
     it("renders null when channel is not provided", () => {
       const { container } = render(

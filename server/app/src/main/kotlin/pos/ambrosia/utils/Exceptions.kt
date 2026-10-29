@@ -4,6 +4,10 @@ class InvalidCredentialsException(
     message: String = "Invalid credentials",
 ) : IllegalArgumentException(message)
 
+class InvalidCurrentUserPinException(
+    message: String = "Invalid current user PIN",
+) : IllegalArgumentException(message)
+
 class AdminOnlyException(
     message: String = "Admin privileges required",
 ) : SecurityException(message)
@@ -22,6 +26,12 @@ class PhoenixNodeInfoException(
 
 class PhoenixBalanceException(
     message: String = "Failed to retrieve balance information from Phoenix",
+) : RuntimeException(message)
+
+class PhoenixChannelNotAvailableException(
+    message: String = "Channel is not in a closeable state (currently syncing or offline)",
+    val code: String = "channel_not_available",
+    val source: String = "phoenixd",
 ) : RuntimeException(message)
 
 class PhoenixServiceException(
@@ -98,9 +108,17 @@ class TimeEntryLockedException(
     message: String = "Time entry is locked because it belongs to an invoice",
 ) : IllegalStateException(message)
 
+class LightningBackendUnavailableException(
+    message: String = "A Lightning address is required when no Lightning backend is active",
+) : IllegalStateException(message)
+
 class SecretsLockedException(
     message: String = "Secrets are locked — unlock the server before using this feature",
 ) : IllegalStateException(message)
+
+class UnsupportedUploadTypeException(
+    message: String = "Uploaded file does not match an allowed image type",
+) : IllegalArgumentException(message)
 
 class InitialSetupException(
     message: String = "Initial setup failed",

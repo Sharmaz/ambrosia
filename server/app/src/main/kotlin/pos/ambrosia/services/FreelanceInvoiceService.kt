@@ -1,5 +1,6 @@
 package pos.ambrosia.services
 
+import io.ktor.server.application.ApplicationEnvironment
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import org.jetbrains.exposed.v1.core.SortOrder
@@ -36,12 +37,15 @@ import pos.ambrosia.db.tables.TimeEntryEntity
 import pos.ambrosia.models.CreateFreelanceInvoiceRequest
 import pos.ambrosia.models.FreelanceInvoiceLineItemResponse
 import pos.ambrosia.models.FreelanceInvoicePayoutSnapshot
+import pos.ambrosia.models.FreelanceInvoicePreviewLineItemResponse
+import pos.ambrosia.models.FreelanceInvoicePreviewResponse
 import pos.ambrosia.models.FreelanceInvoiceResponse
 import pos.ambrosia.models.PayFreelanceInvoiceRequest
 import pos.ambrosia.models.WalletInvoiceRate
 import pos.ambrosia.models.phoenix.CreateInvoiceRequest
 import pos.ambrosia.utils.InvalidTimeEntryException
 import pos.ambrosia.utils.ResourceNotFoundException
+import pos.ambrosia.utils.SecretsCipher
 import java.math.BigDecimal
 import java.math.RoundingMode
 import java.time.LocalDate
@@ -51,9 +55,17 @@ import java.time.format.DateTimeParseException
 import java.util.UUID
 
 class FreelanceInvoiceService(
+    private val environment: ApplicationEnvironment,
     private val lightningBackend: LightningBackend = ActiveLightningBackend,
     private val walletRateService: WalletRateService = WalletRateService(),
 ) {
+    private val fieldEncryptionKey by lazy { SecretsCipher.deriveFieldEncryptionKey(environment.config.property("secret").getString()) }
+
+    fun previewDraftInvoice(createFreelanceInvoiceRequest: CreateFreelanceInvoiceRequest): FreelanceInvoicePreviewResponse {
+        val preparedFreelanceInvoice = prepareDraftFreelanceInvoice(createFreelanceInvoiceRequest)
+        return toFreelanceInvoicePreviewResponse(preparedFreelanceInvoice)
+    }
+
     suspend fun createDraftInvoice(createFreelanceInvoiceRequest: CreateFreelanceInvoiceRequest): FreelanceInvoiceResponse {
         val preparedFreelanceInvoice = prepareDraftFreelanceInvoice(createFreelanceInvoiceRequest)
         val lightningInvoiceData = createLightningInvoiceIfNeeded(preparedFreelanceInvoice, createFreelanceInvoiceRequest)
@@ -220,7 +232,7 @@ class FreelanceInvoiceService(
                     invoiceYear = preparedFreelanceInvoice.invoiceYear
                     invoiceNumber = nextInvoiceNumber(preparedFreelanceInvoice.invoiceYear)
                     clientId = EntityID(preparedFreelanceInvoice.clientId, ClientsTable)
-                    status = "draft"
+                    status = "generated"
                     currencyId = EntityID(preparedFreelanceInvoice.currencyId, CurrencyTable)
                     periodStart = preparedFreelanceInvoice.periodStart
                     periodEnd = preparedFreelanceInvoice.periodEnd
@@ -274,6 +286,40 @@ class FreelanceInvoiceService(
                 ?.let { freelanceInvoice -> toFreelanceInvoiceResponse(freelanceInvoice) }
         }
 
+    private fun toFreelanceInvoicePreviewResponse(preparedFreelanceInvoice: PreparedFreelanceInvoice): FreelanceInvoicePreviewResponse =
+        transaction {
+            val client =
+                ClientEntity.findById(preparedFreelanceInvoice.clientId)
+                    ?: throw ResourceNotFoundException("Client not found")
+            val currency =
+                CurrencyEntity.findById(preparedFreelanceInvoice.currencyId)
+                    ?: throw ResourceNotFoundException("Currency not found")
+
+            FreelanceInvoicePreviewResponse(
+                clientId = client.id.value.toString(),
+                clientName = client.name,
+                currencyId = currency.id.value.toString(),
+                currencyAcronym = currency.acronym,
+                periodStart = preparedFreelanceInvoice.periodStart,
+                periodEnd = preparedFreelanceInvoice.periodEnd,
+                totalCents = preparedFreelanceInvoice.totalCents,
+                payoutSnapshot = SecretsCipher.decryptOrNull(preparedFreelanceInvoice.payoutSnapshot, fieldEncryptionKey),
+                paymentMethod = preparedFreelanceInvoice.paymentMethod,
+                lineItems =
+                    preparedFreelanceInvoice.lineItems.map { preparedLineItem ->
+                        FreelanceInvoicePreviewLineItemResponse(
+                            projectId = preparedLineItem.projectId.toString(),
+                            projectName = preparedLineItem.projectName,
+                            taskId = preparedLineItem.taskId.toString(),
+                            taskName = preparedLineItem.taskName,
+                            quantityMinutes = preparedLineItem.quantityMinutes,
+                            rateCents = preparedLineItem.rateCents,
+                            amountCents = preparedLineItem.amountCents,
+                        )
+                    },
+            )
+        }
+
     private fun createInvoiceLineItems(
         draftInvoice: InvoiceEntity,
         preparedLineItems: List<PreparedFreelanceInvoiceLineItem>,
@@ -306,20 +352,23 @@ class FreelanceInvoiceService(
                 ?: throw InvalidTimeEntryException("A valid bank payout account is required")
         if (payoutAccount.type != "bank") throw InvalidTimeEntryException("Payout account must be a bank account")
 
-        return Json.encodeToString(
-            FreelanceInvoicePayoutSnapshot(
-                id = payoutAccount.id.value.toString(),
-                type = payoutAccount.type,
-                accountHolder = payoutAccount.accountHolder,
-                bankName = payoutAccount.bankName,
-                accountNumber = payoutAccount.accountNumber,
-                currencyId = payoutAccount.currencyId?.value?.toString(),
-                swift = payoutAccount.swift,
-                iban = payoutAccount.iban,
-                clabe = payoutAccount.clabe,
-                lightningAddress = payoutAccount.lightningAddress,
-            ),
-        )
+        val payoutSnapshotJson =
+            Json.encodeToString(
+                FreelanceInvoicePayoutSnapshot(
+                    id = payoutAccount.id.value.toString(),
+                    type = payoutAccount.type,
+                    accountHolder = SecretsCipher.decryptOrNull(payoutAccount.accountHolder, fieldEncryptionKey),
+                    bankName = SecretsCipher.decryptOrNull(payoutAccount.bankName, fieldEncryptionKey),
+                    accountNumber = SecretsCipher.decryptOrNull(payoutAccount.accountNumber, fieldEncryptionKey),
+                    currencyId = payoutAccount.currencyId?.value?.toString(),
+                    swift = SecretsCipher.decryptOrNull(payoutAccount.swift, fieldEncryptionKey),
+                    iban = SecretsCipher.decryptOrNull(payoutAccount.iban, fieldEncryptionKey),
+                    clabe = SecretsCipher.decryptOrNull(payoutAccount.clabe, fieldEncryptionKey),
+                    lightningAddress = SecretsCipher.decryptOrNull(payoutAccount.lightningAddress, fieldEncryptionKey),
+                ),
+            )
+
+        return SecretsCipher.encrypt(payoutSnapshotJson, fieldEncryptionKey)
     }
 
     private fun prepareFreelanceInvoicePayment(freelanceInvoiceId: String): PreparedFreelanceInvoicePayment =
@@ -538,7 +587,7 @@ class FreelanceInvoiceService(
             periodStart = invoice.periodStart,
             periodEnd = invoice.periodEnd,
             totalCents = invoice.totalCents,
-            payoutSnapshot = invoice.payoutSnapshot,
+            payoutSnapshot = SecretsCipher.decryptOrNull(invoice.payoutSnapshot, fieldEncryptionKey),
             paymentMethod = invoice.paymentMethod,
             paymentHash = invoice.paymentHash,
             bolt11 = invoice.bolt11,

@@ -14,6 +14,10 @@ export function isSecretsLockedError(error) {
   return error?.status === 409;
 }
 
+export function isChannelNotAvailableError(error) {
+  return error?.code === "channel_not_available";
+}
+
 function isValidPaymentResponse(paymentResponseBody) {
   return (
     paymentResponseBody &&

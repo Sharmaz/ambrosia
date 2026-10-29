@@ -6,38 +6,33 @@ import tempfile
 import unittest
 from pathlib import Path
 
+FIRSTBOOT_SCRIPT_PATH = (
+    Path(__file__).resolve().parents[1] / "common/firstboot/ambrosia-firstboot"
+)
+
 
 class FirstbootPasswordTests(unittest.TestCase):
-    def test_random_password_is_unique_private_and_not_in_logs(self):
-        first_generated_credentials = self.run_function("")
-        second_generated_credentials = self.run_function("")
-        self.assertNotEqual(
-            first_generated_credentials["credential"],
-            second_generated_credentials["credential"],
-        )
-        self.assertEqual(
-            len(first_generated_credentials["credential"].split(":")[1]), 24
-        )
-        self.assertEqual(first_generated_credentials["mode"], 0o600)
-        self.assertIn(
-            first_generated_credentials["credential"].split(":")[1],
-            first_generated_credentials["console"],
-        )
-        self.assertEqual(first_generated_credentials["logs"], "")
+    def test_default_password_is_applied_when_no_preseed_is_given(self):
+        default_credentials = self.run_function("")
+        self.assertEqual(default_credentials["credential"], "ambrosia:Ambrosia2026!")
+        self.assertFalse(default_credentials["stale_password_file_exists"])
+        self.assertEqual(default_credentials["logs"], "")
 
-    def test_preseed_is_applied_without_leaving_a_stale_password_file(self):
+    def test_preseed_overrides_default_without_leaving_a_stale_password_file(self):
         preseeded_credentials = self.run_function("operator-selected-password")
         self.assertEqual(
             preseeded_credentials["credential"],
             "ambrosia:operator-selected-password",
         )
-        self.assertIsNone(preseeded_credentials["mode"])
-        self.assertEqual(preseeded_credentials["console"], "")
+        self.assertFalse(preseeded_credentials["stale_password_file_exists"])
 
     def run_function(self, configured_password):
-        firstboot_script_source = (
-            Path(__file__).resolve().parents[1] / "common/firstboot/ambrosia-firstboot"
-        ).read_text()
+        firstboot_script_source = FIRSTBOOT_SCRIPT_PATH.read_text()
+        default_password_declaration = next(
+            script_line
+            for script_line in firstboot_script_source.splitlines()
+            if script_line.startswith("DEFAULT_ADMIN_PASSWORD=")
+        )
         password_function_source = (
             "apply_admin_password() {"
             + firstboot_script_source.split("apply_admin_password() {", 1)[1].split(
@@ -47,17 +42,14 @@ class FirstbootPasswordTests(unittest.TestCase):
         )
         with tempfile.TemporaryDirectory() as temporary_directory:
             temporary_root = Path(temporary_directory)
-            console_path = temporary_root / "console"
-            console_path.touch()
-            (temporary_root / "operator-password").write_text("stale")
-            password_function_source = password_function_source.replace(
-                "/dev/console", str(console_path)
-            )
+            stale_password_path = temporary_root / "operator-password"
+            stale_password_path.write_text("stale")
             test_script = (
                 """set -euo pipefail
-install() { command install -m 0600 /dev/null "${@: -1}"; }
 chpasswd() { cat > "$STATE_DIR/captured"; }
 """
+                + default_password_declaration
+                + "\n"
                 + password_function_source
                 + "apply_admin_password\n"
             )
@@ -74,12 +66,12 @@ chpasswd() { cat > "$STATE_DIR/captured"; }
                     "ambrosia_admin_password": configured_password,
                 },
             )
-            stored_password_path = temporary_root / "operator-password"
             return {
                 "credential": (temporary_root / "captured").read_text().strip(),
-                "mode": stored_password_path.stat().st_mode & 0o777
-                if stored_password_path.exists()
-                else None,
-                "console": console_path.read_text(),
+                "stale_password_file_exists": stale_password_path.exists(),
                 "logs": command_process.stdout + command_process.stderr,
             }
+
+
+if __name__ == "__main__":
+    unittest.main()

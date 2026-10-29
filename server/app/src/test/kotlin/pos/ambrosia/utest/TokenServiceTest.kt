@@ -9,6 +9,7 @@ import pos.ambrosia.db.tables.UserEntity
 import pos.ambrosia.models.AuthResponse
 import pos.ambrosia.services.TokenService
 import pos.ambrosia.utils.ExposedTestDb
+import pos.ambrosia.utils.SecretsCipher
 import pos.ambrosia.utils.confirmationTokenConfig
 import pos.ambrosia.utils.testJwtConfig
 import java.io.File
@@ -34,8 +35,18 @@ class TokenServiceTest {
     private fun confirmationTokenService(secret: String): TokenService =
         TokenService(applicationEnvironment { config = confirmationTokenConfig(secret) })
 
-    private fun seedRefreshTokenUser(name: String = "refresh-user"): AuthResponse {
-        val userId = ExposedTestDb.seedUser(name)
+    private fun seedRefreshTokenUser(
+        name: String = "refresh-user",
+        email: String? = null,
+        phone: String? = null,
+    ): AuthResponse {
+        val fieldEncryptionKey = SecretsCipher.deriveFieldEncryptionKey(testJwtConfig().property("secret").getString())
+        val userId =
+            ExposedTestDb.seedUser(
+                name,
+                email = SecretsCipher.encryptOrNull(email, fieldEncryptionKey),
+                phone = SecretsCipher.encryptOrNull(phone, fieldEncryptionKey),
+            )
         return AuthResponse(id = userId, name = name, role = "role", isAdmin = false)
     }
 
@@ -239,6 +250,17 @@ class TokenServiceTest {
         val resolvedUser = service.getUserFromRefreshToken(refreshToken)
 
         assertEquals(seededUser.id, resolvedUser?.id)
+    }
+
+    @Test
+    fun `getUserFromRefreshToken returns the original email and phone, not the stored ciphertext`() {
+        val seededUser = seedRefreshTokenUser(email = "refresh-user@example.com", phone = "+1-555-0101")
+        val refreshToken = service.generateRefreshToken(seededUser)
+
+        val resolvedUser = service.getUserFromRefreshToken(refreshToken)
+
+        assertEquals("refresh-user@example.com", resolvedUser?.email)
+        assertEquals("+1-555-0101", resolvedUser?.phone)
     }
 
     @Test

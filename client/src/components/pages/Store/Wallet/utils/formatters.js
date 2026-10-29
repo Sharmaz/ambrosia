@@ -1,7 +1,7 @@
-export const formatSats = (amount) => new Intl.NumberFormat().format(amount);
+export const formatSats = (amountSat) => (amountSat == null ? "—" : new Intl.NumberFormat().format(amountSat));
 
 export function formatFiat({
-  value,
+  fiatAmount,
   currencyAcronym,
   locale,
 }) {
@@ -9,8 +9,8 @@ export function formatFiat({
     return new Intl.NumberFormat(locale || "en-US", {
       style: "currency",
       currency: currencyAcronym || "USD",
-    }).format(value);
+    }).format(fiatAmount);
   } catch {
-    return `${currencyAcronym || "USD"} ${value.toFixed(2)}`;
+    return `${currencyAcronym || "USD"} ${fiatAmount.toFixed(2)}`;
   }
 }

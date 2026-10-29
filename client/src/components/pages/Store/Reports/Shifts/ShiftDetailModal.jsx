@@ -1,9 +1,11 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
 
-import { Modal, ModalBody, ModalContent, ModalHeader, Spinner } from "@heroui/react";
+import { Button, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader, Spinner } from "@heroui/react";
 import { useTranslations } from "next-intl";
 
+import { useShiftReportReprint } from "@/components/pages/Store/Reports/hooks/useShiftReportReprint";
+import { usePaymentMethodLabel } from "@/hooks/usePaymentMethodLabel";
 import { getShiftBreakdown } from "@/services/shiftsService";
 
 import { differenceTextClass } from "./utils/differenceTone";
@@ -11,9 +13,11 @@ import { differenceTextClass } from "./utils/differenceTone";
 export function ShiftDetailModal({ shift, formatCurrency, onClose }) {
   const reportsTranslations = useTranslations("reports");
   const shiftTranslations = useTranslations("shifts");
+  const { getPaymentMethodLabel } = usePaymentMethodLabel();
   const [shiftBreakdown, setShiftBreakdown] = useState(null);
   const [isLoadingShiftBreakdown, setIsLoadingShiftBreakdown] = useState(false);
   const [error, setError] = useState(false);
+  const { canReprint, isReprinting, reprintShiftReport } = useShiftReportReprint(shift);
 
   const fetchShiftBreakdown = useCallback(async () => {
     if (!shift?.id) return;
@@ -113,7 +117,7 @@ export function ShiftDetailModal({ shift, formatCurrency, onClose }) {
                       <p className="text-xs text-gray-400">{shiftTranslations("byPaymentMethod")}</p>
                       {shiftBreakdown.byPaymentMethod.map(({ name, total }) => (
                         <div key={name} className="flex justify-between items-center text-sm">
-                          <span>{name}</span>
+                          <span>{getPaymentMethodLabel(name)}</span>
                           <span className="font-medium">{formatCurrency(total)}</span>
                         </div>
                       ))}
@@ -146,6 +150,18 @@ export function ShiftDetailModal({ shift, formatCurrency, onClose }) {
             </div>
           )}
         </ModalBody>
+        {canReprint && (
+          <ModalFooter>
+            <Button
+              className="bg-green-800"
+              color="primary"
+              isLoading={isReprinting}
+              onPress={reprintShiftReport}
+            >
+              {shiftTranslations("reprintCorteZ")}
+            </Button>
+          </ModalFooter>
+        )}
       </ModalContent>
     </Modal>
   );

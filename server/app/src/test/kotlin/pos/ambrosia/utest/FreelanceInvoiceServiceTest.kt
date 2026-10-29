@@ -1,6 +1,8 @@
 package pos.ambrosia.utest
 
+import io.ktor.server.engine.applicationEnvironment
 import kotlinx.coroutines.runBlocking
+import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
 import org.jetbrains.exposed.v1.core.dao.id.EntityID
 import org.jetbrains.exposed.v1.core.eq
@@ -9,6 +11,7 @@ import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.junit.After
 import org.junit.Before
+import pos.ambrosia.db.tables.InvoiceEntity
 import pos.ambrosia.db.tables.InvoicePaymentsTable
 import pos.ambrosia.db.tables.InvoicesTable
 import pos.ambrosia.db.tables.PaymentEntity
@@ -24,19 +27,23 @@ import pos.ambrosia.services.WalletRateService
 import pos.ambrosia.utils.ExposedTestDb
 import pos.ambrosia.utils.FakeLightningBackend
 import pos.ambrosia.utils.InvalidTimeEntryException
+import pos.ambrosia.utils.testJwtConfig
 import java.io.File
 import java.util.UUID
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
+import kotlin.test.assertNotEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class FreelanceInvoiceServiceTest {
     private lateinit var databaseFile: File
+    private val environment = applicationEnvironment { config = testJwtConfig() }
     private val fakeLightningBackend = FakeLightningBackend("freelance-payment-hash", incomingPaymentReceivedSat = 25_000)
-    private val freelanceInvoiceService = FreelanceInvoiceService(fakeLightningBackend, WalletRateService())
+    private val freelanceInvoiceService = FreelanceInvoiceService(environment, fakeLightningBackend, WalletRateService())
 
     @Before
     fun setUp() {
@@ -46,6 +53,43 @@ class FreelanceInvoiceServiceTest {
     @After
     fun tearDown() {
         ExposedTestDb.cleanup(databaseFile)
+    }
+
+    @Test
+    fun `previews draft invoice without creating records or locking time entries`() {
+        val freelanceInvoiceFixture = createFreelanceInvoiceFixture()
+        val firstTimeEntryId =
+            ExposedTestDb.seedTimeEntry(
+                freelanceInvoiceFixture.projectId,
+                freelanceInvoiceFixture.developmentTaskId,
+                entryDate = "2026-08-19",
+                durationMinutes = 60,
+            )
+        val secondTimeEntryId =
+            ExposedTestDb.seedTimeEntry(
+                freelanceInvoiceFixture.projectId,
+                freelanceInvoiceFixture.designTaskId,
+                entryDate = "2026-08-20",
+                durationMinutes = 30,
+            )
+
+        val freelanceInvoicePreview =
+            freelanceInvoiceService.previewDraftInvoice(
+                CreateFreelanceInvoiceRequest(
+                    clientId = freelanceInvoiceFixture.clientId,
+                    periodStart = "2026-08-17",
+                    periodEnd = "2026-08-23",
+                ),
+            )
+
+        assertEquals("USD", freelanceInvoicePreview.currencyAcronym)
+        assertEquals(15_000, freelanceInvoicePreview.totalCents)
+        assertEquals("bank", freelanceInvoicePreview.paymentMethod)
+        assertEquals(2, freelanceInvoicePreview.lineItems.size)
+        assertEquals(setOf(10_000, 5_000), freelanceInvoicePreview.lineItems.map { previewLineItem -> previewLineItem.amountCents }.toSet())
+        assertFalse(timeEntryIsLocked(firstTimeEntryId))
+        assertFalse(timeEntryIsLocked(secondTimeEntryId))
+        assertEquals(0, invoiceCount())
     }
 
     @Test
@@ -77,7 +121,7 @@ class FreelanceInvoiceServiceTest {
                 )
             }
 
-        assertEquals("draft", createdFreelanceInvoice.status)
+        assertEquals("generated", createdFreelanceInvoice.status)
         assertEquals("USD", createdFreelanceInvoice.currencyAcronym)
         assertEquals(15_000, createdFreelanceInvoice.totalCents)
         assertEquals("bank", createdFreelanceInvoice.paymentMethod)
@@ -108,6 +152,14 @@ class FreelanceInvoiceServiceTest {
                     ),
                 )
             }
+
+        val rawPayoutSnapshot =
+            transaction {
+                InvoiceEntity.findById(UUID.fromString(createdFreelanceInvoice.id))?.payoutSnapshot
+            }
+        assertNotNull(rawPayoutSnapshot)
+        assertTrue(rawPayoutSnapshot.contains(":"))
+        assertFailsWith<SerializationException> { Json.decodeFromString<FreelanceInvoicePayoutSnapshot>(rawPayoutSnapshot) }
 
         val payoutSnapshot =
             Json.decodeFromString<FreelanceInvoicePayoutSnapshot>(assertNotNull(createdFreelanceInvoice.payoutSnapshot))
@@ -296,7 +348,7 @@ class FreelanceInvoiceServiceTest {
     @Test
     fun `rejects unpaid lightning invoice payment`() {
         val unpaidLightningBackend = FakeLightningBackend("unpaid-freelance-payment-hash", incomingPaymentIsPaid = false)
-        val unpaidFreelanceInvoiceService = FreelanceInvoiceService(unpaidLightningBackend, WalletRateService())
+        val unpaidFreelanceInvoiceService = FreelanceInvoiceService(environment, unpaidLightningBackend, WalletRateService())
         val currencyId = ExposedTestDb.seedCurrency("USD")
         val clientId = ExposedTestDb.seedFreelanceClient(currencyId = currencyId, paymentMethod = "lightning")
         val projectId = ExposedTestDb.seedFreelanceProject(clientId = clientId, hourlyRateCents = 10_000)
@@ -352,6 +404,21 @@ class FreelanceInvoiceServiceTest {
                         TimeEntriesTable.id eq EntityID(UUID.fromString(timeEntryId), TimeEntriesTable)
                     }.single()
             timeEntry.isLocked && timeEntry.invoiceId?.value?.toString() == invoiceId
+        }
+
+    private fun timeEntryIsLocked(timeEntryId: String): Boolean =
+        transaction {
+            val timeEntry =
+                TimeEntryEntity
+                    .find {
+                        TimeEntriesTable.id eq EntityID(UUID.fromString(timeEntryId), TimeEntriesTable)
+                    }.single()
+            timeEntry.isLocked || timeEntry.invoiceId != null
+        }
+
+    private fun invoiceCount(): Long =
+        transaction {
+            InvoiceEntity.all().count()
         }
 
     private fun paymentMethodNamesForInvoice(invoiceId: String): List<String> =

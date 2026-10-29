@@ -53,6 +53,7 @@ import pos.ambrosia.services.SecretsStore
 import pos.ambrosia.services.TokenService
 import pos.ambrosia.services.WalletAdminNotificationService
 import pos.ambrosia.services.WalletRateService
+import pos.ambrosia.utils.AttemptLockoutTracker
 import pos.ambrosia.utils.Bolt11Decoder
 import pos.ambrosia.utils.InvalidCredentialsException
 import pos.ambrosia.utils.NwcConnectionException
@@ -60,6 +61,10 @@ import pos.ambrosia.utils.SecretsLockedException
 import pos.ambrosia.utils.UnsupportedBackendOperationException
 import pos.ambrosia.utils.authenticateAdmin
 import pos.ambrosia.utils.getCurrentUser
+import pos.ambrosia.utils.recordFailureAndRespondIfLockedOut
+import pos.ambrosia.utils.respondIfLockedOut
+
+private val walletPasswordAttemptLockout = AttemptLockoutTracker()
 
 fun Application.configureWallet() {
     val walletAdminNotificationService =
@@ -116,8 +121,10 @@ fun Route.wallet(
                     call.request.header("X-Forwarded-Proto") == "https"
             val rolePassword = call.receive<RolePassword>()
             val userInfo = call.getCurrentUser() ?: throw InvalidCredentialsException()
+            if (call.respondIfLockedOut(walletPasswordAttemptLockout, userInfo.userId)) return@post
             val isAuthenticated = authService.authenticateByRole(userInfo.userId, rolePassword.password.toCharArray())
             if (isAuthenticated == true) {
+                walletPasswordAttemptLockout.reset(userInfo.userId)
                 val token = tokenService.generateWalletAccessToken(userInfo.userId)
                 val decoded = JWT.decode(token)
                 val expiresAt = decoded.expiresAt?.time ?: System.currentTimeMillis()
@@ -133,7 +140,9 @@ fun Route.wallet(
                 )
                 call.respond(HttpStatusCode.OK, WalletAuthResponse("Login successful", expiresAt))
             } else {
-                call.respond(HttpStatusCode.Unauthorized)
+                if (!call.recordFailureAndRespondIfLockedOut(walletPasswordAttemptLockout, userInfo.userId)) {
+                    call.respond(HttpStatusCode.Unauthorized)
+                }
             }
         }
         post("/logout") {
@@ -150,12 +159,15 @@ fun Route.wallet(
                 return@post
             }
             val actorUserId = call.walletActorUserId() ?: throw InvalidCredentialsException()
+            if (call.respondIfLockedOut(walletPasswordAttemptLockout, actorUserId)) return@post
             val currentPasswordIsValid =
                 authService.authenticateByRole(actorUserId, passwordChangeRequest.currentPassword.toCharArray())
             if (!currentPasswordIsValid) {
+                walletPasswordAttemptLockout.recordFailure(actorUserId)
                 call.respond(HttpStatusCode.Unauthorized, Message("Current password is incorrect"))
                 return@post
             }
+            walletPasswordAttemptLockout.reset(actorUserId)
             val passwordWasUpdated =
                 rolesService.updateWalletPasswordForUser(actorUserId, passwordChangeRequest.newPassword.toCharArray())
             if (!passwordWasUpdated) {

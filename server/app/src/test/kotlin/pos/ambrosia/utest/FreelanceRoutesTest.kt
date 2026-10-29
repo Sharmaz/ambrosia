@@ -14,6 +14,7 @@ import io.ktor.server.application.install
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.server.testing.testApplication
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import org.junit.After
@@ -30,6 +31,7 @@ import pos.ambrosia.utils.withAuthCookies
 import java.io.File
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 class FreelanceRoutesTest {
     private lateinit var databaseFile: File
@@ -67,7 +69,7 @@ class FreelanceRoutesTest {
                             "currencyId":"$currencyId",
                             "hourlyRateCents":7500,
                             "billingCycle":"monthly",
-                            "paymentMethod":"bank"
+                            "paymentMethods":["bank","lightning"]
                         }""",
                     )
                 }
@@ -83,7 +85,7 @@ class FreelanceRoutesTest {
                             "currencyId":"$currencyId",
                             "hourlyRateCents":9000,
                             "billingCycle":"weekly",
-                            "paymentMethod":"lightning"
+                            "paymentMethods":["lightning","bank"]
                         }""",
                     )
                 }
@@ -93,6 +95,14 @@ class FreelanceRoutesTest {
             assertEquals(HttpStatusCode.Created, createClientResponse.status)
             assertEquals(HttpStatusCode.OK, listClientsResponse.status)
             assertEquals(HttpStatusCode.OK, getClientResponse.status)
+            assertEquals(
+                listOf("bank"),
+                Json
+                    .parseToJsonElement(getClientResponse.bodyAsText())
+                    .jsonObject["paymentMethods"]!!
+                    .jsonArray
+                    .map { paymentMethodJsonElement -> paymentMethodJsonElement.jsonPrimitive.content },
+            )
             assertEquals(HttpStatusCode.OK, updateClientResponse.status)
             assertEquals(HttpStatusCode.NoContent, deleteClientResponse.status)
             assertEquals(HttpStatusCode.NotFound, getDeletedClientResponse.status)
@@ -135,6 +145,33 @@ class FreelanceRoutesTest {
         }
 
     @Test
+    fun `project routes list projects filtered by status`() =
+        testApplication {
+            val authCookies = installAdminAuth()
+            grantFreelancePermissions("admin-test-role", projectPermissions)
+            ExposedTestDb.seedFreelanceProject(name = "In Progress", status = "in_progress")
+            ExposedTestDb.seedFreelanceProject(name = "Pending", status = "pending")
+            application {
+                install(ContentNegotiation) { json() }
+                handler()
+                configureProjects()
+            }
+
+            val inProgressProjectsResponse =
+                client.get("/freelance/projects?status=in_progress") { withAuthCookies(authCookies) }
+            val invalidStatusResponse = client.get("/freelance/projects?status=unknown") { withAuthCookies(authCookies) }
+
+            assertEquals(HttpStatusCode.OK, inProgressProjectsResponse.status)
+            val inProgressProjectNames =
+                Json
+                    .parseToJsonElement(inProgressProjectsResponse.bodyAsText())
+                    .jsonArray
+                    .map { project -> project.jsonObject["name"]?.jsonPrimitive?.content }
+            assertEquals(listOf("In Progress"), inProgressProjectNames)
+            assertEquals(HttpStatusCode.BadRequest, invalidStatusResponse.status)
+        }
+
+    @Test
     fun `project routes get update and soft delete projects`() =
         testApplication {
             val authCookies = installAdminAuth()
@@ -147,6 +184,7 @@ class FreelanceRoutesTest {
             }
 
             val getProjectResponse = client.get("/freelance/projects/$projectId") { withAuthCookies(authCookies) }
+            val listProjectsResponse = client.get("/freelance/projects") { withAuthCookies(authCookies) }
             val updateProjectResponse =
                 client.put("/freelance/projects/$projectId") {
                     withAuthCookies(authCookies)
@@ -164,6 +202,7 @@ class FreelanceRoutesTest {
             val getDeletedProjectResponse = client.get("/freelance/projects/$projectId") { withAuthCookies(authCookies) }
 
             assertEquals(HttpStatusCode.OK, getProjectResponse.status)
+            assertEquals(HttpStatusCode.OK, listProjectsResponse.status)
             assertEquals(HttpStatusCode.OK, updateProjectResponse.status)
             assertEquals(HttpStatusCode.NoContent, deleteProjectResponse.status)
             assertEquals(HttpStatusCode.NotFound, getDeletedProjectResponse.status)
@@ -256,6 +295,28 @@ class FreelanceRoutesTest {
         }
 
     @Test
+    fun `payout account routes reject a blank lightning address with conflict when no lightning backend is active`() =
+        testApplication {
+            val authCookies = installAdminAuth()
+            grantFreelancePermissions("admin-test-role", payoutAccountPermissions)
+            application {
+                install(ContentNegotiation) { json() }
+                handler()
+                configurePayoutAccounts()
+            }
+
+            val nodeLightningResponse =
+                client.post("/freelance/payout-accounts") {
+                    withAuthCookies(authCookies)
+                    header(HttpHeaders.ContentType, "application/json")
+                    setBody("""{"type":"lightning","lightningAddress":null}""")
+                }
+
+            assertEquals(HttpStatusCode.Conflict, nodeLightningResponse.status)
+            assertTrue(nodeLightningResponse.bodyAsText().contains("Lightning address is required"))
+        }
+
+    @Test
     fun `task routes create list get update and soft delete tasks`() =
         testApplication {
             val authCookies = installAdminAuth()
@@ -319,10 +380,12 @@ class FreelanceRoutesTest {
             val projectId = ExposedTestDb.seedFreelanceProject()
 
             assertEquals(HttpStatusCode.Forbidden, client.get("/freelance/clients") { withAuthCookies(authCookies) }.status)
+            assertEquals(HttpStatusCode.Forbidden, client.get("/freelance/projects") { withAuthCookies(authCookies) }.status)
             assertEquals(
                 HttpStatusCode.Forbidden,
                 client.get("/freelance/projects/$projectId") { withAuthCookies(authCookies) }.status,
             )
+            assertEquals(HttpStatusCode.Forbidden, client.get("/freelance/projects") { withAuthCookies(authCookies) }.status)
         }
 
     private fun grantFreelancePermissions(

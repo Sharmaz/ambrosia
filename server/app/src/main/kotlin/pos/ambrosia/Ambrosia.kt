@@ -182,6 +182,8 @@ class Ambrosia : CliktCommand() {
             ).flag()
         val jwtAccessTokenExpirationSeconds by
             option("--jwt-access-token-expiration", help = "Access token expiration in seconds").default("60")
+        val rateLimitRequestsPerMinute by
+            option("--rate-limit-requests-per-minute", help = "Global per-IP request limit per minute").default("300")
         val phoenixdWebhookSecret by
             option(
                 "--phoenixd-webhook-secret",
@@ -255,6 +257,7 @@ class Ambrosia : CliktCommand() {
                             config =
                                 MapApplicationConfig().apply {
                                     put("jwt.accessTokenExpirationSeconds", options.jwtAccessTokenExpirationSeconds)
+                                    put("rate-limit.requestsPerMinute", options.rateLimitRequestsPerMinute)
                                     put("jwt.issuer", TokenService.JWT_ISSUER)
                                     put("jwt.audience", TokenService.JWT_AUDIENCE)
                                     put("docker", options.docker.toString())

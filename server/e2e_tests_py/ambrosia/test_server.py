@@ -35,7 +35,8 @@ class AmbrosiaTestServer:
     DEFAULT_EXTRA_ARGS = (
         "--phoenixd-url=http://localhost:9740 "
         "--phoenixd-password=test-password "
-        "--phoenixd-webhook-secret=test-webhook-secret"
+        "--phoenixd-webhook-secret=test-webhook-secret "
+        "--rate-limit-requests-per-minute=100000"
     )
 
     # Timeout settings

@@ -6,14 +6,18 @@ import io.ktor.http.HttpHeaders
 import io.ktor.server.config.MapApplicationConfig
 import io.ktor.server.engine.applicationEnvironment
 import io.ktor.server.testing.ApplicationTestBuilder
+import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import pos.ambrosia.configureAuthentication
+import pos.ambrosia.db.tables.UserEntity
 import pos.ambrosia.models.AuthResponse
 import pos.ambrosia.services.PermissionsService
 import pos.ambrosia.services.TokenService
+import java.util.UUID
 
 private const val TEST_SECRET = "admin-auth-test-fixture-secret"
 private const val TEST_ISSUER = "admin-auth-test-fixture-issuer"
 private const val TEST_AUDIENCE = "admin-auth-test-fixture-audience"
+const val TEST_USER_PIN = "1234"
 
 data class AuthCookies(
     val accessToken: String,
@@ -52,7 +56,15 @@ private fun ApplicationTestBuilder.installAuth(
     val roleId = ExposedTestDb.seedRole(roleName, isAdmin = isAdmin)
     val userId = ExposedTestDb.seedUser(userName, roleId)
 
-    val tokenService = TokenService(applicationEnvironment { config = testApplicationConfig })
+    val testEnvironment = applicationEnvironment { config = testApplicationConfig }
+    transaction {
+        UserEntity.findById(UUID.fromString(userId))?.pin =
+            SecurePinProcessor.byteArrayToBase64(
+                SecurePinProcessor.hashPinForStorage(TEST_USER_PIN.toCharArray(), userId, testEnvironment),
+            )
+    }
+
+    val tokenService = TokenService(testEnvironment)
     val seededUser =
         AuthResponse(
             id = userId,

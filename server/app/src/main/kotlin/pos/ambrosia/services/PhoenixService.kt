@@ -17,15 +17,18 @@ import io.ktor.http.Parameters
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.application.ApplicationEnvironment
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObjectBuilder
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import pos.ambrosia.config.AppConfig
 import pos.ambrosia.logger
+import pos.ambrosia.models.phoenix.Channel
 import pos.ambrosia.models.phoenix.CloseChannelRequest
 import pos.ambrosia.models.phoenix.CloseChannelResponse
 import pos.ambrosia.models.phoenix.CreateInvoiceRequest
@@ -42,6 +45,7 @@ import pos.ambrosia.models.phoenix.PaymentResponse
 import pos.ambrosia.models.phoenix.PhoenixBalance
 import pos.ambrosia.utils.Bolt11Decoder
 import pos.ambrosia.utils.PhoenixBalanceException
+import pos.ambrosia.utils.PhoenixChannelNotAvailableException
 import pos.ambrosia.utils.PhoenixConnectionException
 import pos.ambrosia.utils.PhoenixNodeInfoException
 import pos.ambrosia.utils.PhoenixServiceException
@@ -446,18 +450,22 @@ class PhoenixService(
     /** Get node information from Phoenix */
     override suspend fun getNodeInfo(): NodeInfo {
         try {
-            val response: HttpResponse = httpClient.get("$phoenixdUrl/getinfo")
-            if (response.status.value != 200) {
+            val getInfoHttpResponse: HttpResponse = httpClient.get("$phoenixdUrl/getinfo")
+            if (getInfoHttpResponse.status.value != 200) {
                 throw PhoenixNodeInfoException(
-                    "Phoenix node returned status code: ${response.status.value}",
+                    "Phoenix node returned status code: ${getInfoHttpResponse.status.value}",
                 )
             }
 
-            return response.body<NodeInfo>()
-        } catch (e: PhoenixNodeInfoException) {
-            throw e
-        } catch (e: Exception) {
-            throw PhoenixConnectionException("Failed to connect to Phoenix node: ${e.message}")
+            val nodeInfo = getInfoHttpResponse.body<NodeInfo>()
+            val normalizedChannels = nodeInfo.channels.map { it.withNormalizedState() }
+            return nodeInfo.copy(channels = resolveMissingChannelId(normalizedChannels))
+        } catch (phoenixNodeInfoException: PhoenixNodeInfoException) {
+            throw phoenixNodeInfoException
+        } catch (nodeInfoRequestException: Exception) {
+            throw PhoenixConnectionException(
+                "Failed to connect to Phoenix node: ${nodeInfoRequestException.message}",
+            )
         }
     }
 
@@ -480,7 +488,7 @@ class PhoenixService(
     /** Close a channel and send funds to an on-chain address */
     override suspend fun closeChannel(request: CloseChannelRequest): CloseChannelResponse {
         try {
-            val response: HttpResponse =
+            val closeChannelHttpResponse: HttpResponse =
                 httpClient.submitForm(
                     url = "$phoenixdUrl/closechannel",
                     formParameters =
@@ -490,13 +498,27 @@ class PhoenixService(
                             append("feerateSatByte", request.feerateSatByte.toString())
                         },
                 )
-            if (response.status.value != 200) {
-                throw PhoenixServiceException("Phoenix node returned ${response.status.value}")
+            if (closeChannelHttpResponse.status.value != 200) {
+                val errorBody = closeChannelHttpResponse.bodyAsText()
+                throw PhoenixServiceException(
+                    "Phoenix node returned ${closeChannelHttpResponse.status.value}: $errorBody",
+                )
             }
 
-            return CloseChannelResponse(txId = response.bodyAsText().trim())
-        } catch (e: Exception) {
-            throw PhoenixServiceException("Failed to close channel on Phoenix: ${e.message}")
+            val txId = closeChannelHttpResponse.bodyAsText().trim()
+            if (txId.contains("no channel available")) {
+                throw PhoenixChannelNotAvailableException()
+            }
+
+            return CloseChannelResponse(txId = txId)
+        } catch (channelNotAvailableException: PhoenixChannelNotAvailableException) {
+            throw channelNotAvailableException
+        } catch (phoenixServiceException: PhoenixServiceException) {
+            throw phoenixServiceException
+        } catch (closeChannelRequestException: Exception) {
+            throw PhoenixServiceException(
+                "Failed to close channel on Phoenix: ${closeChannelRequestException.message}",
+            )
         }
     }
     //endregion
@@ -634,6 +656,62 @@ class PhoenixService(
 
         logger.info("Outgoing Lightning payment diagnostic: $diagnosticPayload")
     }
+
+    private fun Channel.withNormalizedState(): Channel = copy(state = state.substringBefore('('))
+
+    private suspend fun resolveMissingChannelId(channels: List<Channel>): List<Channel> {
+        val channelsMissingChannelId = channels.filter { it.channelId == null }
+        if (channelsMissingChannelId.isEmpty()) return channels
+
+        val knownChannelIds = channels.mapNotNull { it.channelId }.toSet()
+        val unassignedChannelIds =
+            try {
+                fetchChannelIdsFromListChannels().filterNot { it in knownChannelIds }
+            } catch (listChannelsException: Exception) {
+                logger.warn("Failed to resolve channel IDs from /listchannels: ${listChannelsException.message}")
+                return channels
+            }
+
+        if (channelsMissingChannelId.size != 1 || unassignedChannelIds.size != 1) {
+            logger.warn(
+                "Cannot safely resolve channel IDs from /listchannels: " +
+                    "${channelsMissingChannelId.size} channel(s) missing an ID, " +
+                    "${unassignedChannelIds.size} unassigned ID(s) found",
+            )
+            return channels
+        }
+
+        val resolvedChannelId = unassignedChannelIds.single()
+        return channels.map { channel ->
+            if (channel.channelId == null) channel.copy(channelId = resolvedChannelId) else channel
+        }
+    }
+
+    private suspend fun fetchChannelIdsFromListChannels(): List<String> {
+        val listChannelsHttpResponse = httpClient.get("$phoenixdUrl/listchannels")
+        if (listChannelsHttpResponse.status.value != 200) {
+            throw PhoenixServiceException("Phoenix node returned ${listChannelsHttpResponse.status.value}")
+        }
+
+        val listChannelsJson = phoenixJson.parseToJsonElement(listChannelsHttpResponse.bodyAsText()).jsonArray
+        return listChannelsJson.mapNotNull { channelElement -> channelElement.extractChannelIdOrNull() }
+    }
+
+    private fun JsonElement.extractChannelIdOrNull(): String? =
+        try {
+            val channelObject = jsonObject
+            val commitments =
+                channelObject["commitments"]?.jsonObject
+                    ?: channelObject["state"]?.jsonObject?.get("commitments")?.jsonObject
+            commitments
+                ?.get("channelParams")
+                ?.jsonObject
+                ?.get("channelId")
+                ?.jsonPrimitive
+                ?.contentOrNull
+        } catch (unexpectedChannelShapeException: Exception) {
+            null
+        }
 
     private fun elapsedMilliseconds(startedAtMillis: Long): Long = System.currentTimeMillis() - startedAtMillis
 

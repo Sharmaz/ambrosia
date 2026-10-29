@@ -18,6 +18,7 @@ PHOENIX_STUB="${TEMPLATES_DIR}/phoenix.conf.stub"
 TARGET_CADDYFILE="/etc/caddy/Caddyfile"
 TARGET_AMBROSIA_CONF="${RUNTIME_HOME}/.Ambrosia-POS/ambrosia.conf"
 TARGET_PHOENIX_CONF="${RUNTIME_HOME}/.phoenix/phoenix.conf"
+DEFAULT_ADMIN_PASSWORD="Ambrosia2026!"
 
 ambrosia_hostname=""
 ambrosia_admin_password=""
@@ -154,17 +155,7 @@ render_ambrosia_conf() {
 
 apply_admin_password() {
   rm -f "$STATE_DIR/operator-password"
-  local password_to_apply="$ambrosia_admin_password"
-  if [[ -z "$password_to_apply" ]]; then
-    password_to_apply=$(openssl rand -hex 12)
-    # The operator credential must not be shared across units or written to
-    # the world-readable firstboot log. Headless operators should preseed it.
-    install -m 0600 -o root -g root /dev/null "$STATE_DIR/operator-password"
-    printf '%s\n' "$password_to_apply" > "$STATE_DIR/operator-password"
-    if [[ -w /dev/console ]]; then
-      printf '\nAmbrosia operator login: %s\nPassword: %s\n' "$OPERATOR_USER" "$password_to_apply" > /dev/console
-    fi
-  fi
+  local password_to_apply="${ambrosia_admin_password:-$DEFAULT_ADMIN_PASSWORD}"
   printf '%s:%s\n' "$OPERATOR_USER" "$password_to_apply" | chpasswd
 }
 

@@ -131,6 +131,17 @@ data class User(
 )
 
 @Serializable
+data class CreateUserRequest(
+    val user: User,
+    val currentUserPin: String,
+)
+
+@Serializable
+data class CurrentUserPinRequest(
+    val currentUserPin: String,
+)
+
+@Serializable
 data class UserIdentity(
     val id: String,
     val name: String,
@@ -145,6 +156,7 @@ data class UpdateUserRequest(
     val roleId: String? = null,
     val email: String? = null,
     val phone: String? = null,
+    val currentUserPin: String? = null,
 )
 
 @Serializable
@@ -161,6 +173,7 @@ data class UpsertRoleRequest(
     val password: String? = null,
     val isAdmin: Boolean? = false,
     val permissions: List<String>? = null,
+    val currentUserPin: String? = null,
 )
 
 @Serializable data class Space(
@@ -530,6 +543,7 @@ data class VapidPublicKeyResponse(
 
 @Serializable data class RolePermissionsUpdateRequest(
     val permissions: List<String>,
+    val currentUserPin: String? = null,
 )
 
 @Serializable data class RolePermissionsUpdateResult(
@@ -544,6 +558,12 @@ enum class PrinterType {
 }
 
 @Serializable
+enum class CashDrawerPin {
+    PIN_2,
+    PIN_5,
+}
+
+@Serializable
 data class PrinterConfig(
     val id: String,
     val printerType: PrinterType,
@@ -552,6 +572,12 @@ data class PrinterConfig(
     val isDefault: Boolean = false,
     val enabled: Boolean = true,
     val createdAt: String? = null,
+    val cashDrawerEnabled: Boolean = false,
+    val cashDrawerPin: CashDrawerPin = CashDrawerPin.PIN_2,
+    val cashDrawerPaymentMethodIds: List<String> = emptyList(),
+    val openCashDrawerOnRefund: Boolean = true,
+    val openCashDrawerOnShiftOpen: Boolean = true,
+    val openCashDrawerOnShiftClose: Boolean = true,
 )
 
 @Serializable
@@ -561,6 +587,12 @@ data class PrinterConfigCreateRequest(
     val templateName: String? = null,
     val isDefault: Boolean = false,
     val enabled: Boolean = true,
+    val cashDrawerEnabled: Boolean = false,
+    val cashDrawerPin: CashDrawerPin = CashDrawerPin.PIN_2,
+    val cashDrawerPaymentMethodIds: List<String> = emptyList(),
+    val openCashDrawerOnRefund: Boolean = true,
+    val openCashDrawerOnShiftOpen: Boolean = true,
+    val openCashDrawerOnShiftClose: Boolean = true,
 )
 
 @Serializable
@@ -570,6 +602,17 @@ data class PrinterConfigUpdateRequest(
     val templateName: String? = null,
     val isDefault: Boolean? = null,
     val enabled: Boolean? = null,
+    val cashDrawerEnabled: Boolean? = null,
+    val cashDrawerPin: CashDrawerPin? = null,
+    val cashDrawerPaymentMethodIds: List<String>? = null,
+    val openCashDrawerOnRefund: Boolean? = null,
+    val openCashDrawerOnShiftOpen: Boolean? = null,
+    val openCashDrawerOnShiftClose: Boolean? = null,
+)
+
+@Serializable
+data class OpenCashDrawerRequest(
+    val printerId: String? = null,
 )
 
 @Serializable data class SetPrinterRequest(
@@ -592,7 +635,15 @@ data class Config(
     val timezone: String = "America/Mexico_City",
     val tipsEnabled: Boolean = true,
     val tipPercentages: String = "10,15,20",
+    val customTipDefaultType: String = "percentage",
     val priceStep: Double = 0.01,
+)
+
+@Serializable
+data class PublicConfig(
+    val businessType: String,
+    val businessName: String,
+    val businessLogoUrl: String?,
 )
 
 @Serializable
@@ -603,6 +654,7 @@ data class FreelanceClient(
     val hourlyRateCents: Int,
     val billingCycle: String,
     val paymentMethod: String,
+    val paymentMethods: List<String> = listOf(paymentMethod),
     val payoutAccountId: String? = null,
     val isDeleted: Boolean = false,
     val createdAt: String,
@@ -614,7 +666,8 @@ data class FreelanceClientUpsert(
     val currencyId: String,
     val hourlyRateCents: Int,
     val billingCycle: String,
-    val paymentMethod: String,
+    val paymentMethod: String? = null,
+    val paymentMethods: List<String> = emptyList(),
     val payoutAccountId: String? = null,
 )
 
@@ -696,6 +749,31 @@ data class CreateFreelanceInvoiceRequest(
 data class PayFreelanceInvoiceRequest(
     val amountCents: Int? = null,
     val transactionId: String? = null,
+)
+
+@Serializable
+data class FreelanceInvoicePreviewLineItemResponse(
+    val projectId: String,
+    val projectName: String,
+    val taskId: String,
+    val taskName: String,
+    val quantityMinutes: Int,
+    val rateCents: Int,
+    val amountCents: Int,
+)
+
+@Serializable
+data class FreelanceInvoicePreviewResponse(
+    val clientId: String,
+    val clientName: String,
+    val currencyId: String,
+    val currencyAcronym: String,
+    val periodStart: String,
+    val periodEnd: String,
+    val totalCents: Int,
+    val payoutSnapshot: String? = null,
+    val paymentMethod: String,
+    val lineItems: List<FreelanceInvoicePreviewLineItemResponse> = emptyList(),
 )
 
 @Serializable
@@ -1042,7 +1120,8 @@ data class IncomingPaymentWithRate(
 @Serializable
 data class CreateTimeEntryRequest(
     val projectId: String,
-    val taskId: String,
+    val taskId: String? = null,
+    val taskName: String? = null,
     val entryDate: String,
     val startTime: String? = null,
     val endTime: String? = null,
@@ -1053,7 +1132,8 @@ data class CreateTimeEntryRequest(
 @Serializable
 data class UpdateTimeEntryRequest(
     val projectId: String,
-    val taskId: String,
+    val taskId: String? = null,
+    val taskName: String? = null,
     val entryDate: String,
     val startTime: String? = null,
     val endTime: String? = null,

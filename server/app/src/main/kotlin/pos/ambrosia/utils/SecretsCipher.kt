@@ -4,6 +4,7 @@ import org.bouncycastle.crypto.generators.Argon2BytesGenerator
 import org.bouncycastle.crypto.params.Argon2Parameters
 import org.bouncycastle.util.encoders.Hex
 import java.security.SecureRandom
+import java.util.concurrent.ConcurrentHashMap
 import javax.crypto.Cipher
 import javax.crypto.spec.GCMParameterSpec
 import javax.crypto.spec.SecretKeySpec
@@ -16,7 +17,9 @@ object SecretsCipher {
     private const val INITIALIZATION_VECTOR_LENGTH_BYTES = 12
     private const val AUTHENTICATION_TAG_LENGTH_BITS = 128
     private const val ENVELOPE_SEPARATOR = ":"
+    private val FIELD_ENCRYPTION_KDF_SALT = "ambrosia-pii-field-encryption-salt".toByteArray(Charsets.UTF_8)
     private val secureRandom = SecureRandom()
+    private val fieldEncryptionKeysBySecret = ConcurrentHashMap<String, SecretKeySpec>()
 
     fun deriveKey(
         unlockPassword: CharArray,
@@ -41,6 +44,11 @@ object SecretsCipher {
 
         return SecretKeySpec(derivedKeyBytes, "AES")
     }
+
+    fun deriveFieldEncryptionKey(applicationSecret: String): SecretKeySpec =
+        fieldEncryptionKeysBySecret.computeIfAbsent(applicationSecret) {
+            deriveKey(applicationSecret.toCharArray(), FIELD_ENCRYPTION_KDF_SALT)
+        }
 
     fun encrypt(
         plaintext: String,
@@ -78,4 +86,14 @@ object SecretsCipher {
 
         return String(cipher.doFinal(ciphertext), Charsets.UTF_8)
     }
+
+    fun encryptOrNull(
+        plaintext: String?,
+        secretKey: SecretKeySpec,
+    ): String? = plaintext?.let { encrypt(it, secretKey) }
+
+    fun decryptOrNull(
+        envelope: String?,
+        secretKey: SecretKeySpec,
+    ): String? = envelope?.let { decrypt(it, secretKey) }
 }

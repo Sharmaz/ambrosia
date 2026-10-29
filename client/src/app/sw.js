@@ -9,6 +9,7 @@ import {
   ADMIN_NOTIFICATIONS_ROUTE,
   getAdminActivityNotificationCopy,
 } from "@/lib/adminNotifications";
+import { BTC_CHECKOUT_ENDPOINT, buildBtcCheckoutPaymentStatusEndpoint } from "@/lib/btcCheckoutEndpoints";
 import {
   getPendingCheckouts,
   markCheckoutCompleted,
@@ -148,7 +149,7 @@ async function recoverPendingCheckouts() {
   for (const entry of pending) {
     try {
       const statusResponse = await httpClient(
-        `store/orders/payment-status/${entry.paymentHash}`,
+        buildBtcCheckoutPaymentStatusEndpoint(entry.paymentHash),
       );
       const statusData = await parseJsonResponse(statusResponse);
       if (!statusResponse.ok) continue;
@@ -159,7 +160,7 @@ async function recoverPendingCheckouts() {
       }
 
       if (statusData?.status === "paid") {
-        const checkoutResponse = await httpClient("store/orders/checkout", {
+        const checkoutResponse = await httpClient(BTC_CHECKOUT_ENDPOINT, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(entry.checkoutPayload),

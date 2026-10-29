@@ -333,7 +333,7 @@ describe("Users page", () => {
       fireEvent.click(screen.getByText("modal.deleteButton"));
     });
 
-    expect(mockDeleteUser).toHaveBeenCalledWith(1);
+    expect(mockDeleteUser).toHaveBeenCalledWith(1, "");
     expect(addToast).toHaveBeenCalledWith({
       description: "toasts.deleteSuccess",
       color: "success",
@@ -359,7 +359,7 @@ describe("Users page", () => {
       fireEvent.click(screen.getByText("modal.deleteButton"));
     });
 
-    expect(mockDeleteUser).toHaveBeenCalledWith(1);
+    expect(mockDeleteUser).toHaveBeenCalledWith(1, "");
     expect(addToast).not.toHaveBeenCalledWith({
       description: "toasts.deleteSuccess",
       color: "success",

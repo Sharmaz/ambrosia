@@ -1,12 +1,15 @@
 import { exec } from 'child_process';
 import fs from 'fs';
 import { createRequire } from 'module';
+import os from 'os';
 import path from 'path';
 
 import { STARTUP } from '../utils/constants.js';
 import { healthCheck } from '../utils/healthCheck.js';
 import { logger } from '../utils/logger.js';
 import { getPhoenixdPath, getPhoenixDataDirectory, getLogsDirectory, getBasePath } from '../utils/resourcePaths.js';
+
+import { phoenixdCredentialsStore } from './PhoenixdCredentialsStore.js';
 
 const require = createRequire(import.meta.url);
 const spawn = require('cross-spawn');
@@ -18,12 +21,28 @@ function stripConflictingJavaEnvVars(environment) {
   CONFLICTING_JAVA_ENV_VARS.forEach((envVarName) => delete environment[envVarName]);
 }
 
+function writeCredentialsTempDirectory(httpPassword, httpPasswordLimitedAccess) {
+  const temporaryDirectory = fs.mkdtempSync(path.join(os.tmpdir(), 'ambrosia-phoenixd-'));
+  const httpPasswordFilePath = path.join(temporaryDirectory, 'http-password');
+  const httpPasswordLimitedAccessFilePath = path.join(temporaryDirectory, 'http-password-limited-access');
+
+  fs.writeFileSync(httpPasswordFilePath, httpPassword, { mode: 0o600 });
+  fs.writeFileSync(httpPasswordLimitedAccessFilePath, httpPasswordLimitedAccess, { mode: 0o600 });
+
+  return { temporaryDirectory, httpPasswordFilePath, httpPasswordLimitedAccessFilePath };
+}
+
+function removeCredentialsTempDirectory(temporaryDirectory) {
+  fs.rmSync(temporaryDirectory, { recursive: true, force: true });
+}
+
 export default class PhoenixdService {
   constructor() {
     this.process = null;
     this.status = 'stopped';
     this.port = null;
     this.logStream = null;
+    this.credentialsTempDirectory = null;
   }
 
   async start(port) {
@@ -50,10 +69,25 @@ export default class PhoenixdService {
       const logFile = path.join(logsDirectory, `phoenixd-${new Date().toISOString().split('T')[0]}.log`);
       this.logStream = fs.createWriteStream(logFile, { flags: 'a' });
 
+      const httpPassword = phoenixdCredentialsStore.readHttpPassword();
+      const httpPasswordLimitedAccess = phoenixdCredentialsStore.readHttpPasswordLimitedAccess();
+      if (!httpPassword || !httpPasswordLimitedAccess) {
+        throw new Error('Phoenixd http-password credentials are not available — cannot start phoenixd securely');
+      }
+
+      const {
+        temporaryDirectory,
+        httpPasswordFilePath,
+        httpPasswordLimitedAccessFilePath,
+      } = writeCredentialsTempDirectory(httpPassword, httpPasswordLimitedAccess);
+      this.credentialsTempDirectory = temporaryDirectory;
+
       const commandArguments = [
         '--agree-to-terms-of-service',
         `--http-bind-ip=127.0.0.1`,
         `--http-bind-port=${port}`,
+        `--http-password-file=${httpPasswordFilePath}`,
+        `--http-password-limited-access-file=${httpPasswordLimitedAccessFilePath}`,
       ];
 
       logger.log(`[PhoenixdService] Starting phoenixd at port ${port}...`);
@@ -123,6 +157,11 @@ export default class PhoenixdService {
       this.status = 'error';
       await this.stop();
       throw startupError;
+    } finally {
+      if (this.credentialsTempDirectory) {
+        removeCredentialsTempDirectory(this.credentialsTempDirectory);
+        this.credentialsTempDirectory = null;
+      }
     }
   }
 

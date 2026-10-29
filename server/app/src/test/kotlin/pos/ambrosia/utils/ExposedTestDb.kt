@@ -14,6 +14,7 @@ import pos.ambrosia.db.tables.BaseCurrencyTable
 import pos.ambrosia.db.tables.CategoriesTable
 import pos.ambrosia.db.tables.CategoryEntity
 import pos.ambrosia.db.tables.ClientEntity
+import pos.ambrosia.db.tables.ClientPaymentMethodsTable
 import pos.ambrosia.db.tables.ClientsTable
 import pos.ambrosia.db.tables.ConfigEntity
 import pos.ambrosia.db.tables.ConfigTable
@@ -44,6 +45,7 @@ import pos.ambrosia.db.tables.PayoutAccountEntity
 import pos.ambrosia.db.tables.PayoutAccountsTable
 import pos.ambrosia.db.tables.PermissionEntity
 import pos.ambrosia.db.tables.PermissionsTable
+import pos.ambrosia.db.tables.PrinterConfigCashDrawerPaymentMethodsTable
 import pos.ambrosia.db.tables.PrinterConfigEntity
 import pos.ambrosia.db.tables.PrinterConfigsTable
 import pos.ambrosia.db.tables.ProductBundleComponentsTable
@@ -126,6 +128,7 @@ object ExposedTestDb {
                 DishesIngredientsTable,
                 ShiftsTable,
                 PrinterConfigsTable,
+                PrinterConfigCashDrawerPaymentMethodsTable,
                 TicketTemplatesTable,
                 TicketTemplateElementsTable,
                 OrderProductsTable,
@@ -136,6 +139,7 @@ object ExposedTestDb {
                 PushSubscriptionsTable,
                 PayoutAccountsTable,
                 ClientsTable,
+                ClientPaymentMethodsTable,
                 ProjectsTable,
                 TasksTable,
                 InvoicesTable,
@@ -156,12 +160,14 @@ object ExposedTestDb {
                 InvoicesTable,
                 TasksTable,
                 ProjectsTable,
+                ClientPaymentMethodsTable,
                 ClientsTable,
                 PayoutAccountsTable,
                 RefundsTable,
                 OrderProductsTable,
                 TicketTemplateElementsTable,
                 TicketTemplatesTable,
+                PrinterConfigCashDrawerPaymentMethodsTable,
                 PrinterConfigsTable,
                 PushSubscriptionsTable,
                 InvoicePaymentsTable,
@@ -170,6 +176,7 @@ object ExposedTestDb {
                 InvoicesTable,
                 TasksTable,
                 ProjectsTable,
+                ClientPaymentMethodsTable,
                 ClientsTable,
                 PayoutAccountsTable,
                 AdminNotificationPreferencesTable,
@@ -233,6 +240,8 @@ object ExposedTestDb {
     fun seedUser(
         name: String,
         roleId: String? = null,
+        email: String? = null,
+        phone: String? = null,
     ): String =
         transaction {
             UserEntity
@@ -246,6 +255,8 @@ object ExposedTestDb {
                         this.name = name
                         this.pin = "****"
                         this.roleId = roleId?.let { EntityID(UUID.fromString(it), RolesTable) }
+                        this.email = email
+                        this.phone = phone
                     }.id.value
                     .toString()
         }
@@ -405,6 +416,7 @@ object ExposedTestDb {
         clientId: String,
         currencyId: String,
         invoiceNumber: String = "2026-${UUID.randomUUID().toString().take(8)}",
+        payoutSnapshot: String? = null,
     ): String =
         transaction {
             InvoiceEntity
@@ -419,6 +431,7 @@ object ExposedTestDb {
                     totalCents = 10_000
                     paymentMethod = "bank"
                     createdAt = "2026-08-24 12:00:00"
+                    this.payoutSnapshot = payoutSnapshot
                 }.id.value
                 .toString()
         }
@@ -605,6 +618,13 @@ object ExposedTestDb {
         type: String = "bank",
         currencyId: String? = seedCurrency("USD"),
         isDeleted: Boolean = false,
+        accountHolder: String? = null,
+        bankName: String? = null,
+        accountNumber: String? = null,
+        swift: String? = null,
+        iban: String? = null,
+        clabe: String? = null,
+        lightningAddress: String? = null,
     ): String =
         transaction {
             PayoutAccountEntity
@@ -613,6 +633,13 @@ object ExposedTestDb {
                     this.currencyId = currencyId?.let { EntityID(UUID.fromString(it), CurrencyTable) }
                     this.isDeleted = isDeleted
                     this.createdAt = "2024-01-01T00:00:00"
+                    this.accountHolder = accountHolder
+                    this.bankName = bankName
+                    this.accountNumber = accountNumber
+                    this.swift = swift
+                    this.iban = iban
+                    this.clabe = clabe
+                    this.lightningAddress = lightningAddress
                 }.id.value
                 .toString()
         }
@@ -623,22 +650,31 @@ object ExposedTestDb {
         hourlyRateCents: Int = 5000,
         billingCycle: String = "monthly",
         paymentMethod: String = "bank",
+        paymentMethods: List<String> = listOf(paymentMethod),
         payoutAccountId: String? = null,
         isDeleted: Boolean = false,
     ): String =
         transaction {
-            ClientEntity
-                .new(UUID.randomUUID()) {
-                    this.name = name
-                    this.currencyId = EntityID(UUID.fromString(currencyId), CurrencyTable)
-                    this.hourlyRateCents = hourlyRateCents
-                    this.billingCycle = billingCycle
-                    this.paymentMethod = paymentMethod
-                    this.payoutAccountId = payoutAccountId?.let { EntityID(UUID.fromString(it), PayoutAccountsTable) }
-                    this.isDeleted = isDeleted
-                    this.createdAt = "2024-01-01T00:00:00"
-                }.id.value
-                .toString()
+            val clientId =
+                ClientEntity
+                    .new(UUID.randomUUID()) {
+                        this.name = name
+                        this.currencyId = EntityID(UUID.fromString(currencyId), CurrencyTable)
+                        this.hourlyRateCents = hourlyRateCents
+                        this.billingCycle = billingCycle
+                        this.paymentMethod = paymentMethod
+                        this.payoutAccountId = payoutAccountId?.let { EntityID(UUID.fromString(it), PayoutAccountsTable) }
+                        this.isDeleted = isDeleted
+                        this.createdAt = "2024-01-01T00:00:00"
+                    }.id.value
+            paymentMethods.forEachIndexed { clientPaymentMethodIndex, clientPaymentMethod ->
+                ClientPaymentMethodsTable.insert { clientPaymentMethodInsert ->
+                    clientPaymentMethodInsert[ClientPaymentMethodsTable.clientId] = EntityID(clientId, ClientsTable)
+                    clientPaymentMethodInsert[ClientPaymentMethodsTable.paymentMethod] = clientPaymentMethod
+                    clientPaymentMethodInsert[ClientPaymentMethodsTable.displayOrder] = clientPaymentMethodIndex
+                }
+            }
+            clientId.toString()
         }
 
     fun seedFreelanceProject(
@@ -833,11 +869,17 @@ object ExposedTestDb {
                 .toString()
         }
 
-    fun seedTicketTemplate(name: String = "Template"): String =
+    fun seedTicketTemplate(
+        name: String = "Template",
+        ticketType: String = "RECEIPT",
+        isDefault: Boolean = false,
+    ): String =
         transaction {
             TicketTemplateEntity
                 .new(UUID.randomUUID()) {
                     this.name = name
+                    this.ticketType = ticketType
+                    this.isDefault = isDefault
                 }.id.value
                 .toString()
         }

@@ -14,6 +14,7 @@ RUN NO_ZIP=1 ./package-client.sh
 FROM node:24-slim AS runtime
 WORKDIR /app
 ENV NODE_ENV=production
-COPY --from=builder /tmp/ambrosia-client-dist/ .
+COPY --from=builder --chown=node:node /tmp/ambrosia-client-dist/ .
+USER node
 EXPOSE 3000
 CMD ["node", "server.js"]

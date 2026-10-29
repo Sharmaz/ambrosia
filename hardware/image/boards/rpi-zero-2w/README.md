@@ -8,7 +8,7 @@ Debian Bookworm image for the `Raspberry Pi Zero 2W`.
 - Base image archive: `2024-11-19-raspios-bookworm-arm64-lite.img.xz`
 - Official board page:
   `https://www.raspberrypi.com/software/operating-systems/#raspberry-pi-os-64-bit`
-- Phoenixd: `0.7.2` Linux ARM64
+- Phoenixd: `0.9.1` Linux ARM64
 
 The base image filename changes with each release. Always use the latest Raspberry Pi OS
 Lite 64-bit (Bookworm) image. Provide the path or URL at build time:

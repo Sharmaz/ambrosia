@@ -29,7 +29,7 @@ export function AmountUnitInputFields({
   const estimatedValue = amountInputMode === "fiat"
     ? `${formatSats(estimatedSats ?? 0)} sats`
     : formatFiat({
-      value: estimatedFiat ?? 0,
+      fiatAmount: estimatedFiat ?? 0,
       currencyAcronym: currency.acronym,
       locale: currency.locale,
     });

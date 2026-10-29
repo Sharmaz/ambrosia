@@ -33,3 +33,16 @@ paths = [
   '''server/app/src/test/kotlin/pos/ambrosia/utest/NwcClientTest\.kt''',
   '''server/e2e_tests_py/tests/test_nwc_backend_e2e\.py''',
 ]
+
+[[allowlists]]
+description = """
+Electron encrypted-store test fixtures. Deterministic alphabet-derived
+placeholders (a1b2c3...) used to drive ServerSecretStore/
+PhoenixdCredentialsStore encryption round-trips in unit tests.
+They are not, and must never be, real server secrets or phoenixd
+credentials.
+"""
+paths = [
+  '''electron/services/__tests__/ServerSecretStore\.test\.js''',
+  '''electron/services/__tests__/PhoenixdCredentialsStore\.test\.js''',
+]

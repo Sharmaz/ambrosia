@@ -102,6 +102,7 @@ describe("useUsers", () => {
         userRole: 2,
         userEmail: "luis@example.com",
         userPhone: "555-0101",
+        currentUserPin: "9999",
       });
     });
 
@@ -112,11 +113,14 @@ describe("useUsers", () => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        name: "Luis",
-        pin: "1234",
-        role: 2,
-        email: "luis@example.com",
-        phone: "555-0101",
+        user: {
+          name: "Luis",
+          pin: "1234",
+          role: 2,
+          email: "luis@example.com",
+          phone: "555-0101",
+        },
+        currentUserPin: "9999",
       }),
       skipForbiddenRedirect: true,
     });
@@ -207,11 +211,15 @@ describe("useUsers", () => {
     await waitFor(() => expect(screen.getByTestId("count")).toHaveTextContent("1"));
 
     await act(async () => {
-      await handlers.deleteUser(6);
+      await handlers.deleteUser(6, "4321");
     });
 
     expect(httpClient).toHaveBeenCalledWith("/users/6", {
       method: "DELETE",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ currentUserPin: "4321" }),
       skipForbiddenRedirect: true,
     });
   });
@@ -309,6 +317,78 @@ describe("useUsers", () => {
       title: "toasts.adminRequiredTitle",
       description: "toasts.adminRequiredDescription",
       color: "warning",
+    });
+  });
+
+  it("shows current-PIN-incorrect toast and rejects when adding a user fails PIN check", async () => {
+    httpClient.mockResolvedValueOnce({ ok: true });
+    parseJsonResponse.mockResolvedValueOnce([]);
+    httpClient.mockResolvedValueOnce({ ok: false, status: 403 });
+    parseJsonResponse.mockResolvedValueOnce({ message: "Current PIN is incorrect" });
+
+    render(<TestComponent />);
+
+    await waitFor(() => expect(screen.getByTestId("count")).toHaveTextContent("0"));
+
+    await expect(handlers.addUser({
+      userName: "Luis",
+      userPin: "1234",
+      userRole: 2,
+      userEmail: "luis@example.com",
+      userPhone: "555-0101",
+      currentUserPin: "0000",
+    })).rejects.toMatchObject({ status: 403 });
+
+    expect(addToast).toHaveBeenCalledWith({
+      title: "toasts.currentUserPinIncorrectTitle",
+      description: "toasts.currentUserPinIncorrectDescription",
+      color: "danger",
+    });
+  });
+
+  it("shows current-PIN-incorrect toast and rejects when updating a user fails PIN check", async () => {
+    httpClient.mockResolvedValueOnce({ ok: true });
+    parseJsonResponse.mockResolvedValueOnce([{ id: 3, name: "Paula" }]);
+    httpClient.mockResolvedValueOnce({ ok: false, status: 403 });
+    parseJsonResponse.mockResolvedValueOnce({ message: "Current PIN is incorrect" });
+
+    render(<TestComponent />);
+
+    await waitFor(() => expect(screen.getByTestId("count")).toHaveTextContent("1"));
+
+    await expect(handlers.updateUser({
+      userId: 3,
+      userName: "Paula",
+      userRole: 1,
+      userEmail: "paula@example.com",
+      userPhone: "555-0202",
+      userPin: "",
+      currentUserPin: "0000",
+    })).rejects.toMatchObject({ status: 403 });
+
+    expect(addToast).toHaveBeenCalledWith({
+      title: "toasts.currentUserPinIncorrectTitle",
+      description: "toasts.currentUserPinIncorrectDescription",
+      color: "danger",
+    });
+  });
+
+  it("shows current-PIN-incorrect toast and rejects when deleting a user fails PIN check", async () => {
+    httpClient.mockResolvedValueOnce({ ok: true });
+    parseJsonResponse.mockResolvedValueOnce([{ id: 6, name: "Tomas" }]);
+    httpClient.mockResolvedValueOnce({ ok: false, status: 403 });
+    parseJsonResponse.mockResolvedValueOnce({ message: "Current PIN is incorrect" });
+
+    render(<TestComponent />);
+
+    await waitFor(() => expect(screen.getByTestId("count")).toHaveTextContent("1"));
+
+    await expect(handlers.deleteUser(6, "0000")).rejects.toMatchObject({ status: 403 });
+
+    expect(addToast).toHaveBeenCalledWith({
+      title: "toasts.currentUserPinIncorrectTitle",
+      description: "toasts.currentUserPinIncorrectDescription",
+      color: "danger",
     });
   });
 });

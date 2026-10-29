@@ -55,7 +55,7 @@ const allocatedPorts = { phoenixd: 9740, backend: 9154, nextjs: 3000 };
 function buildConfigs(ambrosiaOverrides = {}) {
   return {
     ambrosia: { 'http-bind-port': '9154', ...ambrosiaOverrides },
-    phoenix: { 'http-password': 'phoenix-password', 'webhook-secret': 'webhook-secret' },
+    phoenix: { 'webhook-secret': 'webhook-secret' },
   };
 }
 
@@ -132,10 +132,9 @@ describe('_startAll in production mode', () => {
 
     await serviceManager.startAll();
 
-    expect(PhoenixdServiceMock.createdInstances[0].start).toHaveBeenCalledWith(9740, expect.objectContaining({ 'http-password': 'phoenix-password' }));
+    expect(PhoenixdServiceMock.createdInstances[0].start).toHaveBeenCalledWith(9740);
     expect(BackendServiceMock.createdInstances[0].start).toHaveBeenCalledWith(9154, expect.objectContaining({
       phoenixdPort: 9740,
-      phoenixPassword: 'phoenix-password',
       webhookSecret: 'webhook-secret',
       phoenixdRemoteConfigured: false,
     }));
@@ -311,7 +310,6 @@ describe('restartService', () => {
 
     expect(BackendServiceMock.createdInstances[0].stop).toHaveBeenCalled();
     expect(BackendServiceMock.createdInstances[0].start).toHaveBeenLastCalledWith(9154, expect.objectContaining({
-      phoenixPassword: 'phoenix-password',
       webhookSecret: 'webhook-secret',
     }));
   });

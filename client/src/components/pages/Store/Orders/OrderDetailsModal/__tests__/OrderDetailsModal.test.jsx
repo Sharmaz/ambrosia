@@ -24,6 +24,16 @@ jest.mock("@/lib/formatDate", () => ({
 }));
 
 let mockCanRefund = true;
+let mockCanReprint = false;
+const mockReprintReceipt = jest.fn();
+jest.mock("../../hooks/useOrderReceiptReprint", () => ({
+  useOrderReceiptReprint: () => ({
+    canReprint: mockCanReprint,
+    isReprinting: false,
+    reprintReceipt: mockReprintReceipt,
+  }),
+}));
+
 jest.mock("@/hooks/usePermission", () => ({
   usePermission: () => mockCanRefund,
 }));
@@ -55,6 +65,8 @@ jest.mock("@heroui/react", () => {
 describe("OrderDetailsModal", () => {
   beforeEach(() => {
     mockCanRefund = true;
+    mockCanReprint = false;
+    mockReprintReceipt.mockClear();
   });
 
   it("renders order details and handles close", () => {
@@ -83,7 +95,7 @@ describe("OrderDetailsModal", () => {
     expect(screen.getByText("details.title")).toBeInTheDocument();
     expect(screen.getByText("#order-1")).toBeInTheDocument();
     expect(screen.getByText("Luis")).toBeInTheDocument();
-    expect(screen.getByText("Cash")).toBeInTheDocument();
+    expect(screen.getByText("cash")).toBeInTheDocument();
     expect(screen.getByText("formatted-date")).toBeInTheDocument();
     expect(formatAmount).toHaveBeenCalledWith(2500);
 
@@ -324,6 +336,36 @@ describe("OrderDetailsModal", () => {
 
     act(() => capturedRefundModalProps.onRefunded());
     expect(onRefunded).toHaveBeenCalled();
+  });
+
+  it("hides the reprint button when the order cannot be reprinted", () => {
+    render(
+      <OrderDetailsModal
+        order={{ id: "order-1", status: "paid", total: 10 }}
+        isOpen
+        onClose={jest.fn()}
+        formatAmount={jest.fn((amount) => `fmt-${amount}`)}
+      />,
+    );
+
+    expect(screen.queryByText("details.reprint")).not.toBeInTheDocument();
+  });
+
+  it("reprints the receipt when the reprint button is pressed", () => {
+    mockCanReprint = true;
+
+    render(
+      <OrderDetailsModal
+        order={{ id: "order-1", status: "paid", total: 10 }}
+        isOpen
+        onClose={jest.fn()}
+        formatAmount={jest.fn((amount) => `fmt-${amount}`)}
+      />,
+    );
+
+    fireEvent.click(screen.getByText("details.reprint"));
+
+    expect(mockReprintReceipt).toHaveBeenCalled();
   });
 
   it("renders refund info when the order has been refunded", () => {

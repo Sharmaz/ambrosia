@@ -13,6 +13,17 @@ data class TicketData(
     val discountAmount: Double = 0.0,
     val tipAmount: Double = 0.0,
     val invoice: String? = null,
+    val paymentMethod: String? = null,
+    val issuedAt: String? = null,
+    val labels: TicketLabels,
+)
+
+@Serializable
+data class TicketLabels(
+    val total: String,
+    val discount: String,
+    val tip: String,
+    val paymentMethod: String,
 )
 
 @Serializable

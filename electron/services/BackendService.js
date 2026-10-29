@@ -7,6 +7,8 @@ import { healthCheck } from '../utils/healthCheck.js';
 import { logger } from '../utils/logger.js';
 import { getJavaPath, getBackendJarPath, getLogsDirectory } from '../utils/resourcePaths.js';
 
+import { phoenixdCredentialsStore } from './PhoenixdCredentialsStore.js';
+import { serverSecretStore } from './ServerSecretStore.js';
 import { unlockPasswordStore } from './UnlockPasswordStore.js';
 
 const require = createRequire(import.meta.url);
@@ -59,8 +61,17 @@ export default class BackendService {
 
       const env = { ...process.env };
       stripConflictingJavaEnvVars(env);
-      env.PHOENIXD_PASSWORD = startupConfig.phoenixPassword;
       env.PHOENIXD_WEBHOOK_SECRET = startupConfig.webhookSecret;
+
+      const phoenixdHttpPassword = phoenixdCredentialsStore.readHttpPassword();
+      if (phoenixdHttpPassword) {
+        env.PHOENIXD_PASSWORD = phoenixdHttpPassword;
+      }
+
+      const serverSecret = serverSecretStore.read();
+      if (serverSecret) {
+        env.AMBROSIA_SECRET = serverSecret;
+      }
 
       const unlockPassword = unlockPasswordStore.read();
       if (unlockPassword) {

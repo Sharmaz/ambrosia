@@ -1,5 +1,6 @@
 import { act, useEffect } from "react";
 
+import { addToast } from "@heroui/react";
 import { render, screen, waitFor } from "@testing-library/react";
 
 import { httpClient, parseJsonResponse } from "@/lib/http";
@@ -167,10 +168,15 @@ describe("useRoles", () => {
     await waitFor(() => expect(screen.getByTestId("count")).toHaveTextContent("1"));
 
     await act(async () => {
-      await handlers.deleteRole("1");
+      await handlers.deleteRole("1", "4321");
     });
 
-    expect(httpClient).toHaveBeenCalledWith("/roles/1", { method: "DELETE", skipForbiddenRedirect: true });
+    expect(httpClient).toHaveBeenCalledWith("/roles/1", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ currentUserPin: "4321" }),
+      skipForbiddenRedirect: true,
+    });
     await waitFor(() => expect(screen.getByTestId("count")).toHaveTextContent("0"));
   });
 
@@ -192,6 +198,70 @@ describe("useRoles", () => {
     });
 
     expect(thrown?.status).toBe(409);
+  });
+
+  it("shows current-PIN-incorrect toast and rejects when creating a role fails PIN check", async () => {
+    httpClient.mockResolvedValueOnce({ ok: true });
+    parseJsonResponse.mockResolvedValueOnce([]);
+    httpClient.mockResolvedValueOnce({ ok: false, status: 403 });
+    parseJsonResponse.mockResolvedValueOnce({ message: "Current PIN is incorrect" });
+
+    render(<TestComponent />);
+    await waitFor(() => expect(screen.getByTestId("count")).toHaveTextContent("0"));
+
+    await expect(handlers.createRole({
+      name: "seller",
+      isAdmin: false,
+      permissions: [],
+      currentUserPin: "0000",
+    })).rejects.toMatchObject({ status: 403 });
+
+    expect(addToast).toHaveBeenCalledWith({
+      title: "actions.currentUserPinIncorrectTitle",
+      description: "actions.currentUserPinIncorrectDescription",
+      color: "danger",
+    });
+  });
+
+  it("shows current-PIN-incorrect toast and rejects when updating a role fails PIN check", async () => {
+    httpClient.mockResolvedValueOnce({ ok: true });
+    parseJsonResponse.mockResolvedValueOnce([{ id: "1", role: "cashier" }]);
+    httpClient.mockResolvedValueOnce({ ok: false, status: 403 });
+    parseJsonResponse.mockResolvedValueOnce({ message: "Current PIN is incorrect" });
+
+    render(<TestComponent />);
+    await waitFor(() => expect(screen.getByTestId("first-role")).toHaveTextContent("cashier"));
+
+    await expect(handlers.updateRoleWithPermissions("1", {
+      name: "updated",
+      isAdmin: false,
+      permissions: [],
+      currentUserPin: "0000",
+    })).rejects.toMatchObject({ status: 403 });
+
+    expect(addToast).toHaveBeenCalledWith({
+      title: "actions.currentUserPinIncorrectTitle",
+      description: "actions.currentUserPinIncorrectDescription",
+      color: "danger",
+    });
+  });
+
+  it("shows current-PIN-incorrect toast and rejects when deleting a role fails PIN check", async () => {
+    httpClient.mockResolvedValueOnce({ ok: true });
+    parseJsonResponse.mockResolvedValueOnce([{ id: "1", role: "cashier" }]);
+    httpClient.mockResolvedValueOnce({ ok: false, status: 403 });
+    parseJsonResponse.mockResolvedValueOnce({ message: "Current PIN is incorrect" });
+
+    render(<TestComponent />);
+    await waitFor(() => expect(screen.getByTestId("count")).toHaveTextContent("1"));
+
+    await expect(handlers.deleteRole("1", "0000")).rejects.toMatchObject({ status: 403 });
+
+    expect(addToast).toHaveBeenCalledWith({
+      title: "actions.currentUserPinIncorrectTitle",
+      description: "actions.currentUserPinIncorrectDescription",
+      color: "danger",
+    });
   });
 
   it("fetches role permissions by id", async () => {

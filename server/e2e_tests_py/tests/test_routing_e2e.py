@@ -64,3 +64,27 @@ class TestRoutingE2E:
         assert "access-control-allow-origin" not in cors_response.headers, (
             "Unexpected CORS header on a rejected cross-origin request: access-control-allow-origin"
         )
+
+    @pytest.mark.asyncio
+    async def test_security_headers(self, public_client):
+        security_headers_response = await public_client.get("/")
+
+        content_type_options = security_headers_response.headers.get(
+            "x-content-type-options"
+        )
+        assert content_type_options == "nosniff", (
+            f"Unexpected X-Content-Type-Options: {content_type_options}"
+        )
+
+        frame_options = security_headers_response.headers.get("x-frame-options")
+        assert frame_options == "DENY", f"Unexpected X-Frame-Options: {frame_options}"
+
+        referrer_policy = security_headers_response.headers.get("referrer-policy")
+        assert referrer_policy == "strict-origin-when-cross-origin", (
+            f"Unexpected Referrer-Policy: {referrer_policy}"
+        )
+
+        permissions_policy = security_headers_response.headers.get("permissions-policy")
+        assert permissions_policy == "camera=(), microphone=(), geolocation=()", (
+            f"Unexpected Permissions-Policy: {permissions_policy}"
+        )

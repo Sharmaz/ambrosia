@@ -553,6 +553,11 @@ install_repo_assets() {
   install -m 0644 "$IMAGE_ROOT/common/systemd/ambrosia.service" "$ROOTFS_MNT/etc/systemd/system/ambrosia.service"
   install -m 0644 "$IMAGE_ROOT/common/systemd/ambrosia-client.service" "$ROOTFS_MNT/etc/systemd/system/ambrosia-client.service"
   install -m 0644 "$IMAGE_ROOT/common/systemd/phoenixd.service" "$ROOTFS_MNT/etc/systemd/system/phoenixd.service"
+  install -m 0644 "$IMAGE_ROOT/common/systemd/ambrosia-caddy-time-resync.service" "$ROOTFS_MNT/etc/systemd/system/ambrosia-caddy-time-resync.service"
+  install -m 0644 "$IMAGE_ROOT/common/systemd/ambrosia-caddy-time-resync.path" "$ROOTFS_MNT/etc/systemd/system/ambrosia-caddy-time-resync.path"
+
+  install -d -m 0755 "$ROOTFS_MNT/usr/lib"
+  touch "$ROOTFS_MNT/usr/lib/clock-epoch"
 
   install -m 0644 "$IMAGE_ROOT/common/templates/Caddyfile.template" "$ROOTFS_MNT/etc/ambrosia/Caddyfile.template"
   install -m 0644 "$IMAGE_ROOT/common/templates/ambrosia.conf.stub" "$ROOTFS_MNT/etc/ambrosia/ambrosia.conf.stub"
@@ -570,7 +575,7 @@ EOF
   chmod 0644 "$ROOTFS_MNT/etc/ambrosia/board-identity"
 
   if [[ -f "$ROOTFS_MNT/usr/lib/raspberrypi-sys-mods/firstboot" ]]; then
-    printf 'ambrosia:%s\n' "$(openssl passwd -6 "$(openssl rand -hex 24)")" > "$BOOT_MNT/userconf.txt"
+    printf 'ambrosia:%s\n' "$(openssl passwd -6 'Ambrosia2026!')" > "$BOOT_MNT/userconf.txt"
   fi
 
   sed -i \
@@ -579,6 +584,25 @@ EOF
     "$ROOTFS_MNT/etc/systemd/system/ambrosia.service" \
     "$ROOTFS_MNT/etc/systemd/system/ambrosia-client.service" \
     "$ROOTFS_MNT/etc/systemd/system/phoenixd.service"
+}
+
+board_disables_wifi_power_save() {
+  [[ "${WIFI_POWER_SAVE_DISABLED:-false}" == "true" ]]
+}
+
+board_enables_wifi_stall_watchdog() {
+  [[ "${WIFI_STALL_WATCHDOG_ENABLED:-false}" == "true" ]]
+}
+
+install_board_wifi_workarounds() {
+  if board_disables_wifi_power_save; then
+    install -d -m 0755 "$ROOTFS_MNT/etc/NetworkManager/conf.d"
+    install -m 0644 "$IMAGE_ROOT/common/wifi/ambrosia-wifi-powersave.conf" "$ROOTFS_MNT/etc/NetworkManager/conf.d/ambrosia-wifi-powersave.conf"
+  fi
+  if board_enables_wifi_stall_watchdog; then
+    install -m 0755 "$IMAGE_ROOT/common/wifi/ambrosia-wifi-watchdog" "$ROOTFS_MNT/opt/ambrosia/bin/ambrosia-wifi-watchdog"
+    install -m 0644 "$IMAGE_ROOT/common/wifi/ambrosia-wifi-watchdog.service" "$ROOTFS_MNT/etc/systemd/system/ambrosia-wifi-watchdog.service"
+  fi
 }
 
 verify_client_runtime_artifacts() {
@@ -614,9 +638,15 @@ enable_services() {
     ambrosia-client.service \
     phoenixd.service \
     caddy.service \
+    ambrosia-caddy-time-resync.path \
+    systemd-timesyncd.service \
+    fake-hwclock.service \
     NetworkManager.service \
     avahi-daemon.service \
     ssh.service >/dev/null
+  if board_enables_wifi_stall_watchdog; then
+    systemctl --root="$ROOTFS_MNT" enable ambrosia-wifi-watchdog.service >/dev/null
+  fi
 }
 
 clean_forbidden_state() {
@@ -671,6 +701,12 @@ verify_mounted_image() {
   require_nonempty_file "$ROOTFS_MNT/etc/systemd/system/ambrosia-client.service"
   require_nonempty_file "$ROOTFS_MNT/etc/systemd/system/ambrosia.service"
   require_nonempty_file "$ROOTFS_MNT/etc/systemd/system/phoenixd.service"
+  require_nonempty_file "$ROOTFS_MNT/etc/systemd/system/ambrosia-caddy-time-resync.service"
+  require_nonempty_file "$ROOTFS_MNT/etc/systemd/system/ambrosia-caddy-time-resync.path"
+  [[ -e "$ROOTFS_MNT/usr/lib/clock-epoch" ]] || fail "Mounted image is missing /usr/lib/clock-epoch"
+  for time_service in systemd-timesyncd.service fake-hwclock.service ambrosia-caddy-time-resync.path; do
+    systemctl --root="$ROOTFS_MNT" is-enabled "$time_service" >/dev/null 2>&1 || fail "$time_service was not enabled"
+  done
   require_nonempty_file "$ROOTFS_MNT/usr/sbin/sshd"
   require_nonempty_file "$ROOTFS_MNT/etc/ssh/sshd_config.d/00-ambrosia.conf"
   [[ -L "$ROOTFS_MNT/etc/systemd/system/multi-user.target.wants/ambrosia-firstboot.service" ]] || fail "ambrosia-firstboot.service was not enabled"
@@ -681,6 +717,14 @@ verify_mounted_image() {
   [[ ! -e "$ROOTFS_MNT/home/${RUNTIME_USER}/.Ambrosia-POS/ambrosia.db" ]] || fail "Forbidden state present: ambrosia.db"
   if compgen -G "$ROOTFS_MNT/etc/ssh/ssh_host_*" >/dev/null; then
     fail "Forbidden state present: SSH host keys"
+  fi
+  if board_disables_wifi_power_save; then
+    grep -Eq '^wifi\.powersave[[:space:]]*=[[:space:]]*2$' "$ROOTFS_MNT/etc/NetworkManager/conf.d/ambrosia-wifi-powersave.conf" || fail "Wi-Fi power save was not disabled"
+  fi
+  if board_enables_wifi_stall_watchdog; then
+    require_nonempty_file "$ROOTFS_MNT/opt/ambrosia/bin/ambrosia-wifi-watchdog"
+    require_nonempty_file "$ROOTFS_MNT/etc/systemd/system/ambrosia-wifi-watchdog.service"
+    systemctl --root="$ROOTFS_MNT" is-enabled ambrosia-wifi-watchdog.service >/dev/null 2>&1 || fail "ambrosia-wifi-watchdog.service was not enabled"
   fi
 }
 
@@ -771,6 +815,8 @@ log "Installing phoenixd"
 install_phoenixd
 log "Installing repo assets"
 install_repo_assets
+log "Installing board Wi-Fi workarounds"
+install_board_wifi_workarounds
 log "Verifying staged client runtime dependencies"
 verify_client_runtime_artifacts
 log "Writing base configuration"

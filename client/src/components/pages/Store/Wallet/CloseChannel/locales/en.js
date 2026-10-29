@@ -27,6 +27,14 @@ const closeChannelEn = {
     validationAddressInvalid: "Invalid Bitcoin address format.",
     validationFeerateRequired: "Fee rate is required.",
     validationFeerateInvalid: "Fee rate must be a positive integer.",
+    stuckTitle: "Could not close the channel",
+    stuckDescription: "phoenixd can't close the channel because it's still syncing with the other Lightning node.",
+    stuckChannelIdLabel: "Channel ID",
+    copyChannelIdButton: "Copy Channel ID",
+    stuckOptionRetry: "Wait a moment and try again — the other node could reconnect at any time.",
+    stuckOptionContact: "Report the issue to ACINQ →",
+    stuckRetryButton: "Retry",
+    stuckCloseButton: "Close",
   },
 };
 

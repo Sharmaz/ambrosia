@@ -63,6 +63,22 @@ class ProjectService {
                 }.map { projectEntity -> toProjectModel(projectEntity) }
         }
 
+    fun getProjects(requestedProjectStatus: String?): List<FreelanceProject>? =
+        transaction {
+            if (requestedProjectStatus != null && requestedProjectStatus !in validStatuses) return@transaction null
+
+            ProjectEntity
+                .find {
+                    val activeProjectCondition = ProjectsTable.isDeleted eq false
+                    if (requestedProjectStatus == null) {
+                        activeProjectCondition
+                    } else {
+                        activeProjectCondition and (ProjectsTable.status eq requestedProjectStatus)
+                    }
+                }.filter { projectEntity -> clientExists(projectEntity.clientId.value.toString()) }
+                .map { projectEntity -> toProjectModel(projectEntity) }
+        }
+
     fun getProjectById(projectId: String): FreelanceProject? =
         transaction {
             val projectUuid = parseUuid(projectId) ?: return@transaction null
