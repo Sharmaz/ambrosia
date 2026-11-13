@@ -259,6 +259,7 @@ class BackupService(
         if (Files.exists(stagedPhoenixConfigFile)) {
             val stagedPhoenixConfigValues = readConfValues(KotlinIoPath(stagedPhoenixConfigFile.toString()))
             writeConfValues(KotlinIoPath(phoenixConfigFilePath), stagedPhoenixConfigValues)
+            updatePersistedPhoenixdSecrets(stagedPhoenixConfigValues)
         }
 
         val stagedPhoenixHistoryDatabase = findStagedPhoenixHistoryDatabase()
@@ -270,6 +271,13 @@ class BackupService(
                 StandardCopyOption.REPLACE_EXISTING,
             )
         }
+    }
+
+    private fun updatePersistedPhoenixdSecrets(restoredPhoenixConfigValues: Map<String, String>) {
+        if (SecretsStore.isLocked()) return
+
+        restoredPhoenixConfigValues["http-password"]?.let { SecretsStore.setSecret("phoenixd-password", it) }
+        restoredPhoenixConfigValues["webhook-secret"]?.let { SecretsStore.setSecret("phoenixd-webhook-secret", it) }
     }
 
     private fun findStagedPhoenixHistoryDatabase(): Path? {
@@ -504,13 +512,15 @@ class BackupService(
     }
 
     private fun writePhoenixConfigEntry(zip: ZipOutputStream) {
+        if (!Files.exists(Paths.get(phoenixConfigFilePath))) return
+
         val phoenixConfigValues = readConfValues(KotlinIoPath(phoenixConfigFilePath))
         val phoenixConfigKeyValueText =
             listOfNotNull(
                 phoenixConfigValues["http-password"]?.let { "http-password=$it" },
                 phoenixConfigValues["webhook-secret"]?.let { "webhook-secret=$it" },
+                "chain=${phoenixConfigValues["chain"] ?: "mainnet"}",
             ).joinToString("\n")
-        if (phoenixConfigKeyValueText.isBlank()) return
         writeStringEntry(zip, "phoenix/phoenix.conf", phoenixConfigKeyValueText)
     }
 

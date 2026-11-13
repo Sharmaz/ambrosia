@@ -11,6 +11,7 @@ import pos.ambrosia.config.AppConfig
 import pos.ambrosia.models.BackupManifest
 import pos.ambrosia.models.BackupProgressPhase
 import pos.ambrosia.services.BackupService
+import pos.ambrosia.services.SecretsStore
 import pos.ambrosia.services.TokenService
 import pos.ambrosia.utils.ExposedTestDb
 import pos.ambrosia.utils.PendingImportAlreadyStagedException
@@ -43,6 +44,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
+import kotlinx.io.files.Path as KotlinIoPath
 
 private const val TEST_SECRET = "test-secret-value"
 
@@ -59,11 +61,13 @@ class BackupServiceTest {
         configFile = Files.createTempFile("backupServiceTestConfig", ".conf").toFile()
         configFile.writeText("secret=$TEST_SECRET\n")
         importStagingRoot = Files.createTempDirectory("backupServiceTestStagingParent").resolve("import-staging")
+        SecretsStore.resetForTesting()
     }
 
     @After
     fun tearDown() {
         ExposedTestDb.cleanup(databaseFile)
+        SecretsStore.resetForTesting()
     }
 
     private fun decryptBackup(
@@ -417,9 +421,12 @@ class BackupServiceTest {
     }
 
     @Test
-    fun `exportBackup includes the phoenix config entry with the http-password and webhook-secret`() {
+    fun `exportBackup includes the phoenix config entry with the http-password, webhook-secret, and chain`() {
         val phoenixConfigFile = Files.createTempFile("backupServiceTestPhoenixConfig", ".conf")
-        Files.writeString(phoenixConfigFile, "http-password=test-http-password\nwebhook-secret=test-webhook-secret\n")
+        Files.writeString(
+            phoenixConfigFile,
+            "http-password=test-http-password\nwebhook-secret=test-webhook-secret\nchain=testnet\n",
+        )
         val backupService =
             BackupService(
                 uploadsRoot = uploadsRoot,
@@ -441,6 +448,33 @@ class BackupServiceTest {
         val phoenixConfigEntry = readZipEntry(decryptedZip, "phoenix/phoenix.conf")
         assertTrue(phoenixConfigEntry.contains("http-password=test-http-password"))
         assertTrue(phoenixConfigEntry.contains("webhook-secret=test-webhook-secret"))
+        assertTrue(phoenixConfigEntry.contains("chain=testnet"))
+    }
+
+    @Test
+    fun `exportBackup defaults chain to mainnet when the phoenix conf does not set it explicitly`() {
+        val phoenixConfigFile = Files.createTempFile("backupServiceTestPhoenixConfig", ".conf")
+        Files.writeString(phoenixConfigFile, "http-password=test-http-password\n")
+        val backupService =
+            BackupService(
+                uploadsRoot = uploadsRoot,
+                databasePath = databaseFile.absolutePath,
+                configFilePath = configFile.absolutePath,
+                phoenixConfigFilePath = phoenixConfigFile.toString(),
+            )
+        val backupOutputStream = ByteArrayOutputStream()
+
+        backupService.exportBackup(
+            "My Test Store",
+            "correct-password".toCharArray(),
+            backupService.prepareExportSnapshot(),
+            backupOutputStream,
+            isLocalPhoenixd = true,
+        )
+
+        val decryptedZip = decryptBackup(backupOutputStream.toByteArray(), "correct-password".toCharArray())
+        val phoenixConfigEntry = readZipEntry(decryptedZip, "phoenix/phoenix.conf")
+        assertTrue(phoenixConfigEntry.contains("chain=mainnet"))
     }
 
     @Test
@@ -1098,6 +1132,7 @@ class BackupServiceTest {
         val destinationDatabaseFile = Files.createTempFile("backupServiceTestDestinationDb", ".db")
         val destinationConfigFile = Files.createTempFile("backupServiceTestDestinationConfig", ".conf").toFile()
         destinationConfigFile.writeText("secret=old-destination-secret\n")
+        SecretsStore.ambrosiaConfigFile = KotlinIoPath(destinationConfigFile.absolutePath)
         val destinationKeyStoreFile =
             Files.createTempDirectory("backupServiceTestDestinationKeyStoreParent").resolve("keystore.jks")
         val destinationService =
@@ -1141,13 +1176,17 @@ class BackupServiceTest {
     fun `applyPendingImport merges the staged phoenix config into the live phoenix conf, preserving other keys`() {
         val destinationPhoenixConfigFile =
             Files.createTempFile("backupServiceTestDestinationPhoenixConfig", ".conf").toFile()
-        destinationPhoenixConfigFile.writeText("node-alias=my-node\nhttp-password=old-password\n")
+        destinationPhoenixConfigFile.writeText("node-alias=my-node\nhttp-password=old-password\nchain=mainnet\n")
         val destinationService =
             prepareStagedPhoenixdImport(
                 zipPhoenixEntries =
                     mapOf(
                         "phoenix/phoenix.conf" to
-                            "http-password=staged-http-password\nwebhook-secret=staged-webhook-secret".toByteArray(),
+                            (
+                                "http-password=staged-http-password\n" +
+                                    "webhook-secret=staged-webhook-secret\n" +
+                                    "chain=testnet"
+                            ).toByteArray(),
                     ),
                 destinationPhoenixConfigFile = destinationPhoenixConfigFile,
             )
@@ -1158,7 +1197,42 @@ class BackupServiceTest {
         assertTrue(mergedPhoenixConfigText.contains("node-alias=my-node"))
         assertTrue(mergedPhoenixConfigText.contains("http-password=staged-http-password"))
         assertTrue(mergedPhoenixConfigText.contains("webhook-secret=staged-webhook-secret"))
+        assertTrue(mergedPhoenixConfigText.contains("chain=testnet"))
         assertFalse(mergedPhoenixConfigText.contains("http-password=old-password"))
+        assertFalse(mergedPhoenixConfigText.contains("chain=mainnet"))
+    }
+
+    @Test
+    fun `applyPendingImport updates the SecretsStore-cached phoenixd credentials to match the restored phoenix conf`() {
+        val destinationPhoenixConfigFile =
+            Files.createTempFile("backupServiceTestDestinationPhoenixConfig", ".conf").toFile()
+        val destinationService =
+            prepareStagedPhoenixdImport(
+                zipPhoenixEntries =
+                    mapOf(
+                        "phoenix/phoenix.conf" to
+                            "http-password=restored-password\nwebhook-secret=restored-webhook-secret".toByteArray(),
+                    ),
+                destinationPhoenixConfigFile = destinationPhoenixConfigFile,
+            )
+        SecretsStore.setSecret("phoenixd-password", "stale-cached-password")
+        SecretsStore.setSecret("phoenixd-webhook-secret", "stale-cached-webhook-secret")
+
+        destinationService.applyPendingImport()
+
+        assertEquals("restored-password", SecretsStore.getSecretOrNull("phoenixd-password"))
+        assertEquals("restored-webhook-secret", SecretsStore.getSecretOrNull("phoenixd-webhook-secret"))
+    }
+
+    @Test
+    fun `applyPendingImport leaves the SecretsStore-cached phoenixd credentials untouched when no phoenix conf was staged`() {
+        val destinationService = prepareStagedPhoenixdImport()
+        SecretsStore.setSecret("phoenixd-password", "unrelated-cached-password")
+
+        destinationService.applyPendingImport()
+
+        assertEquals("unrelated-cached-password", SecretsStore.getSecretOrNull("phoenixd-password"))
+        assertEquals(null, SecretsStore.getSecretOrNull("phoenixd-webhook-secret"))
     }
 
     @Test
