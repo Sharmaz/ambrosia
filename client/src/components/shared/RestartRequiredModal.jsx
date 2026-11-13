@@ -9,12 +9,16 @@ import { isElectron } from "@lib/isElectron";
 
 const RESTART_COUNTDOWN_SECONDS = 5;
 
-export function RestartRequiredModal({ isOpen, onManualClose, onRestart }) {
+export function RestartRequiredModal({ isOpen, onManualClose, onRestart, includesPhoenixdData = false }) {
   const restartModalTranslations = useTranslations("restartRequiredModal");
   const acknowledge = isElectron ? onRestart : onManualClose;
   const countdownSeconds = isElectron ? RESTART_COUNTDOWN_SECONDS : undefined;
   const isCountingDown = countdownSeconds != null;
   const [secondsRemaining, setSecondsRemaining] = useState(countdownSeconds);
+  const descriptionKey = isCountingDown ? "countdownDescription" : "description";
+  const showPhoenixdSteps = !isCountingDown && includesPhoenixdData;
+  const phoenixdSteps = showPhoenixdSteps ? restartModalTranslations.raw("phoenixdSteps") : [];
+  const phoenixdHighlights = showPhoenixdSteps ? restartModalTranslations.raw("phoenixdHighlights") : [];
 
   useEffect(() => {
     if (!isCountingDown || !isOpen) return undefined;
@@ -39,7 +43,19 @@ export function RestartRequiredModal({ isOpen, onManualClose, onRestart }) {
       <ModalContent>
         <ModalHeader>{restartModalTranslations("title")}</ModalHeader>
         <ModalBody>
-          <p>{restartModalTranslations(isCountingDown ? "countdownDescription" : "description")}</p>
+          {showPhoenixdSteps ? (
+            <ol className="list-decimal list-inside space-y-1">
+              {phoenixdSteps.map(([beforeHighlight, afterHighlight], stepIndex) => (
+                <li key={stepIndex}>
+                  {beforeHighlight}
+                  <span className="font-semibold">{phoenixdHighlights[stepIndex]}</span>
+                  {afterHighlight}
+                </li>
+              ))}
+            </ol>
+          ) : (
+            <p>{restartModalTranslations(descriptionKey)}</p>
+          )}
           {isCountingDown && (
             <p className="text-3xl font-bold text-center text-green-900">{secondsRemaining}</p>
           )}

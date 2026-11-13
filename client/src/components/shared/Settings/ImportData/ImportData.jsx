@@ -18,6 +18,7 @@ export function ImportData() {
   const [showAccess, setShowAccess] = useState(false);
   const [showRestartModal, setShowRestartModal] = useState(false);
   const [showLightningWalletWarningModal, setShowLightningWalletWarningModal] = useState(false);
+  const [importedIncludesPhoenixdData, setImportedIncludesPhoenixdData] = useState(false);
 
   const finishImport = async () => {
     await confirmPendingImport();
@@ -27,6 +28,7 @@ export function ImportData() {
   const handleImport = async (rolePassword, backupPassword, backupFile, onProgress) => {
     const importedManifest = await importBackup(rolePassword, backupPassword, backupFile, onProgress);
     addToast({ color: "success", description: importDataTranslations("cardImportData.success") });
+    setImportedIncludesPhoenixdData(importedManifest.includesPhoenixdData);
 
     if (importedManifest.includesPhoenixdData) {
       setShowLightningWalletWarningModal(true);
@@ -65,6 +67,7 @@ export function ImportData() {
         isOpen={showRestartModal}
         onManualClose={() => setShowRestartModal(false)}
         onRestart={restartAppAfterImport}
+        includesPhoenixdData={importedIncludesPhoenixdData}
       />
     </>
   );

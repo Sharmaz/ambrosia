@@ -2,6 +2,21 @@ import { render, screen, fireEvent, act } from "@testing-library/react";
 
 import { RestartRequiredModal } from "../RestartRequiredModal";
 
+const PHOENIXD_STEPS = [
+  ["step-one-before ", " step-one-after"],
+  ["step-two-before ", " step-two-after"],
+];
+const PHOENIXD_HIGHLIGHTS = ["highlight-one", "highlight-two"];
+jest.mock("next-intl", () => {
+  const restartModalTranslations = (translationKey) => translationKey;
+  restartModalTranslations.raw = (translationKey) => {
+    if (translationKey === "phoenixdSteps") return PHOENIXD_STEPS;
+    if (translationKey === "phoenixdHighlights") return PHOENIXD_HIGHLIGHTS;
+    return translationKey;
+  };
+  return { useTranslations: () => restartModalTranslations };
+});
+
 let mockIsElectron = false;
 jest.mock("@lib/isElectron", () => ({
   get isElectron() {
@@ -48,6 +63,14 @@ describe("RestartRequiredModal", () => {
     render(<RestartRequiredModal isOpen onManualClose={jest.fn()} onRestart={jest.fn()} />);
     expect(screen.queryByText("countdownDescription")).not.toBeInTheDocument();
     expect(screen.queryByText("restartNowButton")).not.toBeInTheDocument();
+  });
+
+  it("renders the phoenixd restart steps with the highlighted terms outside Electron when includesPhoenixdData is true", () => {
+    render(<RestartRequiredModal isOpen onManualClose={jest.fn()} includesPhoenixdData />);
+    const renderedSteps = screen.getAllByRole("listitem");
+    expect(renderedSteps[0]).toHaveTextContent("step-one-before highlight-one step-one-after");
+    expect(renderedSteps[1]).toHaveTextContent("step-two-before highlight-two step-two-after");
+    expect(screen.queryByText("description")).not.toBeInTheDocument();
   });
 
   describe("inside Electron", () => {

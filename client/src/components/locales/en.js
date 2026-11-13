@@ -163,6 +163,11 @@ const componentsEn = {
   restartRequiredModal: {
     title: "Restart required",
     description: "Please restart the Ambrosia server to finish loading your data.",
+    phoenixdSteps: [
+      ["Restart the ", " and wait for it to fully start."],
+      ["Restart ", ". This is required for your Lightning wallet to finish loading the restored data."],
+    ],
+    phoenixdHighlights: ["Ambrosia server", "phoenixd"],
     acknowledgeButton: "Got it",
     countdownDescription: "The application will restart automatically in:",
     restartNowButton: "Restart now",

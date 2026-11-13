@@ -57,9 +57,9 @@ jest.mock("@components/auth/WalletGuard", () => function MockWalletGuard({ child
 jest.mock("@/utils/restartAppAfterImport");
 
 jest.mock("@components/shared/RestartRequiredModal", () => ({
-  RestartRequiredModal: ({ isOpen, onManualClose, onRestart }) => (
+  RestartRequiredModal: ({ isOpen, onManualClose, onRestart, includesPhoenixdData }) => (
     isOpen ? (
-      <div data-testid="restart-modal">
+      <div data-testid="restart-modal" data-includes-phoenixd-data={includesPhoenixdData}>
         <button type="button" data-testid="restart-modal-manual-close" onClick={onManualClose}>manual-close</button>
         <button type="button" data-testid="restart-modal-restart" onClick={onRestart}>restart</button>
       </div>
@@ -219,7 +219,7 @@ describe("ImportData", () => {
       });
 
       expect(backupService.confirmPendingImport).toHaveBeenCalledTimes(1);
-      expect(screen.getByTestId("restart-modal")).toBeInTheDocument();
+      expect(screen.getByTestId("restart-modal")).toHaveAttribute("data-includes-phoenixd-data", "true");
     });
 
     it("does not confirm the pending import when the Lightning wallet warning is cancelled", async () => {
