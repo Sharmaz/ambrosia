@@ -296,7 +296,11 @@ private fun Route.initialSetupRoutes() {
 
             call.respond(
                 HttpStatusCode.OK,
-                mapOf("message" to "Backup restored", "businessName" to importedManifest.businessName),
+                mapOf(
+                    "message" to "Backup restored",
+                    "businessName" to importedManifest.businessName,
+                    "includesPhoenixdData" to importedManifest.includesPhoenixdData,
+                ),
             )
         } catch (invalidBackup: IllegalArgumentException) {
             call.respond(
