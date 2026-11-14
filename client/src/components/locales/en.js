@@ -169,7 +169,7 @@ const componentsEn = {
     ],
     phoenixdHighlights: ["Ambrosia server", "phoenixd"],
     acknowledgeButton: "Got it",
-    countdownDescription: "The application will restart automatically in:",
+    countdownDescription: "Ambrosia will restart its services in the background in:",
     restartNowButton: "Restart now",
   },
   phoenixdRemote: {

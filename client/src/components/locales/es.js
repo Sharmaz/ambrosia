@@ -169,7 +169,7 @@ const componentsEs = {
     ],
     phoenixdHighlights: ["servidor de Ambrosia", "phoenixd"],
     acknowledgeButton: "Entendido",
-    countdownDescription: "La aplicación se reiniciará automáticamente en:",
+    countdownDescription: "Ambrosia va a reiniciar sus servicios en segundo plano en:",
     restartNowButton: "Reiniciar ahora",
   },
   phoenixdRemote: {

@@ -166,14 +166,14 @@ describe("ImportData", () => {
       expect(callOrder).toEqual(["confirm", "modal"]);
     });
 
-    it("passes restartAppAfterImport as onRestart to the restart modal", async () => {
-      jest.spyOn(backupService, "importBackup").mockResolvedValue({ businessName: "Awesome Store" });
+    it("calls restartAppAfterImport with includesPhoenixdData false when the import had no phoenixd data", async () => {
+      jest.spyOn(backupService, "importBackup").mockResolvedValue({ businessName: "Awesome Store", includesPhoenixdData: false });
       render(<ImportData />);
 
       await unlockSelectFileAndImport();
       fireEvent.click(screen.getByTestId("restart-modal-restart"));
 
-      expect(restartAppAfterImport).toHaveBeenCalledTimes(1);
+      expect(restartAppAfterImport).toHaveBeenCalledWith(false);
     });
 
     it("closes the restart modal without a relaunch when manually closed", async () => {
@@ -220,6 +220,19 @@ describe("ImportData", () => {
 
       expect(backupService.confirmPendingImport).toHaveBeenCalledTimes(1);
       expect(screen.getByTestId("restart-modal")).toHaveAttribute("data-includes-phoenixd-data", "true");
+    });
+
+    it("calls restartAppAfterImport with includesPhoenixdData true when the import included phoenixd data", async () => {
+      jest.spyOn(backupService, "importBackup").mockResolvedValue({ includesPhoenixdData: true });
+      render(<ImportData />);
+
+      await unlockSelectFileAndImport();
+      await act(async () => {
+        fireEvent.click(screen.getByText("cardImportData.lightningWalletWarningModal.confirmButton"));
+      });
+      fireEvent.click(screen.getByTestId("restart-modal-restart"));
+
+      expect(restartAppAfterImport).toHaveBeenCalledWith(true);
     });
 
     it("does not confirm the pending import when the Lightning wallet warning is cancelled", async () => {

@@ -128,7 +128,7 @@ export function RestoreFromBackupStep({ onBack }) {
       <RestartRequiredModal
         isOpen={showRestartModal}
         onManualClose={() => setShowRestartModal(false)}
-        onRestart={restartAppAfterImport}
+        onRestart={() => restartAppAfterImport(restoredIncludesPhoenixdData)}
         includesPhoenixdData={restoredIncludesPhoenixdData}
       />
     </div>

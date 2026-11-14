@@ -66,7 +66,7 @@ export function ImportData() {
       <RestartRequiredModal
         isOpen={showRestartModal}
         onManualClose={() => setShowRestartModal(false)}
-        onRestart={restartAppAfterImport}
+        onRestart={() => restartAppAfterImport(importedIncludesPhoenixdData)}
         includesPhoenixdData={importedIncludesPhoenixdData}
       />
     </>
