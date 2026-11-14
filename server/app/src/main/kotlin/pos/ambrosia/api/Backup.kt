@@ -26,6 +26,7 @@ import io.ktor.utils.io.readAvailable
 import kotlinx.coroutines.runBlocking
 import pos.ambrosia.logger
 import pos.ambrosia.models.BackupProgressPhase
+import pos.ambrosia.models.BackupUploadResponse
 import pos.ambrosia.models.RolePassword
 import pos.ambrosia.scheduleProcessRestart
 import pos.ambrosia.services.AuthService
@@ -174,7 +175,11 @@ fun Route.backup(
 
                 call.respond(
                     HttpStatusCode.OK,
-                    mapOf("message" to "Backup imported", "businessName" to importedManifest.businessName),
+                    BackupUploadResponse(
+                        message = "Backup imported",
+                        businessName = importedManifest.businessName,
+                        includesPhoenixdData = importedManifest.includesPhoenixdData,
+                    ),
                 )
             } catch (invalidBackup: IllegalArgumentException) {
                 call.respond(
